@@ -142,6 +142,9 @@ function parseDateText(dateText: string): Date | null {
   try {
     const [datePart, timePart] = dateText.split(", ");
     const [dayStr, monthStr, yearStr] = datePart.split(" ");
+    if (timePart === "All Day") {
+      return new Date(parseInt(yearStr), MONTHS.indexOf(monthStr), parseInt(dayStr), 12, 0);
+    }
     const [hourStr, minuteStr] = timePart.split(":");
     return new Date(parseInt(yearStr), MONTHS.indexOf(monthStr), parseInt(dayStr), parseInt(hourStr), parseInt(minuteStr));
   } catch { return null; }
@@ -286,12 +289,13 @@ function buildTimeSelect(session: EditSession, channelId: string): StringSelectM
   };
   if (session.timePage === "late") {
     select.addOptions(new StringSelectMenuOptionBuilder().setLabel("← Earlier").setValue("earlier"));
-    for (let t = 18 * 60; t <= 23 * 60 + 45; t += 15) addTime(t);
+    for (let t = 18 * 60; t <= 23 * 60 + 30; t += 15) addTime(t);
   } else if (session.timePage === "mid") {
     select.addOptions(new StringSelectMenuOptionBuilder().setLabel("← Earlier").setValue("earlier"));
     for (let t = 12 * 60 + 15; t <= 17 * 60 + 45; t += 15) addTime(t);
     select.addOptions(new StringSelectMenuOptionBuilder().setLabel("Later →").setValue("later"));
   } else {
+    select.addOptions(new StringSelectMenuOptionBuilder().setLabel("All Day").setValue("All Day").setDefault(session.time === "All Day"));
     for (let t = 6 * 60 + 30; t <= 12 * 60; t += 15) addTime(t);
     select.addOptions(new StringSelectMenuOptionBuilder().setLabel("Later →").setValue("later"));
   }
@@ -716,9 +720,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
       day: defaultDay,
       month: now.getMonth() + 1,
       year: now.getFullYear(),
-      time: "18:00",
+      time: "All Day",
       dayPage: defaultDay > 24 ? "high" : "low",
-      timePage: "late",
+      timePage: "early",
     };
     editSessions.set(channelId, session);
     await interaction.update({ content: buildEditDateContent(session), components: buildEditDateComponents(session, channelId) });
