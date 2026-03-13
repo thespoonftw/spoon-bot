@@ -12,6 +12,7 @@ import {
   GuildScheduledEventPrivacyLevel,
   Message,
   ModalBuilder,
+  OverwriteType,
   PermissionFlagsBits,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
@@ -39,6 +40,21 @@ client.once(Events.ClientReady, async (readyClient) => {
   if (eventStates.size > 0) {
     const guild = readyClient.guilds.cache.get(config.guildId);
     if (guild) {
+      for (const [channelId, state] of eventStates) {
+        const channel = guild.channels.cache.get(channelId);
+        if (channel && channel.type === ChannelType.GuildText) {
+          for (const [id, overwrite] of channel.permissionOverwrites.cache) {
+            if (overwrite.type !== OverwriteType.Member) continue;
+            if (!overwrite.allow.has(PermissionFlagsBits.ViewChannel)) continue;
+            if (state.members.has(id)) continue;
+            try {
+              const member = await guild.members.fetch(id);
+              state.members.set(id, { userId: id, displayName: member.displayName, status: 'lurking', plusOne: 0 });
+            } catch {}
+          }
+        }
+      }
+      persistState();
       for (const channelId of eventStates.keys()) {
         try { await updateEventMessages(guild, channelId); } catch (e) { console.error(`Failed to refresh ${channelId}:`, e); }
       }
@@ -349,7 +365,7 @@ async function updateJoinMessage(guild: Guild, channelId: string) {
   if (announcementChannel && announcementChannel.type === ChannelType.GuildText) {
     try {
       const joinMsg = await announcementChannel.messages.fetch(state.joinMessageId);
-      await joinMsg.edit({ embeds: [buildJoinEmbed(state, guild.iconURL())], components: joinMessageComponents(channelId, state.joiningEnabled) });
+      await joinMsg.edit({ content: '', embeds: [buildJoinEmbed(state, guild.iconURL())], components: joinMessageComponents(channelId, state.joiningEnabled) });
     } catch (e) { console.error("Failed to update join message:", e); }
   }
 }
@@ -361,7 +377,7 @@ async function updateInnerMessage(guild: Guild, channelId: string) {
   if (eventChannel && eventChannel.type === ChannelType.GuildText) {
     try {
       const pinMsg = await eventChannel.messages.fetch(state.pinMessageId);
-      await pinMsg.edit({ embeds: [buildInnerEmbed(state, guild.iconURL())], components: pinMessageComponents(channelId) });
+      await pinMsg.edit({ content: '', embeds: [buildInnerEmbed(state, guild.iconURL())], components: pinMessageComponents(channelId) });
     } catch (e) { console.error("Failed to update inner message:", e); }
   }
 }
@@ -377,7 +393,7 @@ async function updateEventMessages(guild: Guild, channelId: string) {
   else {
     try {
       const joinMsg = await announcementChannel.messages.fetch(state.joinMessageId);
-      await joinMsg.edit({ embeds: [buildJoinEmbed(state, iconUrl)], components: joinMessageComponents(channelId, state.joiningEnabled) });
+      await joinMsg.edit({ content: '', embeds: [buildJoinEmbed(state, iconUrl)], components: joinMessageComponents(channelId, state.joiningEnabled) });
     } catch (e) { console.error("Failed to update join message:", e); }
   }
 
@@ -388,7 +404,7 @@ async function updateEventMessages(guild: Guild, channelId: string) {
     try {
       await eventChannel.setTopic(state.description || null);
       const pinMsg = await eventChannel.messages.fetch(state.pinMessageId);
-      await pinMsg.edit({ embeds: [buildInnerEmbed(state, iconUrl)], components: pinMessageComponents(channelId) });
+      await pinMsg.edit({ content: '', embeds: [buildInnerEmbed(state, iconUrl)], components: pinMessageComponents(channelId) });
     } catch (e) { console.error("Failed to update inner message:", e); }
   }
 }
