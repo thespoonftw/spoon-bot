@@ -174,7 +174,7 @@ function buildJoinEmbed(state: EventState, thumbnailUrl?: string | null) {
   if (thumbnailUrl) embed.setThumbnail(thumbnailUrl);
   if (state.members.size > 0) {
     const mentions = [...state.members.values()].map(m => `<@${m.userId}>`).join(" ");
-    const totalCount = [...state.members.values()].reduce((sum, m) => sum + 1 + (m.plusOne ?? 0), 0);
+    const totalCount = state.members.size;
     embed.addFields({ name: `👥 ${totalCount} Interested`, value: mentions });
   }
   return embed;
@@ -196,7 +196,7 @@ function buildInnerEmbed(state: EventState, thumbnailUrl?: string | null) {
       const total = ids.reduce((sum, id) => sum + 1 + (state.members.get(id)?.plusOne ?? 0), 0);
       const lines = ids.map(id => {
         const m = state.members.get(id);
-        return m?.plusOne ? `- <@${id}> (+${m.plusOne})` : `- <@${id}>`;
+        return m?.plusOne ? `- <@${id}> +${m.plusOne}` : `- <@${id}>`;
       });
       return `**${label} (${total})**\n${lines.join("\n")}`;
     };
