@@ -1,6 +1,6 @@
 export const config = {
-  guildId: "1325197744830418944",
-  eventChannelId: "1478845792742674503",
-  eventCategoryId: "1356925166625751111",
-  requiredRoleId: "1479117378637004913",
+  guildId: process.env.GUILD_ID!,
+  eventChannelId: process.env.EVENT_CHANNEL_ID!,
+  eventCategoryId: process.env.EVENT_CATEGORY_ID!,
+  requiredRoleId: process.env.REQUIRED_ROLE_ID!,
 };
