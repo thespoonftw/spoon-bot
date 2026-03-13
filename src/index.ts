@@ -100,6 +100,7 @@ type EventState = {
   pinMessageId: string;
   joiningEnabled: boolean;
   scheduledEventId?: string;
+  endDateText?: string;
   creatorId?: string;
   members: Map<string, MemberEntry>;
 };
@@ -108,9 +109,9 @@ type EditSession = {
   day: number | null;
   month: number | null;
   year: number | null;
-  time: string | null;
+  time: string | null;       // "HH:MM", "All Day", or null
+  timeHour: number | null;   // null = show hour dropdown; 0-23 = show minute dropdown
   dayPage: "low" | "high";
-  timePage: "late" | "mid" | "early";
 };
 
 const eventStates = new Map<string, EventState>();
@@ -173,18 +174,12 @@ function sessionFromDateText(dateText: string): EditSession | null {
     const commaIdx = dateText.lastIndexOf(", ");
     const datePart = dateText.slice(0, commaIdx);
     const timePart = dateText.slice(commaIdx + 2);
-    const parts = datePart.split(" "); // ["Mon", "1", "January", "2026"]
+    const parts = datePart.split(" ");
     const day = parseInt(parts[1]);
     const month = MONTHS.indexOf(parts[2]) + 1;
     const year = parseInt(parts[3]);
     if (!day || !month || !year) return null;
-    let timePage: "early" | "mid" | "late" = "early";
-    if (timePart !== "All Day") {
-      const h = parseInt(timePart.split(":")[0]);
-      if (h >= 18) timePage = "late";
-      else if (h >= 12) timePage = "mid";
-    }
-    return { day, month, year, time: timePart, dayPage: day > 24 ? "high" : "low", timePage };
+    return { day, month, year, time: timePart, timeHour: null, dayPage: day > 24 ? "high" : "low" };
   } catch { return null; }
 }
 
@@ -194,13 +189,20 @@ const SPACER = "⠀".repeat(40);
 const JOIN_LABEL = "⠀".repeat(12) + "Join" + "⠀".repeat(12);
 const LEAVE_LABEL = "⠀".repeat(11) + "Leave" + "⠀".repeat(12);
 
-function buildDescText(description: string, location: string, dateText: string): string {
+function buildDescText(description: string, location: string, dateText: string, endDateText?: string): string {
   const parts: string[] = [];
+  let startDisplay = dateText;
+  if (endDateText && dateText.endsWith(", All Day")) {
+    startDisplay = dateText.slice(0, dateText.lastIndexOf(", All Day"));
+  }
   if (description) {
     parts.push(description);
-    parts.push(`\n📅 **When:** ${dateText}`);
+    parts.push(`\n📅 **${endDateText ? "From" : "When"}:** ${startDisplay}`);
   } else {
-    parts.push(`📅 **When:** ${dateText}`);
+    parts.push(`📅 **${endDateText ? "From" : "When"}:** ${startDisplay}`);
+  }
+  if (endDateText) {
+    parts.push(`\n🏁 **To:** ${endDateText}`);
   }
   parts.push(`\n📍 **Where:** ${location}`);
   parts.push(`\n${SPACER}`);
@@ -216,7 +218,7 @@ function buildJoinContent(state: EventState): string {
 function buildJoinEmbed(state: EventState, thumbnailUrl?: string | null) {
   const embed = new EmbedBuilder()
     .setTitle(state.eventName)
-    .setDescription(buildDescText(state.description, state.location, state.dateText))
+    .setDescription(buildDescText(state.description, state.location, state.dateText, state.endDateText))
     .setColor(0x5865F2);
   if (thumbnailUrl) embed.setThumbnail(thumbnailUrl);
   if (state.members.size > 0) {
@@ -230,7 +232,7 @@ function buildJoinEmbed(state: EventState, thumbnailUrl?: string | null) {
 function buildInnerEmbed(state: EventState, thumbnailUrl?: string | null) {
   const embed = new EmbedBuilder()
     .setTitle(state.eventName)
-    .setDescription(buildDescText(state.description, state.location, state.dateText))
+    .setDescription(buildDescText(state.description, state.location, state.dateText, state.endDateText))
     .setColor(0x5865F2);
   if (thumbnailUrl) embed.setThumbnail(thumbnailUrl);
 
@@ -293,13 +295,19 @@ function pinMessageComponents(channelId: string) {
   ];
 }
 
-function buildGearMenuComponents(channelId: string, joiningEnabled: boolean) {
+function buildGearMenuComponents(channelId: string, joiningEnabled: boolean, dateText: string) {
+  const row1: ButtonBuilder[] = [
+    new ButtonBuilder().setCustomId(`edit_open_date_${channelId}`).setLabel("Edit Date/Time").setStyle(ButtonStyle.Primary),
+  ];
+  if (dateText !== "TBC") {
+    row1.push(new ButtonBuilder().setCustomId(`edit_open_enddate_${channelId}`).setLabel("Edit End Date/Time").setStyle(ButtonStyle.Primary));
+  }
+  row1.push(
+    new ButtonBuilder().setCustomId(`edit_open_desc_${channelId}`).setLabel("Edit Description").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`gear_generate_${channelId}`).setLabel("Generate Discord Event").setStyle(ButtonStyle.Primary),
+  );
   return [
-    new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId(`edit_open_date_${channelId}`).setLabel("Edit Date").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`edit_open_desc_${channelId}`).setLabel("Edit Description").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`gear_generate_${channelId}`).setLabel("Generate Event").setStyle(ButtonStyle.Primary),
-    ),
+    new ActionRowBuilder<ButtonBuilder>().addComponents(...row1),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`gear_toggle_join_${channelId}`).setLabel(joiningEnabled ? "Disable Joining" : "Enable Joining").setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId(`gear_delete_ask_${channelId}`).setLabel("Delete Event").setStyle(ButtonStyle.Danger),
@@ -316,40 +324,43 @@ function backRow(channelId: string) {
 
 // ─── Edit date picker ─────────────────────────────────────────────────────────
 
-function buildEditDateContent(session: EditSession): string {
+function buildEditDateContent(session: EditSession, endMode: boolean = false): string {
   const day = session.day ? `${session.day}` : "?";
   const month = session.month ? MONTHS[session.month - 1] : "?";
   const year = session.year ? `${session.year}` : "?";
-  const time = session.time ?? "?";
-  return `**Setting date:** ${day} ${month} ${year}, ${time}`;
+  const time = session.time ?? (session.timeHour !== null ? `${session.timeHour.toString().padStart(2, "0")}:?` : "?");
+  return `**Setting ${endMode ? "end " : ""}date:** ${day} ${month} ${year}, ${time}`;
 }
 
-function buildTimeSelect(session: EditSession, channelId: string): StringSelectMenuBuilder {
-  const select = new StringSelectMenuBuilder().setCustomId(`edit_time_${channelId}`).setPlaceholder("Time");
-  const addTime = (total: number) => {
-    const h = Math.floor(total / 60);
-    const m = total % 60;
-    const t = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
-    select.addOptions(new StringSelectMenuOptionBuilder().setLabel(t).setValue(t).setDefault(session.time === t));
-  };
-  if (session.timePage === "late") {
-    select.addOptions(new StringSelectMenuOptionBuilder().setLabel("← Earlier").setValue("earlier"));
-    for (let t = 18 * 60; t <= 23 * 60 + 30; t += 15) addTime(t);
-  } else if (session.timePage === "mid") {
-    select.addOptions(new StringSelectMenuOptionBuilder().setLabel("← Earlier").setValue("earlier"));
-    for (let t = 12 * 60 + 15; t <= 17 * 60 + 45; t += 15) addTime(t);
-    select.addOptions(new StringSelectMenuOptionBuilder().setLabel("Later →").setValue("later"));
-  } else {
-    select.addOptions(new StringSelectMenuOptionBuilder().setLabel("All Day").setValue("All Day").setDefault(session.time === "All Day"));
-    for (let t = 6 * 60 + 30; t <= 12 * 60; t += 15) addTime(t);
-    select.addOptions(new StringSelectMenuOptionBuilder().setLabel("Later →").setValue("later"));
+function buildHourSelect(session: EditSession, channelId: string, endMode: boolean): StringSelectMenuBuilder {
+  const customId = `edit_${endMode ? "end" : ""}time_${channelId}`;
+  const select = new StringSelectMenuBuilder().setCustomId(customId).setPlaceholder("Select time");
+  const currentHour = (session.time && session.time !== "All Day") ? parseInt(session.time.split(":")[0]) : null;
+  select.addOptions(new StringSelectMenuOptionBuilder().setLabel("All Day").setValue("allday").setDefault(session.time === "All Day"));
+  for (let h = 0; h <= 23; h++) {
+    const label = `${h.toString().padStart(2, "0")}:00`;
+    select.addOptions(new StringSelectMenuOptionBuilder().setLabel(label).setValue(`hour_${h}`).setDefault(currentHour === h && session.timeHour === null));
   }
   return select;
 }
 
-function buildEditDateComponents(session: EditSession, channelId: string) {
+function buildMinuteSelect(session: EditSession, channelId: string, endMode: boolean): StringSelectMenuBuilder {
+  const customId = `edit_${endMode ? "end" : ""}time_${channelId}`;
+  const h = session.timeHour!;
+  const hStr = h.toString().padStart(2, "0");
+  const select = new StringSelectMenuBuilder().setCustomId(customId).setPlaceholder("Select minutes");
+  select.addOptions(new StringSelectMenuOptionBuilder().setLabel("← Return").setValue("return"));
+  for (const m of [0, 15, 30, 45]) {
+    const t = `${hStr}:${m.toString().padStart(2, "0")}`;
+    select.addOptions(new StringSelectMenuOptionBuilder().setLabel(t).setValue(t).setDefault(session.time === t));
+  }
+  return select;
+}
+
+function buildEditDateComponents(session: EditSession, channelId: string, endMode: boolean = false) {
+  const p = endMode ? "end" : "";
   const maxDays = maxDaysInMonth(session.month, session.year);
-  const daySelect = new StringSelectMenuBuilder().setCustomId(`edit_day_${channelId}`).setPlaceholder("Day");
+  const daySelect = new StringSelectMenuBuilder().setCustomId(`edit_${p}day_${channelId}`).setPlaceholder("Day");
   if (session.dayPage === "low") {
     const limit = Math.min(24, maxDays);
     for (let i = 1; i <= limit; i++) {
@@ -363,24 +374,33 @@ function buildEditDateComponents(session: EditSession, channelId: string) {
     daySelect.addOptions(new StringSelectMenuOptionBuilder().setLabel("← 1–24").setValue("back"));
   }
 
-  const monthSelect = new StringSelectMenuBuilder().setCustomId(`edit_month_${channelId}`).setPlaceholder("Month");
+  const monthSelect = new StringSelectMenuBuilder().setCustomId(`edit_${p}month_${channelId}`).setPlaceholder("Month");
   MONTHS.forEach((m, i) => monthSelect.addOptions(new StringSelectMenuOptionBuilder().setLabel(m).setValue(`${i + 1}`).setDefault(session.month === i + 1)));
 
   const currentYear = new Date().getFullYear();
-  const yearSelect = new StringSelectMenuBuilder().setCustomId(`edit_year_${channelId}`).setPlaceholder("Year");
+  const yearSelect = new StringSelectMenuBuilder().setCustomId(`edit_${p}year_${channelId}`).setPlaceholder("Year");
   for (let y = currentYear; y <= currentYear + 4; y++) {
     yearSelect.addOptions(new StringSelectMenuOptionBuilder().setLabel(`${y}`).setValue(`${y}`).setDefault(session.year === y));
   }
+
+  const timeRow = session.timeHour !== null
+    ? new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(buildMinuteSelect(session, channelId, endMode))
+    : new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(buildHourSelect(session, channelId, endMode));
+
+  const confirmId = endMode ? `edit_endconfirm_${channelId}` : `edit_confirm_${channelId}`;
+  const removeId = endMode ? `edit_endremove_${channelId}` : `edit_tbc_${channelId}`;
+  const cancelId = endMode ? `edit_endcancel_${channelId}` : `edit_cancel_${channelId}`;
+  const removeLabel = endMode ? "Remove End Date" : "Set to TBC";
 
   return [
     new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(daySelect),
     new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(monthSelect),
     new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(yearSelect),
-    new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(buildTimeSelect(session, channelId)),
+    timeRow,
     new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId(`edit_confirm_${channelId}`).setLabel("Confirm").setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId(`edit_tbc_${channelId}`).setLabel("Set to TBC").setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId(`edit_cancel_${channelId}`).setLabel("Cancel").setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId(confirmId).setLabel("Confirm").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(removeId).setLabel(removeLabel).setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId(cancelId).setLabel("Cancel").setStyle(ButtonStyle.Secondary),
     ),
   ];
 }
@@ -630,7 +650,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await interaction.reply({
       ephemeral: true,
       content: "What would you like to do?",
-      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true),
+      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true, state?.dateText ?? "TBC"),
     });
   }
 
@@ -646,7 +666,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const state = eventStates.get(channelId);
     await interaction.update({
       content: "What would you like to do?",
-      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true),
+      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true, state?.dateText ?? "TBC"),
     });
   }
 
@@ -760,7 +780,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const state = eventStates.get(channelId);
     await interaction.update({
       content: "What would you like to do?",
-      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true),
+      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true, state?.dateText ?? "TBC"),
     });
   }
 
@@ -770,15 +790,22 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const state = eventStates.get(channelId);
     const existing = state ? sessionFromDateText(state.dateText) : null;
     const session: EditSession = existing ?? {
-      day: null,
-      month: null,
-      year: null,
-      time: "All Day",
-      dayPage: "low",
-      timePage: "early",
+      day: null, month: null, year: null, time: null, timeHour: null, dayPage: "low",
     };
     editSessions.set(channelId, session);
     await interaction.update({ content: buildEditDateContent(session), components: buildEditDateComponents(session, channelId) });
+  }
+
+  // Edit End Date
+  if (interaction.isButton() && interaction.customId.startsWith("edit_open_enddate_")) {
+    const channelId = interaction.customId.slice("edit_open_enddate_".length);
+    const state = eventStates.get(channelId);
+    const existing = state?.endDateText ? sessionFromDateText(state.endDateText) : null;
+    const session: EditSession = existing ?? {
+      day: null, month: null, year: null, time: null, timeHour: null, dayPage: "low",
+    };
+    editSessions.set(`end_${channelId}`, session);
+    await interaction.update({ content: buildEditDateContent(session, true), components: buildEditDateComponents(session, channelId, true) });
   }
 
   // Edit Description
@@ -835,6 +862,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await interaction.update({ content: buildEditDateContent(session), components: buildEditDateComponents(session, channelId) });
   }
 
+  if (interaction.isStringSelectMenu() && interaction.customId.startsWith("edit_endday_")) {
+    const channelId = interaction.customId.slice("edit_endday_".length);
+    const session = editSessions.get(`end_${channelId}`);
+    if (!session) { await interaction.update({ content: "Session expired.", components: [] }); return; }
+    const value = interaction.values[0];
+    if (value === "more") { session.dayPage = "high"; }
+    else if (value === "back") { session.dayPage = "low"; session.day = null; }
+    else { session.day = parseInt(value); }
+    await interaction.update({ content: buildEditDateContent(session, true), components: buildEditDateComponents(session, channelId, true) });
+  }
+
   // Month select
   if (interaction.isStringSelectMenu() && interaction.customId.startsWith("edit_month_")) {
     const channelId = interaction.customId.slice("edit_month_".length);
@@ -845,6 +883,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (session.day && session.day > max) { session.day = null; session.dayPage = "low"; }
     if (session.dayPage === "high" && max <= 24) session.dayPage = "low";
     await interaction.update({ content: buildEditDateContent(session), components: buildEditDateComponents(session, channelId) });
+  }
+
+  if (interaction.isStringSelectMenu() && interaction.customId.startsWith("edit_endmonth_")) {
+    const channelId = interaction.customId.slice("edit_endmonth_".length);
+    const session = editSessions.get(`end_${channelId}`);
+    if (!session) { await interaction.update({ content: "Session expired.", components: [] }); return; }
+    session.month = parseInt(interaction.values[0]);
+    const max = maxDaysInMonth(session.month, session.year);
+    if (session.day && session.day > max) { session.day = null; session.dayPage = "low"; }
+    if (session.dayPage === "high" && max <= 24) session.dayPage = "low";
+    await interaction.update({ content: buildEditDateContent(session, true), components: buildEditDateComponents(session, channelId, true) });
   }
 
   // Year select
@@ -859,22 +908,64 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await interaction.update({ content: buildEditDateContent(session), components: buildEditDateComponents(session, channelId) });
   }
 
-  // Time select (handles Earlier/Later navigation too)
+  if (interaction.isStringSelectMenu() && interaction.customId.startsWith("edit_endyear_")) {
+    const channelId = interaction.customId.slice("edit_endyear_".length);
+    const session = editSessions.get(`end_${channelId}`);
+    if (!session) { await interaction.update({ content: "Session expired.", components: [] }); return; }
+    session.year = parseInt(interaction.values[0]);
+    const max = maxDaysInMonth(session.month, session.year);
+    if (session.day && session.day > max) { session.day = null; session.dayPage = "low"; }
+    if (session.dayPage === "high" && max <= 24) session.dayPage = "low";
+    await interaction.update({ content: buildEditDateContent(session, true), components: buildEditDateComponents(session, channelId, true) });
+  }
+
+  // Time select
   if (interaction.isStringSelectMenu() && interaction.customId.startsWith("edit_time_")) {
     const channelId = interaction.customId.slice("edit_time_".length);
     const session = editSessions.get(channelId);
     if (!session) { await interaction.update({ content: "Session expired.", components: [] }); return; }
     const value = interaction.values[0];
-    if (value === "earlier") {
-      if (session.timePage === "late") session.timePage = "mid";
-      else if (session.timePage === "mid") session.timePage = "early";
-    } else if (value === "later") {
-      if (session.timePage === "early") session.timePage = "mid";
-      else if (session.timePage === "mid") session.timePage = "late";
+    if (value === "allday") {
+      session.time = "All Day";
+      session.timeHour = null;
+    } else if (value.startsWith("hour_")) {
+      const h = parseInt(value.slice(5));
+      if (session.time && session.time !== "All Day" && parseInt(session.time.split(":")[0]) !== h) {
+        session.time = null;
+      } else if (!session.time || session.time === "All Day") {
+        session.time = null;
+      }
+      session.timeHour = h;
+    } else if (value === "return") {
+      session.timeHour = null;
     } else {
       session.time = value;
     }
     await interaction.update({ content: buildEditDateContent(session), components: buildEditDateComponents(session, channelId) });
+  }
+
+  if (interaction.isStringSelectMenu() && interaction.customId.startsWith("edit_endtime_")) {
+    const channelId = interaction.customId.slice("edit_endtime_".length);
+    const session = editSessions.get(`end_${channelId}`);
+    if (!session) { await interaction.update({ content: "Session expired.", components: [] }); return; }
+    const value = interaction.values[0];
+    if (value === "allday") {
+      session.time = "All Day";
+      session.timeHour = null;
+    } else if (value.startsWith("hour_")) {
+      const h = parseInt(value.slice(5));
+      if (session.time && session.time !== "All Day" && parseInt(session.time.split(":")[0]) !== h) {
+        session.time = null;
+      } else if (!session.time || session.time === "All Day") {
+        session.time = null;
+      }
+      session.timeHour = h;
+    } else if (value === "return") {
+      session.timeHour = null;
+    } else {
+      session.time = value;
+    }
+    await interaction.update({ content: buildEditDateContent(session, true), components: buildEditDateComponents(session, channelId, true) });
   }
 
   // Confirm date
@@ -942,6 +1033,55 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (interaction.isButton() && interaction.customId.startsWith("edit_cancel_")) {
     const channelId = interaction.customId.slice("edit_cancel_".length);
     editSessions.delete(channelId);
+    await interaction.deferUpdate();
+    await interaction.deleteReply();
+  }
+
+  // Confirm end date
+  if (interaction.isButton() && interaction.customId.startsWith("edit_endconfirm_")) {
+    const channelId = interaction.customId.slice("edit_endconfirm_".length);
+    const session = editSessions.get(`end_${channelId}`);
+    if (!session || !interaction.guild) { await interaction.update({ content: "Session expired.", components: [] }); return; }
+    if (!session.day || !session.month || !session.year || !session.time) {
+      await interaction.update({ content: "Please select a day, month, year, and time first.", components: buildEditDateComponents(session, channelId, true) });
+      return;
+    }
+    const d = session.time === "All Day"
+      ? new Date(session.year, session.month - 1, session.day)
+      : (() => { const [h, m] = session.time!.split(":").map(Number); return new Date(session.year, session.month - 1, session.day, h, m); })();
+    const dayOfWeek = DAYS[d.getDay()];
+    const endDateText = `${dayOfWeek} ${session.day} ${MONTHS[session.month - 1]} ${session.year}, ${session.time}`;
+    const state = eventStates.get(channelId);
+    editSessions.delete(`end_${channelId}`);
+    if (state) state.endDateText = endDateText;
+    persistState();
+    try { await interaction.deferUpdate(); } catch {}
+    await updateEventMessages(interaction.guild, channelId);
+    try { await interaction.deleteReply(); } catch {}
+    const eventChannel = interaction.guild.channels.cache.get(channelId);
+    if (eventChannel && eventChannel.type === ChannelType.GuildText) {
+      const member = interaction.guild.members.cache.get(interaction.user.id);
+      const displayName = member?.displayName ?? interaction.user.displayName;
+      await eventChannel.send(`🏁 **${displayName}** set the end date to **${endDateText}**.`);
+    }
+  }
+
+  // Remove end date
+  if (interaction.isButton() && interaction.customId.startsWith("edit_endremove_")) {
+    const channelId = interaction.customId.slice("edit_endremove_".length);
+    const state = eventStates.get(channelId);
+    if (!state || !interaction.guild) { await interaction.update({ content: "Session expired.", components: [] }); return; }
+    editSessions.delete(`end_${channelId}`);
+    state.endDateText = undefined;
+    persistState();
+    await updateEventMessages(interaction.guild, channelId);
+    await interaction.deleteReply();
+  }
+
+  // Cancel end date
+  if (interaction.isButton() && interaction.customId.startsWith("edit_endcancel_")) {
+    const channelId = interaction.customId.slice("edit_endcancel_".length);
+    editSessions.delete(`end_${channelId}`);
     await interaction.deferUpdate();
     await interaction.deleteReply();
   }
