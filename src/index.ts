@@ -364,11 +364,13 @@ async function updateInnerMessage(guild: Guild, channelId: string) {
 
 async function updateEventMessages(guild: Guild, channelId: string) {
   const state = eventStates.get(channelId);
-  if (!state) return;
+  if (!state) { console.error(`updateEventMessages: no state for ${channelId}`); return; }
   const iconUrl = guild.iconURL();
 
   const announcementChannel = guild.channels.cache.get(config.eventChannelId);
-  if (announcementChannel && announcementChannel.type === ChannelType.GuildText) {
+  if (!announcementChannel) { console.error(`updateEventMessages: announcement channel ${config.eventChannelId} not in cache`); }
+  else if (announcementChannel.type !== ChannelType.GuildText) { console.error(`updateEventMessages: announcement channel wrong type ${announcementChannel.type}`); }
+  else {
     try {
       const joinMsg = await announcementChannel.messages.fetch(state.joinMessageId);
       await joinMsg.edit({ embeds: [buildJoinEmbed(state, iconUrl)], components: joinMessageComponents(channelId, state.joiningEnabled) });
@@ -376,7 +378,9 @@ async function updateEventMessages(guild: Guild, channelId: string) {
   }
 
   const eventChannel = guild.channels.cache.get(channelId);
-  if (eventChannel && eventChannel.type === ChannelType.GuildText) {
+  if (!eventChannel) { console.error(`updateEventMessages: event channel ${channelId} not in cache`); }
+  else if (eventChannel.type !== ChannelType.GuildText) { console.error(`updateEventMessages: event channel wrong type ${eventChannel.type}`); }
+  else {
     try {
       await eventChannel.setTopic(state.description || null);
       const pinMsg = await eventChannel.messages.fetch(state.pinMessageId);
