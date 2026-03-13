@@ -684,21 +684,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await interaction.deferUpdate();
 
     const state = eventStates.get(channelId);
-    if (state && !state.scheduledEventId) {
-      try {
-        const event = await interaction.guild.scheduledEvents.create({
-          name: state.eventName,
-          scheduledStartTime: startDate,
-          scheduledEndTime: endDate,
-          entityType: GuildScheduledEventEntityType.External,
-          privacyLevel: GuildScheduledEventPrivacyLevel.GuildOnly,
-          entityMetadata: { location: state.location },
-          description: state.description || undefined,
-        });
-        state.scheduledEventId = event.id;
-      } catch (e) { console.error("Failed to create scheduled event:", e); }
-    }
-
     editSessions.delete(channelId);
     if (state) state.dateText = dateText;
     await updateEventMessages(interaction.guild, channelId);
