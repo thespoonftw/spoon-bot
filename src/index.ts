@@ -801,7 +801,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const channelId = interaction.customId.slice("edit_open_enddate_".length);
     const state = eventStates.get(channelId);
     const existing = state?.endDateText ? sessionFromDateText(state.endDateText) : null;
-    const session: EditSession = existing ?? {
+    const session: EditSession = existing ?? sessionFromDateText(state?.dateText ?? "TBC") ?? {
       day: null, month: null, year: null, time: null, timeHour: null, dayPage: "low",
     };
     editSessions.set(`end_${channelId}`, session);
