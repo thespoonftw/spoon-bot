@@ -100,6 +100,7 @@ type EventState = {
   pinMessageId: string;
   joiningEnabled: boolean;
   scheduledEventId?: string;
+  creatorId?: string;
   members: Map<string, MemberEntry>;
 };
 
@@ -166,6 +167,27 @@ function parseDateText(dateText: string): Date | null {
   } catch { return null; }
 }
 
+function sessionFromDateText(dateText: string): EditSession | null {
+  if (dateText === "TBC") return null;
+  try {
+    const commaIdx = dateText.lastIndexOf(", ");
+    const datePart = dateText.slice(0, commaIdx);
+    const timePart = dateText.slice(commaIdx + 2);
+    const parts = datePart.split(" "); // ["Mon", "1", "January", "2026"]
+    const day = parseInt(parts[1]);
+    const month = MONTHS.indexOf(parts[2]) + 1;
+    const year = parseInt(parts[3]);
+    if (!day || !month || !year) return null;
+    let timePage: "early" | "mid" | "late" = "early";
+    if (timePart !== "All Day") {
+      const h = parseInt(timePart.split(":")[0]);
+      if (h >= 18) timePage = "late";
+      else if (h >= 12) timePage = "mid";
+    }
+    return { day, month, year, time: timePart, dayPage: day > 24 ? "high" : "low", timePage };
+  } catch { return null; }
+}
+
 // ─── Embed / component builders ───────────────────────────────────────────────
 
 const SPACER = "⠀".repeat(40);
@@ -183,6 +205,12 @@ function buildDescText(description: string, location: string, dateText: string):
   parts.push(`\n📍 **Where:** ${location}`);
   parts.push(`\n${SPACER}`);
   return parts.join("\n");
+}
+
+function buildJoinContent(state: EventState): string {
+  if (!state.joiningEnabled) return "Joining this event is now closed.";
+  if (state.creatorId) return `@everyone <@${state.creatorId}> created an event. Click to join!`;
+  return "@everyone Click to join!";
 }
 
 function buildJoinEmbed(state: EventState, thumbnailUrl?: string | null) {
@@ -233,8 +261,9 @@ function buildInnerEmbed(state: EventState, thumbnailUrl?: string | null) {
 }
 
 function joinMessageComponents(channelId: string, joiningEnabled: boolean) {
+  if (!joiningEnabled) return [];
   return [new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`join_event_${channelId}`).setLabel(JOIN_LABEL).setStyle(ButtonStyle.Primary).setDisabled(!joiningEnabled),
+    new ButtonBuilder().setCustomId(`join_event_${channelId}`).setLabel(JOIN_LABEL).setStyle(ButtonStyle.Primary),
   )];
 }
 
@@ -365,7 +394,7 @@ async function updateJoinMessage(guild: Guild, channelId: string) {
   if (announcementChannel && announcementChannel.type === ChannelType.GuildText) {
     try {
       const joinMsg = await announcementChannel.messages.fetch(state.joinMessageId);
-      await joinMsg.edit({ content: '', embeds: [buildJoinEmbed(state, guild.iconURL())], components: joinMessageComponents(channelId, state.joiningEnabled) });
+      await joinMsg.edit({ content: buildJoinContent(state), embeds: [buildJoinEmbed(state, guild.iconURL())], components: joinMessageComponents(channelId, state.joiningEnabled) });
     } catch (e) { console.error("Failed to update join message:", e); }
   }
 }
@@ -393,7 +422,7 @@ async function updateEventMessages(guild: Guild, channelId: string) {
   else {
     try {
       const joinMsg = await announcementChannel.messages.fetch(state.joinMessageId);
-      await joinMsg.edit({ content: '', embeds: [buildJoinEmbed(state, iconUrl)], components: joinMessageComponents(channelId, state.joiningEnabled) });
+      await joinMsg.edit({ content: buildJoinContent(state), embeds: [buildJoinEmbed(state, iconUrl)], components: joinMessageComponents(channelId, state.joiningEnabled) });
     } catch (e) { console.error("Failed to update join message:", e); }
   }
 
@@ -484,6 +513,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       joinMessageId: "", pinMessageId: "",
       joiningEnabled: true, members: new Map(),
     };
+    state.creatorId = interaction.user.id;
     state.members.set(interaction.user.id, { userId: interaction.user.id, displayName: creatorName, status: "lurking", plusOne: 0 });
 
     const pinMsg = await eventChannel.send({
@@ -497,7 +527,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     let joinMsgId = "";
     if (announcementChannel && announcementChannel.isSendable()) {
       const joinMsg = await announcementChannel.send({
-        content: `@everyone **${creatorName}** created an event. Click to join!`,
+        content: buildJoinContent(state),
         embeds: [buildJoinEmbed(state, iconUrl)],
         components: joinMessageComponents(eventChannel.id, true),
       });
@@ -560,6 +590,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       joinMessageId: "", pinMessageId: "",
       joiningEnabled: true, members: new Map(),
     };
+    state.creatorId = interaction.user.id;
     state.members.set(interaction.user.id, { userId: interaction.user.id, displayName: creatorName, status: "lurking", plusOne: 0 });
 
     const pinMsg = await channel.send({
@@ -573,7 +604,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     let joinMsgId = "";
     if (announcementChannel && announcementChannel.isSendable()) {
       const joinMsg = await announcementChannel.send({
-        content: `@everyone **${creatorName}** created an event. Click to join!`,
+        content: buildJoinContent(state),
         embeds: [buildJoinEmbed(state, iconUrl)],
         components: joinMessageComponents(channel.id, true),
       });
@@ -667,6 +698,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
       content: `Joining is now **${state.joiningEnabled ? "enabled" : "disabled"}**.`,
       components: [backRow(channelId)],
     });
+    const member = interaction.guild.members.cache.get(interaction.user.id);
+    const displayName = member?.displayName ?? interaction.user.displayName;
+    const eventChannel = interaction.guild.channels.cache.get(channelId);
+    if (eventChannel && eventChannel.type === ChannelType.GuildText) {
+      await eventChannel.send(state.joiningEnabled
+        ? `✅ **${displayName}** has re-opened joining for this event.`
+        : `🚫 **${displayName}** has closed joining for this event.`);
+    }
   }
 
   // Delete Event — show confirmation
@@ -730,14 +769,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
   // Edit Date
   if (interaction.isButton() && interaction.customId.startsWith("edit_open_date_")) {
     const channelId = interaction.customId.slice("edit_open_date_".length);
-    const now = new Date();
-    const defaultDay = now.getDate();
-    const session: EditSession = {
-      day: defaultDay,
-      month: now.getMonth() + 1,
-      year: now.getFullYear(),
+    const state = eventStates.get(channelId);
+    const existing = state ? sessionFromDateText(state.dateText) : null;
+    const session: EditSession = existing ?? {
+      day: null,
+      month: null,
+      year: null,
       time: "All Day",
-      dayPage: defaultDay > 24 ? "high" : "low",
+      dayPage: "low",
       timePage: "early",
     };
     editSessions.set(channelId, session);
@@ -750,6 +789,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const state = eventStates.get(channelId);
     const modal = new ModalBuilder().setCustomId(`edit_desc_modal_${channelId}`).setTitle("Edit Event");
     modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("event_name").setLabel("Event name").setStyle(TextInputStyle.Short).setRequired(true).setValue(state?.eventName ?? "")
+      ),
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder().setCustomId("event_desc").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setValue(state?.description ?? "")
       ),
@@ -768,12 +810,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
       await interaction.reply({ content: "Event state not found — was the bot restarted?", ephemeral: true });
       return;
     }
+    state.eventName = interaction.fields.getTextInputValue("event_name").trim();
     state.description = interaction.fields.getTextInputValue("event_desc").trim();
     state.location = interaction.fields.getTextInputValue("event_location").trim();
     persistState();
     await interaction.deferReply({ ephemeral: true });
     await updateEventMessages(interaction.guild, channelId);
     await interaction.deleteReply();
+    const member = interaction.guild.members.cache.get(interaction.user.id);
+    const displayName = member?.displayName ?? interaction.user.displayName;
+    const eventChannel = interaction.guild.channels.cache.get(channelId);
+    if (eventChannel && eventChannel.type === ChannelType.GuildText) {
+      await eventChannel.send(`✏️ **${displayName}** updated the event details.`);
+    }
   }
 
   // Day select
@@ -840,11 +889,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
-    const [hour, minute] = session.time.split(":").map(Number);
-    const startDate = new Date(session.year, session.month - 1, session.day, hour, minute);
-    const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
-    const dayOfWeek = DAYS[startDate.getDay()];
-    const dateText = `${dayOfWeek} ${session.day} ${MONTHS[session.month - 1]} ${session.year}, ${session.time}`;
+    let dayOfWeek: string;
+    let dateText: string;
+    if (session.time === "All Day") {
+      const d = new Date(session.year, session.month - 1, session.day);
+      dayOfWeek = DAYS[d.getDay()];
+      dateText = `${dayOfWeek} ${session.day} ${MONTHS[session.month - 1]} ${session.year}, All Day`;
+    } else {
+      const [hour, minute] = session.time.split(":").map(Number);
+      const startDate = new Date(session.year, session.month - 1, session.day, hour, minute);
+      dayOfWeek = DAYS[startDate.getDay()];
+      dateText = `${dayOfWeek} ${session.day} ${MONTHS[session.month - 1]} ${session.year}, ${session.time}`;
+    }
 
     const state = eventStates.get(channelId);
     editSessions.delete(channelId);
@@ -855,9 +911,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await updateEventMessages(interaction.guild, channelId);
     try { await interaction.deleteReply(); } catch {}
 
+    const member = interaction.guild.members.cache.get(interaction.user.id);
+    const displayName = member?.displayName ?? interaction.user.displayName;
     const eventChannel = interaction.guild.channels.cache.get(channelId);
     if (eventChannel && eventChannel.type === ChannelType.GuildText) {
-      await eventChannel.send(`📅 The event date has been set to **${dateText}**.`);
+      await eventChannel.send(`📅 **${displayName}** updated the event date to **${dateText}**.`);
     }
   }
 
