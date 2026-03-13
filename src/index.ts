@@ -157,7 +157,7 @@ function buildDescText(description: string, location: string, dateText: string):
   const parts: string[] = [];
   if (description) {
     parts.push(description);
-    parts.push(`\n\n\n📅 **When:** ${dateText}`);
+    parts.push(`\n📅 **When:** ${dateText}`);
   } else {
     parts.push(`📅 **When:** ${dateText}`);
   }
