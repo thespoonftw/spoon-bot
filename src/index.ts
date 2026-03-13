@@ -38,10 +38,11 @@ client.once(Events.ClientReady, (readyClient) => {
 client.on(Events.MessageCreate, (message: Message) => {
   if (message.author.bot) return;
 
-  const match = message.content.match(/himiko([!?.,]*)/i);
+  const botName = process.env.BOT_NAME ?? "bot";
+  const match = message.content.match(new RegExp(`(${botName})([!?.,]*)`, "i"));
   if (match && message.channel.isSendable()) {
-    const word = match[0].replace(/[!?.,]*$/, "");
-    const punct = match[1];
+    const word = match[1];
+    const punct = match[2];
     let woof: string;
     if (word === word.toUpperCase()) woof = "WOOF";
     else if (word[0] === word[0].toUpperCase()) woof = "Woof";
