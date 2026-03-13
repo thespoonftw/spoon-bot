@@ -694,10 +694,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     persistState();
     await updateJoinMessage(interaction.guild, channelId);
 
-    await interaction.update({
-      content: `Joining is now **${state.joiningEnabled ? "enabled" : "disabled"}**.`,
-      components: [backRow(channelId)],
-    });
+    await interaction.deferUpdate();
+    await interaction.deleteReply();
     const member = interaction.guild.members.cache.get(interaction.user.id);
     const displayName = member?.displayName ?? interaction.user.displayName;
     const eventChannel = interaction.guild.channels.cache.get(channelId);
