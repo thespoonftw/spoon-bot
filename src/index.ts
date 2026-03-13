@@ -276,6 +276,7 @@ function buildEditDateComponents(session: EditSession, channelId: string) {
     new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(buildTimeSelect(session, channelId)),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`edit_confirm_${channelId}`).setLabel("Confirm").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`edit_tbc_${channelId}`).setLabel("Set to TBC").setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId(`edit_cancel_${channelId}`).setLabel("Cancel").setStyle(ButtonStyle.Secondary),
     ),
   ];
@@ -700,6 +701,31 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (state) state.dateText = dateText;
     await updateEventMessages(interaction.guild, channelId);
     await interaction.deleteReply();
+
+    const eventChannel = interaction.guild.channels.cache.get(channelId);
+    if (eventChannel && eventChannel.type === ChannelType.GuildText) {
+      await eventChannel.send(`📅 The event date has been set to **${dateText}**.`);
+    }
+  }
+
+  // Set date to TBC
+  if (interaction.isButton() && interaction.customId.startsWith("edit_tbc_")) {
+    const channelId = interaction.customId.slice("edit_tbc_".length);
+    const state = eventStates.get(channelId);
+    if (!state || !interaction.guild) { await interaction.update({ content: "Session expired.", components: [] }); return; }
+
+    editSessions.delete(channelId);
+    const hadDate = state.dateText !== "TBC";
+    state.dateText = "TBC";
+    await updateEventMessages(interaction.guild, channelId);
+    await interaction.deleteReply();
+
+    if (hadDate) {
+      const eventChannel = interaction.guild.channels.cache.get(channelId);
+      if (eventChannel && eventChannel.type === ChannelType.GuildText) {
+        await eventChannel.send(`📅 The event date has been reset to **TBC**.`);
+      }
+    }
   }
 
   // Cancel date
