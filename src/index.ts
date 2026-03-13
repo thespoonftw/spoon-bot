@@ -424,7 +424,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     state.joinMessageId = joinMsgId;
     state.pinMessageId = pinMsg.id;
     eventStates.set(eventChannel.id, state);
-    await interaction.deleteReply();
+    await interaction.editReply({ content: "Event created! Use the ⚙ button inside the channel to set the date when you're ready." });
   }
 
   // ⚙ gear menu
