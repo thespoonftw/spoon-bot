@@ -72,6 +72,7 @@ type MemberEntry = {
   userId: string;
   displayName: string;
   status: RSVPStatus;
+  plusOne: number;
 };
 
 type EventState = {
@@ -173,7 +174,8 @@ function buildJoinEmbed(state: EventState, thumbnailUrl?: string | null) {
   if (thumbnailUrl) embed.setThumbnail(thumbnailUrl);
   if (state.members.size > 0) {
     const mentions = [...state.members.values()].map(m => `<@${m.userId}>`).join(" ");
-    embed.addFields({ name: `👥 ${state.members.size} Interested`, value: mentions });
+    const totalCount = [...state.members.values()].reduce((sum, m) => sum + 1 + (m.plusOne ?? 0), 0);
+    embed.addFields({ name: `👥 ${totalCount} Interested`, value: mentions });
   }
   return embed;
 }
@@ -189,14 +191,21 @@ function buildInnerEmbed(state: EventState, thumbnailUrl?: string | null) {
     const groups: Record<RSVPStatus, string[]> = { coming: [], maybe: [], decline: [], lurking: [] };
     for (const m of state.members.values()) groups[m.status]?.push(m.userId);
 
-    const formatGroup = (label: string, ids: string[]) =>
-      ids.length ? `**${label} (${ids.length})**\n${ids.map(id => `- <@${id}>`).join("\n")}` : null;
+    const formatGroup = (label: string, ids: string[]) => {
+      if (!ids.length) return null;
+      const total = ids.reduce((sum, id) => sum + 1 + (state.members.get(id)?.plusOne ?? 0), 0);
+      const lines = ids.map(id => {
+        const m = state.members.get(id);
+        return m?.plusOne ? `- <@${id}> (+${m.plusOne})` : `- <@${id}>`;
+      });
+      return `**${label} (${total})**\n${lines.join("\n")}`;
+    };
 
     const sections = [
-      formatGroup("Coming ✅", groups.coming),
-      formatGroup("Maybe ❔", groups.maybe),
-      formatGroup("Declined ❌", groups.decline),
-      formatGroup("Lurking 👀", groups.lurking),
+      formatGroup("✅ Coming", groups.coming),
+      formatGroup("❔ Maybe", groups.maybe),
+      formatGroup("❌ Declined", groups.decline),
+      formatGroup("👀 Lurking", groups.lurking),
     ].filter(Boolean) as string[];
 
     if (sections.length) embed.addFields({ name: "\u200b", value: sections.join("\n\n") });
@@ -212,20 +221,22 @@ function joinMessageComponents(channelId: string, joiningEnabled: boolean) {
 
 function rsvpComponents(channelId: string) {
   return [new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`rsvp_coming_${channelId}`).setLabel("Coming ✅").setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId(`rsvp_maybe_${channelId}`).setLabel("Maybe ❔").setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId(`rsvp_decline_${channelId}`).setLabel("Decline ❌").setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId(`rsvp_lurking_${channelId}`).setLabel("Lurking 👀").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`rsvp_coming_${channelId}`).setLabel("✅ Coming").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`rsvp_maybe_${channelId}`).setLabel("❔ Maybe").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`rsvp_decline_${channelId}`).setLabel("❌ Decline").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`rsvp_lurking_${channelId}`).setLabel("👀 Lurking").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`plusone_${channelId}`).setLabel("👥 +1").setStyle(ButtonStyle.Secondary),
   )];
 }
 
 function pinMessageComponents(channelId: string) {
   return [
     new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId(`rsvp_coming_${channelId}`).setLabel("Coming ✅").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`rsvp_maybe_${channelId}`).setLabel("Maybe ❔").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`rsvp_decline_${channelId}`).setLabel("Decline ❌").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`rsvp_lurking_${channelId}`).setLabel("Lurking 👀").setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`rsvp_coming_${channelId}`).setLabel("✅ Coming").setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`rsvp_maybe_${channelId}`).setLabel("❔ Maybe").setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`rsvp_decline_${channelId}`).setLabel("❌ Decline").setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`rsvp_lurking_${channelId}`).setLabel("👀 Lurking").setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`plusone_${channelId}`).setLabel("👥 +1").setStyle(ButtonStyle.Secondary),
     ),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`leave_event_${channelId}`).setLabel(LEAVE_LABEL).setStyle(ButtonStyle.Danger),
@@ -377,10 +388,10 @@ async function updateEventMessages(guild: Guild, channelId: string) {
 // ─── Interactions ─────────────────────────────────────────────────────────────
 
 const RSVP_LABELS: Record<RSVPStatus, string> = {
-  coming: "Coming ✅",
-  maybe: "Maybe ❔",
-  decline: "Decline ❌",
-  lurking: "Lurking 👀",
+  coming: "✅ Coming",
+  maybe: "❔ Maybe",
+  decline: "❌ Decline",
+  lurking: "👀 Lurking",
 };
 
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -879,7 +890,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (state) {
       const member = interaction.member;
       const displayName = (member && "displayName" in member ? member.displayName : null) ?? interaction.user.displayName;
-      state.members.set(interaction.user.id, { userId: interaction.user.id, displayName, status: "lurking" });
+      state.members.set(interaction.user.id, { userId: interaction.user.id, displayName, status: "lurking", plusOne: 0 });
       persistState();
       await updateJoinMessage(guild, channelId);
       await updateInnerMessage(guild, channelId);
@@ -914,6 +925,53 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await channel.send(`**${interaction.user.displayName}** left.`);
   }
 
+  // +1 button — open modal
+  if (interaction.isButton() && interaction.customId.startsWith("plusone_")) {
+    const channelId = interaction.customId.slice("plusone_".length);
+    const state = eventStates.get(channelId);
+    const existing = state?.members.get(interaction.user.id);
+    const modal = new ModalBuilder().setCustomId(`plusone_modal_${channelId}`).setTitle("Bring guests?");
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("plusone_count")
+          .setLabel("How many guests are you bringing? (0–5)")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+          .setValue(existing?.plusOne ? `${existing.plusOne}` : "0")
+      )
+    );
+    await interaction.showModal(modal);
+  }
+
+  // +1 modal submit
+  if (interaction.isModalSubmit() && interaction.customId.startsWith("plusone_modal_")) {
+    const channelId = interaction.customId.slice("plusone_modal_".length);
+    const raw = interaction.fields.getTextInputValue("plusone_count").trim();
+    const count = parseInt(raw);
+    if (isNaN(count) || count < 0 || count > 5) {
+      await interaction.reply({ ephemeral: true, content: "Please enter a number between 0 and 5." });
+      return;
+    }
+    const state = eventStates.get(channelId);
+    const guild = interaction.guild;
+    if (!state || !guild) return;
+
+    const existing = state.members.get(interaction.user.id);
+    if (existing) {
+      existing.plusOne = count;
+    } else {
+      const member = interaction.member;
+      const displayName = (member && "displayName" in member ? member.displayName : null) ?? interaction.user.displayName;
+      state.members.set(interaction.user.id, { userId: interaction.user.id, displayName, status: "lurking", plusOne: count });
+    }
+    persistState();
+    await interaction.deferReply({ ephemeral: true });
+    await updateInnerMessage(guild, channelId);
+    await updateJoinMessage(guild, channelId);
+    await interaction.editReply({ content: count === 0 ? "Your +1 has been removed." : `You're bringing ${count} guest${count > 1 ? "s" : ""}.` });
+  }
+
   // RSVP buttons
   if (interaction.isButton() && interaction.customId.startsWith("rsvp_")) {
     const parts = interaction.customId.split("_");
@@ -933,7 +991,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       } else {
         const member = interaction.member;
         const displayName = (member && "displayName" in member ? member.displayName : null) ?? interaction.user.displayName;
-        state.members.set(interaction.user.id, { userId: interaction.user.id, displayName, status: statusStr });
+        state.members.set(interaction.user.id, { userId: interaction.user.id, displayName, status: statusStr, plusOne: 0 });
       }
       persistState();
       await updateInnerMessage(guild, channelId);
