@@ -66,7 +66,7 @@ client.on(Events.MessageCreate, (message: Message) => {
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
-type RSVPStatus = "coming" | "maybe" | "interested" | "decline";
+type RSVPStatus = "coming" | "maybe" | "decline" | "lurking";
 
 type MemberEntry = {
   userId: string;
@@ -186,8 +186,8 @@ function buildInnerEmbed(state: EventState, thumbnailUrl?: string | null) {
   if (thumbnailUrl) embed.setThumbnail(thumbnailUrl);
 
   if (state.members.size > 0) {
-    const groups: Record<RSVPStatus, string[]> = { coming: [], maybe: [], interested: [], decline: [] };
-    for (const m of state.members.values()) groups[m.status].push(m.userId);
+    const groups: Record<RSVPStatus, string[]> = { coming: [], maybe: [], decline: [], lurking: [] };
+    for (const m of state.members.values()) groups[m.status]?.push(m.userId);
 
     const formatGroup = (label: string, ids: string[]) =>
       ids.length ? `**${label} (${ids.length})**\n${ids.map(id => `- <@${id}>`).join("\n")}` : null;
@@ -195,8 +195,8 @@ function buildInnerEmbed(state: EventState, thumbnailUrl?: string | null) {
     const sections = [
       formatGroup("Coming ✅", groups.coming),
       formatGroup("Maybe ❔", groups.maybe),
-      formatGroup("Interested 👀", groups.interested),
       formatGroup("Declined ❌", groups.decline),
+      formatGroup("Lurking 👀", groups.lurking),
     ].filter(Boolean) as string[];
 
     if (sections.length) embed.addFields({ name: "\u200b", value: sections.join("\n\n") });
@@ -214,8 +214,8 @@ function rsvpComponents(channelId: string) {
   return [new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(`rsvp_coming_${channelId}`).setLabel("Coming ✅").setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`rsvp_maybe_${channelId}`).setLabel("Maybe ❔").setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId(`rsvp_interested_${channelId}`).setLabel("Interested 👀").setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`rsvp_decline_${channelId}`).setLabel("Decline ❌").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`rsvp_lurking_${channelId}`).setLabel("Lurking 👀").setStyle(ButtonStyle.Primary),
   )];
 }
 
@@ -224,8 +224,8 @@ function pinMessageComponents(channelId: string) {
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`rsvp_coming_${channelId}`).setLabel("Coming ✅").setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId(`rsvp_maybe_${channelId}`).setLabel("Maybe ❔").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`rsvp_interested_${channelId}`).setLabel("Interested 👀").setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId(`rsvp_decline_${channelId}`).setLabel("Decline ❌").setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`rsvp_lurking_${channelId}`).setLabel("Lurking 👀").setStyle(ButtonStyle.Primary),
     ),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`leave_event_${channelId}`).setLabel(LEAVE_LABEL).setStyle(ButtonStyle.Danger),
@@ -379,8 +379,8 @@ async function updateEventMessages(guild: Guild, channelId: string) {
 const RSVP_LABELS: Record<RSVPStatus, string> = {
   coming: "Coming ✅",
   maybe: "Maybe ❔",
-  interested: "Interested 👀",
   decline: "Decline ❌",
+  lurking: "Lurking 👀",
 };
 
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -802,7 +802,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (state) {
       const member = interaction.member;
       const displayName = (member && "displayName" in member ? member.displayName : null) ?? interaction.user.displayName;
-      state.members.set(interaction.user.id, { userId: interaction.user.id, displayName, status: "interested" });
+      state.members.set(interaction.user.id, { userId: interaction.user.id, displayName, status: "lurking" });
       persistState();
       await updateJoinMessage(guild, channelId);
       await updateInnerMessage(guild, channelId);
