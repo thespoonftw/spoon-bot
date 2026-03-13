@@ -397,8 +397,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
     return;
   }
 
-  // /event — open modal
+  // /event — open modal (only in the event announcement channel)
   if (interaction.isChatInputCommand() && interaction.commandName === "event") {
+    if (interaction.channelId !== config.eventChannelId) {
+      await interaction.reply({ content: `This command can only be used in <#${config.eventChannelId}>.`, ephemeral: true });
+      return;
+    }
     const modal = new ModalBuilder().setCustomId("event_modal").setTitle("Create Event");
     modal.addComponents(
       new ActionRowBuilder<TextInputBuilder>().addComponents(
@@ -469,6 +473,79 @@ client.on(Events.InteractionCreate, async (interaction) => {
     eventStates.set(eventChannel.id, state);
     persistState();
     await interaction.editReply({ content: "Event created! Use the ⚙ button inside the channel to set the date when you're ready." });
+  }
+
+  // /addevent — open modal (only in a channel inside the event category)
+  if (interaction.isChatInputCommand() && interaction.commandName === "addevent") {
+    const channel = interaction.channel;
+    if (!channel || channel.type !== ChannelType.GuildText || channel.parentId !== config.eventCategoryId) {
+      await interaction.reply({ content: "This command can only be used inside an existing event channel.", ephemeral: true });
+      return;
+    }
+    if (eventStates.has(interaction.channelId)) {
+      await interaction.reply({ content: "This channel already has an event set up.", ephemeral: true });
+      return;
+    }
+    const modal = new ModalBuilder().setCustomId("addevent_modal").setTitle("Add Event to Channel");
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("event_name").setLabel("Event name").setStyle(TextInputStyle.Short).setRequired(true).setValue(channel.name.replace(/-/g, " "))
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("event_desc").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setPlaceholder("Optional")
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("event_location").setLabel("Location").setStyle(TextInputStyle.Short).setRequired(true)
+      ),
+    );
+    await interaction.showModal(modal);
+  }
+
+  // addevent_modal submit
+  if (interaction.isModalSubmit() && interaction.customId === "addevent_modal") {
+    const eventName = interaction.fields.getTextInputValue("event_name").trim();
+    const description = interaction.fields.getTextInputValue("event_desc").trim();
+    const location = interaction.fields.getTextInputValue("event_location").trim();
+    const guild = interaction.guild;
+    const channel = interaction.channel;
+    if (!guild || !channel || channel.type !== ChannelType.GuildText) return;
+
+    await interaction.deferReply({ ephemeral: true });
+
+    if (description) await channel.setTopic(description);
+
+    const iconUrl = guild.iconURL();
+    const state: EventState = {
+      eventName, description, location, dateText: "TBC",
+      joinMessageId: "", pinMessageId: "",
+      joiningEnabled: true, members: new Map(),
+    };
+
+    const pinMsg = await channel.send({
+      content: "Please use the buttons to RSVP!",
+      embeds: [buildInnerEmbed(state, iconUrl)],
+      components: pinMessageComponents(channel.id),
+    });
+    await pinMsg.pin();
+
+    const announcementChannel = guild.channels.cache.get(config.eventChannelId);
+    let joinMsgId = "";
+    if (announcementChannel && announcementChannel.isSendable()) {
+      const creator = guild.members.cache.get(interaction.user.id);
+      const creatorName = creator?.displayName ?? interaction.user.displayName;
+      const joinMsg = await announcementChannel.send({
+        content: `@everyone **${creatorName}** created an event. Click to join!`,
+        embeds: [buildJoinEmbed(state, iconUrl)],
+        components: joinMessageComponents(channel.id, true),
+      });
+      joinMsgId = joinMsg.id;
+    }
+
+    state.joinMessageId = joinMsgId;
+    state.pinMessageId = pinMsg.id;
+    eventStates.set(channel.id, state);
+    persistState();
+    await interaction.editReply({ content: "Event set up! Use the ⚙ button to set the date when you're ready." });
   }
 
   // ⚙ gear menu

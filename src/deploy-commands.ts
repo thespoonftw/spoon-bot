@@ -9,6 +9,10 @@ const commands = [
     .setName("event")
     .setDescription("Create a new event with a private channel")
     .toJSON(),
+  new SlashCommandBuilder()
+    .setName("addevent")
+    .setDescription("Set up join/pin messages for this existing channel as an event")
+    .toJSON(),
 ];
 
 const rest = new REST().setToken(process.env.DISCORD_TOKEN!);
