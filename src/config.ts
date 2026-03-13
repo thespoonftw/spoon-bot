@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 export const config = {
   guildId: process.env.GUILD_ID!,
   eventChannelId: process.env.EVENT_CHANNEL_ID!,
