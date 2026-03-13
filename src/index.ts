@@ -345,8 +345,10 @@ const RSVP_LABELS: Record<RSVPStatus, string> = {
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
   const hasRole = () => {
-    const member = interaction.guild?.members.cache.get(interaction.user.id);
-    return member?.roles.cache.has(config.requiredRoleId) ?? false;
+    const roles = interaction.member?.roles;
+    if (!roles) return false;
+    if (Array.isArray(roles)) return roles.includes(config.requiredRoleId);
+    return roles.cache.has(config.requiredRoleId);
   };
 
   if (interaction.isChatInputCommand() && !hasRole()) {
