@@ -464,6 +464,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       joinMessageId: "", pinMessageId: "",
       joiningEnabled: true, members: new Map(),
     };
+    state.members.set(interaction.user.id, { userId: interaction.user.id, displayName: creatorName, status: "lurking", plusOne: 0 });
 
     const pinMsg = await eventChannel.send({
       content: "Please use the buttons to RSVP!",
@@ -487,7 +488,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     state.pinMessageId = pinMsg.id;
     eventStates.set(eventChannel.id, state);
     persistState();
-    await interaction.editReply({ content: "Event created! Use the ⚙ button inside the channel to set the date when you're ready." });
+    await interaction.editReply({ content: "Done!" });
+    await eventChannel.send("Use the ⚙ button to set the event date when you're ready.");
   }
 
   // /addevent — open modal (only in a channel inside the event category)
@@ -530,11 +532,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (description) await channel.setTopic(description);
 
     const iconUrl = guild.iconURL();
+    const creator = guild.members.cache.get(interaction.user.id);
+    const creatorName = creator?.displayName ?? interaction.user.displayName;
+
     const state: EventState = {
       eventName, description, location, dateText: "TBC",
       joinMessageId: "", pinMessageId: "",
       joiningEnabled: true, members: new Map(),
     };
+    state.members.set(interaction.user.id, { userId: interaction.user.id, displayName: creatorName, status: "lurking", plusOne: 0 });
 
     const pinMsg = await channel.send({
       content: "Please use the buttons to RSVP!",
@@ -546,8 +552,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const announcementChannel = guild.channels.cache.get(config.eventChannelId);
     let joinMsgId = "";
     if (announcementChannel && announcementChannel.isSendable()) {
-      const creator = guild.members.cache.get(interaction.user.id);
-      const creatorName = creator?.displayName ?? interaction.user.displayName;
       const joinMsg = await announcementChannel.send({
         content: `@everyone **${creatorName}** created an event. Click to join!`,
         embeds: [buildJoinEmbed(state, iconUrl)],
@@ -560,7 +564,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     state.pinMessageId = pinMsg.id;
     eventStates.set(channel.id, state);
     persistState();
-    await interaction.editReply({ content: "Event set up! Use the ⚙ button to set the date when you're ready." });
+    await interaction.editReply({ content: "Done!" });
+    await channel.send("Use the ⚙ button to set the event date when you're ready.");
   }
 
   // ⚙ gear menu
