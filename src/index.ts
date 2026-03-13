@@ -817,14 +817,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const dayOfWeek = DAYS[startDate.getDay()];
     const dateText = `${dayOfWeek} ${session.day} ${MONTHS[session.month - 1]} ${session.year}, ${session.time}`;
 
-    await interaction.deferUpdate();
-
     const state = eventStates.get(channelId);
     editSessions.delete(channelId);
     if (state) state.dateText = dateText;
     persistState();
+
+    try { await interaction.deferUpdate(); } catch {}
     await updateEventMessages(interaction.guild, channelId);
-    await interaction.deleteReply();
+    try { await interaction.deleteReply(); } catch {}
 
     const eventChannel = interaction.guild.channels.cache.get(channelId);
     if (eventChannel && eventChannel.type === ChannelType.GuildText) {
