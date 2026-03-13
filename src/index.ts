@@ -19,6 +19,8 @@ import {
   TextInputStyle,
 } from "discord.js";
 import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
 import { config } from "./config";
 
 dotenv.config();
@@ -31,8 +33,18 @@ const client = new Client({
   ],
 });
 
-client.once(Events.ClientReady, (readyClient) => {
+client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Logged in as ${readyClient.user.tag}`);
+  loadState();
+  if (eventStates.size > 0) {
+    const guild = readyClient.guilds.cache.get(config.guildId);
+    if (guild) {
+      for (const channelId of eventStates.keys()) {
+        try { await updateEventMessages(guild, channelId); } catch (e) { console.error(`Failed to refresh ${channelId}:`, e); }
+      }
+      console.log(`Refreshed ${eventStates.size} event message(s).`);
+    }
+  }
 });
 
 client.on(Events.MessageCreate, (message: Message) => {
@@ -88,6 +100,35 @@ const editSessions = new Map<string, EditSession>();
 
 const MONTHS = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"];
+
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+// ─── Persistence ──────────────────────────────────────────────────────────────
+
+const DATA_DIR = path.join(__dirname, "..", "data");
+const STATE_FILE = path.join(DATA_DIR, "events.json");
+
+function persistState() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    const obj: Record<string, any> = {};
+    for (const [channelId, state] of eventStates) {
+      obj[channelId] = { ...state, members: [...state.members.entries()] };
+    }
+    fs.writeFileSync(STATE_FILE, JSON.stringify(obj, null, 2));
+  } catch (e) { console.error("Failed to persist state:", e); }
+}
+
+function loadState() {
+  try {
+    if (!fs.existsSync(STATE_FILE)) return;
+    const raw = JSON.parse(fs.readFileSync(STATE_FILE, "utf-8"));
+    for (const [channelId, data] of Object.entries(raw) as [string, any][]) {
+      eventStates.set(channelId, { ...data, members: new Map(data.members) });
+    }
+    console.log(`Loaded ${eventStates.size} event(s) from disk.`);
+  } catch (e) { console.error("Failed to load state:", e); }
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -416,7 +457,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     let joinMsgId = "";
     if (announcementChannel && announcementChannel.isSendable()) {
       const joinMsg = await announcementChannel.send({
-        content: `**${creatorName}** created an event. Click to join!`,
+        content: `@everyone **${creatorName}** created an event. Click to join!`,
         embeds: [buildJoinEmbed(state, iconUrl)],
         components: joinMessageComponents(eventChannel.id, true),
       });
@@ -426,6 +467,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     state.joinMessageId = joinMsgId;
     state.pinMessageId = pinMsg.id;
     eventStates.set(eventChannel.id, state);
+    persistState();
     await interaction.editReply({ content: "Event created! Use the ⚙ button inside the channel to set the date when you're ready." });
   }
 
@@ -501,6 +543,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (!state || !interaction.guild) return;
 
     state.joiningEnabled = !state.joiningEnabled;
+    persistState();
     await updateJoinMessage(interaction.guild, channelId);
 
     await interaction.update({
@@ -552,6 +595,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     } catch (e) { console.error("Failed to delete event channel:", e); }
 
     eventStates.delete(channelId);
+    persistState();
 
     try { await interaction.editReply({ content: "✅ Event deleted.", components: [] }); } catch { /* ephemeral may be gone */ }
   }
@@ -609,6 +653,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
     state.description = interaction.fields.getTextInputValue("event_desc").trim();
     state.location = interaction.fields.getTextInputValue("event_location").trim();
+    persistState();
     await interaction.deferReply({ ephemeral: true });
     await updateEventMessages(interaction.guild, channelId);
     await interaction.deleteReply();
@@ -681,13 +726,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const [hour, minute] = session.time.split(":").map(Number);
     const startDate = new Date(session.year, session.month - 1, session.day, hour, minute);
     const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
-    const dateText = `${session.day} ${MONTHS[session.month - 1]} ${session.year}, ${session.time}`;
+    const dayOfWeek = DAYS[startDate.getDay()];
+    const dateText = `${dayOfWeek} ${session.day} ${MONTHS[session.month - 1]} ${session.year}, ${session.time}`;
 
     await interaction.deferUpdate();
 
     const state = eventStates.get(channelId);
     editSessions.delete(channelId);
     if (state) state.dateText = dateText;
+    persistState();
     await updateEventMessages(interaction.guild, channelId);
     await interaction.deleteReply();
 
@@ -706,6 +753,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     editSessions.delete(channelId);
     const hadDate = state.dateText !== "TBC";
     state.dateText = "TBC";
+    persistState();
     await updateEventMessages(interaction.guild, channelId);
     await interaction.deleteReply();
 
@@ -743,13 +791,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
+    if (state?.members.has(interaction.user.id)) {
+      await interaction.reply({ content: "You've already joined this event.", ephemeral: true });
+      return;
+    }
+
     await interaction.deferUpdate();
     await channel.permissionOverwrites.edit(interaction.user.id, { ViewChannel: true, SendMessages: true });
 
-    if (state && !state.members.has(interaction.user.id)) {
-      const member = guild.members.cache.get(interaction.user.id);
-      const displayName = member?.displayName ?? interaction.user.displayName;
+    if (state) {
+      const member = interaction.member;
+      const displayName = (member && "displayName" in member ? member.displayName : null) ?? interaction.user.displayName;
       state.members.set(interaction.user.id, { userId: interaction.user.id, displayName, status: "interested" });
+      persistState();
       await updateJoinMessage(guild, channelId);
       await updateInnerMessage(guild, channelId);
     }
@@ -775,6 +829,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const state = eventStates.get(channelId);
     if (state) {
       state.members.delete(interaction.user.id);
+      persistState();
       await updateJoinMessage(guild, channelId);
       await updateInnerMessage(guild, channelId);
     }
@@ -799,10 +854,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (existing) {
         existing.status = statusStr;
       } else {
-        const member = guild.members.cache.get(interaction.user.id);
-        const displayName = member?.displayName ?? interaction.user.displayName;
+        const member = interaction.member;
+        const displayName = (member && "displayName" in member ? member.displayName : null) ?? interaction.user.displayName;
         state.members.set(interaction.user.id, { userId: interaction.user.id, displayName, status: statusStr });
       }
+      persistState();
       await updateInnerMessage(guild, channelId);
     }
   }
