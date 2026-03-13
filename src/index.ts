@@ -106,7 +106,7 @@ const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
 
-const DATA_DIR = path.join(__dirname, "..", "data");
+const DATA_DIR = path.join(__dirname, "..", process.env.DATA_DIR ?? "data");
 const STATE_FILE = path.join(DATA_DIR, "events.json");
 
 function persistState() {
