@@ -466,7 +466,10 @@ async function updateEventMessages(guild: Guild, channelId: string) {
     try {
       const joinMsg = await announcementChannel.messages.fetch(state.joinMessageId);
       await joinMsg.edit({ content: buildJoinContent(state), embeds: [buildJoinEmbed(state, iconUrl)], components: joinMessageComponents(channelId, state.joiningEnabled) });
-    } catch (e) { console.error("Failed to update join message:", e); }
+    } catch (e: any) {
+      if (e.code === 10008) { eventStates.delete(channelId); persistState(); return; }
+      console.error("Failed to update join message:", e);
+    }
   }
 
   const eventChannel = guild.channels.cache.get(channelId);
