@@ -1541,6 +1541,6 @@ process.on('unhandledRejection', (reason) => { console.error('Unhandled rejectio
 process.on('uncaughtException', (err) => { console.error('Uncaught exception:', err); });
 process.on('exit', (code) => { console.log(`Process exiting with code ${code}`); });
 process.on('SIGTERM', () => { console.log('Received SIGTERM'); process.exit(0); });
-process.on('SIGHUP', () => { console.log('Received SIGHUP'); process.exit(0); });
+process.on('SIGHUP', () => { console.log('Received SIGHUP - ignoring'); });
 
 client.login(process.env.DISCORD_TOKEN);

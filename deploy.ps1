@@ -21,7 +21,8 @@ if ($Full) {
 }
 
 Write-Host "Restarting bots..."
-& $plink @conn "tmux kill-session -t himiko 2>/dev/null; tmux kill-session -t snek 2>/dev/null; pkill -f 'ts-node src/index.ts' 2>/dev/null; sleep 1; cd /home/spoon/spoon-bot && tmux new-session -d -s himiko 'npm run dev >> bot.log 2>&1' && tmux new-session -d -s snek 'bash -c \`"set -a; source /home/spoon/spoon-bot/.env.snek; set +a; cd /home/spoon/spoon-bot; npx ts-node src/index.ts >> snek.log 2>&1\`"'"
+& $plink @conn "bash -c 'pkill -f [t]s-node; tmux kill-server 2>/dev/null; sleep 1; exit 0'"
+& $plink @conn "cd /home/spoon/spoon-bot && tmux new-session -d -s himiko 'npm run dev >> bot.log 2>&1' && tmux new-session -d -s snek 'bash -c \`"set -a; source /home/spoon/spoon-bot/.env.snek; set +a; cd /home/spoon/spoon-bot; npx ts-node src/index.ts >> snek.log 2>&1\`"'"
 
 Write-Host "Waiting for startup..."
 Start-Sleep 6
