@@ -68,6 +68,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   if (config.groupsChannelId) {
     const guild = readyClient.guilds.cache.get(config.guildId);
     if (guild) {
+      const justPopulated: string[] = [];
       for (const [channelId, state] of groupStates) {
         if (state.members.size === 0) {
           const channel = guild.channels.cache.get(channelId);
@@ -80,14 +81,17 @@ client.once(Events.ClientReady, async (readyClient) => {
                 state.members.set(id, { userId: id, displayName: member.displayName });
               } catch {}
             }
+            if (state.members.size > 0) justPopulated.push(channelId);
           }
         }
       }
       persistGroupState();
-      for (const [channelId] of groupStates) {
-        await updateGroupMessages(guild, channelId);
+      if (justPopulated.length > 0) {
+        for (const channelId of justPopulated) {
+          await updateGroupMessages(guild, channelId);
+        }
+        console.log(`Refreshed ${justPopulated.length} newly-populated group message(s).`);
       }
-      if (groupStates.size > 0) console.log(`Refreshed ${groupStates.size} group message(s).`);
     }
   }
 
