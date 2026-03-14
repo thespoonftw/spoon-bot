@@ -8,4 +8,5 @@ export const config = {
   requiredRoleId: process.env.REQUIRED_ROLE_ID!,
   groupsChannelId: process.env.GROUPS_CHANNEL_ID,
   groupsRoleId: process.env.GROUPS_ROLE_ID,
+  groupsCategoryId: process.env.GROUPS_CATEGORY_ID,
 };

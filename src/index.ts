@@ -11,11 +11,13 @@ import {
   GuildScheduledEventEntityType,
   GuildScheduledEventPrivacyLevel,
   Message,
+  MessageFlags,
   ModalBuilder,
   OverwriteType,
   PermissionFlagsBits,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
+  TextChannel,
   TextInputBuilder,
   TextInputStyle,
 } from "discord.js";
@@ -60,6 +62,14 @@ client.once(Events.ClientReady, async (readyClient) => {
       }
       console.log(`Refreshed ${eventStates.size} event message(s).`);
     }
+  }
+
+  loadGroupState();
+  if (config.groupsChannelId) {
+    for (const [channelId] of groupStates) {
+      await updateGroupMessages(readyClient.guilds.cache.get(config.guildId)!, channelId);
+    }
+    if (groupStates.size > 0) console.log(`Refreshed ${groupStates.size} group message(s).`);
   }
 
   if (process.env.HEADER_MESSAGE_ID) {
@@ -163,6 +173,19 @@ type EditSession = {
 const eventStates = new Map<string, EventState>();
 const editSessions = new Map<string, EditSession>();
 
+type GroupMemberEntry = {
+  userId: string;
+  displayName: string;
+};
+
+type GroupState = {
+  groupName: string;
+  description: string;
+  joinMessageId: string;
+  pinMessageId: string;
+  members: Map<string, GroupMemberEntry>;
+};
+
 const MONTHS = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"];
 
@@ -172,6 +195,22 @@ const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const DATA_DIR = path.join(__dirname, "..", process.env.DATA_DIR ?? "data");
 const STATE_FILE = path.join(DATA_DIR, "events.json");
+const GROUP_STATE_FILE = path.join(DATA_DIR, "groups.json");
+const groupStates = new Map<string, GroupState>();
+
+function loadGroupState() {
+  if (!fs.existsSync(GROUP_STATE_FILE)) return;
+  const raw = JSON.parse(fs.readFileSync(GROUP_STATE_FILE, "utf-8")) as [string, any][];
+  for (const [channelId, s] of raw) {
+    groupStates.set(channelId, { ...s, members: new Map(s.members) });
+  }
+  console.log(`Loaded ${groupStates.size} group(s) from disk.`);
+}
+
+function persistGroupState() {
+  const serializable = [...groupStates.entries()].map(([id, s]) => [id, { ...s, members: [...s.members.entries()] }]);
+  fs.writeFileSync(GROUP_STATE_FILE, JSON.stringify(serializable, null, 2));
+}
 
 function persistState() {
   try {
@@ -451,6 +490,46 @@ function buildEditDateComponents(session: EditSession, channelId: string, endMod
   ];
 }
 
+// ─── Group builders ───────────────────────────────────────────────────────────
+
+function buildGroupJoinContent(state: GroupState): string {
+  const lines: string[] = [`**${state.groupName}**`];
+  if (state.description) lines.push(state.description);
+  lines.push("");
+  if (state.members.size === 0) {
+    lines.push("No members yet.");
+  } else {
+    const mentions = [...state.members.keys()].map(id => `<@${id}>`).join(", ");
+    lines.push(`👥 **${state.members.size} Member${state.members.size === 1 ? "" : "s"}:** ${mentions}`);
+  }
+  return lines.join("\n");
+}
+
+function buildGroupPinContent(state: GroupState): string {
+  const lines: string[] = [`**${state.groupName}**`];
+  if (state.description) lines.push(state.description);
+  lines.push("");
+  if (state.members.size === 0) {
+    lines.push("No members yet.");
+  } else {
+    lines.push("**Members:**");
+    for (const id of state.members.keys()) lines.push(`- <@${id}>`);
+  }
+  return lines.join("\n");
+}
+
+function groupJoinComponents(channelId: string): ActionRowBuilder<ButtonBuilder>[] {
+  return [new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId(`group_join_${channelId}`).setLabel("Join Group").setStyle(ButtonStyle.Success),
+  )];
+}
+
+function groupLeaveComponents(channelId: string): ActionRowBuilder<ButtonBuilder>[] {
+  return [new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId(`group_leave_${channelId}`).setLabel("Leave Group").setStyle(ButtonStyle.Danger),
+  )];
+}
+
 // ─── Message sync ─────────────────────────────────────────────────────────────
 
 async function updateJoinMessage(guild: Guild, channelId: string) {
@@ -504,6 +583,28 @@ async function updateEventMessages(guild: Guild, channelId: string) {
       const pinMsg = await eventChannel.messages.fetch(state.pinMessageId);
       await pinMsg.edit({ content: 'Please use the buttons to RSVP!', embeds: [buildInnerEmbed(state, iconUrl)], components: pinMessageComponents(channelId) });
     } catch (e) { console.error("Failed to update inner message:", e); }
+  }
+}
+
+async function updateGroupMessages(guild: Guild, channelId: string) {
+  const state = groupStates.get(channelId);
+  if (!state || !config.groupsChannelId) return;
+  const groupsChannel = guild.channels.cache.get(config.groupsChannelId);
+  if (groupsChannel?.isTextBased()) {
+    try {
+      const joinMsg = await groupsChannel.messages.fetch(state.joinMessageId);
+      await joinMsg.edit({ content: buildGroupJoinContent(state), components: groupJoinComponents(channelId) });
+    } catch (e: any) {
+      if (e.code === 10008) { groupStates.delete(channelId); persistGroupState(); return; }
+      console.error("Failed to update group join message:", e);
+    }
+  }
+  const groupChannel = guild.channels.cache.get(channelId);
+  if (groupChannel?.isTextBased()) {
+    try {
+      const pinMsg = await groupChannel.messages.fetch(state.pinMessageId);
+      await pinMsg.edit({ content: buildGroupPinContent(state), components: groupLeaveComponents(channelId) });
+    } catch (e) { console.error("Failed to update group pin message:", e); }
   }
 }
 
@@ -1244,6 +1345,110 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await updateInnerMessage(guild, channelId);
     await updateJoinMessage(guild, channelId);
     await interaction.editReply({ content: count === 0 ? "Your +1 has been removed." : `You're bringing ${count} guest${count > 1 ? "s" : ""}.` });
+  }
+
+  // /group — open modal
+  if (interaction.isChatInputCommand() && interaction.commandName === "group") {
+    if (!config.groupsChannelId) { await interaction.reply({ content: "Groups not configured on this server.", flags: MessageFlags.Ephemeral }); return; }
+    const modal = new ModalBuilder().setCustomId("group_create_modal").setTitle("New Group");
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("name").setLabel("Group Name").setStyle(TextInputStyle.Short).setRequired(true)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("description").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false)
+      ),
+    );
+    await interaction.showModal(modal);
+  }
+
+  // group_create_modal submit
+  if (interaction.isModalSubmit() && interaction.customId === "group_create_modal") {
+    const groupName = interaction.fields.getTextInputValue("name");
+    const description = interaction.fields.getTextInputValue("description") ?? "";
+    await interaction.deferReply({ ephemeral: true });
+    const guild = interaction.guild!;
+    const channelName = groupName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const channel = await guild.channels.create({
+      name: channelName,
+      type: ChannelType.GuildText,
+      parent: config.groupsCategoryId ?? null,
+    });
+    const channelId = channel.id;
+    const tempState: GroupState = { groupName, description, joinMessageId: "", pinMessageId: "", members: new Map() };
+    const groupsChannel = guild.channels.cache.get(config.groupsChannelId!);
+    if (!groupsChannel?.isTextBased()) { await interaction.editReply("Groups channel not found."); return; }
+    const joinMsg = await (groupsChannel as TextChannel).send({ content: buildGroupJoinContent(tempState), components: groupJoinComponents(channelId) });
+    const pinMsg = await channel.send({ content: buildGroupPinContent(tempState), components: groupLeaveComponents(channelId) });
+    tempState.joinMessageId = joinMsg.id;
+    tempState.pinMessageId = pinMsg.id;
+    groupStates.set(channelId, tempState);
+    persistGroupState();
+    await interaction.editReply({ content: `Group **${groupName}** created!` });
+  }
+
+  // /addgroup — open modal
+  if (interaction.isChatInputCommand() && interaction.commandName === "addgroup") {
+    if (!config.groupsChannelId) { await interaction.reply({ content: "Groups not configured on this server.", flags: MessageFlags.Ephemeral }); return; }
+    const modal = new ModalBuilder().setCustomId(`addgroup_modal_${interaction.channelId}`).setTitle("Add Group");
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("name").setLabel("Group Name").setStyle(TextInputStyle.Short).setRequired(true)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("description").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false)
+      ),
+    );
+    await interaction.showModal(modal);
+  }
+
+  // addgroup_modal_ submit
+  if (interaction.isModalSubmit() && interaction.customId.startsWith("addgroup_modal_")) {
+    const channelId = interaction.customId.slice("addgroup_modal_".length);
+    const groupName = interaction.fields.getTextInputValue("name");
+    const description = interaction.fields.getTextInputValue("description") ?? "";
+    await interaction.deferReply({ ephemeral: true });
+    const guild = interaction.guild!;
+    const tempState: GroupState = { groupName, description, joinMessageId: "", pinMessageId: "", members: new Map() };
+    const groupsChannel = guild.channels.cache.get(config.groupsChannelId!);
+    if (!groupsChannel?.isTextBased()) { await interaction.editReply("Groups channel not found."); return; }
+    const groupChannel = guild.channels.cache.get(channelId);
+    if (!groupChannel?.isTextBased()) { await interaction.editReply("Could not find this channel."); return; }
+    const joinMsg = await (groupsChannel as TextChannel).send({ content: buildGroupJoinContent(tempState), components: groupJoinComponents(channelId) });
+    const pinMsg = await (groupChannel as TextChannel).send({ content: buildGroupPinContent(tempState), components: groupLeaveComponents(channelId) });
+    tempState.joinMessageId = joinMsg.id;
+    tempState.pinMessageId = pinMsg.id;
+    groupStates.set(channelId, tempState);
+    persistGroupState();
+    await interaction.editReply({ content: `Group **${groupName}** set up!` });
+  }
+
+  // group_join_ button
+  if (interaction.isButton() && interaction.customId.startsWith("group_join_")) {
+    const channelId = interaction.customId.slice("group_join_".length);
+    const state = groupStates.get(channelId);
+    if (!state) { await interaction.reply({ content: "Group not found.", flags: MessageFlags.Ephemeral }); return; }
+    const userId = interaction.user.id;
+    if (state.members.has(userId)) { await interaction.reply({ content: "You're already in this group.", flags: MessageFlags.Ephemeral }); return; }
+    const member = interaction.guild?.members.cache.get(userId);
+    const displayName = member?.displayName ?? interaction.user.displayName;
+    state.members.set(userId, { userId, displayName });
+    persistGroupState();
+    await updateGroupMessages(interaction.guild!, channelId);
+    await interaction.deferUpdate().catch(() => {});
+  }
+
+  // group_leave_ button
+  if (interaction.isButton() && interaction.customId.startsWith("group_leave_")) {
+    const channelId = interaction.customId.slice("group_leave_".length);
+    const state = groupStates.get(channelId);
+    if (!state) { await interaction.reply({ content: "Group not found.", flags: MessageFlags.Ephemeral }); return; }
+    const userId = interaction.user.id;
+    if (!state.members.has(userId)) { await interaction.reply({ content: "You're not in this group.", flags: MessageFlags.Ephemeral }); return; }
+    state.members.delete(userId);
+    persistGroupState();
+    await updateGroupMessages(interaction.guild!, channelId);
+    await interaction.deferUpdate().catch(() => {});
   }
 
   // RSVP buttons
