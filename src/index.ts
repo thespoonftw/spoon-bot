@@ -527,7 +527,7 @@ function groupJoinComponents(channelId: string): ActionRowBuilder<ButtonBuilder>
   return [
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`group_join_${channelId}`).setLabel(HALF_JOIN_LABEL).setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`group_leave_${channelId}`).setLabel(HALF_LEAVE_LABEL).setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId(`group_leave_${channelId}`).setLabel(HALF_LEAVE_LABEL).setStyle(ButtonStyle.Secondary),
     ),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`group_spacer_${channelId}`).setLabel("⠀").setStyle(ButtonStyle.Secondary).setDisabled(true),
