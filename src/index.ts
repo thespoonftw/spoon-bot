@@ -513,9 +513,8 @@ function buildEditDateComponents(session: EditSession, channelId: string, endMod
 
 function buildGroupJoinContent(state: GroupState): string {
   const header = state.description ? `**${state.groupName}:** ${state.description}` : `**${state.groupName}**`;
-  if (state.members.size === 0) return header;
-  const names = [...state.members.values()].map(m => m.displayName).join(", ");
-  return `${header}\n\n👥 **${state.members.size} Member${state.members.size === 1 ? "" : "s"}:** ${names}`;
+  const members = state.members.size === 0 ? "" : `\n\n👥 **${state.members.size} Member${state.members.size === 1 ? "" : "s"}:** ${[...state.members.values()].map(m => m.displayName).join(", ")}`;
+  return `${header}${members}\n\n${SPACER}`;
 }
 
 function buildGroupPinContent(state: GroupState): string {
@@ -524,13 +523,13 @@ function buildGroupPinContent(state: GroupState): string {
 
 function groupJoinComponents(channelId: string): ActionRowBuilder<ButtonBuilder>[] {
   return [new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`group_join_${channelId}`).setLabel("Join").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`group_join_${channelId}`).setLabel(JOIN_LABEL).setStyle(ButtonStyle.Primary),
   )];
 }
 
 function groupLeaveComponents(channelId: string): ActionRowBuilder<ButtonBuilder>[] {
   return [new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`group_leave_${channelId}`).setLabel("Leave").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`group_leave_${channelId}`).setLabel(LEAVE_LABEL).setStyle(ButtonStyle.Danger),
   )];
 }
 
