@@ -1457,6 +1457,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const groupChannel = interaction.guild?.channels.cache.get(channelId);
     if (groupChannel?.isTextBased()) {
       await (groupChannel as TextChannel).permissionOverwrites.edit(userId, { ViewChannel: true });
+      await (groupChannel as TextChannel).send(`**${interaction.user.displayName}** joined.`);
     }
     await updateGroupMessages(interaction.guild!, channelId);
   }
