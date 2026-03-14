@@ -1443,12 +1443,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const state = groupStates.get(channelId);
     if (!state) { console.log(`group not found for channelId: ${channelId}`); await interaction.reply({ content: "Group not found.", flags: MessageFlags.Ephemeral }); return; }
     const userId = interaction.user.id;
-    if (state.members.has(userId)) { await interaction.reply({ content: "You're already in this group.", flags: MessageFlags.Ephemeral }); return; }
+    if (state.members.has(userId)) { console.log('already member'); await interaction.reply({ content: "You're already in this group.", flags: MessageFlags.Ephemeral }); return; }
     const member = interaction.guild?.members.cache.get(userId);
     const displayName = member?.displayName ?? interaction.user.displayName;
     state.members.set(userId, { userId, displayName });
     persistGroupState();
-    await interaction.deferUpdate().catch(() => {});
+    await interaction.deferUpdate().catch((e) => { console.error('deferUpdate failed (join):', e); });
+    console.log('join deferUpdate done');
     await updateGroupMessages(interaction.guild!, channelId);
   }
 
@@ -1460,7 +1461,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const userId = interaction.user.id;
     state.members.delete(userId);
     persistGroupState();
-    await interaction.deferUpdate().catch(() => {});
+    await interaction.deferUpdate().catch((e) => { console.error('deferUpdate failed (leave):', e); });
+    console.log('leave deferUpdate done');
     await updateGroupMessages(interaction.guild!, channelId);
   }
 
