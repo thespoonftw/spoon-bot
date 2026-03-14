@@ -292,6 +292,8 @@ function sessionFromDateText(dateText: string): EditSession | null {
 const SPACER = "⠀".repeat(40);
 const JOIN_LABEL = "⠀".repeat(12) + "Join" + "⠀".repeat(12);
 const LEAVE_LABEL = "⠀".repeat(11) + "Leave" + "⠀".repeat(12);
+const HALF_JOIN_LABEL = "⠀".repeat(6) + "Join" + "⠀".repeat(6);
+const HALF_LEAVE_LABEL = "⠀".repeat(5) + "Leave" + "⠀".repeat(5);
 
 function buildDescText(description: string, location: string, dateText: string, endDateText?: string): string {
   const parts: string[] = [];
@@ -524,10 +526,11 @@ function buildGroupPinContent(state: GroupState): string {
 function groupJoinComponents(channelId: string): ActionRowBuilder<ButtonBuilder>[] {
   return [
     new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId(`group_join_${channelId}`).setLabel(JOIN_LABEL).setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`group_join_${channelId}`).setLabel(HALF_JOIN_LABEL).setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`group_leave_${channelId}`).setLabel(HALF_LEAVE_LABEL).setStyle(ButtonStyle.Danger),
     ),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId(`group_spacer_${channelId}`).setLabel(SPACER).setStyle(ButtonStyle.Secondary).setDisabled(true),
+      new ButtonBuilder().setCustomId(`group_spacer_${channelId}`).setLabel("⠀").setStyle(ButtonStyle.Secondary).setDisabled(true),
     ),
   ];
 }
@@ -535,6 +538,7 @@ function groupJoinComponents(channelId: string): ActionRowBuilder<ButtonBuilder>
 function groupLeaveComponents(channelId: string): ActionRowBuilder<ButtonBuilder>[] {
   return [new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(`group_leave_${channelId}`).setLabel(LEAVE_LABEL).setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`group_edit_${channelId}`).setLabel("⚙").setStyle(ButtonStyle.Secondary),
   )];
 }
 
@@ -1456,6 +1460,36 @@ client.on(Events.InteractionCreate, async (interaction) => {
     persistGroupState();
     await updateGroupMessages(interaction.guild!, channelId);
     await interaction.deferUpdate().catch(() => {});
+  }
+
+  // group_edit_ gear button
+  if (interaction.isButton() && interaction.customId.startsWith("group_edit_")) {
+    const channelId = interaction.customId.slice("group_edit_".length);
+    const state = groupStates.get(channelId);
+    if (!state) { await interaction.reply({ content: "Group not found.", flags: MessageFlags.Ephemeral }); return; }
+    const modal = new ModalBuilder().setCustomId(`group_edit_modal_${channelId}`).setTitle("Edit Group");
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("name").setLabel("Group Name").setStyle(TextInputStyle.Short).setRequired(true).setValue(state.groupName)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("description").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setValue(state.description)
+      ),
+    );
+    await interaction.showModal(modal);
+  }
+
+  // group_edit_modal_ submit
+  if (interaction.isModalSubmit() && interaction.customId.startsWith("group_edit_modal_")) {
+    const channelId = interaction.customId.slice("group_edit_modal_".length);
+    const state = groupStates.get(channelId);
+    if (!state) { await interaction.reply({ content: "Group not found.", flags: MessageFlags.Ephemeral }); return; }
+    state.groupName = interaction.fields.getTextInputValue("name");
+    state.description = interaction.fields.getTextInputValue("description") ?? "";
+    persistGroupState();
+    await interaction.deferReply({ ephemeral: true });
+    await updateGroupMessages(interaction.guild!, channelId);
+    await interaction.deleteReply();
   }
 
   // RSVP buttons
