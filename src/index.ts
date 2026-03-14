@@ -1454,6 +1454,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
     persistGroupState();
     await interaction.deferUpdate().catch((e) => { console.error('deferUpdate failed (join):', e); });
     console.log('join deferUpdate done');
+    const groupChannel = interaction.guild?.channels.cache.get(channelId);
+    if (groupChannel?.isTextBased()) {
+      await (groupChannel as TextChannel).permissionOverwrites.edit(userId, { ViewChannel: true });
+    }
     await updateGroupMessages(interaction.guild!, channelId);
   }
 
@@ -1467,6 +1471,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
     persistGroupState();
     await interaction.deferUpdate().catch((e) => { console.error('deferUpdate failed (leave):', e); });
     console.log('leave deferUpdate done');
+    const groupChannel = interaction.guild?.channels.cache.get(channelId);
+    if (groupChannel?.isTextBased()) {
+      await (groupChannel as TextChannel).permissionOverwrites.delete(userId);
+    }
     await updateGroupMessages(interaction.guild!, channelId);
   }
 
