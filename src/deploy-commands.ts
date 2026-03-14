@@ -13,6 +13,14 @@ const commands = [
     .setName("addevent")
     .setDescription("Set up join/pin messages for this existing channel as an event")
     .toJSON(),
+  new SlashCommandBuilder()
+    .setName("group")
+    .setDescription("Create a new group")
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName("addgroup")
+    .setDescription("Set up a join message for this existing channel as a group")
+    .toJSON(),
 ];
 
 const rest = new REST().setToken(process.env.DISCORD_TOKEN!);

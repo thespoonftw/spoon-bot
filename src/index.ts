@@ -79,12 +79,35 @@ client.once(Events.ClientReady, async (readyClient) => {
       }
     } catch (e) { console.error("Failed to update header message:", e); }
   }
+
+  if (process.env.GROUPS_HEADER_MESSAGE_ID && config.groupsChannelId) {
+    const headerContent = [
+      "Welcome to **snek-groups**.",
+      "- Click the buttons to join the groups.",
+      "- Use the command `/group` to create your own groups.",
+      "- Use the command `/addgroup` in an existing channel to list it here.",
+      "- Messages in this channel will be automatically deleted.",
+    ].join("\n");
+    try {
+      const guild = readyClient.guilds.cache.get(config.guildId);
+      const channel = guild?.channels.cache.get(config.groupsChannelId);
+      if (channel?.isTextBased()) {
+        const msg = await channel.messages.fetch(process.env.GROUPS_HEADER_MESSAGE_ID);
+        if (msg.content !== headerContent) await msg.edit(headerContent);
+      }
+    } catch (e) { console.error("Failed to update groups header message:", e); }
+  }
 });
 
 client.on(Events.MessageCreate, (message: Message) => {
   if (message.author.bot) return;
 
   if (process.env.HEADER_MESSAGE_ID && message.channelId === config.eventChannelId) {
+    message.delete().catch(() => {});
+    return;
+  }
+
+  if (config.groupsChannelId && message.channelId === config.groupsChannelId) {
     message.delete().catch(() => {});
     return;
   }
