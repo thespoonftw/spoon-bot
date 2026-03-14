@@ -631,6 +631,7 @@ const RSVP_LABELS: Record<RSVPStatus, string> = {
 
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
+  if (interaction.isButton()) console.log(`Button interaction: ${interaction.customId}`);
   const hasRole = () => {
     const roles = interaction.member?.roles;
     if (!roles) return false;
@@ -1437,9 +1438,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
   // group_join_ button
   if (interaction.isButton() && interaction.customId.startsWith("group_join_")) {
+    console.log(`group_join received: ${interaction.customId} by ${interaction.user.tag}`);
     const channelId = interaction.customId.slice("group_join_".length);
     const state = groupStates.get(channelId);
-    if (!state) { await interaction.reply({ content: "Group not found.", flags: MessageFlags.Ephemeral }); return; }
+    if (!state) { console.log(`group not found for channelId: ${channelId}`); await interaction.reply({ content: "Group not found.", flags: MessageFlags.Ephemeral }); return; }
     const userId = interaction.user.id;
     if (state.members.has(userId)) { await interaction.reply({ content: "You're already in this group.", flags: MessageFlags.Ephemeral }); return; }
     const member = interaction.guild?.members.cache.get(userId);
