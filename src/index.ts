@@ -516,7 +516,7 @@ function buildEditDateComponents(session: EditSession, channelId: string, endMod
 function buildGroupJoinContent(state: GroupState): string {
   const header = state.description ? `**${state.groupName}:** ${state.description}` : `**${state.groupName}**`;
   const members = state.members.size === 0 ? "" : `\n\n👥 **${state.members.size} Member${state.members.size === 1 ? "" : "s"}:** ${[...state.members.values()].map(m => m.displayName).join(", ")}`;
-  return `${header}${members}`;
+  return `${header}${members}\n⠀`;
 }
 
 function buildGroupPinContent(state: GroupState): string {
