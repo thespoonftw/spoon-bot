@@ -522,9 +522,14 @@ function buildGroupPinContent(state: GroupState): string {
 }
 
 function groupJoinComponents(channelId: string): ActionRowBuilder<ButtonBuilder>[] {
-  return [new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`group_join_${channelId}`).setLabel(JOIN_LABEL).setStyle(ButtonStyle.Primary),
-  )];
+  return [
+    new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId(`group_join_${channelId}`).setLabel(JOIN_LABEL).setStyle(ButtonStyle.Primary),
+    ),
+    new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId(`group_spacer_${channelId}`).setLabel(SPACER).setStyle(ButtonStyle.Secondary).setDisabled(true),
+    ),
+  ];
 }
 
 function groupLeaveComponents(channelId: string): ActionRowBuilder<ButtonBuilder>[] {
