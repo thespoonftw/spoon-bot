@@ -66,10 +66,29 @@ client.once(Events.ClientReady, async (readyClient) => {
 
   loadGroupState();
   if (config.groupsChannelId) {
-    for (const [channelId] of groupStates) {
-      await updateGroupMessages(readyClient.guilds.cache.get(config.guildId)!, channelId);
+    const guild = readyClient.guilds.cache.get(config.guildId);
+    if (guild) {
+      for (const [channelId, state] of groupStates) {
+        if (state.members.size === 0) {
+          const channel = guild.channels.cache.get(channelId);
+          if (channel && channel.type === ChannelType.GuildText) {
+            for (const [id, overwrite] of channel.permissionOverwrites.cache) {
+              if (overwrite.type !== OverwriteType.Member) continue;
+              if (!overwrite.allow.has(PermissionFlagsBits.ViewChannel)) continue;
+              try {
+                const member = await guild.members.fetch(id);
+                state.members.set(id, { userId: id, displayName: member.displayName });
+              } catch {}
+            }
+          }
+        }
+      }
+      persistGroupState();
+      for (const [channelId] of groupStates) {
+        await updateGroupMessages(guild, channelId);
+      }
+      if (groupStates.size > 0) console.log(`Refreshed ${groupStates.size} group message(s).`);
     }
-    if (groupStates.size > 0) console.log(`Refreshed ${groupStates.size} group message(s).`);
   }
 
   if (process.env.HEADER_MESSAGE_ID) {
@@ -505,13 +524,13 @@ function buildGroupPinContent(state: GroupState): string {
 
 function groupJoinComponents(channelId: string): ActionRowBuilder<ButtonBuilder>[] {
   return [new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`group_join_${channelId}`).setLabel("✅  Join this Group").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`group_join_${channelId}`).setLabel("Join").setStyle(ButtonStyle.Primary),
   )];
 }
 
 function groupLeaveComponents(channelId: string): ActionRowBuilder<ButtonBuilder>[] {
   return [new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`group_leave_${channelId}`).setLabel("❌  Leave this Group").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`group_leave_${channelId}`).setLabel("Leave").setStyle(ButtonStyle.Primary),
   )];
 }
 
