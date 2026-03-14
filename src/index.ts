@@ -493,40 +493,25 @@ function buildEditDateComponents(session: EditSession, channelId: string, endMod
 // ─── Group builders ───────────────────────────────────────────────────────────
 
 function buildGroupJoinContent(state: GroupState): string {
-  const lines: string[] = [`**${state.groupName}**`];
-  if (state.description) lines.push(state.description);
-  lines.push("");
-  if (state.members.size === 0) {
-    lines.push("No members yet.");
-  } else {
-    const mentions = [...state.members.keys()].map(id => `<@${id}>`).join(", ");
-    lines.push(`👥 **${state.members.size} Member${state.members.size === 1 ? "" : "s"}:** ${mentions}`);
-  }
-  return lines.join("\n");
+  const header = state.description ? `**${state.groupName}:** ${state.description}` : `**${state.groupName}**`;
+  if (state.members.size === 0) return header;
+  const names = [...state.members.values()].map(m => m.displayName).join(", ");
+  return `${header}\n\n👥 **${state.members.size} Member${state.members.size === 1 ? "" : "s"}:** ${names}`;
 }
 
 function buildGroupPinContent(state: GroupState): string {
-  const lines: string[] = [`**${state.groupName}**`];
-  if (state.description) lines.push(state.description);
-  lines.push("");
-  if (state.members.size === 0) {
-    lines.push("No members yet.");
-  } else {
-    lines.push("**Members:**");
-    for (const id of state.members.keys()) lines.push(`- <@${id}>`);
-  }
-  return lines.join("\n");
+  return `Welcome to **${state.groupName}**.`;
 }
 
 function groupJoinComponents(channelId: string): ActionRowBuilder<ButtonBuilder>[] {
   return [new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`group_join_${channelId}`).setLabel("Join Group").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`group_join_${channelId}`).setLabel("✅  Join this Group").setStyle(ButtonStyle.Success),
   )];
 }
 
 function groupLeaveComponents(channelId: string): ActionRowBuilder<ButtonBuilder>[] {
   return [new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`group_leave_${channelId}`).setLabel("Leave Group").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`group_leave_${channelId}`).setLabel("❌  Leave this Group").setStyle(ButtonStyle.Danger),
   )];
 }
 
@@ -1444,7 +1429,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const state = groupStates.get(channelId);
     if (!state) { await interaction.reply({ content: "Group not found.", flags: MessageFlags.Ephemeral }); return; }
     const userId = interaction.user.id;
-    if (!state.members.has(userId)) { await interaction.reply({ content: "You're not in this group.", flags: MessageFlags.Ephemeral }); return; }
     state.members.delete(userId);
     persistGroupState();
     await updateGroupMessages(interaction.guild!, channelId);
