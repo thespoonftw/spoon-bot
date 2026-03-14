@@ -1446,8 +1446,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const displayName = member?.displayName ?? interaction.user.displayName;
     state.members.set(userId, { userId, displayName });
     persistGroupState();
-    await updateGroupMessages(interaction.guild!, channelId);
     await interaction.deferUpdate().catch(() => {});
+    await updateGroupMessages(interaction.guild!, channelId);
   }
 
   // group_leave_ button
@@ -1458,8 +1458,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const userId = interaction.user.id;
     state.members.delete(userId);
     persistGroupState();
-    await updateGroupMessages(interaction.guild!, channelId);
     await interaction.deferUpdate().catch(() => {});
+    await updateGroupMessages(interaction.guild!, channelId);
   }
 
   // group_edit_ gear button
