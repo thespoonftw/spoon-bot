@@ -67,6 +67,7 @@ client.once(Events.ClientReady, async (readyClient) => {
       "Welcome to **brunch-events**.",
       "- Click the buttons to join the events.",
       "- Use the command `/event` to create your own events.",
+      "- Use the command `/addevent` in an existing channel to list it here.",
       "- Messages in this channel will be automatically deleted.",
     ].join("\n");
     try {
