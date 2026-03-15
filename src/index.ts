@@ -86,12 +86,10 @@ client.once(Events.ClientReady, async (readyClient) => {
         }
       }
       persistGroupState();
-      if (justPopulated.length > 0) {
-        for (const channelId of justPopulated) {
-          await updateGroupMessages(guild, channelId);
-        }
-        console.log(`Refreshed ${justPopulated.length} newly-populated group message(s).`);
+      for (const channelId of groupStates.keys()) {
+        try { await updateGroupMessages(guild, channelId); } catch (e) { console.error(`Failed to refresh group ${channelId}:`, e); }
       }
+      console.log(`Refreshed ${groupStates.size} group message(s).`);
     }
   }
 
@@ -296,8 +294,8 @@ function sessionFromDateText(dateText: string): EditSession | null {
 const SPACER = "⠀".repeat(40);
 const JOIN_LABEL = "⠀".repeat(12) + "Join" + "⠀".repeat(12);
 const LEAVE_LABEL = "⠀".repeat(11) + "Leave" + "⠀".repeat(12);
-const HALF_JOIN_LABEL = "⠀".repeat(5) + "Join" + "⠀".repeat(5);
-const HALF_LEAVE_LABEL = "⠀".repeat(4) + "Leave" + "⠀".repeat(4);
+const HALF_JOIN_LABEL = "⠀".repeat(4) + "Join" + "⠀".repeat(4);
+const HALF_LEAVE_LABEL = "⠀".repeat(3) + "Leave" + "⠀".repeat(3);
 
 function buildDescText(description: string, location: string, dateText: string, endDateText?: string): string {
   const parts: string[] = [];
