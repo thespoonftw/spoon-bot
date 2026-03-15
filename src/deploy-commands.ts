@@ -21,6 +21,10 @@ const commands = [
     .setName("addgroup")
     .setDescription("Set up a join message for this existing channel as a group")
     .toJSON(),
+  new SlashCommandBuilder()
+    .setName("leave")
+    .setDescription("Leave this event or group channel")
+    .toJSON(),
 ];
 
 const rest = new REST().setToken(process.env.DISCORD_TOKEN!);

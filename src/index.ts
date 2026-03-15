@@ -1440,6 +1440,46 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await interaction.editReply({ content: `Group **${groupName}** set up!` });
   }
 
+  // /leave command
+  if (interaction.isChatInputCommand() && interaction.commandName === "leave") {
+    const channelId = interaction.channelId;
+    const guild = interaction.guild;
+    if (!guild) return;
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    // Event leave
+    const eventState = eventStates.get(channelId);
+    if (eventState) {
+      const channel = guild.channels.cache.get(channelId);
+      if (channel && channel.type === ChannelType.GuildText) {
+        await channel.permissionOverwrites.delete(interaction.user.id);
+        eventState.members.delete(interaction.user.id);
+        persistState();
+        await updateJoinMessage(guild, channelId);
+        await updateInnerMessage(guild, channelId);
+        await channel.send(`**${interaction.user.displayName}** left.`);
+      }
+      await interaction.deleteReply();
+      return;
+    }
+
+    // Group leave
+    const groupState = groupStates.get(channelId);
+    if (groupState) {
+      const channel = guild.channels.cache.get(channelId);
+      groupState.members.delete(interaction.user.id);
+      persistGroupState();
+      if (channel?.isTextBased()) {
+        await (channel as TextChannel).permissionOverwrites.delete(interaction.user.id);
+      }
+      await updateGroupMessages(guild, channelId);
+      await interaction.deleteReply();
+      return;
+    }
+
+    await interaction.editReply({ content: "This isn't an event or group channel." });
+  }
+
   // group_join_ button
   if (interaction.isButton() && interaction.customId.startsWith("group_join_")) {
     console.log(`group_join received: ${interaction.customId} by ${interaction.user.tag}`);
