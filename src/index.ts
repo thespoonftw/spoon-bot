@@ -296,8 +296,8 @@ function sessionFromDateText(dateText: string): EditSession | null {
 const SPACER = "⠀".repeat(40);
 const JOIN_LABEL = "⠀".repeat(12) + "Join" + "⠀".repeat(12);
 const LEAVE_LABEL = "⠀".repeat(11) + "Leave" + "⠀".repeat(12);
-const HALF_JOIN_LABEL = "⠀".repeat(6) + "Join" + "⠀".repeat(6);
-const HALF_LEAVE_LABEL = "⠀".repeat(5) + "Leave" + "⠀".repeat(5);
+const HALF_JOIN_LABEL = "⠀".repeat(5) + "Join" + "⠀".repeat(5);
+const HALF_LEAVE_LABEL = "⠀".repeat(4) + "Leave" + "⠀".repeat(4);
 
 function buildDescText(description: string, location: string, dateText: string, endDateText?: string): string {
   const parts: string[] = [];
