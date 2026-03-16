@@ -14,7 +14,7 @@ import { updateEventMessages, updateGroupMessages } from "./messageSync";
 import { handleEventInteractions } from "./interactions/eventInteractions";
 import { handleDatePickerInteractions } from "./interactions/datePickerInteractions";
 import { handleGroupInteractions } from "./interactions/groupInteractions";
-import { loadBirthdays, handleBirthdayInteractions } from "./birthdays";
+import { loadBirthdays, handleBirthdayInteractions, scheduleBirthdayAnnouncements } from "./birthdays";
 
 dotenv.config();
 
@@ -31,6 +31,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   loadState();
   loadGroupState();
   loadBirthdays();
+  scheduleBirthdayAnnouncements(readyClient);
   if (eventStates.size > 0) {
     const guild = readyClient.guilds.cache.get(config.guildId);
     if (guild) {
