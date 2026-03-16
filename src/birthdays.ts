@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
 import { config } from "./config";
+import { formatShortDate } from "./dateUtils";
 
 export type BirthdayEntry = { userId: string; displayName: string; date: string };
 
@@ -21,12 +22,6 @@ function persistBirthdays() {
 
 const PAGE_SIZE = 4;
 
-function formatDate(date: string): string {
-  const [day, month] = date.split("/").map(Number);
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const suffix = [11, 12, 13].includes(day) ? "th" : day % 10 === 1 ? "st" : day % 10 === 2 ? "nd" : day % 10 === 3 ? "rd" : "th";
-  return `${day}${suffix} ${months[month - 1]}`;
-}
 
 function sortedBirthdays(): BirthdayEntry[] {
   return [...birthdays].sort((a, b) => {
@@ -52,7 +47,7 @@ function buildComponents(page: number): ActionRowBuilder<ButtonBuilder>[] {
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
 
   for (const entry of pageEntries) {
-    const label = `${entry.displayName}: ${formatDate(entry.date)}`;
+    const label = `${entry.displayName}: ${formatShortDate(entry.date)}`;
     rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`bday_edit_${entry.userId}`).setLabel(label).setStyle(ButtonStyle.Secondary),
     ));

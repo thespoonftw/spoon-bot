@@ -22,6 +22,13 @@ export function parseDateText(dateText: string): Date | null {
   } catch { return null; }
 }
 
+export function formatShortDate(date: string): string {
+  const [day, month] = date.split("/").map(Number);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const suffix = [11, 12, 13].includes(day) ? "th" : day % 10 === 1 ? "st" : day % 10 === 2 ? "nd" : day % 10 === 3 ? "rd" : "th";
+  return `${day}${suffix} ${months[month - 1]}`;
+}
+
 export function sessionFromDateText(dateText: string): EditSession | null {
   if (dateText === "TBC") return null;
   try {
