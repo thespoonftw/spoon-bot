@@ -29,6 +29,8 @@ const client = new Client({
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Logged in as ${readyClient.user.tag}`);
   loadState();
+  loadGroupState();
+  loadBirthdays();
   if (eventStates.size > 0) {
     const guild = readyClient.guilds.cache.get(config.guildId);
     if (guild) {
@@ -54,8 +56,6 @@ client.once(Events.ClientReady, async (readyClient) => {
     }
   }
 
-  loadBirthdays();
-  loadGroupState();
   if (config.groupsChannelId) {
     const guild = readyClient.guilds.cache.get(config.guildId);
     if (guild) {
