@@ -21,6 +21,13 @@ function persistBirthdays() {
 
 const PAGE_SIZE = 4;
 
+function formatDate(date: string): string {
+  const [day, month] = date.split("/").map(Number);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const suffix = [11, 12, 13].includes(day) ? "th" : day % 10 === 1 ? "st" : day % 10 === 2 ? "nd" : day % 10 === 3 ? "rd" : "th";
+  return `${day}${suffix} ${months[month - 1]}`;
+}
+
 function sortedBirthdays(): BirthdayEntry[] {
   return [...birthdays].sort((a, b) => {
     const [ad, am] = a.date.split("/").map(Number);
@@ -42,13 +49,10 @@ function buildComponents(page: number): ActionRowBuilder<ButtonBuilder>[] {
   const pageEntries = sorted.slice(start, start + PAGE_SIZE);
   const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
 
-  // Pad all button labels to the same width using braille blanks
-  const maxNameLen = Math.max(...pageEntries.map(e => e.displayName.length), 0);
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
 
   for (const entry of pageEntries) {
-    const pad = "⠀".repeat(maxNameLen - entry.displayName.length);
-    const label = `${entry.displayName}${pad} — ${entry.date}`;
+    const label = `${entry.displayName}: ${formatDate(entry.date)}`;
     rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`bday_edit_${entry.userId}`).setLabel(label).setStyle(ButtonStyle.Secondary),
     ));
@@ -92,7 +96,7 @@ function buildEditModal(entry: BirthdayEntry): ModalBuilder {
     .setTitle("Edit Birthday")
     .addComponents(
       new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("bday_userid").setLabel("User ID (type DELETE to remove)").setStyle(TextInputStyle.Short).setValue(entry.userId).setRequired(true),
+        new TextInputBuilder().setCustomId("bday_userid").setLabel("User ID (enter DELETE to remove entry)").setStyle(TextInputStyle.Short).setValue(entry.userId).setRequired(true),
       ),
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder().setCustomId("bday_date").setLabel("Date (DD/MM)").setStyle(TextInputStyle.Short).setValue(entry.date).setRequired(true).setMaxLength(5),
