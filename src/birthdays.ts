@@ -11,9 +11,11 @@ const BIRTHDAYS_FILE = path.join(DATA_DIR, "birthdays.json");
 let birthdays: BirthdayEntry[] = [];
 
 export function loadBirthdays() {
-  if (!fs.existsSync(BIRTHDAYS_FILE)) return;
-  birthdays = JSON.parse(fs.readFileSync(BIRTHDAYS_FILE, "utf-8"));
-  console.log(`Loaded ${birthdays.length} birthday(s) from disk.`);
+  try {
+    if (!fs.existsSync(BIRTHDAYS_FILE)) return;
+    birthdays = JSON.parse(fs.readFileSync(BIRTHDAYS_FILE, "utf-8"));
+    console.log(`Loaded ${birthdays.length} birthday(s) from disk.`);
+  } catch (e) { console.error("Failed to load birthdays:", e); }
 }
 
 function persistBirthdays() {
@@ -32,7 +34,7 @@ function sortedBirthdays(): BirthdayEntry[] {
 
 const buildContent = () => "**🎂 Birthday Tracker**";
 
-const BUTTONS_PER_ROW = 3;
+const BUTTONS_PER_ROW = 5;
 const MAX_BIRTHDAY_ROWS = 4; // 5th row reserved for Add button
 
 function buildComponents(): ActionRowBuilder<ButtonBuilder>[] {
