@@ -1,10 +1,10 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Interaction, ModalBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Guild, Interaction, ModalBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
 import { config } from "./config";
 
-export type BirthdayEntry = { userId: string; date: string };
+export type BirthdayEntry = { userId: string; displayName: string; date: string };
 
 const BIRTHDAYS_FILE = path.join(DATA_DIR, "birthdays.json");
 let birthdays: BirthdayEntry[] = [];
@@ -30,12 +30,8 @@ function sortedBirthdays(): BirthdayEntry[] {
 }
 
 function buildContent(page: number): string {
-  const sorted = sortedBirthdays();
-  if (sorted.length === 0) return "**🎂 Birthday Tracker**\n\nNo birthdays saved yet.";
-  const start = page * PAGE_SIZE;
-  const lines = sorted.slice(start, start + PAGE_SIZE).map(e => `<@${e.userId}> — ${e.date}`);
-  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
-  let content = `**🎂 Birthday Tracker**\n\n${lines.join("\n")}`;
+  const totalPages = Math.ceil(birthdays.length / PAGE_SIZE);
+  let content = "**🎂 Birthday Tracker**";
   if (totalPages > 1) content += `\n\nPage ${page + 1} of ${totalPages}`;
   return content;
 }
@@ -45,12 +41,16 @@ function buildComponents(page: number): ActionRowBuilder<ButtonBuilder>[] {
   const start = page * PAGE_SIZE;
   const pageEntries = sorted.slice(start, start + PAGE_SIZE);
   const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+
+  // Pad all button labels to the same width using braille blanks
+  const maxNameLen = Math.max(...pageEntries.map(e => e.displayName.length), 0);
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
 
   for (const entry of pageEntries) {
+    const pad = "⠀".repeat(maxNameLen - entry.displayName.length);
+    const label = `${entry.displayName}${pad} — ${entry.date}`;
     rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId(`bday_edit_${entry.userId}`).setLabel(`✏️ ${entry.date}`).setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId(`bday_delete_${entry.userId}`).setLabel("🗑").setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId(`bday_edit_${entry.userId}`).setLabel(label).setStyle(ButtonStyle.Secondary),
     ));
   }
 
@@ -72,16 +72,30 @@ function buildComponents(page: number): ActionRowBuilder<ButtonBuilder>[] {
   return rows;
 }
 
-function buildModal(userId: string, date: string, customId: string, title: string): ModalBuilder {
+function buildAddModal(): ModalBuilder {
   return new ModalBuilder()
-    .setCustomId(customId)
-    .setTitle(title)
+    .setCustomId("bday_modal_add")
+    .setTitle("Add Birthday")
     .addComponents(
       new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("bday_userid").setLabel("User ID").setStyle(TextInputStyle.Short).setValue(userId).setRequired(true),
+        new TextInputBuilder().setCustomId("bday_userid").setLabel("User ID").setStyle(TextInputStyle.Short).setRequired(true),
       ),
       new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("bday_date").setLabel("Date (DD/MM)").setStyle(TextInputStyle.Short).setValue(date).setPlaceholder("e.g. 25/12").setRequired(true).setMaxLength(5),
+        new TextInputBuilder().setCustomId("bday_date").setLabel("Date (DD/MM)").setStyle(TextInputStyle.Short).setPlaceholder("e.g. 25/12").setRequired(true).setMaxLength(5),
+      ),
+    );
+}
+
+function buildEditModal(entry: BirthdayEntry): ModalBuilder {
+  return new ModalBuilder()
+    .setCustomId(`bday_modal_edit_${entry.userId}`)
+    .setTitle("Edit Birthday")
+    .addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("bday_userid").setLabel("User ID (type DELETE to remove)").setStyle(TextInputStyle.Short).setValue(entry.userId).setRequired(true),
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("bday_date").setLabel("Date (DD/MM)").setStyle(TextInputStyle.Short).setValue(entry.date).setRequired(true).setMaxLength(5),
       ),
     );
 }
@@ -94,6 +108,15 @@ function isValidDate(date: string): boolean {
   return month >= 1 && month <= 12 && day >= 1 && day <= 31;
 }
 
+async function resolveDisplayName(userId: string, guild: Guild | null): Promise<string> {
+  try {
+    const member = await guild?.members.fetch(userId);
+    return member?.displayName ?? userId;
+  } catch {
+    return userId;
+  }
+}
+
 export async function handleBirthdayInteractions(interaction: Interaction) {
   if (!config.birthdaysEnabled) return;
 
@@ -103,22 +126,15 @@ export async function handleBirthdayInteractions(interaction: Interaction) {
   }
 
   if (interaction.isButton() && interaction.customId === "bday_add") {
-    await interaction.showModal(buildModal("", "", "bday_modal_add", "Add Birthday"));
+    await interaction.showModal(buildAddModal());
     return;
   }
 
   if (interaction.isButton() && interaction.customId.startsWith("bday_edit_")) {
     const userId = interaction.customId.slice("bday_edit_".length);
     const entry = birthdays.find(b => b.userId === userId);
-    await interaction.showModal(buildModal(userId, entry?.date ?? "", `bday_modal_edit_${userId}`, "Edit Birthday"));
-    return;
-  }
-
-  if (interaction.isButton() && interaction.customId.startsWith("bday_delete_")) {
-    const userId = interaction.customId.slice("bday_delete_".length);
-    birthdays = birthdays.filter(b => b.userId !== userId);
-    persistBirthdays();
-    await interaction.update({ content: buildContent(0), components: buildComponents(0) });
+    if (!entry) return;
+    await interaction.showModal(buildEditModal(entry));
     return;
   }
 
@@ -135,8 +151,9 @@ export async function handleBirthdayInteractions(interaction: Interaction) {
       await interaction.reply({ content: "Invalid date. Use DD/MM format (e.g. 25/12).", ephemeral: true });
       return;
     }
+    const displayName = await resolveDisplayName(userId, interaction.guild);
     birthdays = birthdays.filter(b => b.userId !== userId);
-    birthdays.push({ userId, date });
+    birthdays.push({ userId, displayName, date });
     persistBirthdays();
     await (interaction as any).update({ content: buildContent(0), components: buildComponents(0) });
     return;
@@ -146,12 +163,21 @@ export async function handleBirthdayInteractions(interaction: Interaction) {
     const originalUserId = interaction.customId.slice("bday_modal_edit_".length);
     const newUserId = interaction.fields.getTextInputValue("bday_userid").trim();
     const date = interaction.fields.getTextInputValue("bday_date").trim();
+
+    if (newUserId.toUpperCase() === "DELETE") {
+      birthdays = birthdays.filter(b => b.userId !== originalUserId);
+      persistBirthdays();
+      await (interaction as any).update({ content: buildContent(0), components: buildComponents(0) });
+      return;
+    }
+
     if (!isValidDate(date)) {
       await interaction.reply({ content: "Invalid date. Use DD/MM format (e.g. 25/12).", ephemeral: true });
       return;
     }
+    const displayName = await resolveDisplayName(newUserId, interaction.guild);
     birthdays = birthdays.filter(b => b.userId !== originalUserId);
-    birthdays.push({ userId: newUserId, date });
+    birthdays.push({ userId: newUserId, displayName, date });
     persistBirthdays();
     await (interaction as any).update({ content: buildContent(0), components: buildComponents(0) });
     return;
