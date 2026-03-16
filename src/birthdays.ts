@@ -154,7 +154,8 @@ export async function handleBirthdayInteractions(interaction: Interaction) {
     birthdays = birthdays.filter(b => b.userId !== userId);
     birthdays.push({ userId, displayName, date });
     persistBirthdays();
-    await (interaction as any).update({ content: buildContent(0), components: buildComponents(0) });
+    await interaction.deferReply({ ephemeral: true });
+    await interaction.editReply({ content: buildContent(0), components: buildComponents(0) });
     return;
   }
 
@@ -166,7 +167,8 @@ export async function handleBirthdayInteractions(interaction: Interaction) {
     if (newUserId.toUpperCase() === "DELETE") {
       birthdays = birthdays.filter(b => b.userId !== originalUserId);
       persistBirthdays();
-      await (interaction as any).update({ content: buildContent(0), components: buildComponents(0) });
+      await interaction.deferReply({ ephemeral: true });
+    await interaction.editReply({ content: buildContent(0), components: buildComponents(0) });
       return;
     }
 
@@ -178,7 +180,8 @@ export async function handleBirthdayInteractions(interaction: Interaction) {
     birthdays = birthdays.filter(b => b.userId !== originalUserId);
     birthdays.push({ userId: newUserId, displayName, date });
     persistBirthdays();
-    await (interaction as any).update({ content: buildContent(0), components: buildComponents(0) });
+    await interaction.deferReply({ ephemeral: true });
+    await interaction.editReply({ content: buildContent(0), components: buildComponents(0) });
     return;
   }
 }
