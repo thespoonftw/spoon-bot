@@ -178,6 +178,7 @@ type EventState = {
   joiningEnabled: boolean;
   scheduledEventId?: string;
   endDateText?: string;
+  imageUrl?: string;
   creatorId?: string;
   members: Map<string, MemberEntry>;
 };
@@ -553,7 +554,7 @@ async function updateJoinMessage(guild: Guild, channelId: string) {
   if (announcementChannel && announcementChannel.type === ChannelType.GuildText) {
     try {
       const joinMsg = await announcementChannel.messages.fetch(state.joinMessageId);
-      await joinMsg.edit({ content: buildJoinContent(state), embeds: [buildJoinEmbed(state, guild.iconURL())], components: joinMessageComponents(channelId, state.joiningEnabled) });
+      await joinMsg.edit({ content: buildJoinContent(state), embeds: [buildJoinEmbed(state, state.imageUrl || guild.iconURL())], components: joinMessageComponents(channelId, state.joiningEnabled) });
     } catch (e) { console.error("Failed to update join message:", e); }
   }
 }
@@ -565,7 +566,7 @@ async function updateInnerMessage(guild: Guild, channelId: string) {
   if (eventChannel && eventChannel.type === ChannelType.GuildText) {
     try {
       const pinMsg = await eventChannel.messages.fetch(state.pinMessageId);
-      await pinMsg.edit({ content: 'Please use the buttons to RSVP!', embeds: [buildInnerEmbed(state, guild.iconURL())], components: pinMessageComponents(channelId) });
+      await pinMsg.edit({ content: 'Please use the buttons to RSVP!', embeds: [buildInnerEmbed(state, state.imageUrl || guild.iconURL())], components: pinMessageComponents(channelId) });
     } catch (e) { console.error("Failed to update inner message:", e); }
   }
 }
@@ -573,7 +574,7 @@ async function updateInnerMessage(guild: Guild, channelId: string) {
 async function updateEventMessages(guild: Guild, channelId: string) {
   const state = eventStates.get(channelId);
   if (!state) { console.error(`updateEventMessages: no state for ${channelId}`); return; }
-  const iconUrl = guild.iconURL();
+  const iconUrl = state.imageUrl || guild.iconURL();
 
   const announcementChannel = guild.channels.cache.get(config.eventChannelId);
   if (!announcementChannel) { console.error(`updateEventMessages: announcement channel ${config.eventChannelId} not in cache`); }
@@ -663,6 +664,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder().setCustomId("event_location").setLabel("Location").setStyle(TextInputStyle.Short).setRequired(true)
       ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("event_image").setLabel("Image URL").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional — replaces server icon in embed")
+      ),
     );
     await interaction.showModal(modal);
   }
@@ -672,6 +676,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const eventName = interaction.fields.getTextInputValue("event_name").trim();
     const description = interaction.fields.getTextInputValue("event_desc").trim();
     const location = interaction.fields.getTextInputValue("event_location").trim();
+    const imageUrl = interaction.fields.getTextInputValue("event_image").trim() || undefined;
     const guild = interaction.guild;
     if (!guild) return;
 
@@ -689,14 +694,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
       { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
     ]);
 
-    const iconUrl = guild.iconURL();
+    const iconUrl = imageUrl || guild.iconURL();
     const creator = guild.members.cache.get(interaction.user.id);
     const creatorName = creator?.displayName ?? interaction.user.displayName;
 
     const state: EventState = {
       eventName, description, location, dateText: "TBC",
       joinMessageId: "", pinMessageId: "",
-      joiningEnabled: true, members: new Map(),
+      joiningEnabled: true, members: new Map(), imageUrl,
     };
     state.creatorId = interaction.user.id;
     state.members.set(interaction.user.id, { userId: interaction.user.id, displayName: creatorName, status: "lurking", plusOne: 0 });
@@ -749,6 +754,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder().setCustomId("event_location").setLabel("Location").setStyle(TextInputStyle.Short).setRequired(true)
       ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("event_image").setLabel("Image URL").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional — replaces server icon in embed")
+      ),
     );
     await interaction.showModal(modal);
   }
@@ -758,6 +766,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const eventName = interaction.fields.getTextInputValue("event_name").trim();
     const description = interaction.fields.getTextInputValue("event_desc").trim();
     const location = interaction.fields.getTextInputValue("event_location").trim();
+    const imageUrl = interaction.fields.getTextInputValue("event_image").trim() || undefined;
     const guild = interaction.guild;
     const channel = interaction.channel;
     if (!guild || !channel || channel.type !== ChannelType.GuildText) return;
@@ -766,14 +775,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (description) await channel.setTopic(description);
 
-    const iconUrl = guild.iconURL();
+    const iconUrl = imageUrl || guild.iconURL();
     const creator = guild.members.cache.get(interaction.user.id);
     const creatorName = creator?.displayName ?? interaction.user.displayName;
 
     const state: EventState = {
       eventName, description, location, dateText: "TBC",
       joinMessageId: "", pinMessageId: "",
-      joiningEnabled: true, members: new Map(),
+      joiningEnabled: true, members: new Map(), imageUrl,
     };
     state.creatorId = interaction.user.id;
     state.members.set(interaction.user.id, { userId: interaction.user.id, displayName: creatorName, status: "lurking", plusOne: 0 });
@@ -988,6 +997,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder().setCustomId("event_location").setLabel("Location").setStyle(TextInputStyle.Short).setRequired(true).setValue(state?.location ?? "")
       ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("event_image").setLabel("Image URL").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional — replaces server icon in embed").setValue(state?.imageUrl ?? "")
+      ),
     );
     await interaction.showModal(modal);
   }
@@ -1003,6 +1015,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     state.eventName = interaction.fields.getTextInputValue("event_name").trim();
     state.description = interaction.fields.getTextInputValue("event_desc").trim();
     state.location = interaction.fields.getTextInputValue("event_location").trim();
+    state.imageUrl = interaction.fields.getTextInputValue("event_image").trim() || undefined;
     persistState();
     await interaction.deferReply({ ephemeral: true });
     await updateEventMessages(interaction.guild, channelId);
