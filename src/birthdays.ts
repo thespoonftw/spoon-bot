@@ -20,7 +20,6 @@ function persistBirthdays() {
   fs.writeFileSync(BIRTHDAYS_FILE, JSON.stringify(birthdays, null, 2));
 }
 
-const PAGE_SIZE = 4;
 
 
 function sortedBirthdays(): BirthdayEntry[] {
@@ -31,43 +30,29 @@ function sortedBirthdays(): BirthdayEntry[] {
   });
 }
 
-function buildContent(page: number): string {
-  const totalPages = Math.ceil(birthdays.length / PAGE_SIZE);
-  let content = "**🎂 Birthday Tracker**";
-  if (totalPages > 1) content += `\n\nPage ${page + 1} of ${totalPages}`;
-  return content;
-}
+const buildContent = () => "**🎂 Birthday Tracker**";
 
-function buildComponents(page: number): ActionRowBuilder<ButtonBuilder>[] {
-  const sorted = sortedBirthdays();
-  const start = page * PAGE_SIZE;
-  const pageEntries = sorted.slice(start, start + PAGE_SIZE);
-  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+const BUTTONS_PER_ROW = 3;
+const MAX_BIRTHDAY_ROWS = 4; // 5th row reserved for Add button
 
+function buildComponents(): ActionRowBuilder<ButtonBuilder>[] {
+  const sorted = sortedBirthdays().slice(0, BUTTONS_PER_ROW * MAX_BIRTHDAY_ROWS);
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
 
-  for (const entry of pageEntries) {
-    const label = `${entry.displayName}: ${formatShortDate(entry.date)}`;
-    rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId(`bday_edit_${entry.userId}`).setLabel(label).setStyle(ButtonStyle.Secondary),
-    ));
+  for (let i = 0; i < sorted.length; i += BUTTONS_PER_ROW) {
+    const row = new ActionRowBuilder<ButtonBuilder>();
+    for (const entry of sorted.slice(i, i + BUTTONS_PER_ROW)) {
+      const label = `${entry.displayName}: ${formatShortDate(entry.date)}`;
+      row.addComponents(
+        new ButtonBuilder().setCustomId(`bday_edit_${entry.userId}`).setLabel(label).setStyle(ButtonStyle.Secondary),
+      );
+    }
+    rows.push(row);
   }
 
-  const navRow = new ActionRowBuilder<ButtonBuilder>();
-  if (totalPages > 1) {
-    navRow.addComponents(
-      new ButtonBuilder().setCustomId(`bday_page_${page - 1}`).setLabel("← Prev").setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
-    );
-  }
-  navRow.addComponents(
+  rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId("bday_add").setLabel("+ Add Birthday").setStyle(ButtonStyle.Primary),
-  );
-  if (totalPages > 1) {
-    navRow.addComponents(
-      new ButtonBuilder().setCustomId(`bday_page_${page + 1}`).setLabel("Next →").setStyle(ButtonStyle.Secondary).setDisabled(page >= totalPages - 1),
-    );
-  }
-  rows.push(navRow);
+  ));
   return rows;
 }
 
@@ -121,7 +106,7 @@ export async function handleBirthdayInteractions(interaction: Interaction) {
 
   if (interaction.isChatInputCommand() && interaction.commandName === "birthdays") {
     console.log(`/birthdays invoked, ${birthdays.length} entries loaded`);
-    await interaction.reply({ content: buildContent(0), components: buildComponents(0), ephemeral: true });
+    await interaction.reply({ content: buildContent(), components: buildComponents(), ephemeral: true });
     return;
   }
 
@@ -138,11 +123,6 @@ export async function handleBirthdayInteractions(interaction: Interaction) {
     return;
   }
 
-  if (interaction.isButton() && interaction.customId.startsWith("bday_page_")) {
-    const page = parseInt(interaction.customId.slice("bday_page_".length));
-    await interaction.update({ content: buildContent(page), components: buildComponents(page) });
-    return;
-  }
 
   if (interaction.isModalSubmit() && interaction.customId === "bday_modal_add") {
     const userId = interaction.fields.getTextInputValue("bday_userid").trim();
@@ -156,7 +136,7 @@ export async function handleBirthdayInteractions(interaction: Interaction) {
     birthdays.push({ userId, displayName, date });
     persistBirthdays();
     await interaction.deferReply({ ephemeral: true });
-    await interaction.editReply({ content: buildContent(0), components: buildComponents(0) });
+    await interaction.editReply({ content: buildContent(), components: buildComponents() });
     return;
   }
 
@@ -169,7 +149,7 @@ export async function handleBirthdayInteractions(interaction: Interaction) {
       birthdays = birthdays.filter(b => b.userId !== originalUserId);
       persistBirthdays();
       await interaction.deferReply({ ephemeral: true });
-    await interaction.editReply({ content: buildContent(0), components: buildComponents(0) });
+    await interaction.editReply({ content: buildContent(), components: buildComponents() });
       return;
     }
 
@@ -182,7 +162,7 @@ export async function handleBirthdayInteractions(interaction: Interaction) {
     birthdays.push({ userId: newUserId, displayName, date });
     persistBirthdays();
     await interaction.deferReply({ ephemeral: true });
-    await interaction.editReply({ content: buildContent(0), components: buildComponents(0) });
+    await interaction.editReply({ content: buildContent(), components: buildComponents() });
     return;
   }
 }
