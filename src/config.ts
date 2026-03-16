@@ -9,4 +9,5 @@ export const config = {
   groupsChannelId: process.env.GROUPS_CHANNEL_ID,
   groupsRoleId: process.env.GROUPS_ROLE_ID,
   groupsCategoryId: process.env.GROUPS_CATEGORY_ID,
+  birthdaysEnabled: process.env.BIRTHDAYS_ENABLED === "true",
 };

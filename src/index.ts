@@ -14,6 +14,7 @@ import { updateEventMessages, updateGroupMessages } from "./messageSync";
 import { handleEventInteractions } from "./interactions/eventInteractions";
 import { handleDatePickerInteractions } from "./interactions/datePickerInteractions";
 import { handleGroupInteractions } from "./interactions/groupInteractions";
+import { loadBirthdays, handleBirthdayInteractions } from "./birthdays";
 
 dotenv.config();
 
@@ -53,6 +54,7 @@ client.once(Events.ClientReady, async (readyClient) => {
     }
   }
 
+  loadBirthdays();
   loadGroupState();
   if (config.groupsChannelId) {
     const guild = readyClient.guilds.cache.get(config.guildId);
@@ -166,6 +168,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await handleEventInteractions(interaction, interaction.guild);
     await handleDatePickerInteractions(interaction);
     await handleGroupInteractions(interaction, interaction.guild);
+    await handleBirthdayInteractions(interaction);
   } catch (error) {
     console.error("Unhandled interaction error:", error);
     try {

@@ -29,6 +29,10 @@ const commands = [
     .setName("edit")
     .setDescription("Edit this event's details, date, or settings")
     .toJSON(),
+  new SlashCommandBuilder()
+    .setName("birthdays")
+    .setDescription("View and manage birthday entries")
+    .toJSON(),
 ];
 
 const rest = new REST().setToken(process.env.DISCORD_TOKEN!);
