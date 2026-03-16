@@ -1021,7 +1021,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     persistState();
     await interaction.deferReply({ ephemeral: true });
     await updateEventMessages(interaction.guild, channelId);
-    await interaction.deleteReply();
+    await interaction.editReply({ content: "✅ Updated!" });
     try { await pendingGearMenus.get(channelId)?.deleteReply(); } catch {}
     pendingGearMenus.delete(channelId);
   }
