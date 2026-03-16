@@ -120,6 +120,7 @@ export async function handleBirthdayInteractions(interaction: Interaction) {
   if (!config.birthdaysEnabled) return;
 
   if (interaction.isChatInputCommand() && interaction.commandName === "birthdays") {
+    console.log(`/birthdays invoked, ${birthdays.length} entries loaded`);
     await interaction.reply({ content: buildContent(0), components: buildComponents(0), ephemeral: true });
     return;
   }
