@@ -194,6 +194,7 @@ type EditSession = {
 
 const eventStates = new Map<string, EventState>();
 const editSessions = new Map<string, EditSession>();
+const pendingGearMenus = new Map<string, any>(); // channelId -> gear menu interaction (for deferred delete)
 
 type GroupMemberEntry = {
   userId: string;
@@ -826,6 +827,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       content: "What would you like to do?",
       components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true, state?.dateText ?? "TBC"),
     });
+    pendingGearMenus.set(channelId, interaction);
   }
 
   // Close gear menu
@@ -1020,12 +1022,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await interaction.deferReply({ ephemeral: true });
     await updateEventMessages(interaction.guild, channelId);
     await interaction.deleteReply();
-    const member = interaction.guild.members.cache.get(interaction.user.id);
-    const displayName = member?.displayName ?? interaction.user.displayName;
-    const eventChannel = interaction.guild.channels.cache.get(channelId);
-    if (eventChannel && eventChannel.type === ChannelType.GuildText) {
-      await eventChannel.send(`✏️ **${displayName}** updated the event details.`);
-    }
+    try { await pendingGearMenus.get(channelId)?.deleteReply(); } catch {}
+    pendingGearMenus.delete(channelId);
   }
 
   // Day select
@@ -1449,6 +1447,26 @@ client.on(Events.InteractionCreate, async (interaction) => {
     groupStates.set(channelId, tempState);
     persistGroupState();
     await interaction.editReply({ content: `Group **${groupName}** set up!` });
+  }
+
+  // /edit command
+  if (interaction.isChatInputCommand() && interaction.commandName === "edit") {
+    const channelId = interaction.channelId;
+    if (!hasRole()) {
+      await interaction.reply({ content: "You don't have permission.", ephemeral: true });
+      return;
+    }
+    const state = eventStates.get(channelId);
+    if (!state) {
+      await interaction.reply({ content: "This command can only be used in an event channel.", ephemeral: true });
+      return;
+    }
+    await interaction.reply({
+      ephemeral: true,
+      content: "What would you like to do?",
+      components: buildGearMenuComponents(channelId, state.joiningEnabled, state.dateText),
+    });
+    pendingGearMenus.set(channelId, interaction);
   }
 
   // /leave command

@@ -25,6 +25,10 @@ const commands = [
     .setName("leave")
     .setDescription("Leave this event or group channel")
     .toJSON(),
+  new SlashCommandBuilder()
+    .setName("edit")
+    .setDescription("Edit this event's details, date, or settings")
+    .toJSON(),
 ];
 
 const rest = new REST().setToken(process.env.DISCORD_TOKEN!);
