@@ -41,5 +41,6 @@ export type GroupState = {
   description: string;
   joinMessageId: string;
   pinMessageId: string;
+  imageUrl?: string;
   members: Map<string, GroupMemberEntry>;
 };

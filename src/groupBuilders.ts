@@ -2,30 +2,42 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  EmbedBuilder,
 } from "discord.js";
 import type { GroupState } from "./types";
 import { HALF_JOIN_LABEL, HALF_LEAVE_LABEL, LEAVE_LABEL } from "./eventBuilders";
 
-export function buildGroupJoinContent(state: GroupState): string {
-  const header = state.description ? `**${state.groupName}:** ${state.description}` : `**${state.groupName}**`;
-  const members = state.members.size === 0 ? "" : `\n\n👥 **${state.members.size} Member${state.members.size === 1 ? "" : "s"}:** ${[...state.members.values()].map(m => m.displayName).join(", ")}`;
-  return `${header}${members}\n⠀`;
+export function buildGroupJoinEmbed(state: GroupState, thumbnailUrl?: string | null) {
+  const embed = new EmbedBuilder()
+    .setTitle(state.groupName)
+    .setColor(0x5865F2);
+  if (state.description) embed.setDescription(state.description);
+  if (thumbnailUrl) embed.setThumbnail(thumbnailUrl);
+  if (state.members.size > 0) {
+    const mentions = [...state.members.values()].map(m => `<@${m.userId}>`).join(" ");
+    embed.addFields({ name: `👥 ${state.members.size} Member${state.members.size === 1 ? "" : "s"}`, value: mentions });
+  }
+  return embed;
 }
 
-export function buildGroupPinContent(state: GroupState): string {
-  return `Welcome to **${state.groupName}**.`;
+export function buildGroupPinEmbed(state: GroupState, thumbnailUrl?: string | null) {
+  const embed = new EmbedBuilder()
+    .setTitle(state.groupName)
+    .setDescription(`Welcome to **${state.groupName}**.${state.description ? `\n\n${state.description}` : ""}`)
+    .setColor(0x5865F2);
+  if (thumbnailUrl) embed.setThumbnail(thumbnailUrl);
+  if (state.members.size > 0) {
+    const mentions = [...state.members.values()].map(m => `<@${m.userId}>`).join(" ");
+    embed.addFields({ name: `👥 ${state.members.size} Member${state.members.size === 1 ? "" : "s"}`, value: mentions });
+  }
+  return embed;
 }
 
 export function groupJoinComponents(channelId: string): ActionRowBuilder<ButtonBuilder>[] {
-  return [
-    new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId(`group_join_${channelId}`).setLabel(HALF_JOIN_LABEL).setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`group_leave_${channelId}`).setLabel(HALF_LEAVE_LABEL).setStyle(ButtonStyle.Secondary),
-    ),
-    new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId(`group_spacer_${channelId}`).setLabel("⠀").setStyle(ButtonStyle.Secondary).setDisabled(true),
-    ),
-  ];
+  return [new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId(`group_join_${channelId}`).setLabel(HALF_JOIN_LABEL).setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`group_leave_${channelId}`).setLabel(HALF_LEAVE_LABEL).setStyle(ButtonStyle.Secondary),
+  )];
 }
 
 export function groupLeaveComponents(channelId: string): ActionRowBuilder<ButtonBuilder>[] {

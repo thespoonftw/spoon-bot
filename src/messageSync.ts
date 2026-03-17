@@ -3,7 +3,7 @@ import type { Guild } from "discord.js";
 import { config } from "./config";
 import { eventStates, groupStates, persistState, persistGroupState } from "./state";
 import { buildJoinContent, buildJoinEmbed, buildInnerEmbed, joinMessageComponents, pinMessageComponents } from "./eventBuilders";
-import { buildGroupJoinContent, buildGroupPinContent, groupJoinComponents, groupLeaveComponents } from "./groupBuilders";
+import { buildGroupJoinEmbed, buildGroupPinEmbed, groupJoinComponents, groupLeaveComponents } from "./groupBuilders";
 
 export async function updateJoinMessage(guild: Guild, channelId: string) {
   const state = eventStates.get(channelId);
@@ -62,11 +62,12 @@ export async function updateEventMessages(guild: Guild, channelId: string) {
 export async function updateGroupMessages(guild: Guild, channelId: string) {
   const state = groupStates.get(channelId);
   if (!state || !config.groupsChannelId) return;
+  const thumbnailUrl = state.imageUrl || guild.iconURL();
   const groupsChannel = guild.channels.cache.get(config.groupsChannelId);
   if (groupsChannel?.isTextBased()) {
     try {
       const joinMsg = await groupsChannel.messages.fetch(state.joinMessageId);
-      await joinMsg.edit({ content: buildGroupJoinContent(state), components: groupJoinComponents(channelId) });
+      await joinMsg.edit({ content: "", embeds: [buildGroupJoinEmbed(state, thumbnailUrl)], components: groupJoinComponents(channelId) });
     } catch (e: any) {
       if (e.code === 10008) { groupStates.delete(channelId); persistGroupState(); return; }
       console.error("Failed to update group join message:", e);
@@ -76,7 +77,7 @@ export async function updateGroupMessages(guild: Guild, channelId: string) {
   if (groupChannel?.isTextBased()) {
     try {
       const pinMsg = await groupChannel.messages.fetch(state.pinMessageId);
-      await pinMsg.edit({ content: buildGroupPinContent(state), components: groupLeaveComponents(channelId) });
+      await pinMsg.edit({ content: "", embeds: [buildGroupPinEmbed(state, thumbnailUrl)], components: groupLeaveComponents(channelId) });
     } catch (e) { console.error("Failed to update group pin message:", e); }
   }
 }
