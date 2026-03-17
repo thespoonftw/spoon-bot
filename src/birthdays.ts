@@ -30,18 +30,25 @@ function sortedBirthdays(): BirthdayEntry[] {
   });
 }
 
-const buildContent = () => "**🎂 Birthday Tracker**";
-
 const BUTTONS_PER_ROW = 5;
-const MAX_BIRTHDAY_ROWS = 4; // 5th row reserved for Add/Cancel buttons
+const MAX_BIRTHDAY_ROWS = 4; // 5th row reserved for nav/Add/Cancel
+const PAGE_SIZE = BUTTONS_PER_ROW * MAX_BIRTHDAY_ROWS; // 20 per page
 
-function buildComponents(): ActionRowBuilder<ButtonBuilder>[] {
-  const sorted = sortedBirthdays().slice(0, BUTTONS_PER_ROW * MAX_BIRTHDAY_ROWS);
+const buildContent = (page: number) => {
+  const total = birthdays.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  return totalPages > 1 ? `**🎂 Birthday Tracker** — page ${page + 1} of ${totalPages}` : "**🎂 Birthday Tracker**";
+};
+
+function buildComponents(page: number): ActionRowBuilder<ButtonBuilder>[] {
+  const sorted = sortedBirthdays();
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const pageEntries = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
 
-  for (let i = 0; i < sorted.length; i += BUTTONS_PER_ROW) {
+  for (let i = 0; i < pageEntries.length; i += BUTTONS_PER_ROW) {
     const row = new ActionRowBuilder<ButtonBuilder>();
-    for (const entry of sorted.slice(i, i + BUTTONS_PER_ROW)) {
+    for (const entry of pageEntries.slice(i, i + BUTTONS_PER_ROW)) {
       row.addComponents(
         new ButtonBuilder().setCustomId(`bday_edit_${entry.userId}`).setLabel(`${entry.displayName}: ${formatShortDate(entry.date)}`).setStyle(ButtonStyle.Secondary),
       );
@@ -49,10 +56,18 @@ function buildComponents(): ActionRowBuilder<ButtonBuilder>[] {
     rows.push(row);
   }
 
-  rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(
+  const navRow = new ActionRowBuilder<ButtonBuilder>();
+  if (totalPages > 1) navRow.addComponents(
+    new ButtonBuilder().setCustomId(`bday_page_${page - 1}`).setLabel("◀").setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
+  );
+  navRow.addComponents(
     new ButtonBuilder().setCustomId("bday_add").setLabel("+ Add Birthday").setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId("bday_cancel").setLabel("Cancel").setStyle(ButtonStyle.Secondary),
-  ));
+  );
+  if (totalPages > 1) navRow.addComponents(
+    new ButtonBuilder().setCustomId(`bday_page_${page + 1}`).setLabel("▶").setStyle(ButtonStyle.Secondary).setDisabled(page >= totalPages - 1),
+  );
+  rows.push(navRow);
   return rows;
 }
 
@@ -104,14 +119,20 @@ async function resolveDisplayName(userId: string, guild: Guild | null): Promise<
 // Refresh the original birthday menu in-place after a modal submit
 async function refreshMenu(interaction: Interaction) {
   await (interaction as any).deferUpdate();
-  await (interaction as any).editReply({ content: buildContent(), components: buildComponents() });
+  await (interaction as any).editReply({ content: buildContent(0), components: buildComponents(0) });
 }
 
 export async function handleBirthdayInteractions(interaction: Interaction) {
   if (!config.birthdaysEnabled) return;
 
   if (interaction.isChatInputCommand() && interaction.commandName === "birthdays") {
-    await interaction.reply({ content: buildContent(), components: buildComponents(), ephemeral: true });
+    await interaction.reply({ content: buildContent(0), components: buildComponents(0), ephemeral: true });
+    return;
+  }
+
+  if (interaction.isButton() && interaction.customId.startsWith("bday_page_")) {
+    const page = parseInt(interaction.customId.slice("bday_page_".length));
+    await interaction.update({ content: buildContent(page), components: buildComponents(page) });
     return;
   }
 
