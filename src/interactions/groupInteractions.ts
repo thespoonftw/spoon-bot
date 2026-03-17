@@ -192,6 +192,9 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder().setCustomId("description").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setValue(state.description)
       ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("imageUrl").setLabel("Image URL (leave blank to use server icon)").setStyle(TextInputStyle.Short).setRequired(false).setValue(state.imageUrl ?? "")
+      ),
     );
     await interaction.showModal(modal);
     return;
@@ -204,6 +207,7 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
     if (!state) { await interaction.reply({ content: "Group not found.", flags: MessageFlags.Ephemeral }); return; }
     state.groupName = interaction.fields.getTextInputValue("name");
     state.description = interaction.fields.getTextInputValue("description") ?? "";
+    state.imageUrl = interaction.fields.getTextInputValue("imageUrl").trim() || undefined;
     persistGroupState();
     await interaction.deferReply({ ephemeral: true });
     await updateGroupMessages(interaction.guild!, channelId);
