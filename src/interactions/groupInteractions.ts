@@ -26,6 +26,9 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder().setCustomId("description").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false)
       ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("imageUrl").setLabel("Image URL (leave blank to use server icon)").setStyle(TextInputStyle.Short).setRequired(false)
+      ),
     );
     await interaction.showModal(modal);
     return;
@@ -35,6 +38,7 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
   if (interaction.isModalSubmit() && interaction.customId === "group_create_modal") {
     const groupName = interaction.fields.getTextInputValue("name");
     const description = interaction.fields.getTextInputValue("description") ?? "";
+    const imageUrl = interaction.fields.getTextInputValue("imageUrl").trim() || undefined;
     await interaction.deferReply({ ephemeral: true });
     const g = interaction.guild!;
     const channelName = groupName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -44,10 +48,10 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
       parent: config.groupsCategoryId ?? null,
     });
     const channelId = channel.id;
-    const tempState: GroupState = { groupName, description, joinMessageId: "", pinMessageId: "", members: new Map() };
+    const tempState: GroupState = { groupName, description, imageUrl, joinMessageId: "", pinMessageId: "", members: new Map() };
     const groupsChannel = g.channels.cache.get(config.groupsChannelId!);
     if (!groupsChannel?.isTextBased()) { await interaction.editReply("Groups channel not found."); return; }
-    const thumbnailUrl = g.iconURL();
+    const thumbnailUrl = imageUrl || g.iconURL();
     const joinMsg = await (groupsChannel as TextChannel).send({ embeds: [buildGroupJoinEmbed(tempState, thumbnailUrl)], components: groupJoinComponents(channelId) });
     const pinMsg = await channel.send({ embeds: [buildGroupPinEmbed(tempState, thumbnailUrl)], components: groupLeaveComponents(channelId) });
     tempState.joinMessageId = joinMsg.id;
@@ -69,6 +73,9 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder().setCustomId("description").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false)
       ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("imageUrl").setLabel("Image URL (leave blank to use server icon)").setStyle(TextInputStyle.Short).setRequired(false)
+      ),
     );
     await interaction.showModal(modal);
     return;
@@ -79,14 +86,15 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
     const channelId = interaction.customId.slice("addgroup_modal_".length);
     const groupName = interaction.fields.getTextInputValue("name");
     const description = interaction.fields.getTextInputValue("description") ?? "";
+    const imageUrl = interaction.fields.getTextInputValue("imageUrl").trim() || undefined;
     await interaction.deferReply({ ephemeral: true });
     const g = interaction.guild!;
-    const tempState: GroupState = { groupName, description, joinMessageId: "", pinMessageId: "", members: new Map() };
+    const tempState: GroupState = { groupName, description, imageUrl, joinMessageId: "", pinMessageId: "", members: new Map() };
     const groupsChannel = g.channels.cache.get(config.groupsChannelId!);
     if (!groupsChannel?.isTextBased()) { await interaction.editReply("Groups channel not found."); return; }
     const groupChannel = g.channels.cache.get(channelId);
     if (!groupChannel?.isTextBased()) { await interaction.editReply("Could not find this channel."); return; }
-    const thumbnailUrl = g.iconURL();
+    const thumbnailUrl = imageUrl || g.iconURL();
     const joinMsg = await (groupsChannel as TextChannel).send({ embeds: [buildGroupJoinEmbed(tempState, thumbnailUrl)], components: groupJoinComponents(channelId) });
     const pinMsg = await (groupChannel as TextChannel).send({ embeds: [buildGroupPinEmbed(tempState, thumbnailUrl)], components: groupLeaveComponents(channelId) });
     tempState.joinMessageId = joinMsg.id;
