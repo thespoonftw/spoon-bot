@@ -78,12 +78,10 @@ client.once(Events.ClientReady, async (readyClient) => {
         }
       }
       persistGroupState();
-      if (justPopulated.length > 0) {
-        for (const channelId of justPopulated) {
-          try { await updateGroupMessages(guild, channelId); } catch (e) { console.error(`Failed to refresh group ${channelId}:`, e); }
-        }
-        console.log(`Refreshed ${justPopulated.length} group message(s).`);
+      for (const channelId of groupStates.keys()) {
+        try { await updateGroupMessages(guild, channelId); } catch (e) { console.error(`Failed to refresh group ${channelId}:`, e); }
       }
+      console.log(`Refreshed ${groupStates.size} group message(s).`);
     }
   }
 
