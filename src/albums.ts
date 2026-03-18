@@ -4,8 +4,8 @@ import fs from "fs";
 import path from "path";
 import { eventStates } from "./state";
 import { config } from "./config";
-import { handleAuthRoutes } from "./auth";
-import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbAddPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos } from "./db";
+import { handleAuthRoutes, isValidSession } from "./auth";
+import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbAddPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum } from "./db";
 
 export function loadAlbums() {
   initDb();
@@ -73,12 +73,39 @@ export function startWebServer(): void {
 
   http.createServer((req, res) => {
     const url = (req.url ?? "/").split("?")[0];
+    const method = req.method ?? "GET";
 
     if (handleAuthRoutes(req, res)) return;
 
-    if (url === "/api/albums") {
+    if (url === "/api/albums" && method === "GET") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(dbGetAllAlbumsWithPhotos()));
+      return;
+    }
+
+    if (url === "/api/albums" && method === "POST") {
+      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      if (!isValidSession(token)) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Unauthorized" })); return;
+      }
+      let body = "";
+      req.on("data", chunk => body += chunk);
+      req.on("end", () => {
+        try {
+          const { name, location, startDate, endDate } = JSON.parse(body);
+          if (!name || !location || !startDate) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "name, location, and startDate are required" })); return;
+          }
+          const album = dbCreateAlbum(name, location, startDate, endDate || undefined);
+          res.writeHead(201, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ...album, imageUrls: [] }));
+        } catch (e) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Failed to create album" }));
+        }
+      });
       return;
     }
     if (url.startsWith("/api/album/")) {
