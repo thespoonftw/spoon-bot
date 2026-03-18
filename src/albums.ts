@@ -71,7 +71,7 @@ export async function handleAlbumInteractions(interaction: Interaction): Promise
   return null;
 }
 
-export function handleAlbumMessageCreate(message: { author: { bot: boolean }; channelId: string; attachments: Map<string, { contentType?: string; url: string }> }): void {
+export function handleAlbumMessageCreate(message: { author: { bot: boolean }; channelId: string; attachments: Map<string, { contentType?: string | null; url: string }> }): void {
   if (!config.albumsEnabled || message.author.bot) return;
   const album = albums.get(message.channelId);
   if (!album) return;
