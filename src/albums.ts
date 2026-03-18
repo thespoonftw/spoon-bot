@@ -2,42 +2,23 @@ import { Interaction, TextChannel } from "discord.js";
 import http from "http";
 import fs from "fs";
 import path from "path";
-import { DATA_DIR, eventStates } from "./state";
+import { eventStates } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes } from "./auth";
-
-export type PhotoAlbum = {
-  channelId: string;
-  groupName: string;
-  dateText?: string;
-  imageUrls: string[];
-  createdAt: string;
-};
-
-const ALBUMS_FILE = path.join(DATA_DIR, "albums.json");
-let albums: Map<string, PhotoAlbum> = new Map();
+import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbAddPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos } from "./db";
 
 export function loadAlbums() {
-  try {
-    if (!fs.existsSync(ALBUMS_FILE)) return;
-    const data: PhotoAlbum[] = JSON.parse(fs.readFileSync(ALBUMS_FILE, "utf-8"));
-    albums = new Map(data.map(a => [a.channelId, a]));
-    console.log(`Loaded ${albums.size} photo album(s) from disk.`);
-  } catch (e) { console.error("Failed to load albums:", e); }
-}
-
-function persistAlbums() {
-  fs.writeFileSync(ALBUMS_FILE, JSON.stringify([...albums.values()], null, 2));
+  initDb();
 }
 
 export function hasAlbum(channelId: string): boolean {
-  return albums.has(channelId);
+  return dbHasAlbum(channelId);
 }
 
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 
 export function getAlbumUrl(channelId: string): string | null {
-  if (!albums.has(channelId)) return null;
+  if (!dbHasAlbum(channelId)) return null;
   return `${getBaseUrl()}/#/album/${channelId}`;
 }
 
@@ -51,8 +32,7 @@ export async function handleAlbumInteractions(interaction: Interaction): Promise
     const albumName = eventState?.eventName ?? channelId;
     const dateText = eventState?.dateText;
     const albumUrl = `${getBaseUrl()}/#/album/${channelId}`;
-    albums.set(channelId, { channelId, groupName: albumName, dateText, imageUrls: [], createdAt: new Date().toISOString() });
-    persistAlbums();
+    dbInsertAlbum({ channelId, groupName: albumName, dateText, createdAt: new Date().toISOString() });
     await interaction.update({ content: `Photo album started! ${albumUrl}`, components: [] });
     const channel = interaction.guild?.channels.cache.get(channelId);
     if (channel?.isTextBased()) {
@@ -63,8 +43,7 @@ export async function handleAlbumInteractions(interaction: Interaction): Promise
 
   if (interaction.customId.startsWith("album_delete_")) {
     const channelId = interaction.customId.slice("album_delete_".length);
-    albums.delete(channelId);
-    persistAlbums();
+    dbDeleteAlbum(channelId);
     await interaction.update({ content: "Photo album deleted.", components: [] });
     return channelId;
   }
@@ -74,15 +53,12 @@ export async function handleAlbumInteractions(interaction: Interaction): Promise
 
 export function handleAlbumMessageCreate(message: { author: { bot: boolean }; channelId: string; attachments: Map<string, { contentType?: string | null; url: string }> }): void {
   if (!config.albumsEnabled || message.author.bot) return;
-  const album = albums.get(message.channelId);
-  if (!album) return;
-  const newUrls: string[] = [];
+  if (!dbHasAlbum(message.channelId)) return;
   for (const attachment of message.attachments.values()) {
-    if (attachment.contentType?.startsWith("image/")) newUrls.push(attachment.url);
+    if (attachment.contentType?.startsWith("image/")) {
+      dbAddPhoto(message.channelId, attachment.url);
+    }
   }
-  if (newUrls.length === 0) return;
-  album.imageUrls.push(...newUrls);
-  persistAlbums();
 }
 
 const MIME: Record<string, string> = {
@@ -102,12 +78,12 @@ export function startWebServer(): void {
 
     if (url === "/api/albums") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify([...albums.values()]));
+      res.end(JSON.stringify(dbGetAllAlbumsWithPhotos()));
       return;
     }
     if (url.startsWith("/api/album/")) {
       const channelId = url.slice("/api/album/".length);
-      const album = albums.get(channelId);
+      const album = dbGetAlbumWithPhotos(channelId);
       res.writeHead(album ? 200 : 404, { "Content-Type": "application/json" });
       res.end(JSON.stringify(album ?? { error: "Not found" }));
       return;

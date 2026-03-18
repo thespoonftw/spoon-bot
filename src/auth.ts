@@ -14,18 +14,25 @@ type MagicToken = { userId: string; expires: number };
 let discordClient: Client | null = null;
 const userInfoCache = new Map<string, UserInfo>();
 const magicTokens = new Map<string, MagicToken>();
-let sessions = new Set<string>();
+// token → userId
+let sessions = new Map<string, string>();
 
 function loadSessions() {
   try {
     if (!fs.existsSync(SESSIONS_FILE)) return;
-    sessions = new Set(JSON.parse(fs.readFileSync(SESSIONS_FILE, "utf-8")));
+    const raw = JSON.parse(fs.readFileSync(SESSIONS_FILE, "utf-8"));
+    // Support old format (array of tokens) — migrate to map
+    if (Array.isArray(raw)) {
+      sessions = new Map(raw.map((t: string) => [t, ALLOWED_USER_IDS[0]]));
+    } else {
+      sessions = new Map(Object.entries(raw));
+    }
     console.log(`Loaded ${sessions.size} session(s) from disk.`);
   } catch (e) { console.error("Failed to load sessions:", e); }
 }
 
 function persistSessions() {
-  fs.writeFileSync(SESSIONS_FILE, JSON.stringify([...sessions], null, 2));
+  fs.writeFileSync(SESSIONS_FILE, JSON.stringify(Object.fromEntries(sessions), null, 2));
 }
 
 export async function initAuth(client: Client) {
@@ -98,7 +105,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     }
     magicTokens.delete(token);
     const sessionToken = crypto.randomBytes(32).toString("hex");
-    sessions.add(sessionToken);
+    sessions.set(sessionToken, magic.userId);
     persistSessions();
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ sessionToken, userId: magic.userId }));
@@ -107,9 +114,15 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
 
   if (url === "/api/auth/check" && method === "GET") {
     const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
-    const valid = sessions.has(token);
-    res.writeHead(valid ? 200 : 401, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ valid }));
+    const userId = sessions.get(token);
+    if (!userId) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ valid: false }));
+    } else {
+      const user = userInfoCache.get(userId);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ valid: true, userId, displayName: user?.displayName ?? userId, avatarUrl: user?.avatarUrl ?? "" }));
+    }
     return true;
   }
 
