@@ -3,6 +3,7 @@ import type { Guild } from "discord.js";
 import { config } from "./config";
 import { eventStates, groupStates, persistState, persistGroupState } from "./state";
 import { buildJoinContent, buildJoinEmbed, buildInnerEmbed, joinMessageComponents, pinMessageComponents } from "./eventBuilders";
+import { getAlbumUrl } from "./albums";
 import { buildGroupJoinEmbed, buildGroupPinEmbed, groupJoinComponents, groupLeaveComponents } from "./groupBuilders";
 
 export async function updateJoinMessage(guild: Guild, channelId: string) {
@@ -24,7 +25,8 @@ export async function updateInnerMessage(guild: Guild, channelId: string) {
   if (eventChannel && eventChannel.type === ChannelType.GuildText) {
     try {
       const pinMsg = await eventChannel.messages.fetch(state.pinMessageId);
-      await pinMsg.edit({ content: 'Please use the buttons to RSVP!', embeds: [buildInnerEmbed(state, state.imageUrl || guild.iconURL())], components: pinMessageComponents(channelId) });
+      const albumUrl = getAlbumUrl(channelId) ?? undefined;
+      await pinMsg.edit({ content: 'Please use the buttons to RSVP!', embeds: [buildInnerEmbed(state, state.imageUrl || guild.iconURL(), albumUrl)], components: pinMessageComponents(channelId) });
     } catch (e) { console.error("Failed to update inner message:", e); }
   }
 }
@@ -54,7 +56,8 @@ export async function updateEventMessages(guild: Guild, channelId: string) {
     try {
       await eventChannel.setTopic(state.description || null);
       const pinMsg = await eventChannel.messages.fetch(state.pinMessageId);
-      await pinMsg.edit({ content: 'Please use the buttons to RSVP!', embeds: [buildInnerEmbed(state, iconUrl)], components: pinMessageComponents(channelId) });
+      const albumUrl = getAlbumUrl(channelId) ?? undefined;
+      await pinMsg.edit({ content: 'Please use the buttons to RSVP!', embeds: [buildInnerEmbed(state, iconUrl, albumUrl)], components: pinMessageComponents(channelId) });
     } catch (e) { console.error("Failed to update inner message:", e); }
   }
 }

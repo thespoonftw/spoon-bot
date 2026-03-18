@@ -105,6 +105,27 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
     return;
   }
 
+  // /edit in a group channel
+  if (interaction.isChatInputCommand() && interaction.commandName === "edit") {
+    const channelId = interaction.channelId;
+    const state = groupStates.get(channelId);
+    if (!state) return; // not a group channel — let event handler deal with it
+    const modal = new ModalBuilder().setCustomId(`group_edit_modal_${channelId}`).setTitle("Edit Group");
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("name").setLabel("Group Name").setStyle(TextInputStyle.Short).setRequired(true).setValue(state.groupName)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("description").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setValue(state.description)
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId("imageUrl").setLabel("Image URL (leave blank to use server icon)").setStyle(TextInputStyle.Short).setRequired(false).setValue(state.imageUrl ?? "")
+      ),
+    );
+    await interaction.showModal(modal);
+    return;
+  }
+
   // /leave command (group branch)
   if (interaction.isChatInputCommand() && interaction.commandName === "leave") {
     const channelId = interaction.channelId;

@@ -1,13 +1,14 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Interaction, Message } from "discord.js";
+import { Interaction, TextChannel } from "discord.js";
 import http from "http";
 import fs from "fs";
 import path from "path";
-import { DATA_DIR, groupStates } from "./state";
+import { DATA_DIR, eventStates } from "./state";
 import { config } from "./config";
 
 export type PhotoAlbum = {
   channelId: string;
   groupName: string;
+  dateText?: string;
   imageUrls: string[];
   createdAt: string;
 };
@@ -32,43 +33,45 @@ export function hasAlbum(channelId: string): boolean {
   return albums.has(channelId);
 }
 
-export function buildEditMenuComponents(channelId: string): ActionRowBuilder<ButtonBuilder>[] {
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`group_editmodal_${channelId}`).setLabel("✏️ Edit Group").setStyle(ButtonStyle.Primary),
-  );
-  if (config.albumsEnabled) {
-    if (!albums.has(channelId)) {
-      row.addComponents(new ButtonBuilder().setCustomId(`album_start_${channelId}`).setLabel("📸 Start Photo Album").setStyle(ButtonStyle.Secondary));
-    } else {
-      row.addComponents(new ButtonBuilder().setCustomId(`album_delete_${channelId}`).setLabel("🗑️ Delete Photo Album").setStyle(ButtonStyle.Danger));
-    }
-  }
-  row.addComponents(new ButtonBuilder().setCustomId("group_edit_cancel").setLabel("✕ Cancel").setStyle(ButtonStyle.Secondary));
-  return [row];
+const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
+
+export function getAlbumUrl(channelId: string): string | null {
+  if (!albums.has(channelId)) return null;
+  return `${getBaseUrl()}/album/${channelId}`;
 }
 
-export async function handleAlbumInteractions(interaction: Interaction): Promise<void> {
-  if (!interaction.isButton()) return;
+// Returns channelId if event messages need refreshing, null otherwise
+export async function handleAlbumInteractions(interaction: Interaction): Promise<string | null> {
+  if (!interaction.isButton()) return null;
 
   if (interaction.customId.startsWith("album_start_")) {
     const channelId = interaction.customId.slice("album_start_".length);
-    const groupName = groupStates.get(channelId)?.groupName ?? channelId;
-    albums.set(channelId, { channelId, groupName, imageUrls: [], createdAt: new Date().toISOString() });
+    const eventState = eventStates.get(channelId);
+    const albumName = eventState?.eventName ?? channelId;
+    const dateText = eventState?.dateText;
+    const albumUrl = `${getBaseUrl()}/album/${channelId}`;
+    albums.set(channelId, { channelId, groupName: albumName, dateText, imageUrls: [], createdAt: new Date().toISOString() });
     persistAlbums();
-    await interaction.update({ content: "📸 Photo album started!", components: [] });
-    return;
+    await interaction.update({ content: `Photo album started! ${albumUrl}`, components: [] });
+    const channel = interaction.guild?.channels.cache.get(channelId);
+    if (channel?.isTextBased()) {
+      await (channel as TextChannel).send(`📸 Photo album started for **${albumName}**! ${albumUrl}`);
+    }
+    return channelId;
   }
 
   if (interaction.customId.startsWith("album_delete_")) {
     const channelId = interaction.customId.slice("album_delete_".length);
     albums.delete(channelId);
     persistAlbums();
-    await interaction.update({ content: "🗑️ Photo album deleted.", components: [] });
-    return;
+    await interaction.update({ content: "Photo album deleted.", components: [] });
+    return channelId;
   }
+
+  return null;
 }
 
-export function handleAlbumMessageCreate(message: Message): void {
+export function handleAlbumMessageCreate(message: { author: { bot: boolean }; channelId: string; attachments: Map<string, { contentType?: string; url: string }> }): void {
   if (!config.albumsEnabled || message.author.bot) return;
   const album = albums.get(message.channelId);
   if (!album) return;
@@ -81,22 +84,16 @@ export function handleAlbumMessageCreate(message: Message): void {
   persistAlbums();
 }
 
-function buildHtml(): string {
+function buildIndexHtml(): string {
   const albumList = [...albums.values()];
-  const body = albumList.length === 0
+  const cards = albumList.length === 0
     ? "<p>No albums yet.</p>"
-    : albumList.map(album => {
-        const images = album.imageUrls.length === 0
-          ? "<p>No images yet.</p>"
-          : album.imageUrls.map(url =>
-              `<a href="${url}" target="_blank"><img src="${url}" onerror="this.parentElement.style.display='none'"></a>`
-            ).join("");
-        return `<section>
+    : albumList.map(album => `
+        <a class="card" href="/album/${album.channelId}">
           <h2>${album.groupName}</h2>
-          <p class="meta">${album.imageUrls.length} image(s) · started ${new Date(album.createdAt).toLocaleDateString("en-GB")}</p>
-          <div class="gallery">${images}</div>
-        </section>`;
-      }).join("");
+          ${album.dateText ? `<p class="date">${album.dateText}</p>` : ""}
+          <p class="meta">${album.imageUrls.length} photo(s)</p>
+        </a>`).join("");
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -108,16 +105,48 @@ function buildHtml(): string {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: sans-serif; background: #1e1e2e; color: #cdd6f4; padding: 32px; }
     h1 { color: #cba6f7; margin-bottom: 24px; }
-    h2 { color: #89b4fa; margin-bottom: 6px; }
-    .meta { color: #a6adc8; font-size: 0.85em; margin-bottom: 12px; }
-    section { background: #313244; border-radius: 10px; padding: 20px; margin-bottom: 24px; }
-    .gallery { display: flex; flex-wrap: wrap; gap: 8px; }
-    .gallery img { width: 180px; height: 180px; object-fit: cover; border-radius: 6px; cursor: pointer; }
+    h2 { color: #89b4fa; margin-bottom: 4px; }
+    .date { color: #cdd6f4; margin-bottom: 4px; }
+    .meta { color: #a6adc8; font-size: 0.85em; }
+    .card { display: block; background: #313244; border-radius: 10px; padding: 20px; margin-bottom: 16px; text-decoration: none; color: inherit; }
+    .card:hover { background: #45475a; }
   </style>
 </head>
 <body>
   <h1>📸 Snek Photo Albums</h1>
-  ${body}
+  ${cards}
+</body>
+</html>`;
+}
+
+function buildAlbumPageHtml(album: PhotoAlbum): string {
+  const images = album.imageUrls.length === 0
+    ? "<p>No photos yet.</p>"
+    : album.imageUrls.map(url =>
+        `<a href="${url}" target="_blank"><img src="${url}" onerror="this.parentElement.style.display='none'"></a>`
+      ).join("");
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${album.groupName} – Snek Photos</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #1e1e2e; color: #cdd6f4; padding: 32px; }
+    h1 { color: #cba6f7; margin-bottom: 6px; }
+    .date { color: #a6adc8; margin-bottom: 24px; }
+    a.back { color: #89b4fa; text-decoration: none; display: inline-block; margin-bottom: 20px; }
+    .gallery { display: flex; flex-wrap: wrap; gap: 8px; }
+    .gallery img { width: 220px; height: 220px; object-fit: cover; border-radius: 6px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <a class="back" href="/">← All Albums</a>
+  <h1>${album.groupName}</h1>
+  ${album.dateText ? `<p class="date">${album.dateText}</p>` : ""}
+  <div class="gallery">${images}</div>
 </body>
 </html>`;
 }
@@ -125,8 +154,15 @@ function buildHtml(): string {
 export function startWebServer(): void {
   if (!config.albumsEnabled) return;
   const port = parseInt(process.env.ALBUM_PORT ?? "3000");
-  http.createServer((_req, res) => {
+  http.createServer((req, res) => {
+    const url = req.url ?? "/";
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(buildHtml());
+    if (url.startsWith("/album/")) {
+      const channelId = url.slice("/album/".length).split("?")[0];
+      const album = albums.get(channelId);
+      res.end(album ? buildAlbumPageHtml(album) : "<h1>Album not found</h1>");
+    } else {
+      res.end(buildIndexHtml());
+    }
   }).listen(port, () => console.log(`Photo album web server running on port ${port}`));
 }

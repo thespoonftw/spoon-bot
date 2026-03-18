@@ -573,5 +573,8 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     return;
   }
 
-  await handleAlbumInteractions(interaction);
+  const albumChannelId = await handleAlbumInteractions(interaction);
+  if (albumChannelId && interaction.guild) {
+    await updateEventMessages(interaction.guild, albumChannelId);
+  }
 }

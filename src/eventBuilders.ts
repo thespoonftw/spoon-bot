@@ -5,6 +5,7 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import type { EventState, RSVPStatus } from "./types";
+import { config } from "./config";
 
 export const SPACER = "⠀".repeat(40);
 export const JOIN_LABEL = "⠀".repeat(12) + "Join" + "⠀".repeat(12);
@@ -52,7 +53,7 @@ export function buildJoinEmbed(state: EventState, thumbnailUrl?: string | null) 
   return embed;
 }
 
-export function buildInnerEmbed(state: EventState, thumbnailUrl?: string | null) {
+export function buildInnerEmbed(state: EventState, thumbnailUrl?: string | null, albumUrl?: string) {
   const embed = new EmbedBuilder()
     .setTitle(state.eventName)
     .setDescription(buildDescText(state.description, state.location, state.dateText, state.endDateText))
@@ -82,6 +83,7 @@ export function buildInnerEmbed(state: EventState, thumbnailUrl?: string | null)
 
     if (sections.length) embed.addFields({ name: "\u200b", value: sections.join("\n\n") });
   }
+  if (albumUrl) embed.addFields({ name: "📸 Photo Album", value: `[View Photos](${albumUrl})` });
   return embed;
 }
 
@@ -133,10 +135,10 @@ export function buildGearMenuComponents(channelId: string, joiningEnabled: boole
     new ActionRowBuilder<ButtonBuilder>().addComponents(...row1),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`gear_toggle_join_${channelId}`).setLabel(joiningEnabled ? "Disable Joining" : "Enable Joining").setStyle(ButtonStyle.Primary),
-      ...(albumActive
-        ? [new ButtonBuilder().setCustomId(`album_delete_${channelId}`).setLabel("🗑️ Delete Photo Album").setStyle(ButtonStyle.Danger)]
-        : [new ButtonBuilder().setCustomId(`album_start_${channelId}`).setLabel("📸 Start Photo Album").setStyle(ButtonStyle.Secondary)]
-      ),
+      ...(config.albumsEnabled ? [albumActive
+        ? new ButtonBuilder().setCustomId(`album_delete_${channelId}`).setLabel("Delete Photo Album").setStyle(ButtonStyle.Danger)
+        : new ButtonBuilder().setCustomId(`album_start_${channelId}`).setLabel("Start Photo Album").setStyle(ButtonStyle.Primary)
+      ] : []),
       new ButtonBuilder().setCustomId(`gear_delete_ask_${channelId}`).setLabel("Delete Event").setStyle(ButtonStyle.Danger),
       new ButtonBuilder().setCustomId(`close_edit_${channelId}`).setLabel("Cancel").setStyle(ButtonStyle.Secondary),
     ),
