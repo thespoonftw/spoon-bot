@@ -28,6 +28,10 @@ function persistAlbums() {
   fs.writeFileSync(ALBUMS_FILE, JSON.stringify([...albums.values()], null, 2));
 }
 
+export function hasAlbum(channelId: string): boolean {
+  return albums.has(channelId);
+}
+
 export function buildEditMenuComponents(channelId: string): ActionRowBuilder<ButtonBuilder>[] {
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(`group_editmodal_${channelId}`).setLabel("✏️ Edit Group").setStyle(ButtonStyle.Primary),

@@ -25,6 +25,7 @@ import {
 } from "../eventBuilders";
 import { parseDateText } from "../dateUtils";
 import { updateJoinMessage, updateInnerMessage, updateEventMessages } from "../messageSync";
+import { hasAlbum, handleAlbumInteractions } from "../albums";
 
 const RSVP_LABELS: Record<RSVPStatus, string> = {
   coming: "✅ Coming",
@@ -226,7 +227,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     await interaction.reply({
       ephemeral: true,
       content: "What would you like to do?",
-      components: buildGearMenuComponents(channelId, state.joiningEnabled, state.dateText),
+      components: buildGearMenuComponents(channelId, state.joiningEnabled, state.dateText, hasAlbum(channelId)),
     });
     pendingGearMenus.set(channelId, interaction);
     return;
@@ -243,7 +244,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     await interaction.reply({
       ephemeral: true,
       content: "What would you like to do?",
-      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true, state?.dateText ?? "TBC"),
+      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true, state?.dateText ?? "TBC", hasAlbum(channelId)),
     });
     pendingGearMenus.set(channelId, interaction);
     return;
@@ -262,7 +263,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     const state = eventStates.get(channelId);
     await interaction.update({
       content: "What would you like to do?",
-      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true, state?.dateText ?? "TBC"),
+      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true, state?.dateText ?? "TBC", hasAlbum(channelId)),
     });
     return;
   }
@@ -381,7 +382,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     const state = eventStates.get(channelId);
     await interaction.update({
       content: "What would you like to do?",
-      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true, state?.dateText ?? "TBC"),
+      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true, state?.dateText ?? "TBC", hasAlbum(channelId)),
     });
     return;
   }
@@ -571,4 +572,6 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     }
     return;
   }
+
+  await handleAlbumInteractions(interaction);
 }
