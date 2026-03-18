@@ -37,7 +37,7 @@ const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 
 export function getAlbumUrl(channelId: string): string | null {
   if (!albums.has(channelId)) return null;
-  return `${getBaseUrl()}/album/${channelId}`;
+  return `${getBaseUrl()}/#/album/${channelId}`;
 }
 
 // Returns channelId if event messages need refreshing, null otherwise
@@ -49,7 +49,7 @@ export async function handleAlbumInteractions(interaction: Interaction): Promise
     const eventState = eventStates.get(channelId);
     const albumName = eventState?.eventName ?? channelId;
     const dateText = eventState?.dateText;
-    const albumUrl = `${getBaseUrl()}/album/${channelId}`;
+    const albumUrl = `${getBaseUrl()}/#/album/${channelId}`;
     albums.set(channelId, { channelId, groupName: albumName, dateText, imageUrls: [], createdAt: new Date().toISOString() });
     persistAlbums();
     await interaction.update({ content: `Photo album started! ${albumUrl}`, components: [] });
@@ -84,85 +84,42 @@ export function handleAlbumMessageCreate(message: { author: { bot: boolean }; ch
   persistAlbums();
 }
 
-function buildIndexHtml(): string {
-  const albumList = [...albums.values()];
-  const cards = albumList.length === 0
-    ? "<p>No albums yet.</p>"
-    : albumList.map(album => `
-        <a class="card" href="/album/${album.channelId}">
-          <h2>${album.groupName}</h2>
-          ${album.dateText ? `<p class="date">${album.dateText}</p>` : ""}
-          <p class="meta">${album.imageUrls.length} photo(s)</p>
-        </a>`).join("");
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Snek Photo Albums</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: sans-serif; background: #1e1e2e; color: #cdd6f4; padding: 32px; }
-    h1 { color: #cba6f7; margin-bottom: 24px; }
-    h2 { color: #89b4fa; margin-bottom: 4px; }
-    .date { color: #cdd6f4; margin-bottom: 4px; }
-    .meta { color: #a6adc8; font-size: 0.85em; }
-    .card { display: block; background: #313244; border-radius: 10px; padding: 20px; margin-bottom: 16px; text-decoration: none; color: inherit; }
-    .card:hover { background: #45475a; }
-  </style>
-</head>
-<body>
-  <h1>📸 Snek Photo Albums</h1>
-  ${cards}
-</body>
-</html>`;
-}
-
-function buildAlbumPageHtml(album: PhotoAlbum): string {
-  const images = album.imageUrls.length === 0
-    ? "<p>No photos yet.</p>"
-    : album.imageUrls.map(url =>
-        `<a href="${url}" target="_blank"><img src="${url}" onerror="this.parentElement.style.display='none'"></a>`
-      ).join("");
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${album.groupName} – Snek Photos</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: sans-serif; background: #1e1e2e; color: #cdd6f4; padding: 32px; }
-    h1 { color: #cba6f7; margin-bottom: 6px; }
-    .date { color: #a6adc8; margin-bottom: 24px; }
-    a.back { color: #89b4fa; text-decoration: none; display: inline-block; margin-bottom: 20px; }
-    .gallery { display: flex; flex-wrap: wrap; gap: 8px; }
-    .gallery img { width: 220px; height: 220px; object-fit: cover; border-radius: 6px; cursor: pointer; }
-  </style>
-</head>
-<body>
-  <a class="back" href="/">← All Albums</a>
-  <h1>${album.groupName}</h1>
-  ${album.dateText ? `<p class="date">${album.dateText}</p>` : ""}
-  <div class="gallery">${images}</div>
-</body>
-</html>`;
-}
+const MIME: Record<string, string> = {
+  ".html": "text/html", ".js": "application/javascript", ".css": "text/css",
+  ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2",
+};
 
 export function startWebServer(): void {
   if (!config.albumsEnabled) return;
   const port = parseInt(process.env.ALBUM_PORT ?? "3000");
+  const webDist = path.join(__dirname, "..", "web", "dist");
+
   http.createServer((req, res) => {
-    const url = req.url ?? "/";
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    if (url.startsWith("/album/")) {
-      const channelId = url.slice("/album/".length).split("?")[0];
-      const album = albums.get(channelId);
-      res.end(album ? buildAlbumPageHtml(album) : "<h1>Album not found</h1>");
-    } else {
-      res.end(buildIndexHtml());
+    const url = (req.url ?? "/").split("?")[0];
+
+    if (url === "/api/albums") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify([...albums.values()]));
+      return;
     }
+    if (url.startsWith("/api/album/")) {
+      const channelId = url.slice("/api/album/".length);
+      const album = albums.get(channelId);
+      res.writeHead(album ? 200 : 404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(album ?? { error: "Not found" }));
+      return;
+    }
+
+    // Static files — assets have hashed names; everything else serves index.html for Vue Router
+    const filePath = url.startsWith("/assets/")
+      ? path.join(webDist, url)
+      : path.join(webDist, "index.html");
+
+    if (!filePath.startsWith(webDist) || !fs.existsSync(filePath)) {
+      res.writeHead(404); res.end("Not found"); return;
+    }
+    const mime = MIME[path.extname(filePath)] ?? "application/octet-stream";
+    res.writeHead(200, { "Content-Type": mime });
+    res.end(fs.readFileSync(filePath));
   }).listen(port, () => console.log(`Photo album web server running on port ${port}`));
 }
