@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { DATA_DIR, eventStates } from "./state";
 import { config } from "./config";
+import { handleAuthRoutes } from "./auth";
 
 export type PhotoAlbum = {
   channelId: string;
@@ -96,6 +97,8 @@ export function startWebServer(): void {
 
   http.createServer((req, res) => {
     const url = (req.url ?? "/").split("?")[0];
+
+    if (handleAuthRoutes(req, res)) return;
 
     if (url === "/api/albums") {
       res.writeHead(200, { "Content-Type": "application/json" });

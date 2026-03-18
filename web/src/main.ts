@@ -3,14 +3,27 @@ import { createRouter, createWebHashHistory } from "vue-router";
 import App from "./App.vue";
 import AlbumList from "./views/AlbumList.vue";
 import AlbumView from "./views/AlbumView.vue";
+import LoginView from "./views/LoginView.vue";
+import MagicLinkSent from "./views/MagicLinkSent.vue";
+import AuthVerify from "./views/AuthVerify.vue";
 import "./style.css";
 
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
+    { path: "/login", component: LoginView, meta: { public: true } },
+    { path: "/login/sent", component: MagicLinkSent, meta: { public: true } },
+    { path: "/auth/verify/:token", component: AuthVerify, meta: { public: true } },
     { path: "/", component: AlbumList },
     { path: "/album/:channelId", component: AlbumView },
   ],
+});
+
+router.beforeEach((to) => {
+  if (to.meta.public) return true;
+  const session = localStorage.getItem("snek_session");
+  if (!session) return { path: "/login" };
+  return true;
 });
 
 createApp(App).use(router).mount("#app");

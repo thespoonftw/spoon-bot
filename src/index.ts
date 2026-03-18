@@ -16,6 +16,7 @@ import { handleDatePickerInteractions } from "./interactions/datePickerInteracti
 import { handleGroupInteractions } from "./interactions/groupInteractions";
 import { loadBirthdays, handleBirthdayInteractions, scheduleBirthdayAnnouncements } from "./birthdays";
 import { loadAlbums, handleAlbumMessageCreate, startWebServer } from "./albums";
+import { initAuth } from "./auth";
 
 dotenv.config();
 
@@ -35,6 +36,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   loadAlbums();
   scheduleBirthdayAnnouncements(readyClient);
   startWebServer();
+  await initAuth(readyClient);
   if (eventStates.size > 0) {
     const guild = readyClient.guilds.cache.get(config.guildId);
     if (guild) {
