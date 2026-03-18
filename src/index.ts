@@ -15,6 +15,7 @@ import { handleEventInteractions } from "./interactions/eventInteractions";
 import { handleDatePickerInteractions } from "./interactions/datePickerInteractions";
 import { handleGroupInteractions } from "./interactions/groupInteractions";
 import { loadBirthdays, handleBirthdayInteractions, scheduleBirthdayAnnouncements } from "./birthdays";
+import { loadAlbums, handleAlbumMessageCreate, startWebServer } from "./albums";
 
 dotenv.config();
 
@@ -31,7 +32,9 @@ client.once(Events.ClientReady, async (readyClient) => {
   loadState();
   loadGroupState();
   loadBirthdays();
+  loadAlbums();
   scheduleBirthdayAnnouncements(readyClient);
+  startWebServer();
   if (eventStates.size > 0) {
     const guild = readyClient.guilds.cache.get(config.guildId);
     if (guild) {
@@ -136,6 +139,8 @@ client.on(Events.MessageCreate, (message: Message) => {
     message.delete().catch(() => {});
     return;
   }
+
+  handleAlbumMessageCreate(message);
 
   if (process.env.WOOF_ENABLED === "true") {
     const match = message.content.match(/himiko([!?.,]*)/i);

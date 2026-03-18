@@ -13,6 +13,7 @@ import { eventStates, groupStates, persistState, persistGroupState } from "../st
 import type { GroupState } from "../types";
 import { buildGroupJoinEmbed, buildGroupPinEmbed, groupJoinComponents, groupLeaveComponents } from "../groupBuilders";
 import { updateJoinMessage, updateInnerMessage, updateGroupMessages } from "../messageSync";
+import { buildEditMenuComponents, handleAlbumInteractions } from "../albums";
 
 export async function handleGroupInteractions(interaction: Interaction, guild: Guild | null): Promise<void> {
   // /group — open modal
@@ -187,9 +188,16 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
     return;
   }
 
-  // group_edit_ gear button
-  if (interaction.isButton() && interaction.customId.startsWith("group_edit_")) {
-    const channelId = interaction.customId.slice("group_edit_".length);
+  // group_edit_cancel button
+  if (interaction.isButton() && interaction.customId === "group_edit_cancel") {
+    await interaction.deferUpdate();
+    await interaction.deleteReply();
+    return;
+  }
+
+  // group_editmodal_ — "Edit Group" button inside the edit menu → opens modal
+  if (interaction.isButton() && interaction.customId.startsWith("group_editmodal_")) {
+    const channelId = interaction.customId.slice("group_editmodal_".length);
     const state = groupStates.get(channelId);
     if (!state) { await interaction.reply({ content: "Group not found.", flags: MessageFlags.Ephemeral }); return; }
     const modal = new ModalBuilder().setCustomId(`group_edit_modal_${channelId}`).setTitle("Edit Group");
@@ -205,6 +213,18 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
       ),
     );
     await interaction.showModal(modal);
+    return;
+  }
+
+  // album buttons
+  await handleAlbumInteractions(interaction);
+
+  // group_edit_ gear button — show edit menu
+  if (interaction.isButton() && interaction.customId.startsWith("group_edit_") && /^\d+$/.test(interaction.customId.slice("group_edit_".length))) {
+    const channelId = interaction.customId.slice("group_edit_".length);
+    const state = groupStates.get(channelId);
+    if (!state) { await interaction.reply({ content: "Group not found.", flags: MessageFlags.Ephemeral }); return; }
+    await interaction.reply({ content: "**Group Settings**", components: buildEditMenuComponents(channelId), flags: MessageFlags.Ephemeral });
     return;
   }
 

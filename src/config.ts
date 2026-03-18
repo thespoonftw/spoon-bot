@@ -11,4 +11,5 @@ export const config = {
   groupsCategoryId: process.env.GROUPS_CATEGORY_ID,
   birthdaysEnabled: process.env.BIRTHDAYS_ENABLED === "true",
   birthdaysChannelId: process.env.BIRTHDAYS_CHANNEL_ID,
+  albumsEnabled: process.env.ALBUMS_ENABLED === "true",
 };
