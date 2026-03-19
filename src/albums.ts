@@ -40,32 +40,38 @@ export function getAlbumUrl(channelId: string): string | null {
 }
 
 // Returns channelId if event messages need refreshing, null otherwise
+export async function startAlbumForChannel(channelId: string, guild: Guild): Promise<string> {
+  const eventState = eventStates.get(channelId);
+  const albumName = eventState?.eventName ?? channelId;
+  const dateText = eventState?.dateText;
+  const albumUrl = `${getBaseUrl()}/album/${channelId}`;
+  dbInsertAlbum({ channelId, groupName: albumName, dateText, location: eventState?.location, createdAt: new Date().toISOString() });
+  try {
+    await guild.members.fetch();
+    const ch = guild.channels.cache.get(channelId);
+    if (ch && "members" in ch) {
+      for (const [, member] of (ch as TextChannel).members) {
+        if (!member.user.bot) {
+          dbUpsertUser(member.id, member.displayName, member.user.avatarURL() ?? undefined);
+          dbAddAlbumMember(channelId, member.id);
+        }
+      }
+    }
+  } catch (e) { console.error("Failed to fetch channel members on album start:", e); }
+  return albumUrl;
+}
+
 export async function handleAlbumInteractions(interaction: Interaction): Promise<string | null> {
   if (!interaction.isButton()) return null;
 
   if (interaction.customId.startsWith("album_start_")) {
     const channelId = interaction.customId.slice("album_start_".length);
+    if (!interaction.guild) return null;
+    const albumUrl = await startAlbumForChannel(channelId, interaction.guild);
     const eventState = eventStates.get(channelId);
     const albumName = eventState?.eventName ?? channelId;
-    const dateText = eventState?.dateText;
-    const albumUrl = `${getBaseUrl()}/album/${channelId}`;
-    dbInsertAlbum({ channelId, groupName: albumName, dateText, location: eventState?.location, createdAt: new Date().toISOString() });
-    if (interaction.guild) {
-      try {
-        await interaction.guild.members.fetch();
-        const ch = interaction.guild.channels.cache.get(channelId);
-        if (ch && "members" in ch) {
-          for (const [, member] of (ch as TextChannel).members) {
-            if (!member.user.bot) {
-              dbUpsertUser(member.id, member.displayName, member.user.avatarURL() ?? undefined);
-              dbAddAlbumMember(channelId, member.id);
-            }
-          }
-        }
-      } catch (e) { console.error("Failed to fetch channel members on album start:", e); }
-    }
     await interaction.update({ content: `Photo album started! ${albumUrl}`, components: [] });
-    const channel = interaction.guild?.channels.cache.get(channelId);
+    const channel = interaction.guild.channels.cache.get(channelId);
     if (channel?.isTextBased()) {
       await (channel as TextChannel).send(`📸 Photo album started for **${albumName}**! ${albumUrl}`);
     }
