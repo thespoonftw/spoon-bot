@@ -15,7 +15,7 @@ const Busboy = require("busboy") as (opts: { headers: Record<string, string | st
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser } from "./auth";
-import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare } from "./db";
+import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount } from "./db";
 import type { Guild } from "discord.js";
 
 type UpdateEventMessagesFn = (guild: Guild, channelId: string) => Promise<void>;
@@ -179,6 +179,22 @@ export function startWebServer(): void {
     const method = req.method ?? "GET";
 
     if (handleAuthRoutes(req, res)) return;
+
+    if (url === "/api/status" && method === "GET") {
+      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      try {
+        const stats = fs.statfsSync(PHOTO_STORAGE_PATH);
+        const total = stats.blocks * stats.bsize;
+        const available = stats.bavail * stats.bsize;
+        const used = total - available;
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ total, used, available, photoCount: dbGetPhotoCount(), albumCount: dbGetAlbumCount() }));
+      } catch (e) {
+        res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Failed" }));
+      }
+      return;
+    }
 
     if (url === "/api/albums" && method === "GET") {
       const albums = dbGetAllAlbumsWithPhotos().map(a => {

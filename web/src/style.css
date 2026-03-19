@@ -147,6 +147,19 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .feature-card h2 { color: #cba6f7; font-size: 1.5rem; margin-bottom: 0; }
 .feature-card p { color: #a6adc8; text-align: center; margin: 0; }
 
+.status-grid { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px; }
+.status-card { background: #313244; border-radius: 12px; padding: 28px; flex: 1; min-width: 220px; }
+.status-section-title { color: #89b4fa; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 20px; font-weight: 600; }
+.donut-wrap { display: flex; justify-content: center; margin-bottom: 20px; }
+.storage-stats { display: flex; justify-content: space-around; }
+.storage-stat { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.storage-stat-label { color: #a6adc8; font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.06em; }
+.storage-stat-value { color: #cdd6f4; font-size: 1.05em; font-weight: 600; }
+.lib-stats { display: flex; gap: 24px; justify-content: center; margin-top: 16px; }
+.lib-stat { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.lib-stat-number { color: #cba6f7; font-size: 2.8em; font-weight: 700; line-height: 1; }
+.lib-stat-label { color: #a6adc8; font-size: 0.85em; }
+
 .user-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
 .user-row { display: flex; align-items: center; gap: 14px; background: #313244; border-radius: 10px; padding: 14px 18px; }
 .user-row-info { display: flex; flex-direction: column; gap: 2px; }

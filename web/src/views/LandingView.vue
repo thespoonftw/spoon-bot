@@ -21,6 +21,11 @@
         <h2>Users</h2>
         <p>See who's in the community</p>
       </router-link>
+      <router-link to="/status" class="feature-card">
+        <span class="feature-icon">💾</span>
+        <h2>Status</h2>
+        <p>Storage and library stats</p>
+      </router-link>
     </div>
   </div>
 </template>

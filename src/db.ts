@@ -272,6 +272,14 @@ export function dbAddUploadedPhoto(channelId: string, url: string, filename: str
   return { id: result.lastInsertRowid as number, channelId, url, filename, uploadedById, uploadedByName, uploadedAt, takenAt, width, height };
 }
 
+export function dbGetPhotoCount(): number {
+  return (db.prepare("SELECT COUNT(*) AS n FROM photos").get() as { n: number }).n;
+}
+
+export function dbGetAlbumCount(): number {
+  return (db.prepare("SELECT COUNT(*) AS n FROM albums").get() as { n: number }).n;
+}
+
 export function dbCreateAlbumShare(channelId: string, token: string, passwordHash: string): void {
   db.prepare("INSERT INTO album_shares (token, channel_id, password_hash, created_at) VALUES (?, ?, ?, ?)")
     .run(token, channelId, passwordHash, new Date().toISOString());
