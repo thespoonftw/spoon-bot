@@ -40,9 +40,9 @@ export function getAlbumUrl(channelId: string): string | null {
 }
 
 // Returns channelId if event messages need refreshing, null otherwise
-export async function startAlbumForChannel(channelId: string, guild: Guild): Promise<string> {
+export async function startAlbumForChannel(channelId: string, guild: Guild, albumNameOverride?: string): Promise<string> {
   const eventState = eventStates.get(channelId);
-  const albumName = eventState?.eventName ?? channelId;
+  const albumName = albumNameOverride ?? eventState?.eventName ?? channelId;
   const dateText = eventState?.dateText;
   const albumUrl = `${getBaseUrl()}/album/${channelId}`;
   dbInsertAlbum({ channelId, groupName: albumName, dateText, location: eventState?.location, createdAt: new Date().toISOString() });

@@ -145,12 +145,18 @@ const focusedPhoto = computed(() => lightboxIndex.value !== null ? album.value?.
 const swipeDelta = ref(0);
 const swipeTransition = ref(false);
 const zoomLevel = ref(1);
+const panX = ref(0);
+const panY = ref(0);
 const isZoomed = computed(() => zoomLevel.value > 1.05);
 const imgStyle = computed(() => ({
-  transform: isZoomed.value ? `scale(${zoomLevel.value})` : `translateX(${swipeDelta.value}px)`,
+  transform: isZoomed.value
+    ? `translate(${panX.value}px, ${panY.value}px) scale(${zoomLevel.value})`
+    : `translateX(${swipeDelta.value}px)`,
   transition: isZoomed.value ? "none" : (swipeTransition.value ? "transform 0.25s ease" : "none"),
 }));
 let touchStartX = 0;
+let panStartX = 0;
+let panStartY = 0;
 let lastTapTime = 0;
 let initialPinchDist = 0;
 let initialZoomOnPinch = 1;
@@ -182,12 +188,12 @@ onUnmounted(() => { window.removeEventListener("keydown", onKeyDown); });
 function lightboxNext() {
   if (lightboxIndex.value === null || !album.value) return;
   lightboxIndex.value = (lightboxIndex.value + 1) % album.value.photos.length;
-  swipeDelta.value = 0; swipeTransition.value = false; zoomLevel.value = 1;
+  swipeDelta.value = 0; swipeTransition.value = false; zoomLevel.value = 1; panX.value = 0; panY.value = 0;
 }
 function lightboxPrev() {
   if (lightboxIndex.value === null || !album.value) return;
   lightboxIndex.value = (lightboxIndex.value - 1 + album.value.photos.length) % album.value.photos.length;
-  swipeDelta.value = 0; swipeTransition.value = false; zoomLevel.value = 1;
+  swipeDelta.value = 0; swipeTransition.value = false; zoomLevel.value = 1; panX.value = 0; panY.value = 0;
 }
 
 function getPinchDist(e: TouchEvent) {
@@ -203,9 +209,15 @@ function onTouchStart(e: TouchEvent) {
     return;
   }
   const now = Date.now();
-  if (now - lastTapTime < 300) { zoomLevel.value = 1; lastTapTime = 0; return; }
+  if (now - lastTapTime < 300) {
+    zoomLevel.value = 1; panX.value = 0; panY.value = 0;
+    lastTapTime = 0; return;
+  }
   lastTapTime = now;
-  if (!isZoomed.value) {
+  if (isZoomed.value) {
+    panStartX = e.touches[0].clientX - panX.value;
+    panStartY = e.touches[0].clientY - panY.value;
+  } else {
     touchStartX = e.touches[0].clientX;
     swipeTransition.value = false;
     swipeDelta.value = 0;
@@ -216,16 +228,21 @@ function onTouchMove(e: TouchEvent) {
     zoomLevel.value = Math.max(1, Math.min(5, initialZoomOnPinch * (getPinchDist(e) / initialPinchDist)));
     return;
   }
-  if (!isZoomed.value) swipeDelta.value = e.touches[0].clientX - touchStartX;
+  if (isZoomed.value) {
+    panX.value = e.touches[0].clientX - panStartX;
+    panY.value = e.touches[0].clientY - panStartY;
+  } else {
+    swipeDelta.value = e.touches[0].clientX - touchStartX;
+  }
 }
 function onTouchEnd(e: TouchEvent) {
   if (isZoomed.value) return;
   const delta = e.changedTouches[0].clientX - touchStartX;
   swipeTransition.value = true;
-  if (delta > 50) {
+  if (delta > 100) {
     swipeDelta.value = window.innerWidth;
     setTimeout(() => { lightboxPrev(); }, 250);
-  } else if (delta < -50) {
+  } else if (delta < -100) {
     swipeDelta.value = -window.innerWidth;
     setTimeout(() => { lightboxNext(); }, 250);
   } else {

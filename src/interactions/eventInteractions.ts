@@ -580,15 +580,11 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     return;
   }
 
-  // /album — start photo album for this event channel
+  // /album — start photo album for this channel
   if (interaction.isChatInputCommand() && interaction.commandName === "album") {
     const channelId = interaction.channelId;
     if (!hasRole()) {
       await interaction.reply({ content: "You don't have permission.", ephemeral: true });
-      return;
-    }
-    if (!eventStates.has(channelId)) {
-      await interaction.reply({ content: "This command can only be used in an event channel.", ephemeral: true });
       return;
     }
     if (hasAlbum(channelId)) {
@@ -597,13 +593,15 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     }
     if (!interaction.guild) return;
     await interaction.deferReply();
-    const albumUrl = await startAlbumForChannel(channelId, interaction.guild);
+    const ch = interaction.channel;
+    const channelName = ch && "name" in ch && ch.name ? ch.name : channelId;
     const eventState = eventStates.get(channelId);
-    const albumName = eventState?.eventName ?? channelId;
+    const albumName = eventState?.eventName ?? channelName;
+    const albumUrl = await startAlbumForChannel(channelId, interaction.guild, albumName);
     await interaction.editReply(`📸 Photo album started for **${albumName}**! ${albumUrl}`);
     const reply = await interaction.fetchReply();
     try { await reply.pin(); } catch (e) { console.error("Failed to pin album message:", e); }
-    await updateEventMessages(interaction.guild, channelId);
+    if (eventState) await updateEventMessages(interaction.guild, channelId);
     return;
   }
 
