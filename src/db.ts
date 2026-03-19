@@ -16,7 +16,8 @@ export function initDb() {
       user_id       TEXT PRIMARY KEY,
       display_name  TEXT NOT NULL,
       avatar_url    TEXT,
-      last_login_at TEXT
+      last_login_at TEXT,
+      level         INTEGER NOT NULL DEFAULT 1
     );
     CREATE TABLE IF NOT EXISTS albums (
       channel_id  TEXT PRIMARY KEY,
@@ -50,6 +51,7 @@ export function initDb() {
     "ALTER TABLE photos ADD COLUMN filename TEXT",
     "ALTER TABLE photos ADD COLUMN uploaded_by_id TEXT",
     "ALTER TABLE photos ADD COLUMN uploaded_by_name TEXT",
+    "ALTER TABLE users ADD COLUMN level INTEGER NOT NULL DEFAULT 1",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
@@ -172,7 +174,7 @@ export function dbAddPhoto(channelId: string, url: string) {
     .run(channelId, url, new Date().toISOString());
 }
 
-export type UserRow = { userId: string; displayName: string; avatarUrl?: string; lastLoginAt?: string };
+export type UserRow = { userId: string; displayName: string; avatarUrl?: string; lastLoginAt?: string; level: number };
 
 export function dbUpsertUser(userId: string, displayName: string, avatarUrl?: string) {
   db.prepare(`
@@ -187,7 +189,7 @@ export function dbUpdateUserLastLogin(userId: string) {
 
 export function dbGetAllUsers(): UserRow[] {
   return db.prepare(
-    "SELECT user_id AS userId, display_name AS displayName, avatar_url AS avatarUrl, last_login_at AS lastLoginAt FROM users ORDER BY display_name ASC"
+    "SELECT user_id AS userId, display_name AS displayName, avatar_url AS avatarUrl, last_login_at AS lastLoginAt, level FROM users WHERE level > 0 ORDER BY display_name ASC"
   ).all() as UserRow[];
 }
 
@@ -201,9 +203,9 @@ export function dbRemoveAlbumMember(channelId: string, userId: string) {
 
 export function dbGetAlbumMembers(channelId: string): UserRow[] {
   return db.prepare(`
-    SELECT u.user_id AS userId, u.display_name AS displayName, u.avatar_url AS avatarUrl, u.last_login_at AS lastLoginAt
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.avatar_url AS avatarUrl, u.last_login_at AS lastLoginAt, u.level
     FROM album_members am JOIN users u ON u.user_id = am.user_id
-    WHERE am.channel_id = ? ORDER BY u.display_name ASC
+    WHERE am.channel_id = ? AND u.level > 0 ORDER BY u.display_name ASC
   `).all(channelId) as UserRow[];
 }
 
