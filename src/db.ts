@@ -53,6 +53,12 @@ export function initDb() {
       password_hash TEXT NOT NULL,
       created_at    TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS photo_votes (
+      photo_id  INTEGER NOT NULL,
+      user_id   TEXT NOT NULL,
+      vote_type TEXT NOT NULL,
+      PRIMARY KEY (photo_id, user_id)
+    );
   `);
   // Add new columns to existing DBs (safe to run repeatedly — fails silently if column exists)
   for (const sql of [
@@ -123,6 +129,7 @@ export type PhotoRow = {
   id: number; channelId: string; url: string;
   filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string;
   takenAt?: string; width?: number; height?: number;
+  score?: number; userVote?: string | null;
 };
 export type AlbumWithPhotos = AlbumRow & { photos: PhotoRow[]; members: UserRow[] };
 
@@ -136,21 +143,35 @@ export function dbGetAlbum(channelId: string): AlbumRow | undefined {
   ).get(channelId) as AlbumRow | undefined;
 }
 
-export function dbGetPhotos(channelId: string): PhotoRow[] {
+export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
+  if (userId) {
+    return db.prepare(`
+      SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
+        p.uploaded_by_id AS uploadedById,
+        COALESCE(u.first_name, p.uploaded_by_name) AS uploadedByName,
+        p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height,
+        COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
+        (SELECT vote_type FROM photo_votes WHERE photo_id = p.id AND user_id = ?) AS userVote
+      FROM photos p LEFT JOIN users u ON u.user_id = p.uploaded_by_id
+      WHERE p.channel_id = ? ORDER BY p.id
+    `).all(userId, channelId) as PhotoRow[];
+  }
   return db.prepare(`
     SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
       p.uploaded_by_id AS uploadedById,
       COALESCE(u.first_name, p.uploaded_by_name) AS uploadedByName,
-      p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height
+      p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height,
+      COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
+      NULL AS userVote
     FROM photos p LEFT JOIN users u ON u.user_id = p.uploaded_by_id
     WHERE p.channel_id = ? ORDER BY p.id
   `).all(channelId) as PhotoRow[];
 }
 
-export function dbGetAlbumWithPhotos(channelId: string): AlbumWithPhotos | null {
+export function dbGetAlbumWithPhotos(channelId: string, userId?: string): AlbumWithPhotos | null {
   const album = dbGetAlbum(channelId);
   if (!album) return null;
-  return { ...album, photos: dbGetPhotos(album.channelId), members: dbGetAlbumMembers(channelId) };
+  return { ...album, photos: dbGetPhotos(album.channelId, userId), members: dbGetAlbumMembers(channelId) };
 }
 
 export function dbGetAllAlbumsWithPhotos(): AlbumWithPhotos[] {
@@ -294,4 +315,18 @@ export function dbDeletePhoto(photoId: number): string | null {
   if (!row) return null;
   db.prepare("DELETE FROM photos WHERE id = ?").run(photoId);
   return row.filename;
+}
+
+export function dbVotePhoto(photoId: number, userId: string, voteType: string): { score: number; userVote: string | null } {
+  const existing = db.prepare("SELECT vote_type FROM photo_votes WHERE photo_id = ? AND user_id = ?").get(photoId, userId) as { vote_type: string } | undefined;
+  if (existing?.vote_type === voteType) {
+    db.prepare("DELETE FROM photo_votes WHERE photo_id = ? AND user_id = ?").run(photoId, userId);
+  } else {
+    db.prepare("INSERT OR REPLACE INTO photo_votes (photo_id, user_id, vote_type) VALUES (?, ?, ?)").run(photoId, userId, voteType);
+  }
+  const scoreRow = db.prepare(
+    "SELECT COALESCE(SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END), 0) AS score FROM photo_votes WHERE photo_id = ?"
+  ).get(photoId) as { score: number };
+  const voteRow = db.prepare("SELECT vote_type FROM photo_votes WHERE photo_id = ? AND user_id = ?").get(photoId, userId) as { vote_type: string } | undefined;
+  return { score: scoreRow.score, userVote: voteRow?.vote_type ?? null };
 }

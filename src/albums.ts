@@ -15,7 +15,7 @@ const Busboy = require("busboy") as (opts: { headers: Record<string, string | st
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser } from "./auth";
-import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount } from "./db";
+import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto } from "./db";
 import type { Guild } from "discord.js";
 
 type UpdateEventMessagesFn = (guild: Guild, channelId: string) => Promise<void>;
@@ -332,6 +332,29 @@ export function startWebServer(): void {
       return;
     }
 
+    // POST /api/album/:channelId/photos/:photoId/vote — upvote/downvote/fav a photo
+    if (url.match(/^\/api\/album\/[^/]+\/photos\/\d+\/vote$/) && method === "POST") {
+      const parts = url.split("/");
+      const photoId = parseInt(parts[5]);
+      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const sessionUser = token ? getSessionUser(token) : null;
+      if (!sessionUser) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      let body = "";
+      req.on("data", chunk => body += chunk);
+      req.on("end", () => {
+        try {
+          const { voteType } = JSON.parse(body);
+          if (!["up", "down", "fav"].includes(voteType)) {
+            res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Invalid vote type" })); return;
+          }
+          const result = dbVotePhoto(photoId, sessionUser.userId, voteType);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(result));
+        } catch { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Failed" })); }
+      });
+      return;
+    }
+
     // DELETE /api/album/:id/photos/:photoId — delete a photo
     if (url.match(/^\/api\/album\/[^/]+\/photos\/\d+$/) && method === "DELETE") {
       const parts = url.split("/");
@@ -467,7 +490,9 @@ export function startWebServer(): void {
     // GET /api/album/:id
     if (url.match(/^\/api\/album\/[^/]+$/) && method === "GET") {
       const channelId = url.slice("/api/album/".length);
-      const album = dbGetAlbumWithPhotos(channelId);
+      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const sessionUser = token ? getSessionUser(token) : null;
+      const album = dbGetAlbumWithPhotos(channelId, sessionUser?.userId);
       if (!album) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }
       const state = eventStates.get(channelId);
       const members = album.members

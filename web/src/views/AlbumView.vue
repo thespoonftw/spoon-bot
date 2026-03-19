@@ -44,6 +44,12 @@
             <span v-if="photo.uploadedByName" class="uploader">{{ photo.uploadedByName }}</span>
             <span v-if="photo.takenAt" class="upload-time">{{ formatTime(photo.takenAt) }}</span>
           </div>
+          <div class="photo-votes" @click.stop>
+            <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="doVote(photo.id, 'down')" title="Downvote">👎</button>
+            <span class="vote-score">{{ getVoteState(photo).score > 0 ? '+' + getVoteState(photo).score : getVoteState(photo).score }}</span>
+            <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' }" @click="doVote(photo.id, 'up')" title="Upvote">👍</button>
+            <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="doVote(photo.id, 'fav')" title="Favourite">⭐</button>
+          </div>
         </div>
       </div>
       <div class="gallery-mobile">
@@ -172,7 +178,7 @@ import { useRoute } from "vue-router";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
 
-interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number }
+interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; score?: number; userVote?: string | null }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string; rsvpStatus?: string }
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; endDate?: string; photos: Photo[]; members: Member[] }
 
@@ -197,6 +203,28 @@ const saving = ref(false);
 const editError = ref("");
 const editForm = ref({ name: "", location: "", startDate: "", endDate: "" });
 
+const votes = ref<Record<number, { score: number; userVote: string | null }>>({});
+let refreshLightboxVotes: (() => void) | null = null;
+
+function getVoteState(photo: Photo) {
+  return votes.value[photo.id] ?? { score: photo.score ?? 0, userVote: photo.userVote ?? null };
+}
+
+async function doVote(photoId: number, voteType: string) {
+  if (!album.value) return;
+  const session = localStorage.getItem("snek_session");
+  const res = await fetch(`/api/album/${album.value.channelId}/photos/${photoId}/vote`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
+    body: JSON.stringify({ voteType }),
+  });
+  if (res.ok) {
+    const { score, userVote } = await res.json();
+    votes.value = { ...votes.value, [photoId]: { score, userVote } };
+    refreshLightboxVotes?.();
+  }
+}
+
 interface AllMember extends Member { hidden: number; rsvpStatus?: string }
 const showEditMembers = ref(false);
 const allMembers = ref<AllMember[]>([]);
@@ -209,7 +237,10 @@ const addableUsers = computed(() => {
 });
 
 onMounted(async () => {
-  const res = await fetch(`/api/album/${route.params.channelId}`);
+  const session = localStorage.getItem("snek_session");
+  const res = await fetch(`/api/album/${route.params.channelId}`, {
+    headers: { Authorization: `Bearer ${session}` },
+  });
   if (res.ok) album.value = await res.json();
 });
 
@@ -242,6 +273,7 @@ function openLightbox(index: number) {
     counter: true,
     arrowKeys: true,
     pinchToClose: false,
+    closeOnVerticalDrag: false,
   });
   pswp.on("uiRegister", () => {
     pswp.ui!.registerElement({
@@ -258,7 +290,35 @@ function openLightbox(index: number) {
         update();
       },
     });
+    pswp.ui!.registerElement({
+      name: "vote-bar",
+      order: 8,
+      isButton: false,
+      appendTo: "root",
+      onInit: (el) => {
+        el.addEventListener("click", (e) => {
+          const btn = (e.target as Element).closest("[data-vote]") as HTMLElement | null;
+          if (!btn) return;
+          doVote(photos[pswp.currIndex].id, btn.dataset.vote!);
+        });
+        const update = () => {
+          const p = photos[pswp.currIndex];
+          const { score, userVote } = getVoteState(p);
+          const scoreStr = score > 0 ? `+${score}` : `${score}`;
+          el.innerHTML = `
+            <button data-vote="down" class="pswp-vote-btn${userVote === "down" ? " active-down" : ""}">👎</button>
+            <span class="pswp-vote-score">${scoreStr}</span>
+            <button data-vote="up" class="pswp-vote-btn${userVote === "up" ? " active-up" : ""}">👍</button>
+            <button data-vote="fav" class="pswp-vote-btn${userVote === "fav" ? " active-fav" : ""}">⭐</button>
+          `;
+        };
+        refreshLightboxVotes = update;
+        pswp.on("change", update);
+        update();
+      },
+    });
   });
+  pswp.on("close", () => { refreshLightboxVotes = null; });
   pswp.init();
 }
 
