@@ -1,5 +1,5 @@
 import { createApp } from "vue";
-import { createRouter, createWebHashHistory } from "vue-router";
+import { createRouter, createWebHistory } from "vue-router";
 import App from "./App.vue";
 import LandingView from "./views/LandingView.vue";
 import AlbumList from "./views/AlbumList.vue";
@@ -11,7 +11,7 @@ import AuthVerify from "./views/AuthVerify.vue";
 import "./style.css";
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(),
   routes: [
     { path: "/login", component: LoginView, meta: { public: true } },
     { path: "/login/sent", component: MagicLinkSent, meta: { public: true } },

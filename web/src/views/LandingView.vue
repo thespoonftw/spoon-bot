@@ -13,7 +13,7 @@
     <div class="landing-grid">
       <router-link to="/albums" class="feature-card">
         <span class="feature-icon">📸</span>
-        <h2>Photos</h2>
+        <h2>Albums</h2>
         <p>Browse and upload photo albums</p>
       </router-link>
       <router-link to="/users" class="feature-card">

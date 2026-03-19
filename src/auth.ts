@@ -91,7 +91,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
         }
         const token = crypto.randomBytes(32).toString("hex");
         magicTokens.set(token, { userId, expires: Date.now() + 15 * 60 * 1000 });
-        const link = `${getBaseUrl()}/photos/#/auth/verify/${token}`;
+        const link = `${getBaseUrl()}/auth/verify/${token}`;
         const user = await discordClient!.users.fetch(userId);
         await user.send(`🔗 Click here to log in to the Snek site:\n${link}\n\n*This link expires in 15 minutes.*`);
         res.writeHead(200, { "Content-Type": "application/json" });

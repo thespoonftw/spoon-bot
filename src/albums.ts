@@ -34,7 +34,7 @@ const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 
 export function getAlbumUrl(channelId: string): string | null {
   if (!dbHasAlbum(channelId)) return null;
-  return `${getBaseUrl()}/photos/#/album/${channelId}`;
+  return `${getBaseUrl()}/album/${channelId}`;
 }
 
 // Returns channelId if event messages need refreshing, null otherwise
@@ -46,7 +46,7 @@ export async function handleAlbumInteractions(interaction: Interaction): Promise
     const eventState = eventStates.get(channelId);
     const albumName = eventState?.eventName ?? channelId;
     const dateText = eventState?.dateText;
-    const albumUrl = `${getBaseUrl()}/photos/#/album/${channelId}`;
+    const albumUrl = `${getBaseUrl()}/album/${channelId}`;
     dbInsertAlbum({ channelId, groupName: albumName, dateText, location: eventState?.location, createdAt: new Date().toISOString() });
     if (interaction.guild) {
       try {
@@ -232,12 +232,7 @@ export function startWebServer(): void {
       return;
     }
 
-    // Redirect root to /photos
-    if (url === "/" || url === "") {
-      res.writeHead(302, { Location: "/photos" }); res.end(); return;
-    }
-
-    // Static files — assets have hashed names; /photos and anything else serves index.html for Vue Router
+    // Static files — assets have hashed names; everything else serves index.html for Vue Router
     const resolvedAsset = url.startsWith("/assets/") ? path.join(webDist, url) : path.join(webDist, "index.html");
     if (!resolvedAsset.startsWith(webDist) || !fs.existsSync(resolvedAsset)) {
       res.writeHead(404); res.end("Not found"); return;
