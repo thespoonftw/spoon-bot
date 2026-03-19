@@ -33,7 +33,7 @@
       <div class="gallery">
         <div v-for="photo in album.photos" :key="photo.id" class="photo-item">
           <a :href="photo.url" target="_blank">
-            <img :src="photo.url" @error="($event.target as HTMLElement).parentElement!.parentElement!.style.display='none'" />
+            <img :src="thumbUrl(photo.url)" @error="($event.target as HTMLImageElement).src = photo.url" />
           </a>
           <div class="photo-meta">
             <span v-if="photo.uploadedByName" class="uploader">{{ photo.uploadedByName }}</span>
@@ -168,6 +168,10 @@ async function onFilesSelected(e: Event) {
   uploading.value = false;
   uploadProgress.value = "";
   (e.target as HTMLInputElement).value = "";
+}
+
+function thumbUrl(url: string): string {
+  return url.replace("/uploads/", "/thumbnails/");
 }
 
 function formatTime(iso: string): string {

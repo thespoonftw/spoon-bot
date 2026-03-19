@@ -3,6 +3,8 @@ import http from "http";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const sharp = require("sharp") as typeof import("sharp").default;
 type BusboyFile = { filename: string; encoding: string; mimeType: string };
 type BusboyInstance = { on(e: "file", cb: (f: string, s: NodeJS.ReadableStream, i: BusboyFile) => void): BusboyInstance; on(e: "error", cb: (err: Error) => void): BusboyInstance; };
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -186,9 +188,15 @@ export function startWebServer(): void {
         const filePath = path.join(albumDir, name);
         const writeStream = fs.createWriteStream(filePath);
         fileStream.pipe(writeStream);
-        writeStream.on("finish", () => {
+        writeStream.on("finish", async () => {
           if (responded) return;
           responded = true;
+          const thumbDir = path.join(PHOTO_STORAGE_PATH, channelId, "thumbs");
+          fs.mkdirSync(thumbDir, { recursive: true });
+          const thumbPath = path.join(thumbDir, name);
+          try {
+            await sharp(filePath).resize(256, 256, { fit: "inside", withoutEnlargement: true }).toFile(thumbPath);
+          } catch (e) { console.error("Thumbnail generation failed:", e); }
           const photoUrl = `/uploads/${channelId}/${name}`;
           const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, uploader.displayName);
           res.writeHead(201, { "Content-Type": "application/json" });
@@ -211,6 +219,26 @@ export function startWebServer(): void {
       const album = dbGetAlbumWithPhotos(channelId);
       res.writeHead(album ? 200 : 404, { "Content-Type": "application/json" });
       res.end(JSON.stringify(album ?? { error: "Not found" }));
+      return;
+    }
+
+    // GET /thumbnails/:channelId/:filename — serve thumbnail (falls back to full image if thumb missing)
+    if (url.startsWith("/thumbnails/")) {
+      const parts = url.slice("/thumbnails/".length).split("/");
+      if (parts.length < 2 || parts[0].includes("..") || parts[1].includes("..")) {
+        res.writeHead(400); res.end("Bad request"); return;
+      }
+      const [channelId, filename] = parts;
+      const thumbPath = path.join(PHOTO_STORAGE_PATH, channelId, "thumbs", filename);
+      const fullPath = path.join(PHOTO_STORAGE_PATH, channelId, filename);
+      const servePath = fs.existsSync(thumbPath) ? thumbPath : fullPath;
+      if (!servePath.startsWith(PHOTO_STORAGE_PATH) || !fs.existsSync(servePath)) {
+        res.writeHead(404); res.end("Not found"); return;
+      }
+      const ext = path.extname(filename).toLowerCase();
+      const imgMime: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp", ".heic": "image/heic" };
+      res.writeHead(200, { "Content-Type": imgMime[ext] ?? "application/octet-stream", "Cache-Control": "public, max-age=31536000" });
+      fs.createReadStream(servePath).pipe(res);
       return;
     }
 
