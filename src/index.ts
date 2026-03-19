@@ -4,6 +4,7 @@ import {
   Events,
   GatewayIntentBits,
   OverwriteType,
+  Partials,
   PermissionFlagsBits,
 } from "discord.js";
 import type { Message } from "discord.js";
@@ -28,6 +29,7 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessageReactions,
   ],
+  partials: [Partials.Message, Partials.Reaction, Partials.Channel],
 });
 
 client.once(Events.ClientReady, async (readyClient) => {
