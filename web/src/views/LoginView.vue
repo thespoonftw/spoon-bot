@@ -1,20 +1,35 @@
 <template>
-  <div class="page">
-    <h1>📸 Snek Photo Albums</h1>
+  <div class="page center">
+    <h1>Snek</h1>
     <p class="subtitle">Select your account to log in</p>
     <div v-if="error" class="error">{{ error }}</div>
-    <button
-      v-for="user in users"
-      :key="user.userId"
-      class="user-card"
-      :disabled="loading === user.userId"
-      @click="requestLogin(user.userId)"
-    >
-      <img v-if="user.avatarUrl" :src="user.avatarUrl" class="avatar" />
-      <div class="avatar placeholder" v-else>{{ user.displayName[0] }}</div>
-      <span>{{ user.displayName }}</span>
-      <span v-if="loading === user.userId" class="hint">Sending DM…</span>
-    </button>
+
+    <template v-if="!confirming">
+      <button
+        v-for="user in users"
+        :key="user.userId"
+        class="user-card"
+        @click="confirming = user"
+      >
+        <img v-if="user.avatarUrl" :src="user.avatarUrl" class="avatar" />
+        <div class="avatar placeholder" v-else>{{ user.displayName[0] }}</div>
+        <span>{{ user.displayName }}</span>
+      </button>
+    </template>
+
+    <template v-else>
+      <div class="confirm-card">
+        <img v-if="confirming.avatarUrl" :src="confirming.avatarUrl" class="avatar large" />
+        <div class="avatar placeholder large" v-else>{{ confirming.displayName[0] }}</div>
+        <p class="confirm-text">We'll send a login link to <strong>{{ confirming.displayName }}</strong> via Discord.</p>
+        <div class="confirm-actions">
+          <button class="btn-secondary" @click="confirming = null">Cancel</button>
+          <button class="btn-primary" @click="requestLogin(confirming.userId)" :disabled="loading">
+            {{ loading ? "Sending…" : "Send Link" }}
+          </button>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -26,26 +41,28 @@ interface UserInfo { userId: string; displayName: string; avatarUrl: string }
 
 const router = useRouter();
 const users = ref<UserInfo[]>([]);
-const loading = ref<string | null>(null);
+const loading = ref(false);
 const error = ref("");
+const confirming = ref<UserInfo | null>(null);
 
 onMounted(async () => {
   users.value = await fetch("/api/users").then(r => r.json());
 });
 
 async function requestLogin(userId: string) {
-  loading.value = userId;
+  loading.value = true;
   error.value = "";
   const res = await fetch("/api/auth/request", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId }),
   });
+  loading.value = false;
   if (res.ok) {
     router.push({ path: "/login/sent", query: { userId } });
   } else {
     error.value = "Failed to send login link. Try again.";
-    loading.value = null;
+    confirming.value = null;
   }
 }
 </script>
