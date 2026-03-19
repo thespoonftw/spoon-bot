@@ -282,7 +282,16 @@ async function generateShareLink() {
 }
 
 function copyShareLink() {
-  navigator.clipboard.writeText(shareUrl.value);
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(shareUrl.value);
+  } else {
+    const el = document.createElement("input");
+    el.value = shareUrl.value;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand("copy");
+    document.body.removeChild(el);
+  }
   shareCopied.value = true;
   setTimeout(() => { shareCopied.value = false; }, 2000);
 }

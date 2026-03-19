@@ -1,17 +1,7 @@
 <template>
   <div class="page">
-    <div class="header-row">
-      <div class="header-left">
-        <router-link to="/" class="back">← Home</router-link>
-        <h1>📸 Photo Albums</h1>
-      </div>
-      <div class="user-info" v-if="currentUser">
-        <img v-if="currentUser.avatarUrl" :src="currentUser.avatarUrl" class="avatar" />
-        <div class="avatar placeholder" v-else>{{ currentUser.displayName[0] }}</div>
-        <span class="user-name">{{ currentUser.displayName }}</span>
-        <button class="logout" @click="logout">Log out</button>
-      </div>
-    </div>
+    <router-link to="/" class="back">← Home</router-link>
+    <h1>Albums</h1>
 
     <button class="btn-primary" @click="showModal = true" style="margin-bottom:20px">+ New Album</button>
 
@@ -78,7 +68,7 @@ interface Member { userId: string; displayName: string; firstName?: string; avat
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; createdAt: string; photos: { id: number }[]; members: Member[] }
 
 const albums = ref<Album[]>([]);
-const { currentUser, logout } = useCurrentUser();
+useCurrentUser();
 
 const showModal = ref(false);
 const creating = ref(false);

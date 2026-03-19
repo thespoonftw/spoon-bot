@@ -1,17 +1,7 @@
 <template>
   <div class="page">
-    <div class="header-row">
-      <div class="header-left">
-        <router-link to="/" class="back">← Home</router-link>
-        <h1>Users</h1>
-      </div>
-      <div class="user-info" v-if="currentUser">
-        <img v-if="currentUser.avatarUrl" :src="currentUser.avatarUrl" class="avatar" />
-        <div class="avatar placeholder" v-else>{{ currentUser.displayName[0] }}</div>
-        <span class="user-name">{{ currentUser.displayName }}</span>
-        <button class="logout" @click="logout">Log out</button>
-      </div>
-    </div>
+    <router-link to="/" class="back">← Home</router-link>
+    <h1>Users</h1>
 
     <div class="user-list">
       <div v-for="user in discordUsers" :key="user.userId" class="user-row">
@@ -64,7 +54,7 @@ interface SiteUser { userId: string; displayName: string; firstName?: string; av
 const users = ref<SiteUser[]>([]);
 const discordUsers = computed(() => users.value.filter(u => !u.userId.startsWith("guest_")));
 const guestUsers = computed(() => users.value.filter(u => u.userId.startsWith("guest_")));
-const { currentUser, logout } = useCurrentUser();
+useCurrentUser();
 const editingUser = ref<SiteUser | null>(null);
 const editFirstName = ref("");
 const saving = ref(false);
