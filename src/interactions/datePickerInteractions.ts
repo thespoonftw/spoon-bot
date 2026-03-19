@@ -12,8 +12,10 @@ export async function handleDatePickerInteractions(interaction: Interaction): Pr
     const channelId = interaction.customId.slice("edit_open_date_".length);
     const state = eventStates.get(channelId);
     const existing = state ? sessionFromDateText(state.dateText) : null;
+    const today = new Date();
     const session: EditSession = existing ?? {
-      day: null, month: null, year: null, time: null, timeHour: null, dayPage: "low",
+      day: today.getDate(), month: today.getMonth() + 1, year: today.getFullYear(),
+      time: null, timeHour: null, dayPage: "low",
     };
     editSessions.set(channelId, session);
     await interaction.update({ content: buildEditDateContent(session), components: buildEditDateComponents(session, channelId) });
@@ -25,8 +27,10 @@ export async function handleDatePickerInteractions(interaction: Interaction): Pr
     const channelId = interaction.customId.slice("edit_open_enddate_".length);
     const state = eventStates.get(channelId);
     const existing = state?.endDateText ? sessionFromDateText(state.endDateText) : null;
+    const today2 = new Date();
     const session: EditSession = existing ?? sessionFromDateText(state?.dateText ?? "TBC") ?? {
-      day: null, month: null, year: null, time: null, timeHour: null, dayPage: "low",
+      day: today2.getDate(), month: today2.getMonth() + 1, year: today2.getFullYear(),
+      time: null, timeHour: null, dayPage: "low",
     };
     editSessions.set(`end_${channelId}`, session);
     await interaction.update({ content: buildEditDateContent(session, true), components: buildEditDateComponents(session, channelId, true) });

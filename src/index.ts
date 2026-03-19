@@ -15,7 +15,7 @@ import { handleEventInteractions } from "./interactions/eventInteractions";
 import { handleDatePickerInteractions } from "./interactions/datePickerInteractions";
 import { handleGroupInteractions } from "./interactions/groupInteractions";
 import { loadBirthdays, handleBirthdayInteractions, scheduleBirthdayAnnouncements } from "./birthdays";
-import { loadAlbums, handleAlbumMessageCreate, startWebServer } from "./albums";
+import { loadAlbums, startWebServer } from "./albums";
 import { initAuth } from "./auth";
 
 dotenv.config();
@@ -142,7 +142,6 @@ client.on(Events.MessageCreate, (message: Message) => {
     return;
   }
 
-  handleAlbumMessageCreate(message);
 
   if (process.env.WOOF_ENABLED === "true") {
     const match = message.content.match(/himiko([!?.,]*)/i);

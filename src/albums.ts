@@ -26,7 +26,7 @@ const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 
 export function getAlbumUrl(channelId: string): string | null {
   if (!dbHasAlbum(channelId)) return null;
-  return `${getBaseUrl()}/#/album/${channelId}`;
+  return `${getBaseUrl()}/photos/#/album/${channelId}`;
 }
 
 // Returns channelId if event messages need refreshing, null otherwise
@@ -38,8 +38,8 @@ export async function handleAlbumInteractions(interaction: Interaction): Promise
     const eventState = eventStates.get(channelId);
     const albumName = eventState?.eventName ?? channelId;
     const dateText = eventState?.dateText;
-    const albumUrl = `${getBaseUrl()}/#/album/${channelId}`;
-    dbInsertAlbum({ channelId, groupName: albumName, dateText, createdAt: new Date().toISOString() });
+    const albumUrl = `${getBaseUrl()}/photos/#/album/${channelId}`;
+    dbInsertAlbum({ channelId, groupName: albumName, dateText, location: eventState?.location, createdAt: new Date().toISOString() });
     await interaction.update({ content: `Photo album started! ${albumUrl}`, components: [] });
     const channel = interaction.guild?.channels.cache.get(channelId);
     if (channel?.isTextBased()) {
@@ -58,15 +58,6 @@ export async function handleAlbumInteractions(interaction: Interaction): Promise
   return null;
 }
 
-export function handleAlbumMessageCreate(message: { author: { bot: boolean }; channelId: string; attachments: Map<string, { contentType?: string | null; url: string }> }): void {
-  if (!config.albumsEnabled || message.author.bot) return;
-  if (!dbHasAlbum(message.channelId)) return;
-  for (const attachment of message.attachments.values()) {
-    if (attachment.contentType?.startsWith("image/")) {
-      dbAddPhoto(message.channelId, attachment.url);
-    }
-  }
-}
 
 const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "application/javascript", ".css": "text/css",
@@ -140,7 +131,7 @@ export function startWebServer(): void {
         writeStream.on("finish", () => {
           if (responded) return;
           responded = true;
-          const photoUrl = `/photos/${channelId}/${name}`;
+          const photoUrl = `/uploads/${channelId}/${name}`;
           const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, uploader.displayName);
           res.writeHead(201, { "Content-Type": "application/json" });
           res.end(JSON.stringify(photo));
@@ -165,9 +156,9 @@ export function startWebServer(): void {
       return;
     }
 
-    // GET /photos/:channelId/:filename — serve uploaded photo files
-    if (url.startsWith("/photos/")) {
-      const parts = url.slice("/photos/".length).split("/");
+    // GET /uploads/:channelId/:filename — serve uploaded photo files
+    if (url.startsWith("/uploads/")) {
+      const parts = url.slice("/uploads/".length).split("/");
       if (parts.length < 2 || parts[0].includes("..") || parts[1].includes("..")) {
         res.writeHead(400); res.end("Bad request"); return;
       }
@@ -183,16 +174,18 @@ export function startWebServer(): void {
       return;
     }
 
-    // Static files — assets have hashed names; everything else serves index.html for Vue Router
-    const filePath = url.startsWith("/assets/")
-      ? path.join(webDist, url)
-      : path.join(webDist, "index.html");
+    // Redirect root to /photos
+    if (url === "/" || url === "") {
+      res.writeHead(302, { Location: "/photos" }); res.end(); return;
+    }
 
-    if (!filePath.startsWith(webDist) || !fs.existsSync(filePath)) {
+    // Static files — assets have hashed names; /photos and anything else serves index.html for Vue Router
+    const resolvedAsset = url.startsWith("/assets/") ? path.join(webDist, url) : path.join(webDist, "index.html");
+    if (!resolvedAsset.startsWith(webDist) || !fs.existsSync(resolvedAsset)) {
       res.writeHead(404); res.end("Not found"); return;
     }
-    const mime = MIME[path.extname(filePath)] ?? "application/octet-stream";
+    const mime = MIME[path.extname(resolvedAsset)] ?? "application/octet-stream";
     res.writeHead(200, { "Content-Type": mime });
-    res.end(fs.readFileSync(filePath));
+    res.end(fs.readFileSync(resolvedAsset));
   }).listen(port, () => console.log(`Photo album web server running on port ${port}`));
 }
