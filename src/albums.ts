@@ -10,7 +10,7 @@ const Busboy = require("busboy") as (opts: { headers: Record<string, string | st
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser } from "./auth";
-import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser } from "./db";
+import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember } from "./db";
 import type { Guild } from "discord.js";
 
 type UpdateEventMessagesFn = (guild: Guild, channelId: string) => Promise<void>;
@@ -54,7 +54,10 @@ export async function handleAlbumInteractions(interaction: Interaction): Promise
         const ch = interaction.guild.channels.cache.get(channelId);
         if (ch && "members" in ch) {
           for (const [, member] of (ch as TextChannel).members) {
-            if (!member.user.bot) dbUpsertUser(member.id, member.displayName, member.user.avatarURL() ?? undefined);
+            if (!member.user.bot) {
+              dbUpsertUser(member.id, member.displayName, member.user.avatarURL() ?? undefined);
+              dbAddAlbumMember(channelId, member.id);
+            }
           }
         }
       } catch (e) { console.error("Failed to fetch channel members on album start:", e); }

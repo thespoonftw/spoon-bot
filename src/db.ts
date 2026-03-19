@@ -27,6 +27,11 @@ export function initDb() {
       end_date    TEXT,
       created_at  TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS album_members (
+      channel_id  TEXT NOT NULL,
+      user_id     TEXT NOT NULL,
+      PRIMARY KEY (channel_id, user_id)
+    );
     CREATE TABLE IF NOT EXISTS photos (
       id                INTEGER PRIMARY KEY AUTOINCREMENT,
       channel_id        TEXT NOT NULL REFERENCES albums(channel_id),
@@ -100,7 +105,7 @@ export type PhotoRow = {
   id: number; channelId: string; url: string;
   filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string;
 };
-export type AlbumWithPhotos = AlbumRow & { photos: PhotoRow[] };
+export type AlbumWithPhotos = AlbumRow & { photos: PhotoRow[]; members: UserRow[] };
 
 export function dbHasAlbum(channelId: string): boolean {
   return !!db.prepare("SELECT 1 FROM albums WHERE channel_id = ?").get(channelId);
@@ -121,14 +126,14 @@ export function dbGetPhotos(channelId: string): PhotoRow[] {
 export function dbGetAlbumWithPhotos(channelId: string): AlbumWithPhotos | null {
   const album = dbGetAlbum(channelId);
   if (!album) return null;
-  return { ...album, photos: dbGetPhotos(album.channelId) };
+  return { ...album, photos: dbGetPhotos(album.channelId), members: dbGetAlbumMembers(channelId) };
 }
 
 export function dbGetAllAlbumsWithPhotos(): AlbumWithPhotos[] {
   const albums = db.prepare(
     "SELECT channel_id AS channelId, group_name AS groupName, date_text AS dateText, location, start_date AS startDate, end_date AS endDate, created_at AS createdAt FROM albums ORDER BY created_at DESC"
   ).all() as AlbumRow[];
-  return albums.map(a => ({ ...a, photos: dbGetPhotos(a.channelId) }));
+  return albums.map(a => ({ ...a, photos: dbGetPhotos(a.channelId), members: dbGetAlbumMembers(a.channelId) }));
 }
 
 export function dbInsertAlbum(album: AlbumRow) {
@@ -184,6 +189,22 @@ export function dbGetAllUsers(): UserRow[] {
   return db.prepare(
     "SELECT user_id AS userId, display_name AS displayName, avatar_url AS avatarUrl, last_login_at AS lastLoginAt FROM users ORDER BY display_name ASC"
   ).all() as UserRow[];
+}
+
+export function dbAddAlbumMember(channelId: string, userId: string) {
+  db.prepare("INSERT OR IGNORE INTO album_members (channel_id, user_id) VALUES (?, ?)").run(channelId, userId);
+}
+
+export function dbRemoveAlbumMember(channelId: string, userId: string) {
+  db.prepare("DELETE FROM album_members WHERE channel_id=? AND user_id=?").run(channelId, userId);
+}
+
+export function dbGetAlbumMembers(channelId: string): UserRow[] {
+  return db.prepare(`
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.avatar_url AS avatarUrl, u.last_login_at AS lastLoginAt
+    FROM album_members am JOIN users u ON u.user_id = am.user_id
+    WHERE am.channel_id = ? ORDER BY u.display_name ASC
+  `).all(channelId) as UserRow[];
 }
 
 export function dbAddUploadedPhoto(channelId: string, url: string, filename: string, uploadedById: string, uploadedByName: string): PhotoRow {
