@@ -47,11 +47,19 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .lightbox-close { position: fixed; top: 16px; right: 16px; background: rgba(0,0,0,0.5); border: none; color: #fff; font-size: 1.5rem; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
 .gallery { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
-.photo-item { display: flex; flex-direction: column; gap: 4px; }
-.photo-item img { width: 220px; height: 220px; object-fit: cover; border-radius: 6px; cursor: pointer; display: block; }
+.gallery-mobile { display: none; flex-direction: column; gap: 0; margin-top: 20px; }
+.photo-item { display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
+.photo-item img { width: 220px; height: 220px; object-fit: cover; border-radius: 6px; display: block; }
+.photo-item-mobile { display: flex; flex-direction: column; gap: 4px; cursor: pointer; border-bottom: 1px solid #313244; padding-bottom: 8px; margin-bottom: 4px; }
+.photo-item-mobile img { width: 100%; height: auto; display: block; }
 .photo-meta { display: flex; flex-direction: column; width: 220px; }
+.photo-item-mobile .photo-meta { width: 100%; padding: 4px 0; }
 .uploader { color: #cdd6f4; font-size: 0.8em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .upload-time { color: #6c7086; font-size: 0.75em; }
+@media (max-width: 767px) {
+  .gallery { display: none; }
+  .gallery-mobile { display: flex; }
+}
 
 .btn-primary { background: #cba6f7; color: #1e1e2e; border: none; border-radius: 8px; padding: 10px 20px; cursor: pointer; font-size: 0.95rem; font-weight: 600; }
 .btn-primary:hover:not(:disabled) { background: #d5b5f8; }

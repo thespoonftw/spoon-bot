@@ -34,10 +34,17 @@
 
       <p v-if="album.photos.length === 0" class="empty" style="margin-top:24px">No photos yet.</p>
       <div class="gallery">
-        <div v-for="photo in album.photos" :key="photo.id" class="photo-item">
-          <a :href="photo.url" target="_blank" @click.prevent="openPhoto(photo, $event)">
-            <img :src="thumbUrl(photo.url)" @error="($event.target as HTMLImageElement).src = photo.url" />
-          </a>
+        <div v-for="photo in album.photos" :key="photo.id" class="photo-item" @click="focusedPhoto = photo">
+          <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
+          <div class="photo-meta">
+            <span v-if="photo.uploadedByName" class="uploader">{{ photo.uploadedByName }}</span>
+            <span class="upload-time">{{ formatTime(photo.uploadedAt) }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-mobile">
+        <div v-for="photo in album.photos" :key="photo.id" class="photo-item-mobile" @click="focusedPhoto = photo">
+          <img :src="photo.url" loading="lazy" />
           <div class="photo-meta">
             <span v-if="photo.uploadedByName" class="uploader">{{ photo.uploadedByName }}</span>
             <span class="upload-time">{{ formatTime(photo.uploadedAt) }}</span>
@@ -131,14 +138,6 @@ onMounted(async () => {
   const res = await fetch(`/api/album/${route.params.channelId}`);
   if (res.ok) album.value = await res.json();
 });
-
-function openPhoto(photo: Photo, e: MouseEvent) {
-  if (window.innerWidth < 768) {
-    focusedPhoto.value = photo;
-  } else {
-    window.open(photo.url, "_blank");
-  }
-}
 
 function openEdit() {
   if (!album.value) return;
