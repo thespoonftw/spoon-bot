@@ -260,3 +260,10 @@ export function dbAddUploadedPhoto(channelId: string, url: string, filename: str
   ).run(channelId, url, filename, uploadedById, uploadedByName, uploadedAt, takenAt ?? null, width, height);
   return { id: result.lastInsertRowid as number, channelId, url, filename, uploadedById, uploadedByName, uploadedAt, takenAt, width, height };
 }
+
+export function dbDeletePhoto(photoId: number): string | null {
+  const row = db.prepare("SELECT filename FROM photos WHERE id = ?").get(photoId) as { filename: string } | undefined;
+  if (!row) return null;
+  db.prepare("DELETE FROM photos WHERE id = ?").run(photoId);
+  return row.filename;
+}

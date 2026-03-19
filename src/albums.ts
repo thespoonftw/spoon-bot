@@ -15,7 +15,7 @@ const Busboy = require("busboy") as (opts: { headers: Record<string, string | st
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser } from "./auth";
-import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser } from "./db";
+import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto } from "./db";
 import type { Guild } from "discord.js";
 
 type UpdateEventMessagesFn = (guild: Guild, channelId: string) => Promise<void>;
@@ -313,6 +313,23 @@ export function startWebServer(): void {
         if (!responded) { responded = true; res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Upload failed" })); }
       });
       req.pipe(bb as unknown as NodeJS.WritableStream);
+      return;
+    }
+
+    // DELETE /api/album/:id/photos/:photoId — delete a photo
+    if (url.match(/^\/api\/album\/[^/]+\/photos\/\d+$/) && method === "DELETE") {
+      const parts = url.split("/");
+      const channelId = parts[3];
+      const photoId = parseInt(parts[5]);
+      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      const filename = dbDeletePhoto(photoId);
+      if (!filename) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }
+      const albumDir = path.join(PHOTO_STORAGE_PATH, channelId);
+      try { fs.unlinkSync(path.join(albumDir, filename)); } catch {}
+      try { fs.unlinkSync(path.join(albumDir, "thumbs", filename)); } catch {}
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
       return;
     }
 

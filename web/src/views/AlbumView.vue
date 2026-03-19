@@ -38,6 +38,7 @@
       <div class="gallery">
         <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item" @click="openLightbox(i)">
           <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
+          <button class="photo-delete-btn" @click.stop="confirmDelete(photo)" title="Delete photo">🗑</button>
           <div class="photo-meta">
             <span v-if="photo.uploadedByName" class="uploader">{{ photo.uploadedByName }}</span>
             <span v-if="photo.takenAt" class="upload-time">{{ formatTime(photo.takenAt) }}</span>
@@ -57,6 +58,18 @@
     <p v-else class="empty">Album not found.</p>
   </div>
 
+
+  <!-- Delete Photo Confirmation Modal -->
+  <div class="modal-overlay" v-if="deletingPhoto">
+    <div class="modal">
+      <button class="modal-close" @click="deletingPhoto = null">✕</button>
+      <h2>Delete Photo?</h2>
+      <p style="color:#a6adc8;margin-bottom:20px">This cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="btn-danger" @click="deletePhoto" :disabled="deleting">{{ deleting ? 'Deleting…' : 'Delete' }}</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Edit Album Modal -->
   <div class="modal-overlay" v-if="showEdit">
@@ -143,6 +156,9 @@ const uploading = ref(false);
 const uploadProgress = ref("");
 const uploadError = ref("");
 
+const deletingPhoto = ref<Photo | null>(null);
+const deleting = ref(false);
+
 const showEdit = ref(false);
 const saving = ref(false);
 const editError = ref("");
@@ -163,6 +179,23 @@ onMounted(async () => {
   const res = await fetch(`/api/album/${route.params.channelId}`);
   if (res.ok) album.value = await res.json();
 });
+
+function confirmDelete(photo: Photo) { deletingPhoto.value = photo; }
+
+async function deletePhoto() {
+  if (!album.value || !deletingPhoto.value) return;
+  deleting.value = true;
+  const session = localStorage.getItem("snek_session");
+  const res = await fetch(`/api/album/${album.value.channelId}/photos/${deletingPhoto.value.id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${session}` },
+  });
+  deleting.value = false;
+  if (res.ok) {
+    album.value.photos = album.value.photos.filter(p => p.id !== deletingPhoto.value!.id);
+    deletingPhoto.value = null;
+  }
+}
 
 function openLightbox(index: number) {
   if (!album.value) return;
