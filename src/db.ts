@@ -12,6 +12,12 @@ let db: Database.Database;
 export function initDb() {
   db = new Database(DB_FILE);
   db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      user_id       TEXT PRIMARY KEY,
+      display_name  TEXT NOT NULL,
+      avatar_url    TEXT,
+      last_login_at TEXT
+    );
     CREATE TABLE IF NOT EXISTS albums (
       channel_id  TEXT PRIMARY KEY,
       group_name  TEXT NOT NULL,
@@ -152,6 +158,25 @@ export function dbDeleteAlbum(channelId: string) {
 export function dbAddPhoto(channelId: string, url: string) {
   db.prepare("INSERT INTO photos (channel_id, url, uploaded_at) VALUES (?, ?, ?)")
     .run(channelId, url, new Date().toISOString());
+}
+
+export type UserRow = { userId: string; displayName: string; avatarUrl?: string; lastLoginAt?: string };
+
+export function dbUpsertUser(userId: string, displayName: string, avatarUrl?: string) {
+  db.prepare(`
+    INSERT INTO users (user_id, display_name, avatar_url) VALUES (?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET display_name=excluded.display_name, avatar_url=excluded.avatar_url
+  `).run(userId, displayName, avatarUrl ?? null);
+}
+
+export function dbUpdateUserLastLogin(userId: string) {
+  db.prepare("UPDATE users SET last_login_at=? WHERE user_id=?").run(new Date().toISOString(), userId);
+}
+
+export function dbGetAllUsers(): UserRow[] {
+  return db.prepare(
+    "SELECT user_id AS userId, display_name AS displayName, avatar_url AS avatarUrl, last_login_at AS lastLoginAt FROM users ORDER BY display_name ASC"
+  ).all() as UserRow[];
 }
 
 export function dbAddUploadedPhoto(channelId: string, url: string, filename: string, uploadedById: string, uploadedByName: string): PhotoRow {

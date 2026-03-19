@@ -1,7 +1,10 @@
 <template>
   <div class="page">
     <div class="header-row">
-      <h1>📸 Snek Photo Albums</h1>
+      <div class="header-left">
+        <router-link to="/" class="back">← Home</router-link>
+        <h1>📸 Photo Albums</h1>
+      </div>
       <div class="user-info" v-if="currentUser">
         <img v-if="currentUser.avatarUrl" :src="currentUser.avatarUrl" class="avatar" />
         <div class="avatar placeholder" v-else>{{ currentUser.displayName[0] }}</div>
@@ -54,14 +57,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { useRouter } from "vue-router";
+import { useCurrentUser } from "../composables/useCurrentUser";
 
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; photos: { id: number }[] }
-interface UserInfo { displayName: string; avatarUrl: string }
 
 const albums = ref<Album[]>([]);
-const currentUser = ref<UserInfo | null>(null);
-const router = useRouter();
+const { currentUser, logout } = useCurrentUser();
 
 const showModal = ref(false);
 const creating = ref(false);
@@ -69,16 +70,8 @@ const formError = ref("");
 const form = ref({ name: "", location: "", startDate: "", endDate: "" });
 
 onMounted(async () => {
-  const session = localStorage.getItem("snek_session");
-  const [albumsRes, userRes] = await Promise.all([
-    fetch("/api/albums"),
-    fetch("/api/auth/check", { headers: { Authorization: `Bearer ${session}` } }),
-  ]);
-  albums.value = await albumsRes.json();
-  if (userRes.ok) {
-    const data = await userRes.json();
-    if (data.valid) currentUser.value = { displayName: data.displayName, avatarUrl: data.avatarUrl };
-  }
+  const res = await fetch("/api/albums");
+  albums.value = await res.json();
 });
 
 function closeModal() {
@@ -114,10 +107,4 @@ async function createAlbum() {
   }
 }
 
-async function logout() {
-  const session = localStorage.getItem("snek_session");
-  await fetch("/api/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${session}` } });
-  localStorage.removeItem("snek_session");
-  router.push("/login");
-}
 </script>

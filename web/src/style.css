@@ -60,7 +60,23 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 
 .header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
 .header-row h1 { margin-bottom: 0; }
+.header-left { display: flex; flex-direction: column; gap: 4px; }
+.header-left .back { margin-bottom: 0; }
 .user-info { display: flex; align-items: center; gap: 10px; }
 .user-name { color: #cdd6f4; font-size: 0.95rem; }
 .logout { background: #313244; border: none; border-radius: 8px; padding: 8px 16px; color: #cdd6f4; cursor: pointer; font-size: 0.9rem; }
 .logout:hover { background: #45475a; }
+
+.landing-grid { display: flex; gap: 24px; margin-top: 16px; }
+.feature-card { flex: 1; background: #313244; border-radius: 16px; padding: 48px 32px; text-decoration: none; color: inherit; display: flex; flex-direction: column; align-items: center; gap: 14px; transition: background 0.15s; }
+.feature-card:hover { background: #45475a; }
+.feature-icon { font-size: 3rem; line-height: 1; }
+.feature-card h2 { color: #cba6f7; font-size: 1.5rem; margin-bottom: 0; }
+.feature-card p { color: #a6adc8; text-align: center; margin: 0; }
+
+.user-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.user-row { display: flex; align-items: center; gap: 14px; background: #313244; border-radius: 10px; padding: 14px 18px; }
+.user-row-info { display: flex; flex-direction: column; gap: 2px; }
+.user-row-name { color: #cdd6f4; font-size: 1rem; font-weight: 600; }
+.user-row-login { color: #a6adc8; font-size: 0.82em; }
+.user-row-login.never { color: #585b70; }

@@ -1,8 +1,10 @@
 import { createApp } from "vue";
 import { createRouter, createWebHashHistory } from "vue-router";
 import App from "./App.vue";
+import LandingView from "./views/LandingView.vue";
 import AlbumList from "./views/AlbumList.vue";
 import AlbumView from "./views/AlbumView.vue";
+import UsersView from "./views/UsersView.vue";
 import LoginView from "./views/LoginView.vue";
 import MagicLinkSent from "./views/MagicLinkSent.vue";
 import AuthVerify from "./views/AuthVerify.vue";
@@ -14,8 +16,10 @@ const router = createRouter({
     { path: "/login", component: LoginView, meta: { public: true } },
     { path: "/login/sent", component: MagicLinkSent, meta: { public: true } },
     { path: "/auth/verify/:token", component: AuthVerify, meta: { public: true } },
-    { path: "/", component: AlbumList },
+    { path: "/", component: LandingView },
+    { path: "/albums", component: AlbumList },
     { path: "/album/:channelId", component: AlbumView },
+    { path: "/users", component: UsersView },
   ],
 });
 

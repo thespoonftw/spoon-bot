@@ -10,7 +10,7 @@ const Busboy = require("busboy") as (opts: { headers: Record<string, string | st
 import { eventStates, DATA_DIR } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser } from "./auth";
-import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum } from "./db";
+import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser } from "./db";
 
 const PHOTO_STORAGE_PATH = process.env.PHOTO_STORAGE_PATH ?? path.join(DATA_DIR, "photos");
 
@@ -40,6 +40,12 @@ export async function handleAlbumInteractions(interaction: Interaction): Promise
     const dateText = eventState?.dateText;
     const albumUrl = `${getBaseUrl()}/photos/#/album/${channelId}`;
     dbInsertAlbum({ channelId, groupName: albumName, dateText, location: eventState?.location, createdAt: new Date().toISOString() });
+    const ch = interaction.guild?.channels.cache.get(channelId);
+    if (ch && "members" in ch) {
+      for (const [, member] of (ch as TextChannel).members) {
+        if (!member.user.bot) dbUpsertUser(member.id, member.displayName, member.user.avatarURL() ?? undefined);
+      }
+    }
     await interaction.update({ content: `Photo album started! ${albumUrl}`, components: [] });
     const channel = interaction.guild?.channels.cache.get(channelId);
     if (channel?.isTextBased()) {
@@ -97,8 +103,10 @@ export function startWebServer(): void {
             res.end(JSON.stringify({ error: "name, location, and startDate are required" })); return;
           }
           const album = dbCreateAlbum(name, location, startDate, endDate || undefined);
+          const creator = getSessionUser(token);
+          if (creator) dbUpsertUser(creator.userId, creator.displayName, creator.avatarUrl);
           res.writeHead(201, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ ...album, imageUrls: [] }));
+          res.end(JSON.stringify({ ...album, photos: [] }));
         } catch (e) {
           res.writeHead(500, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: "Failed to create album" }));

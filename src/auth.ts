@@ -4,6 +4,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
+import { dbUpsertUser, dbUpdateUserLastLogin, dbGetAllUsers } from "./db";
 
 const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const ALLOWED_USER_IDS = (process.env.AUTH_USER_IDS ?? "148516020007600128").split(",");
@@ -41,11 +42,9 @@ export async function initAuth(client: Client) {
   for (const userId of ALLOWED_USER_IDS) {
     try {
       const user = await client.users.fetch(userId);
-      userInfoCache.set(userId, {
-        userId,
-        displayName: user.displayName,
-        avatarUrl: user.displayAvatarURL({ extension: "png", size: 128 }),
-      });
+      const info = { userId, displayName: user.displayName, avatarUrl: user.displayAvatarURL({ extension: "png", size: 128 }) };
+      userInfoCache.set(userId, info);
+      dbUpsertUser(userId, info.displayName, info.avatarUrl);
     } catch (e) {
       console.error(`Failed to fetch user ${userId}:`, e);
       userInfoCache.set(userId, { userId, displayName: userId, avatarUrl: "" });
@@ -113,6 +112,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     const sessionToken = crypto.randomBytes(32).toString("hex");
     sessions.set(sessionToken, magic.userId);
     persistSessions();
+    dbUpdateUserLastLogin(magic.userId);
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ sessionToken, userId: magic.userId }));
     return true;
@@ -129,6 +129,14 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ valid: true, userId, displayName: user?.displayName ?? userId, avatarUrl: user?.avatarUrl ?? "" }));
     }
+    return true;
+  }
+
+  if (url === "/api/site-users" && method === "GET") {
+    const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+    if (!sessions.has(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return true; }
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(dbGetAllUsers()));
     return true;
   }
 

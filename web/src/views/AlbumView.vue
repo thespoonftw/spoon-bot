@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <router-link to="/" class="back">← All Albums</router-link>
+    <router-link to="/albums" class="back">← All Albums</router-link>
     <template v-if="album">
       <div class="album-header">
         <div>
