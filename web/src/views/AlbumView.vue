@@ -14,7 +14,7 @@
         <div class="upload-area">
           <button class="btn-secondary" @click="openShare" style="margin-right:8px">Share</button>
           <button class="btn-primary" @click="triggerUpload" :disabled="uploading">
-            {{ uploading ? `Uploading ${uploadProgress}…` : '+ Upload Photos' }}
+            {{ uploading ? `Uploading ${uploadProgress}…` : 'Upload' }}
           </button>
           <input ref="fileInput" type="file" accept="image/*" multiple style="display:none" @change="onFilesSelected" />
         </div>
@@ -241,6 +241,7 @@ function openLightbox(index: number) {
     close: true,
     counter: true,
     arrowKeys: true,
+    pinchToClose: false,
   });
   pswp.on("uiRegister", () => {
     pswp.ui!.registerElement({

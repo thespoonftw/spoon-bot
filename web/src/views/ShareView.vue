@@ -84,7 +84,7 @@ function openLightbox(index: number) {
   const photos = album.value.photos;
   const pswp = new PhotoSwipe({
     dataSource: photos.map(p => ({ src: p.url, width: p.width || 1200, height: p.height || 900 })),
-    index, bgOpacity: 0.92, zoom: true, close: true, counter: true, arrowKeys: true,
+    index, bgOpacity: 0.92, zoom: true, close: true, counter: true, arrowKeys: true, pinchToClose: false,
   });
   pswp.on("uiRegister", () => {
     pswp.ui!.registerElement({

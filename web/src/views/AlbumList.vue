@@ -3,7 +3,7 @@
     <router-link to="/" class="back">← Home</router-link>
     <h1>Albums</h1>
 
-    <button class="btn-primary" @click="showModal = true" style="margin-bottom:20px">+ New Album</button>
+    <button class="btn-primary" @click="showModal = true" style="margin-bottom:20px">New Album</button>
 
     <p v-if="albums.length === 0" class="empty">No albums yet.</p>
     <template v-for="group in albumsByYear" :key="group.year">
@@ -19,7 +19,7 @@
               <img v-if="member.avatarUrl" :src="member.avatarUrl" />
               <span v-else>{{ (member.firstName || member.displayName)[0] }}</span>
             </div>
-            <span class="meta" style="margin-left:4px">{{ album.members.length }}</span>
+            <span class="meta" style="margin-left:4px">{{ album.members.length }} 👥</span>
           </div>
         </div>
       </router-link>
