@@ -50,10 +50,11 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .btn-unhide:hover { color: #a6e3a1 !important; }
 .member-hidden { opacity: 0.45; }
 
-.lightbox-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; z-index: 1000; overflow: hidden; }
+.lightbox-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; z-index: 1000; overflow: hidden; touch-action: none; }
 .lightbox-content { display: flex; flex-direction: column; align-items: center; max-width: 75vw; }
 .lightbox-img { max-width: 75vw; max-height: calc(100vh - 200px); object-fit: contain; display: block; }
 .lightbox-meta { padding: 14px 0 0; text-align: center; display: flex; flex-direction: column; gap: 4px; }
+.lightbox-counter { color: #a6adc8; font-size: 0.85em; }
 .lightbox-uploader { color: #cdd6f4; font-size: 0.95em; font-weight: 600; }
 .lightbox-date { color: #6c7086; font-size: 0.85em; }
 .lightbox-close { position: fixed; top: 16px; right: 16px; background: rgba(0,0,0,0.5); border: none; color: #fff; font-size: 1.5rem; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }

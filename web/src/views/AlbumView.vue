@@ -57,21 +57,21 @@
 
   <!-- Lightbox -->
   <div class="lightbox-overlay" v-if="focusedPhoto"
-    @click="lightboxIndex = null"
-    @touchstart.passive="onTouchStart"
-    @touchmove.passive="onTouchMove"
-    @touchend.passive="onTouchEnd">
-    <button class="lightbox-arrow lightbox-prev" @click.stop="lightboxPrev">‹</button>
+    @click="!isZoomed && (lightboxIndex = null)"
+    @touchstart="onTouchStart"
+    @touchmove="onTouchMove"
+    @touchend="onTouchEnd">
+    <button class="lightbox-arrow lightbox-prev" v-show="!isZoomed" @click.stop="lightboxPrev">‹</button>
     <div class="lightbox-content" @click.stop>
-      <img :src="focusedPhoto.url" class="lightbox-img"
-        :style="{ transform: `translateX(${swipeDelta}px)`, transition: swipeTransition ? 'transform 0.25s ease' : 'none' }" />
-      <div class="lightbox-meta">
+      <img :src="focusedPhoto.url" class="lightbox-img" :style="imgStyle" />
+      <div class="lightbox-meta" v-show="!isZoomed">
+        <span class="lightbox-counter">{{ (lightboxIndex ?? 0) + 1 }} / {{ album?.photos.length }}</span>
         <span v-if="focusedPhoto.uploadedByName" class="lightbox-uploader">{{ focusedPhoto.uploadedByName }}</span>
         <span class="lightbox-date">{{ formatTime(focusedPhoto.uploadedAt) }}</span>
       </div>
     </div>
-    <button class="lightbox-arrow lightbox-next" @click.stop="lightboxNext">›</button>
-    <button class="lightbox-close" @click.stop="lightboxIndex = null">✕</button>
+    <button class="lightbox-arrow lightbox-next" v-show="!isZoomed" @click.stop="lightboxNext">›</button>
+    <button class="lightbox-close" v-show="!isZoomed" @click.stop="lightboxIndex = null">✕</button>
   </div>
 
   <!-- Edit Album Modal -->
@@ -144,7 +144,16 @@ const lightboxIndex = ref<number | null>(null);
 const focusedPhoto = computed(() => lightboxIndex.value !== null ? album.value?.photos[lightboxIndex.value] ?? null : null);
 const swipeDelta = ref(0);
 const swipeTransition = ref(false);
+const zoomLevel = ref(1);
+const isZoomed = computed(() => zoomLevel.value > 1.05);
+const imgStyle = computed(() => ({
+  transform: isZoomed.value ? `scale(${zoomLevel.value})` : `translateX(${swipeDelta.value}px)`,
+  transition: isZoomed.value ? "none" : (swipeTransition.value ? "transform 0.25s ease" : "none"),
+}));
 let touchStartX = 0;
+let lastTapTime = 0;
+let initialPinchDist = 0;
+let initialZoomOnPinch = 1;
 
 const showEdit = ref(false);
 const saving = ref(false);
@@ -173,25 +182,44 @@ onUnmounted(() => { window.removeEventListener("keydown", onKeyDown); });
 function lightboxNext() {
   if (lightboxIndex.value === null || !album.value) return;
   lightboxIndex.value = (lightboxIndex.value + 1) % album.value.photos.length;
-  swipeDelta.value = 0;
-  swipeTransition.value = false;
+  swipeDelta.value = 0; swipeTransition.value = false; zoomLevel.value = 1;
 }
 function lightboxPrev() {
   if (lightboxIndex.value === null || !album.value) return;
   lightboxIndex.value = (lightboxIndex.value - 1 + album.value.photos.length) % album.value.photos.length;
-  swipeDelta.value = 0;
-  swipeTransition.value = false;
+  swipeDelta.value = 0; swipeTransition.value = false; zoomLevel.value = 1;
+}
+
+function getPinchDist(e: TouchEvent) {
+  const dx = e.touches[0].clientX - e.touches[1].clientX;
+  const dy = e.touches[0].clientY - e.touches[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
 }
 
 function onTouchStart(e: TouchEvent) {
-  touchStartX = e.touches[0].clientX;
-  swipeTransition.value = false;
-  swipeDelta.value = 0;
+  if (e.touches.length === 2) {
+    initialPinchDist = getPinchDist(e);
+    initialZoomOnPinch = zoomLevel.value;
+    return;
+  }
+  const now = Date.now();
+  if (now - lastTapTime < 300) { zoomLevel.value = 1; lastTapTime = 0; return; }
+  lastTapTime = now;
+  if (!isZoomed.value) {
+    touchStartX = e.touches[0].clientX;
+    swipeTransition.value = false;
+    swipeDelta.value = 0;
+  }
 }
 function onTouchMove(e: TouchEvent) {
-  swipeDelta.value = e.touches[0].clientX - touchStartX;
+  if (e.touches.length === 2) {
+    zoomLevel.value = Math.max(1, Math.min(5, initialZoomOnPinch * (getPinchDist(e) / initialPinchDist)));
+    return;
+  }
+  if (!isZoomed.value) swipeDelta.value = e.touches[0].clientX - touchStartX;
 }
 function onTouchEnd(e: TouchEvent) {
+  if (isZoomed.value) return;
   const delta = e.changedTouches[0].clientX - touchStartX;
   swipeTransition.value = true;
   if (delta > 50) {
