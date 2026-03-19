@@ -19,6 +19,16 @@
 
       <p v-if="uploadError" class="upload-error">{{ uploadError }}</p>
 
+      <div v-if="album.members.length > 0" class="members-section">
+        <div class="members-list">
+          <div v-for="member in album.members" :key="member.userId" class="member-chip" :title="member.displayName">
+            <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
+            <span v-else class="member-avatar member-avatar-placeholder">{{ member.displayName[0] }}</span>
+            <span class="member-name">{{ member.displayName }}</span>
+          </div>
+        </div>
+      </div>
+
       <p v-if="album.photos.length === 0" class="empty" style="margin-top:24px">No photos yet.</p>
       <div class="gallery">
         <div v-for="photo in album.photos" :key="photo.id" class="photo-item">
@@ -71,7 +81,8 @@ import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 
 interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string }
-interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; endDate?: string; photos: Photo[] }
+interface Member { userId: string; displayName: string; avatarUrl?: string }
+interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; endDate?: string; photos: Photo[]; members: Member[] }
 
 const route = useRoute();
 const album = ref<Album | null>(null);

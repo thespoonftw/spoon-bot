@@ -26,6 +26,7 @@ import {
 import { parseDateText } from "../dateUtils";
 import { updateJoinMessage, updateInnerMessage, updateEventMessages } from "../messageSync";
 import { hasAlbum, handleAlbumInteractions } from "../albums";
+import { dbAddAlbumMember, dbRemoveAlbumMember, dbUpsertUser } from "../db";
 
 const RSVP_LABELS: Record<RSVPStatus, string> = {
   coming: "✅ Coming",
@@ -462,6 +463,10 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       const displayName = (member && "displayName" in member ? member.displayName : null) ?? interaction.user.displayName;
       state.members.set(interaction.user.id, { userId: interaction.user.id, displayName, status: "lurking", plusOne: 0 });
       persistState();
+      if (hasAlbum(channelId)) {
+        dbUpsertUser(interaction.user.id, displayName, interaction.user.displayAvatarURL({ extension: "png", size: 128 }));
+        dbAddAlbumMember(channelId, interaction.user.id);
+      }
       await updateJoinMessage(g, channelId);
       await updateInnerMessage(g, channelId);
     }
@@ -492,6 +497,8 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       await updateJoinMessage(g, channelId);
       await updateInnerMessage(g, channelId);
     }
+
+    if (hasAlbum(channelId)) dbRemoveAlbumMember(channelId, interaction.user.id);
 
     await channel.send(`**${interaction.user.displayName}** left.`);
     return;
