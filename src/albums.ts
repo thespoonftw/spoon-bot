@@ -40,11 +40,16 @@ export async function handleAlbumInteractions(interaction: Interaction): Promise
     const dateText = eventState?.dateText;
     const albumUrl = `${getBaseUrl()}/photos/#/album/${channelId}`;
     dbInsertAlbum({ channelId, groupName: albumName, dateText, location: eventState?.location, createdAt: new Date().toISOString() });
-    const ch = interaction.guild?.channels.cache.get(channelId);
-    if (ch && "members" in ch) {
-      for (const [, member] of (ch as TextChannel).members) {
-        if (!member.user.bot) dbUpsertUser(member.id, member.displayName, member.user.avatarURL() ?? undefined);
-      }
+    if (interaction.guild) {
+      try {
+        await interaction.guild.members.fetch();
+        const ch = interaction.guild.channels.cache.get(channelId);
+        if (ch && "members" in ch) {
+          for (const [, member] of (ch as TextChannel).members) {
+            if (!member.user.bot) dbUpsertUser(member.id, member.displayName, member.user.avatarURL() ?? undefined);
+          }
+        }
+      } catch (e) { console.error("Failed to fetch channel members on album start:", e); }
     }
     await interaction.update({ content: `Photo album started! ${albumUrl}`, components: [] });
     const channel = interaction.guild?.channels.cache.get(channelId);
