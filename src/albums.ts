@@ -7,11 +7,10 @@ type BusboyFile = { filename: string; encoding: string; mimeType: string };
 type BusboyInstance = { on(e: "file", cb: (f: string, s: NodeJS.ReadableStream, i: BusboyFile) => void): BusboyInstance; on(e: "error", cb: (err: Error) => void): BusboyInstance; };
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const Busboy = require("busboy") as (opts: { headers: Record<string, string | string[] | undefined>; limits?: { files?: number; fileSize?: number } }) => BusboyInstance;
-import { eventStates, DATA_DIR } from "./state";
+import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser } from "./auth";
 import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser } from "./db";
-import { eventStates, persistState } from "./state";
 import type { Guild } from "discord.js";
 
 type UpdateEventMessagesFn = (guild: Guild, channelId: string) => Promise<void>;
