@@ -7,7 +7,7 @@ import crypto from "crypto";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const sharp = require("sharp") as (input: string) => { resize(w: number, h: number, opts?: object): { toFile(p: string): Promise<void> }; metadata(): Promise<{ width?: number; height?: number }> };
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const exifr = require("exifr") as { parse(file: string, tags: string[]): Promise<Record<string, unknown> | null> };
+const exifr = require("exifr") as { parse(file: string, opts: unknown): Promise<Record<string, unknown> | null> };
 type BusboyFile = { filename: string; encoding: string; mimeType: string };
 type BusboyInstance = { on(e: "file", cb: (f: string, s: NodeJS.ReadableStream, i: BusboyFile) => void): BusboyInstance; on(e: "error", cb: (err: Error) => void): BusboyInstance; };
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -139,8 +139,9 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
       try { const meta = await sharp(filePath).metadata(); width = meta.width ?? 0; height = meta.height ?? 0; } catch {}
 
       let takenAt: string | undefined;
+      let lat: number | undefined, lon: number | undefined;
       try {
-        const exif = await exifr.parse(filePath, ["DateTimeOriginal", "CreateDate", "DateTime"]);
+        const exif = await exifr.parse(filePath, { pick: ["DateTimeOriginal", "CreateDate", "DateTime"], gps: true });
         const raw = exif?.DateTimeOriginal ?? exif?.CreateDate ?? exif?.DateTime;
         if (raw instanceof Date && !isNaN(raw.getTime())) {
           takenAt = raw.toISOString();
@@ -149,12 +150,14 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
           const d = new Date(normalized);
           if (!isNaN(d.getTime())) takenAt = d.toISOString();
         }
+        if (typeof exif?.latitude === "number") lat = exif.latitude as number;
+        if (typeof exif?.longitude === "number") lon = exif.longitude as number;
       } catch {}
 
       try { await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(path.join(thumbDir, name)); } catch {}
 
       const photoUrl = `/uploads/${channelId}/${name}`;
-      dbAddUploadedPhoto(channelId, photoUrl, name, author.id, displayName, width, height, takenAt);
+      dbAddUploadedPhoto(channelId, photoUrl, name, author.id, displayName, width, height, takenAt, lat, lon);
       anySuccess = true;
     } catch (e) { console.error("Failed to download/process reaction attachment:", e); }
   }
@@ -302,8 +305,9 @@ export function startWebServer(): void {
             width = meta.width ?? 0; height = meta.height ?? 0;
           } catch (e) { console.error("Failed to read image dimensions:", e); }
           let takenAt: string | undefined;
+          let lat: number | undefined, lon: number | undefined;
           try {
-            const exif = await exifr.parse(filePath, ["DateTimeOriginal", "CreateDate", "DateTime"]);
+            const exif = await exifr.parse(filePath, { pick: ["DateTimeOriginal", "CreateDate", "DateTime"], gps: true });
             const raw = exif?.DateTimeOriginal ?? exif?.CreateDate ?? exif?.DateTime;
             if (raw instanceof Date && !isNaN(raw.getTime())) {
               takenAt = raw.toISOString();
@@ -312,12 +316,14 @@ export function startWebServer(): void {
               const d = new Date(normalized);
               if (!isNaN(d.getTime())) takenAt = d.toISOString();
             }
+            if (typeof exif?.latitude === "number") lat = exif.latitude as number;
+            if (typeof exif?.longitude === "number") lon = exif.longitude as number;
           } catch { /* no EXIF data */ }
           try {
             await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(thumbPath);
           } catch (e) { console.error("Thumbnail generation failed:", e); }
           const photoUrl = `/uploads/${channelId}/${name}`;
-          const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, uploader.displayName, width, height, takenAt);
+          const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, uploader.displayName, width, height, takenAt, lat, lon);
           res.writeHead(201, { "Content-Type": "application/json" });
           res.end(JSON.stringify(photo));
         });

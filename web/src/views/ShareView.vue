@@ -86,6 +86,14 @@ function openLightbox(index: number) {
     dataSource: photos.map(p => ({ src: p.url, width: p.width || 1200, height: p.height || 900 })),
     index, bgOpacity: 0.92, zoom: true, close: true, counter: true, arrowKeys: true, pinchToClose: false, closeOnVerticalDrag: false,
   });
+  history.pushState({ pswp: true }, "");
+  let closedByBack = false;
+  const onPopState = () => { closedByBack = true; pswp.close(); };
+  window.addEventListener("popstate", onPopState, { once: true });
+  pswp.on("close", () => {
+    window.removeEventListener("popstate", onPopState);
+    if (!closedByBack) history.back();
+  });
   pswp.on("uiRegister", () => {
     pswp.ui!.registerElement({
       name: "photo-caption", order: 9, isButton: false, appendTo: "root",

@@ -45,9 +45,9 @@
             <span v-if="photo.takenAt" class="upload-time">{{ formatTime(photo.takenAt) }}</span>
           </div>
           <div class="photo-votes" @click.stop>
-            <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="doVote(photo.id, 'down')" title="Downvote">👎</button>
-            <span class="vote-score">{{ getVoteState(photo).score > 0 ? '+' + getVoteState(photo).score : getVoteState(photo).score }}</span>
             <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' }" @click="doVote(photo.id, 'up')" title="Upvote">👍</button>
+            <span class="vote-score">{{ getVoteState(photo).score > 0 ? '+' + getVoteState(photo).score : getVoteState(photo).score }}</span>
+            <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="doVote(photo.id, 'down')" title="Downvote">👎</button>
             <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="doVote(photo.id, 'fav')" title="Favourite">⭐</button>
           </div>
         </div>
@@ -275,6 +275,14 @@ function openLightbox(index: number) {
     pinchToClose: false,
     closeOnVerticalDrag: false,
   });
+  history.pushState({ pswp: true }, "");
+  let closedByBack = false;
+  const onPopState = () => { closedByBack = true; pswp.close(); };
+  window.addEventListener("popstate", onPopState, { once: true });
+  pswp.on("close", () => {
+    window.removeEventListener("popstate", onPopState);
+    if (!closedByBack) history.back();
+  });
   pswp.on("uiRegister", () => {
     pswp.ui!.registerElement({
       name: "photo-caption",
@@ -306,9 +314,9 @@ function openLightbox(index: number) {
           const { score, userVote } = getVoteState(p);
           const scoreStr = score > 0 ? `+${score}` : `${score}`;
           el.innerHTML = `
-            <button data-vote="down" class="pswp-vote-btn${userVote === "down" ? " active-down" : ""}">👎</button>
-            <span class="pswp-vote-score">${scoreStr}</span>
             <button data-vote="up" class="pswp-vote-btn${userVote === "up" ? " active-up" : ""}">👍</button>
+            <span class="pswp-vote-score">${scoreStr}</span>
+            <button data-vote="down" class="pswp-vote-btn${userVote === "down" ? " active-down" : ""}">👎</button>
             <button data-vote="fav" class="pswp-vote-btn${userVote === "fav" ? " active-fav" : ""}">⭐</button>
           `;
         };

@@ -45,7 +45,9 @@ export function initDb() {
       uploaded_at       TEXT NOT NULL,
       taken_at          TEXT,
       width             INTEGER,
-      height            INTEGER
+      height            INTEGER,
+      lat               REAL,
+      lon               REAL
     );
     CREATE TABLE IF NOT EXISTS album_shares (
       token         TEXT PRIMARY KEY,
@@ -74,6 +76,8 @@ export function initDb() {
     "ALTER TABLE photos ADD COLUMN taken_at TEXT",
     "ALTER TABLE photos ADD COLUMN width INTEGER",
     "ALTER TABLE photos ADD COLUMN height INTEGER",
+    "ALTER TABLE photos ADD COLUMN lat REAL",
+    "ALTER TABLE photos ADD COLUMN lon REAL",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
@@ -128,7 +132,7 @@ export type AlbumRow = {
 export type PhotoRow = {
   id: number; channelId: string; url: string;
   filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string;
-  takenAt?: string; width?: number; height?: number;
+  takenAt?: string; width?: number; height?: number; lat?: number; lon?: number;
   score?: number; userVote?: string | null;
 };
 export type AlbumWithPhotos = AlbumRow & { photos: PhotoRow[]; members: UserRow[] };
@@ -285,12 +289,12 @@ export function dbGetAllAlbumMembers(channelId: string): AlbumMemberRow[] {
   `).all(channelId) as AlbumMemberRow[];
 }
 
-export function dbAddUploadedPhoto(channelId: string, url: string, filename: string, uploadedById: string, uploadedByName: string, width: number, height: number, takenAt?: string): PhotoRow {
+export function dbAddUploadedPhoto(channelId: string, url: string, filename: string, uploadedById: string, uploadedByName: string, width: number, height: number, takenAt?: string, lat?: number, lon?: number): PhotoRow {
   const uploadedAt = new Date().toISOString();
   const result = db.prepare(
-    "INSERT INTO photos (channel_id, url, filename, uploaded_by_id, uploaded_by_name, uploaded_at, taken_at, width, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  ).run(channelId, url, filename, uploadedById, uploadedByName, uploadedAt, takenAt ?? null, width, height);
-  return { id: result.lastInsertRowid as number, channelId, url, filename, uploadedById, uploadedByName, uploadedAt, takenAt, width, height };
+    "INSERT INTO photos (channel_id, url, filename, uploaded_by_id, uploaded_by_name, uploaded_at, taken_at, width, height, lat, lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run(channelId, url, filename, uploadedById, uploadedByName, uploadedAt, takenAt ?? null, width, height, lat ?? null, lon ?? null);
+  return { id: result.lastInsertRowid as number, channelId, url, filename, uploadedById, uploadedByName, uploadedAt, takenAt, width, height, lat, lon };
 }
 
 export function dbGetPhotoCount(): number {
