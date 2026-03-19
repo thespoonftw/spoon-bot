@@ -13,9 +13,9 @@
       </div>
     </div>
 
-    <button class="btn-primary" @click="showModal = true">+ New Album</button>
+    <button class="btn-primary" @click="showModal = true" style="margin-bottom:20px">+ New Album</button>
 
-    <p v-if="albums.length === 0" class="empty" style="margin-top:24px">No albums yet.</p>
+    <p v-if="albums.length === 0" class="empty">No albums yet.</p>
     <router-link v-for="album in albums" :key="album.channelId" :to="`/album/${album.channelId}`" class="card">
       <h2>{{ album.groupName }}</h2>
       <p v-if="album.dateText" class="date">{{ album.dateText }}</p>
@@ -23,11 +23,10 @@
       <div class="card-footer">
         <span class="meta">{{ album.photos.length }} photo(s)</span>
         <div v-if="album.members.length > 0" class="card-members">
-          <div v-for="member in album.members.slice(0, 8)" :key="member.userId" class="card-member-avatar" :title="member.displayName">
+          <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
             <img v-if="member.avatarUrl" :src="member.avatarUrl" />
-            <span v-else>{{ member.displayName[0] }}</span>
+            <span v-else>{{ (member.firstName || member.displayName)[0] }}</span>
           </div>
-          <span v-if="album.members.length > 8" class="card-member-overflow">+{{ album.members.length - 8 }}</span>
           <span class="meta" style="margin-left:4px">{{ album.members.length }}</span>
         </div>
       </div>
@@ -52,8 +51,12 @@
         <input v-model="form.startDate" type="date" />
       </div>
       <div class="form-group">
-        <label>End Date <span class="optional">(optional)</span></label>
-        <input v-model="form.endDate" type="date" />
+        <label>End Date</label>
+        <div v-if="form.endDate" style="display:flex;gap:8px;align-items:center">
+          <input v-model="form.endDate" type="date" style="flex:1" />
+          <button type="button" class="btn-remove" @click="form.endDate = ''">remove</button>
+        </div>
+        <button v-else type="button" class="btn-secondary btn-small" @click="form.endDate = form.startDate">+ Add end date</button>
       </div>
       <div v-if="formError" class="error">{{ formError }}</div>
       <div class="modal-actions">
@@ -67,7 +70,7 @@
 import { ref, onMounted } from "vue";
 import { useCurrentUser } from "../composables/useCurrentUser";
 
-interface Member { userId: string; displayName: string; avatarUrl?: string }
+interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; photos: { id: number }[]; members: Member[] }
 
 const albums = ref<Album[]>([]);

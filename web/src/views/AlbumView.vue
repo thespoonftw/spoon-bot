@@ -76,8 +76,12 @@
         <input v-model="editForm.startDate" type="date" />
       </div>
       <div class="form-group">
-        <label>End Date <span class="optional">(optional)</span></label>
-        <input v-model="editForm.endDate" type="date" />
+        <label>End Date</label>
+        <div v-if="editForm.endDate" style="display:flex;gap:8px;align-items:center">
+          <input v-model="editForm.endDate" type="date" style="flex:1" />
+          <button type="button" class="btn-remove" @click="editForm.endDate = ''">remove</button>
+        </div>
+        <button v-else type="button" class="btn-secondary btn-small" @click="editForm.endDate = editForm.startDate">+ Add end date</button>
       </div>
       <div v-if="editError" class="error">{{ editError }}</div>
       <div class="modal-actions">
@@ -98,8 +102,13 @@
           <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
           <span v-if="member.rsvpStatus" :class="['rsvp-badge', 'rsvp-' + member.rsvpStatus]">{{ rsvpLabel(member.rsvpStatus) }}</span>
           <span v-if="member.hidden" class="rsvp-badge">hidden</span>
-          <button v-if="!member.hidden" class="btn-remove" @click="hideMember(member.userId)" title="Hide from album">hide</button>
-          <button v-else class="btn-remove btn-unhide" @click="unhideMember(member.userId)" title="Show in album">show</button>
+          <template v-if="member.userId.startsWith('guest_')">
+            <button class="btn-remove" @click="deleteMember(member.userId)" title="Remove">delete</button>
+          </template>
+          <template v-else>
+            <button v-if="!member.hidden" class="btn-remove" @click="hideMember(member.userId)" title="Hide from album">hide</button>
+            <button v-else class="btn-remove btn-unhide" @click="unhideMember(member.userId)" title="Show in album">show</button>
+          </template>
         </div>
       </div>
       <div class="members-add-section">
@@ -230,7 +239,14 @@ async function openEditMembers() {
     fetch(`/api/album/${album.value.channelId}/members`, { headers: { Authorization: `Bearer ${session}` } }),
     fetch("/api/users"),
   ]);
-  if (membersRes.ok) allMembers.value = await membersRes.json();
+  if (membersRes.ok) {
+    const raw: AllMember[] = await membersRes.json();
+    allMembers.value = raw.sort((a, b) => {
+      const ag = a.userId.startsWith("guest_"), bg = b.userId.startsWith("guest_");
+      if (ag !== bg) return ag ? 1 : -1;
+      return (a.hidden - b.hidden) || (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName);
+    });
+  }
   if (usersRes.ok) allUsers.value = await usersRes.json();
   addMemberUserId.value = "";
   addMemberName.value = "";
@@ -266,6 +282,16 @@ async function addNewMember() {
     allMembers.value.push(member);
     album.value.members.push(member);
     addMemberName.value = "";
+  }
+}
+
+async function deleteMember(userId: string) {
+  if (!album.value) return;
+  const session = localStorage.getItem("snek_session");
+  const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}`, { method: "DELETE", headers: { Authorization: `Bearer ${session}` } });
+  if (res.ok) {
+    allMembers.value = allMembers.value.filter(m => m.userId !== userId);
+    album.value.members = album.value.members.filter(m => m.userId !== userId);
   }
 }
 

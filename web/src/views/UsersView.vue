@@ -14,7 +14,7 @@
     </div>
 
     <div class="user-list">
-      <div v-for="user in users" :key="user.userId" class="user-row">
+      <div v-for="user in discordUsers" :key="user.userId" class="user-row">
         <img v-if="user.avatarUrl" :src="user.avatarUrl" class="avatar" />
         <div class="avatar placeholder" v-else>{{ (user.firstName || user.displayName)[0] }}</div>
         <div class="user-row-info">
@@ -25,7 +25,17 @@
         </div>
         <button class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
       </div>
-      <p v-if="users.length === 0" class="empty">No users yet.</p>
+      <p v-if="discordUsers.length === 0" class="empty">No users yet.</p>
+      <template v-if="guestUsers.length > 0">
+        <p class="user-category" style="margin-top:20px">Not on Discord</p>
+        <div v-for="user in guestUsers" :key="user.userId" class="user-row">
+          <div class="avatar placeholder">{{ (user.firstName || user.displayName)[0] }}</div>
+          <div class="user-row-info">
+            <span class="user-row-name">{{ user.firstName || user.displayName }}</span>
+          </div>
+          <button class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
+        </div>
+      </template>
     </div>
   </div>
 
@@ -46,12 +56,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useCurrentUser } from "../composables/useCurrentUser";
 
 interface SiteUser { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastLoginAt?: string }
 
 const users = ref<SiteUser[]>([]);
+const discordUsers = computed(() => users.value.filter(u => !u.userId.startsWith("guest_")));
+const guestUsers = computed(() => users.value.filter(u => u.userId.startsWith("guest_")));
 const { currentUser, logout } = useCurrentUser();
 const editingUser = ref<SiteUser | null>(null);
 const editFirstName = ref("");

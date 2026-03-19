@@ -52,10 +52,10 @@ const error = ref("");
 const confirming = ref<UserInfo | null>(null);
 
 const regulars = computed(() =>
-  users.value.filter(u => u.lastLoginAt).sort((a, b) => b.lastLoginAt!.localeCompare(a.lastLoginAt!))
+  users.value.filter(u => !u.userId.startsWith("guest_") && u.lastLoginAt).sort((a, b) => b.lastLoginAt!.localeCompare(a.lastLoginAt!))
 );
 const newcomers = computed(() =>
-  users.value.filter(u => !u.lastLoginAt).sort((a, b) => a.displayName.localeCompare(b.displayName))
+  users.value.filter(u => !u.userId.startsWith("guest_") && !u.lastLoginAt).sort((a, b) => a.displayName.localeCompare(b.displayName))
 );
 
 onMounted(async () => {

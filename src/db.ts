@@ -240,6 +240,11 @@ export function dbCreateGuestUser(name: string): UserRow {
   return { userId, displayName: name, level: 1 };
 }
 
+export function dbDeleteUser(userId: string) {
+  db.prepare("DELETE FROM album_members WHERE user_id = ?").run(userId);
+  db.prepare("DELETE FROM users WHERE user_id = ?").run(userId);
+}
+
 export function dbGetAllAlbumMembers(channelId: string): AlbumMemberRow[] {
   return db.prepare(`
     SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.avatar_url AS avatarUrl, u.last_login_at AS lastLoginAt, u.level, am.hidden
