@@ -15,7 +15,7 @@ const Busboy = require("busboy") as (opts: { headers: Record<string, string | st
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser } from "./auth";
-import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto } from "./db";
+import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare } from "./db";
 import type { Guild } from "discord.js";
 
 type UpdateEventMessagesFn = (guild: Guild, channelId: string) => Promise<void>;
@@ -402,6 +402,49 @@ export function startWebServer(): void {
       dbUnhideAlbumMember(channelId, userId);
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+
+    // POST /api/album/:id/share — create a password-protected share link
+    if (url.match(/^\/api\/album\/[^/]+\/share$/) && method === "POST") {
+      const channelId = url.split("/")[3];
+      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      if (!dbHasAlbum(channelId)) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }
+      let body = "";
+      req.on("data", chunk => body += chunk);
+      req.on("end", () => {
+        try {
+          const { password } = JSON.parse(body);
+          if (!password?.trim()) { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Password required" })); return; }
+          const shareToken = crypto.randomBytes(24).toString("base64url");
+          const passwordHash = crypto.createHash("sha256").update(shareToken + ":" + password.trim()).digest("hex");
+          dbCreateAlbumShare(channelId, shareToken, passwordHash);
+          res.writeHead(201, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ url: `${getBaseUrl()}/share/${shareToken}` }));
+        } catch { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Failed" })); }
+      });
+      return;
+    }
+
+    // POST /api/share/:token/unlock — verify password and return album data
+    if (url.match(/^\/api\/share\/[^/]+\/unlock$/) && method === "POST") {
+      const shareToken = url.split("/")[3];
+      const share = dbGetAlbumShare(shareToken);
+      if (!share) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }
+      let body = "";
+      req.on("data", chunk => body += chunk);
+      req.on("end", () => {
+        try {
+          const { password } = JSON.parse(body);
+          const hash = crypto.createHash("sha256").update(shareToken + ":" + (password ?? "")).digest("hex");
+          if (hash !== share.passwordHash) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Wrong password" })); return; }
+          const album = dbGetAlbumWithPhotos(share.channelId);
+          if (!album) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Album not found" })); return; }
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ groupName: album.groupName, dateText: album.dateText, location: album.location, photos: album.photos }));
+        } catch { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Failed" })); }
+      });
       return;
     }
 

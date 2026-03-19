@@ -47,6 +47,12 @@ export function initDb() {
       width             INTEGER,
       height            INTEGER
     );
+    CREATE TABLE IF NOT EXISTS album_shares (
+      token         TEXT PRIMARY KEY,
+      channel_id    TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at    TEXT NOT NULL
+    );
   `);
   // Add new columns to existing DBs (safe to run repeatedly — fails silently if column exists)
   for (const sql of [
@@ -131,9 +137,14 @@ export function dbGetAlbum(channelId: string): AlbumRow | undefined {
 }
 
 export function dbGetPhotos(channelId: string): PhotoRow[] {
-  return db.prepare(
-    "SELECT id, channel_id AS channelId, url, filename, uploaded_by_id AS uploadedById, uploaded_by_name AS uploadedByName, uploaded_at AS uploadedAt, taken_at AS takenAt, width, height FROM photos WHERE channel_id = ? ORDER BY id"
-  ).all(channelId) as PhotoRow[];
+  return db.prepare(`
+    SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
+      p.uploaded_by_id AS uploadedById,
+      COALESCE(u.first_name, p.uploaded_by_name) AS uploadedByName,
+      p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height
+    FROM photos p LEFT JOIN users u ON u.user_id = p.uploaded_by_id
+    WHERE p.channel_id = ? ORDER BY p.id
+  `).all(channelId) as PhotoRow[];
 }
 
 export function dbGetAlbumWithPhotos(channelId: string): AlbumWithPhotos | null {
@@ -259,6 +270,15 @@ export function dbAddUploadedPhoto(channelId: string, url: string, filename: str
     "INSERT INTO photos (channel_id, url, filename, uploaded_by_id, uploaded_by_name, uploaded_at, taken_at, width, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
   ).run(channelId, url, filename, uploadedById, uploadedByName, uploadedAt, takenAt ?? null, width, height);
   return { id: result.lastInsertRowid as number, channelId, url, filename, uploadedById, uploadedByName, uploadedAt, takenAt, width, height };
+}
+
+export function dbCreateAlbumShare(channelId: string, token: string, passwordHash: string): void {
+  db.prepare("INSERT INTO album_shares (token, channel_id, password_hash, created_at) VALUES (?, ?, ?, ?)")
+    .run(token, channelId, passwordHash, new Date().toISOString());
+}
+
+export function dbGetAlbumShare(token: string): { channelId: string; passwordHash: string } | null {
+  return db.prepare("SELECT channel_id AS channelId, password_hash AS passwordHash FROM album_shares WHERE token = ?").get(token) as { channelId: string; passwordHash: string } | null;
 }
 
 export function dbDeletePhoto(photoId: number): string | null {

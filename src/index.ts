@@ -199,7 +199,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 client.on(Events.MessageReactionAdd, async (reaction, user) => {
   if (user.bot) return;
-  console.log(`Reaction: ${reaction.emoji.name} by ${user.id} in ${reaction.message.channelId}`);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   try { await handleAlbumReaction(reaction as any, user as any); } catch (e) { console.error("Reaction handler error:", e); }
 });

@@ -16,21 +16,25 @@
     <button class="btn-primary" @click="showModal = true" style="margin-bottom:20px">+ New Album</button>
 
     <p v-if="albums.length === 0" class="empty">No albums yet.</p>
-    <router-link v-for="album in albums" :key="album.channelId" :to="`/album/${album.channelId}`" class="card">
-      <h2>{{ album.groupName }}</h2>
-      <p v-if="album.dateText" class="date">{{ album.dateText }}</p>
-      <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
-      <div class="card-footer">
-        <span class="meta">{{ album.photos.length }} photo(s)</span>
-        <div v-if="album.members.length > 0" class="card-members">
-          <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
-            <img v-if="member.avatarUrl" :src="member.avatarUrl" />
-            <span v-else>{{ (member.firstName || member.displayName)[0] }}</span>
+    <template v-for="group in albumsByYear" :key="group.year">
+      <h2 class="year-header">{{ group.year }}</h2>
+      <router-link v-for="album in group.items" :key="album.channelId" :to="`/album/${album.channelId}`" class="card">
+        <h2>{{ album.groupName }}</h2>
+        <p v-if="album.dateText" class="date">{{ stripYear(album.dateText) }}</p>
+        <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
+        <div class="card-footer">
+          <span class="meta">{{ album.photos.length }} photo(s)</span>
+          <div v-if="album.members.length > 0" class="card-members">
+            <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
+              <img v-if="member.avatarUrl" :src="member.avatarUrl" />
+              <span v-else>{{ (member.firstName || member.displayName)[0] }}</span>
+            </div>
+            <span class="meta" style="margin-left:4px">{{ album.members.length }}</span>
           </div>
-          <span class="meta" style="margin-left:4px">{{ album.members.length }}</span>
         </div>
-      </div>
-    </router-link>
+        <button class="card-share-btn" @click.prevent.stop="openShare(album)">Share</button>
+      </router-link>
+    </template>
   </div>
 
   <!-- Create Album Modal -->
@@ -64,14 +68,41 @@
       </div>
     </div>
   </div>
+
+  <!-- Share Album Modal -->
+  <div class="modal-overlay" v-if="sharingAlbum">
+    <div class="modal">
+      <button class="modal-close" @click="sharingAlbum = null">✕</button>
+      <h2>Share Album</h2>
+      <p style="color:#a6adc8;font-size:0.85em;margin-bottom:20px">{{ sharingAlbum.groupName }}</p>
+      <template v-if="!shareUrl">
+        <div class="form-group">
+          <label>Password</label>
+          <input v-model="sharePassword" type="password" placeholder="Set a password for this link" @keyup.enter="generateShareLink" autofocus />
+        </div>
+        <div class="modal-actions">
+          <button class="btn-primary" @click="generateShareLink" :disabled="sharing || !sharePassword.trim()">
+            {{ sharing ? "Generating…" : "Generate Link" }}
+          </button>
+        </div>
+      </template>
+      <template v-else>
+        <p style="color:#a6adc8;font-size:0.85em;margin-bottom:12px">Share this link and tell them the password:</p>
+        <div style="display:flex;gap:8px">
+          <input type="text" :value="shareUrl" readonly class="share-link-input" />
+          <button class="btn-secondary btn-small" @click="copyLink">{{ copied ? "✓ Copied" : "Copy" }}</button>
+        </div>
+      </template>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useCurrentUser } from "../composables/useCurrentUser";
 
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
-interface Album { channelId: string; groupName: string; dateText?: string; location?: string; photos: { id: number }[]; members: Member[] }
+interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; createdAt: string; photos: { id: number }[]; members: Member[] }
 
 const albums = ref<Album[]>([]);
 const { currentUser, logout } = useCurrentUser();
@@ -80,6 +111,30 @@ const showModal = ref(false);
 const creating = ref(false);
 const formError = ref("");
 const form = ref({ name: "", location: "", startDate: "", endDate: "" });
+
+const sharingAlbum = ref<Album | null>(null);
+const sharePassword = ref("");
+const shareUrl = ref("");
+const sharing = ref(false);
+const copied = ref(false);
+
+const albumsByYear = computed(() => {
+  const groups = new Map<string, Album[]>();
+  for (const album of albums.value) {
+    const year = album.startDate?.slice(0, 4)
+      ?? /(\d{4})/.exec(album.dateText ?? "")?.[1]
+      ?? album.createdAt.slice(0, 4);
+    if (!groups.has(year)) groups.set(year, []);
+    groups.get(year)!.push(album);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([year, items]) => ({ year, items }));
+});
+
+function stripYear(dateText: string): string {
+  return dateText.replace(/ \d{4}$/, "");
+}
 
 onMounted(async () => {
   const res = await fetch("/api/albums");
@@ -119,4 +174,32 @@ async function createAlbum() {
   }
 }
 
+function openShare(album: Album) {
+  sharingAlbum.value = album;
+  sharePassword.value = "";
+  shareUrl.value = "";
+  copied.value = false;
+}
+
+async function generateShareLink() {
+  if (!sharingAlbum.value || !sharePassword.value.trim()) return;
+  sharing.value = true;
+  const session = localStorage.getItem("snek_session");
+  const res = await fetch(`/api/album/${sharingAlbum.value.channelId}/share`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
+    body: JSON.stringify({ password: sharePassword.value.trim() }),
+  });
+  sharing.value = false;
+  if (res.ok) {
+    const data = await res.json();
+    shareUrl.value = data.url;
+  }
+}
+
+function copyLink() {
+  navigator.clipboard.writeText(shareUrl.value);
+  copied.value = true;
+  setTimeout(() => { copied.value = false; }, 2000);
+}
 </script>
