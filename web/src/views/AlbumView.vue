@@ -34,7 +34,7 @@
 
       <p v-if="album.photos.length === 0" class="empty" style="margin-top:24px">No photos yet.</p>
       <div class="gallery">
-        <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item" @click="lightboxIndex = i">
+        <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item" @click="openLightbox(i)">
           <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
           <div class="photo-meta">
             <span v-if="photo.uploadedByName" class="uploader">{{ photo.uploadedByName }}</span>
@@ -43,7 +43,7 @@
         </div>
       </div>
       <div class="gallery-mobile">
-        <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item-mobile" @click="lightboxIndex = i">
+        <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(i)">
           <img :src="photo.url" loading="lazy" />
           <div class="photo-meta">
             <span v-if="photo.uploadedByName" class="uploader">{{ photo.uploadedByName }}</span>
@@ -55,24 +55,6 @@
     <p v-else class="empty">Album not found.</p>
   </div>
 
-  <!-- Lightbox -->
-  <div class="lightbox-overlay" v-if="focusedPhoto"
-    @click="!isZoomed && (lightboxIndex = null)"
-    @touchstart="onTouchStart"
-    @touchmove="onTouchMove"
-    @touchend="onTouchEnd">
-    <button class="lightbox-arrow lightbox-prev" v-show="!isZoomed" @click.stop="lightboxPrev">‹</button>
-    <div class="lightbox-content" @click.stop>
-      <img :src="focusedPhoto.url" class="lightbox-img" :style="imgStyle" />
-      <div class="lightbox-meta" v-show="!isZoomed">
-        <span class="lightbox-counter">{{ (lightboxIndex ?? 0) + 1 }} / {{ album?.photos.length }}</span>
-        <span v-if="focusedPhoto.uploadedByName" class="lightbox-uploader">{{ focusedPhoto.uploadedByName }}</span>
-        <span class="lightbox-date">{{ formatTime(focusedPhoto.uploadedAt) }}</span>
-      </div>
-    </div>
-    <button class="lightbox-arrow lightbox-next" v-show="!isZoomed" @click.stop="lightboxNext">›</button>
-    <button class="lightbox-close" v-show="!isZoomed" @click.stop="lightboxIndex = null">✕</button>
-  </div>
 
   <!-- Edit Album Modal -->
   <div class="modal-overlay" v-if="showEdit" @click.self="showEdit = false">
@@ -127,10 +109,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
+import PhotoSwipe from "photoswipe";
+import "photoswipe/style.css";
 
-interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string }
+interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; width?: number; height?: number }
 interface Member { userId: string; displayName: string; avatarUrl?: string; rsvpStatus?: string }
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; endDate?: string; photos: Photo[]; members: Member[] }
 
@@ -140,26 +124,6 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const uploading = ref(false);
 const uploadProgress = ref("");
 const uploadError = ref("");
-const lightboxIndex = ref<number | null>(null);
-const focusedPhoto = computed(() => lightboxIndex.value !== null ? album.value?.photos[lightboxIndex.value] ?? null : null);
-const swipeDelta = ref(0);
-const swipeTransition = ref(false);
-const zoomLevel = ref(1);
-const panX = ref(0);
-const panY = ref(0);
-const isZoomed = computed(() => zoomLevel.value > 1.05);
-const imgStyle = computed(() => ({
-  transform: isZoomed.value
-    ? `translate(${panX.value}px, ${panY.value}px) scale(${zoomLevel.value})`
-    : `translateX(${swipeDelta.value}px)`,
-  transition: isZoomed.value ? "none" : (swipeTransition.value ? "transform 0.25s ease" : "none"),
-}));
-let touchStartX = 0;
-let panStartX = 0;
-let panStartY = 0;
-let lastTapTime = 0;
-let initialPinchDist = 0;
-let initialZoomOnPinch = 1;
 
 const showEdit = ref(false);
 const saving = ref(false);
@@ -170,85 +134,40 @@ interface AllMember extends Member { hidden: number; rsvpStatus?: string }
 const showEditMembers = ref(false);
 const allMembers = ref<AllMember[]>([]);
 
-function onKeyDown(e: KeyboardEvent) {
-  if (lightboxIndex.value === null) return;
-  if (e.key === "ArrowRight") lightboxNext();
-  else if (e.key === "ArrowLeft") lightboxPrev();
-  else if (e.key === "Escape") lightboxIndex.value = null;
-}
-
 onMounted(async () => {
   const res = await fetch(`/api/album/${route.params.channelId}`);
   if (res.ok) album.value = await res.json();
-  window.addEventListener("keydown", onKeyDown);
 });
 
-onUnmounted(() => { window.removeEventListener("keydown", onKeyDown); });
-
-function lightboxNext() {
-  if (lightboxIndex.value === null || !album.value) return;
-  lightboxIndex.value = (lightboxIndex.value + 1) % album.value.photos.length;
-  swipeDelta.value = 0; swipeTransition.value = false; zoomLevel.value = 1; panX.value = 0; panY.value = 0;
-}
-function lightboxPrev() {
-  if (lightboxIndex.value === null || !album.value) return;
-  lightboxIndex.value = (lightboxIndex.value - 1 + album.value.photos.length) % album.value.photos.length;
-  swipeDelta.value = 0; swipeTransition.value = false; zoomLevel.value = 1; panX.value = 0; panY.value = 0;
-}
-
-function getPinchDist(e: TouchEvent) {
-  const dx = e.touches[0].clientX - e.touches[1].clientX;
-  const dy = e.touches[0].clientY - e.touches[1].clientY;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-function onTouchStart(e: TouchEvent) {
-  if (e.touches.length === 2) {
-    initialPinchDist = getPinchDist(e);
-    initialZoomOnPinch = zoomLevel.value;
-    return;
-  }
-  const now = Date.now();
-  if (now - lastTapTime < 300) {
-    zoomLevel.value = 1; panX.value = 0; panY.value = 0;
-    lastTapTime = 0; return;
-  }
-  lastTapTime = now;
-  if (isZoomed.value) {
-    panStartX = e.touches[0].clientX - panX.value;
-    panStartY = e.touches[0].clientY - panY.value;
-  } else {
-    touchStartX = e.touches[0].clientX;
-    swipeTransition.value = false;
-    swipeDelta.value = 0;
-  }
-}
-function onTouchMove(e: TouchEvent) {
-  if (e.touches.length === 2) {
-    zoomLevel.value = Math.max(1, Math.min(5, initialZoomOnPinch * (getPinchDist(e) / initialPinchDist)));
-    return;
-  }
-  if (isZoomed.value) {
-    panX.value = e.touches[0].clientX - panStartX;
-    panY.value = e.touches[0].clientY - panStartY;
-  } else {
-    swipeDelta.value = e.touches[0].clientX - touchStartX;
-  }
-}
-function onTouchEnd(e: TouchEvent) {
-  if (isZoomed.value) return;
-  const delta = e.changedTouches[0].clientX - touchStartX;
-  swipeTransition.value = true;
-  if (delta > 100) {
-    swipeDelta.value = window.innerWidth;
-    setTimeout(() => { lightboxPrev(); }, 250);
-  } else if (delta < -100) {
-    swipeDelta.value = -window.innerWidth;
-    setTimeout(() => { lightboxNext(); }, 250);
-  } else {
-    swipeDelta.value = 0;
-    setTimeout(() => { swipeTransition.value = false; }, 250);
-  }
+function openLightbox(index: number) {
+  if (!album.value) return;
+  const photos = album.value.photos;
+  const pswp = new PhotoSwipe({
+    dataSource: photos.map(p => ({ src: p.url, width: p.width || 1200, height: p.height || 900 })),
+    index,
+    bgOpacity: 0.92,
+    zoom: true,
+    close: true,
+    counter: true,
+    arrowKeys: true,
+  });
+  pswp.on("uiRegister", () => {
+    pswp.ui!.registerElement({
+      name: "photo-caption",
+      order: 9,
+      isButton: false,
+      appendTo: "root",
+      onInit: (el) => {
+        const update = () => {
+          const p = photos[pswp.currIndex];
+          el.textContent = [p?.uploadedByName, p?.uploadedAt ? formatTime(p.uploadedAt) : ""].filter(Boolean).join(" · ");
+        };
+        pswp.on("change", update);
+        update();
+      },
+    });
+  });
+  pswp.init();
 }
 
 function openEdit() {

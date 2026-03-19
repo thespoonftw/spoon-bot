@@ -41,7 +41,9 @@ export function initDb() {
       filename          TEXT,
       uploaded_by_id    TEXT,
       uploaded_by_name  TEXT,
-      uploaded_at       TEXT NOT NULL
+      uploaded_at       TEXT NOT NULL,
+      width             INTEGER,
+      height            INTEGER
     );
   `);
   // Add new columns to existing DBs (safe to run repeatedly — fails silently if column exists)
@@ -54,6 +56,8 @@ export function initDb() {
     "ALTER TABLE photos ADD COLUMN uploaded_by_name TEXT",
     "ALTER TABLE users ADD COLUMN level INTEGER NOT NULL DEFAULT 1",
     "ALTER TABLE album_members ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE photos ADD COLUMN width INTEGER",
+    "ALTER TABLE photos ADD COLUMN height INTEGER",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
@@ -108,6 +112,7 @@ export type AlbumRow = {
 export type PhotoRow = {
   id: number; channelId: string; url: string;
   filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string;
+  width?: number; height?: number;
 };
 export type AlbumWithPhotos = AlbumRow & { photos: PhotoRow[]; members: UserRow[] };
 
@@ -123,7 +128,7 @@ export function dbGetAlbum(channelId: string): AlbumRow | undefined {
 
 export function dbGetPhotos(channelId: string): PhotoRow[] {
   return db.prepare(
-    "SELECT id, channel_id AS channelId, url, filename, uploaded_by_id AS uploadedById, uploaded_by_name AS uploadedByName, uploaded_at AS uploadedAt FROM photos WHERE channel_id = ? ORDER BY id"
+    "SELECT id, channel_id AS channelId, url, filename, uploaded_by_id AS uploadedById, uploaded_by_name AS uploadedByName, uploaded_at AS uploadedAt, width, height FROM photos WHERE channel_id = ? ORDER BY id"
   ).all(channelId) as PhotoRow[];
 }
 
@@ -229,10 +234,10 @@ export function dbGetAllAlbumMembers(channelId: string): AlbumMemberRow[] {
   `).all(channelId) as AlbumMemberRow[];
 }
 
-export function dbAddUploadedPhoto(channelId: string, url: string, filename: string, uploadedById: string, uploadedByName: string): PhotoRow {
+export function dbAddUploadedPhoto(channelId: string, url: string, filename: string, uploadedById: string, uploadedByName: string, width: number, height: number): PhotoRow {
   const uploadedAt = new Date().toISOString();
   const result = db.prepare(
-    "INSERT INTO photos (channel_id, url, filename, uploaded_by_id, uploaded_by_name, uploaded_at) VALUES (?, ?, ?, ?, ?, ?)"
-  ).run(channelId, url, filename, uploadedById, uploadedByName, uploadedAt);
-  return { id: result.lastInsertRowid as number, channelId, url, filename, uploadedById, uploadedByName, uploadedAt };
+    "INSERT INTO photos (channel_id, url, filename, uploaded_by_id, uploaded_by_name, uploaded_at, width, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run(channelId, url, filename, uploadedById, uploadedByName, uploadedAt, width, height);
+  return { id: result.lastInsertRowid as number, channelId, url, filename, uploadedById, uploadedByName, uploadedAt, width, height };
 }

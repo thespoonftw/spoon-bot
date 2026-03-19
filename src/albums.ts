@@ -4,7 +4,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const sharp = require("sharp") as (input: string) => { resize(w: number, h: number, opts?: object): { toFile(p: string): Promise<void> } };
+const sharp = require("sharp") as (input: string) => { resize(w: number, h: number, opts?: object): { toFile(p: string): Promise<void> }; metadata(): Promise<{ width?: number; height?: number }> };
 type BusboyFile = { filename: string; encoding: string; mimeType: string };
 type BusboyInstance = { on(e: "file", cb: (f: string, s: NodeJS.ReadableStream, i: BusboyFile) => void): BusboyInstance; on(e: "error", cb: (err: Error) => void): BusboyInstance; };
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -205,11 +205,16 @@ export function startWebServer(): void {
           const thumbDir = path.join(PHOTO_STORAGE_PATH, channelId, "thumbs");
           fs.mkdirSync(thumbDir, { recursive: true });
           const thumbPath = path.join(thumbDir, name);
+          let width = 0, height = 0;
+          try {
+            const meta = await sharp(filePath).metadata();
+            width = meta.width ?? 0; height = meta.height ?? 0;
+          } catch (e) { console.error("Failed to read image dimensions:", e); }
           try {
             await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(thumbPath);
           } catch (e) { console.error("Thumbnail generation failed:", e); }
           const photoUrl = `/uploads/${channelId}/${name}`;
-          const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, uploader.displayName);
+          const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, uploader.displayName, width, height);
           res.writeHead(201, { "Content-Type": "application/json" });
           res.end(JSON.stringify(photo));
         });
