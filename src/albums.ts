@@ -115,10 +115,12 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
   const imageAttachments = [...message.attachments.values()].filter(a => a.contentType?.startsWith("image/"));
   if (imageAttachments.length === 0) return;
 
-  // Upsert the reacting user
-  const member = reaction.message.guild?.members.cache.get(user.id);
-  const displayName = member?.displayName ?? user.displayName ?? user.username;
-  dbUpsertUser(user.id, displayName, user.avatarURL() ?? undefined);
+  // Attribute to the message author, not the reactor
+  const author = message.author;
+  if (!author) return;
+  const authorMember = reaction.message.guild?.members.cache.get(author.id);
+  const displayName = authorMember?.displayName ?? author.displayName ?? author.username;
+  dbUpsertUser(author.id, displayName, author.avatarURL() ?? undefined);
 
   const albumDir = path.join(PHOTO_STORAGE_PATH, channelId);
   fs.mkdirSync(albumDir, { recursive: true });
@@ -152,7 +154,7 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
       try { await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(path.join(thumbDir, name)); } catch {}
 
       const photoUrl = `/uploads/${channelId}/${name}`;
-      dbAddUploadedPhoto(channelId, photoUrl, name, user.id, displayName, width, height, takenAt);
+      dbAddUploadedPhoto(channelId, photoUrl, name, author.id, displayName, width, height, takenAt);
       anySuccess = true;
     } catch (e) { console.error("Failed to download/process reaction attachment:", e); }
   }
