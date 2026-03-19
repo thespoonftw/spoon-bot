@@ -11,8 +11,12 @@ import { eventStates, DATA_DIR } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser } from "./auth";
 import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser } from "./db";
-import { updateEventMessages } from "./messageSync";
 import { eventStates, persistState } from "./state";
+import type { Guild } from "discord.js";
+
+type UpdateEventMessagesFn = (guild: Guild, channelId: string) => Promise<void>;
+let updateEventMessagesFn: UpdateEventMessagesFn | null = null;
+export function setUpdateEventMessages(fn: UpdateEventMessagesFn) { updateEventMessagesFn = fn; }
 
 const PHOTO_STORAGE_PATH = process.env.PHOTO_STORAGE_PATH ?? path.join(DATA_DIR, "photos");
 
@@ -145,7 +149,7 @@ export function startWebServer(): void {
               if (updated?.dateText) state.dateText = updated.dateText;
               persistState();
               const guild = albumDiscordClient.guilds.cache.get(process.env.GUILD_ID ?? "");
-              if (guild) updateEventMessages(guild, channelId).catch(e => console.error("Failed to sync album edit to Discord:", e));
+              if (guild && updateEventMessagesFn) updateEventMessagesFn(guild, channelId).catch(e => console.error("Failed to sync album edit to Discord:", e));
             }
           }
           res.writeHead(200, { "Content-Type": "application/json" });
