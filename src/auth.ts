@@ -39,7 +39,29 @@ function persistSessions() {
 export async function initAuth(client: Client) {
   discordClient = client;
   loadSessions();
+  // Sync all guild members into the users table
+  const guildId = process.env.GUILD_ID;
+  if (guildId) {
+    try {
+      const guild = client.guilds.cache.get(guildId);
+      if (guild) {
+        const members = await guild.members.fetch();
+        for (const [, member] of members) {
+          if (!member.user.bot) {
+            const info = { userId: member.id, displayName: member.displayName, avatarUrl: member.user.displayAvatarURL({ extension: "png", size: 128 }) };
+            userInfoCache.set(member.id, info);
+            dbUpsertUser(member.id, info.displayName, info.avatarUrl);
+          }
+        }
+        console.log(`Synced ${members.size} guild members to users DB.`);
+      }
+    } catch (e) {
+      console.error("Failed to fetch guild members:", e);
+    }
+  }
+  // Ensure login-allowed users are in the cache even if guild fetch failed
   for (const userId of ALLOWED_USER_IDS) {
+    if (userInfoCache.has(userId)) continue;
     try {
       const user = await client.users.fetch(userId);
       const info = { userId, displayName: user.displayName, avatarUrl: user.displayAvatarURL({ extension: "png", size: 128 }) };
