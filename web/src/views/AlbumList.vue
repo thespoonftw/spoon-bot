@@ -32,7 +32,6 @@
             <span class="meta" style="margin-left:4px">{{ album.members.length }}</span>
           </div>
         </div>
-        <button class="card-share-btn" @click.prevent.stop="openShare(album)">Share</button>
       </router-link>
     </template>
   </div>
@@ -69,32 +68,6 @@
     </div>
   </div>
 
-  <!-- Share Album Modal -->
-  <div class="modal-overlay" v-if="sharingAlbum">
-    <div class="modal">
-      <button class="modal-close" @click="sharingAlbum = null">✕</button>
-      <h2>Share Album</h2>
-      <p style="color:#a6adc8;font-size:0.85em;margin-bottom:20px">{{ sharingAlbum.groupName }}</p>
-      <template v-if="!shareUrl">
-        <div class="form-group">
-          <label>Password</label>
-          <input v-model="sharePassword" type="password" placeholder="Set a password for this link" @keyup.enter="generateShareLink" autofocus />
-        </div>
-        <div class="modal-actions">
-          <button class="btn-primary" @click="generateShareLink" :disabled="sharing || !sharePassword.trim()">
-            {{ sharing ? "Generating…" : "Generate Link" }}
-          </button>
-        </div>
-      </template>
-      <template v-else>
-        <p style="color:#a6adc8;font-size:0.85em;margin-bottom:12px">Share this link and tell them the password:</p>
-        <div style="display:flex;gap:8px">
-          <input type="text" :value="shareUrl" readonly class="share-link-input" />
-          <button class="btn-secondary btn-small" @click="copyLink">{{ copied ? "✓ Copied" : "Copy" }}</button>
-        </div>
-      </template>
-    </div>
-  </div>
 </template>
 
 <script setup lang="ts">
@@ -111,12 +84,6 @@ const showModal = ref(false);
 const creating = ref(false);
 const formError = ref("");
 const form = ref({ name: "", location: "", startDate: "", endDate: "" });
-
-const sharingAlbum = ref<Album | null>(null);
-const sharePassword = ref("");
-const shareUrl = ref("");
-const sharing = ref(false);
-const copied = ref(false);
 
 const albumsByYear = computed(() => {
   const groups = new Map<string, Album[]>();
@@ -174,32 +141,4 @@ async function createAlbum() {
   }
 }
 
-function openShare(album: Album) {
-  sharingAlbum.value = album;
-  sharePassword.value = "";
-  shareUrl.value = "";
-  copied.value = false;
-}
-
-async function generateShareLink() {
-  if (!sharingAlbum.value || !sharePassword.value.trim()) return;
-  sharing.value = true;
-  const session = localStorage.getItem("snek_session");
-  const res = await fetch(`/api/album/${sharingAlbum.value.channelId}/share`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
-    body: JSON.stringify({ password: sharePassword.value.trim() }),
-  });
-  sharing.value = false;
-  if (res.ok) {
-    const data = await res.json();
-    shareUrl.value = data.url;
-  }
-}
-
-function copyLink() {
-  navigator.clipboard.writeText(shareUrl.value);
-  copied.value = true;
-  setTimeout(() => { copied.value = false; }, 2000);
-}
 </script>

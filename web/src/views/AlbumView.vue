@@ -12,6 +12,7 @@
           <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
         </div>
         <div class="upload-area">
+          <button class="btn-secondary" @click="openShare" style="margin-right:8px">Share</button>
           <button class="btn-primary" @click="triggerUpload" :disabled="uploading">
             {{ uploading ? `Uploading ${uploadProgress}…` : '+ Upload Photos' }}
           </button>
@@ -68,6 +69,32 @@
       <div class="modal-actions">
         <button class="btn-danger" @click="deletePhoto" :disabled="deleting">{{ deleting ? 'Deleting…' : 'Delete' }}</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Share Album Modal -->
+  <div class="modal-overlay" v-if="showShare">
+    <div class="modal">
+      <button class="modal-close" @click="showShare = false">✕</button>
+      <h2>Share Album</h2>
+      <template v-if="!shareUrl">
+        <div class="form-group">
+          <label>Password</label>
+          <input v-model="sharePassword" type="password" placeholder="Set a password for this link" @keyup.enter="generateShareLink" />
+        </div>
+        <div class="modal-actions">
+          <button class="btn-primary" @click="generateShareLink" :disabled="sharing || !sharePassword.trim()">
+            {{ sharing ? "Generating…" : "Generate Link" }}
+          </button>
+        </div>
+      </template>
+      <template v-else>
+        <p style="color:#a6adc8;font-size:0.85em;margin-bottom:12px">Share this link and tell them the password:</p>
+        <div style="display:flex;gap:8px">
+          <input type="text" :value="shareUrl" readonly class="share-link-input" />
+          <button class="btn-secondary btn-small" @click="copyShareLink">{{ shareCopied ? "✓ Copied" : "Copy" }}</button>
+        </div>
+      </template>
     </div>
   </div>
 
@@ -159,6 +186,12 @@ const uploadError = ref("");
 const deletingPhoto = ref<Photo | null>(null);
 const deleting = ref(false);
 
+const showShare = ref(false);
+const sharePassword = ref("");
+const shareUrl = ref("");
+const sharing = ref(false);
+const shareCopied = ref(false);
+
 const showEdit = ref(false);
 const saving = ref(false);
 const editError = ref("");
@@ -226,6 +259,32 @@ function openLightbox(index: number) {
     });
   });
   pswp.init();
+}
+
+function openShare() {
+  sharePassword.value = "";
+  shareUrl.value = "";
+  shareCopied.value = false;
+  showShare.value = true;
+}
+
+async function generateShareLink() {
+  if (!album.value || !sharePassword.value.trim()) return;
+  sharing.value = true;
+  const session = localStorage.getItem("snek_session");
+  const res = await fetch(`/api/album/${album.value.channelId}/share`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
+    body: JSON.stringify({ password: sharePassword.value.trim() }),
+  });
+  sharing.value = false;
+  if (res.ok) shareUrl.value = (await res.json()).url;
+}
+
+function copyShareLink() {
+  navigator.clipboard.writeText(shareUrl.value);
+  shareCopied.value = true;
+  setTimeout(() => { shareCopied.value = false; }, 2000);
 }
 
 function openEdit() {
