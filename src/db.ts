@@ -22,10 +22,13 @@ export function initDb() {
       created_at  TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS photos (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      channel_id  TEXT NOT NULL REFERENCES albums(channel_id),
-      url         TEXT NOT NULL,
-      uploaded_at TEXT NOT NULL
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      channel_id        TEXT NOT NULL REFERENCES albums(channel_id),
+      url               TEXT NOT NULL,
+      filename          TEXT,
+      uploaded_by_id    TEXT,
+      uploaded_by_name  TEXT,
+      uploaded_at       TEXT NOT NULL
     );
   `);
   // Add new columns to existing DBs (safe to run repeatedly — fails silently if column exists)
@@ -33,6 +36,9 @@ export function initDb() {
     "ALTER TABLE albums ADD COLUMN location TEXT",
     "ALTER TABLE albums ADD COLUMN start_date TEXT",
     "ALTER TABLE albums ADD COLUMN end_date TEXT",
+    "ALTER TABLE photos ADD COLUMN filename TEXT",
+    "ALTER TABLE photos ADD COLUMN uploaded_by_id TEXT",
+    "ALTER TABLE photos ADD COLUMN uploaded_by_name TEXT",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
@@ -84,7 +90,11 @@ export type AlbumRow = {
   channelId: string; groupName: string; dateText?: string;
   location?: string; startDate?: string; endDate?: string; createdAt: string;
 };
-export type AlbumWithPhotos = AlbumRow & { imageUrls: string[] };
+export type PhotoRow = {
+  id: number; channelId: string; url: string;
+  filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string;
+};
+export type AlbumWithPhotos = AlbumRow & { photos: PhotoRow[] };
 
 export function dbHasAlbum(channelId: string): boolean {
   return !!db.prepare("SELECT 1 FROM albums WHERE channel_id = ?").get(channelId);
@@ -96,22 +106,23 @@ export function dbGetAlbum(channelId: string): AlbumRow | undefined {
   ).get(channelId) as AlbumRow | undefined;
 }
 
-export function dbGetPhotos(channelId: string): string[] {
-  return (db.prepare("SELECT url FROM photos WHERE channel_id = ? ORDER BY id").all(channelId) as { url: string }[])
-    .map(r => r.url);
+export function dbGetPhotos(channelId: string): PhotoRow[] {
+  return db.prepare(
+    "SELECT id, channel_id AS channelId, url, filename, uploaded_by_id AS uploadedById, uploaded_by_name AS uploadedByName, uploaded_at AS uploadedAt FROM photos WHERE channel_id = ? ORDER BY id"
+  ).all(channelId) as PhotoRow[];
 }
 
 export function dbGetAlbumWithPhotos(channelId: string): AlbumWithPhotos | null {
   const album = dbGetAlbum(channelId);
   if (!album) return null;
-  return { ...album, imageUrls: dbGetPhotos(album.channelId) };
+  return { ...album, photos: dbGetPhotos(album.channelId) };
 }
 
 export function dbGetAllAlbumsWithPhotos(): AlbumWithPhotos[] {
   const albums = db.prepare(
     "SELECT channel_id AS channelId, group_name AS groupName, date_text AS dateText, location, start_date AS startDate, end_date AS endDate, created_at AS createdAt FROM albums ORDER BY created_at DESC"
   ).all() as AlbumRow[];
-  return albums.map(a => ({ ...a, imageUrls: dbGetPhotos(a.channelId) }));
+  return albums.map(a => ({ ...a, photos: dbGetPhotos(a.channelId) }));
 }
 
 export function dbInsertAlbum(album: AlbumRow) {
@@ -136,4 +147,12 @@ export function dbDeleteAlbum(channelId: string) {
 export function dbAddPhoto(channelId: string, url: string) {
   db.prepare("INSERT INTO photos (channel_id, url, uploaded_at) VALUES (?, ?, ?)")
     .run(channelId, url, new Date().toISOString());
+}
+
+export function dbAddUploadedPhoto(channelId: string, url: string, filename: string, uploadedById: string, uploadedByName: string): PhotoRow {
+  const uploadedAt = new Date().toISOString();
+  const result = db.prepare(
+    "INSERT INTO photos (channel_id, url, filename, uploaded_by_id, uploaded_by_name, uploaded_at) VALUES (?, ?, ?, ?, ?, ?)"
+  ).run(channelId, url, filename, uploadedById, uploadedByName, uploadedAt);
+  return { id: result.lastInsertRowid as number, channelId, url, filename, uploadedById, uploadedByName, uploadedAt };
 }

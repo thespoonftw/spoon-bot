@@ -57,6 +57,12 @@ export function isValidSession(token: string): boolean {
   return sessions.has(token);
 }
 
+export function getSessionUser(token: string): UserInfo | null {
+  const userId = sessions.get(token);
+  if (!userId) return null;
+  return userInfoCache.get(userId) ?? { userId, displayName: userId, avatarUrl: "" };
+}
+
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 
 // Returns true if the request was handled

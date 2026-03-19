@@ -17,7 +17,7 @@
       <h2>{{ album.groupName }}</h2>
       <p v-if="album.dateText" class="date">{{ album.dateText }}</p>
       <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
-      <p class="meta">{{ album.imageUrls.length }} photo(s)</p>
+      <p class="meta">{{ album.photos.length }} photo(s)</p>
     </router-link>
   </div>
 
@@ -56,7 +56,7 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 
-interface Album { channelId: string; groupName: string; dateText?: string; location?: string; imageUrls: string[] }
+interface Album { channelId: string; groupName: string; dateText?: string; location?: string; photos: { id: number }[] }
 interface UserInfo { displayName: string; avatarUrl: string }
 
 const albums = ref<Album[]>([]);

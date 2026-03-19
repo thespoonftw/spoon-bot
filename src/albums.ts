@@ -2,10 +2,14 @@ import { Interaction, TextChannel } from "discord.js";
 import http from "http";
 import fs from "fs";
 import path from "path";
-import { eventStates } from "./state";
+import crypto from "crypto";
+import Busboy from "busboy";
+import { eventStates, DATA_DIR } from "./state";
 import { config } from "./config";
-import { handleAuthRoutes, isValidSession } from "./auth";
-import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbAddPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum } from "./db";
+import { handleAuthRoutes, isValidSession, getSessionUser } from "./auth";
+import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum } from "./db";
+
+const PHOTO_STORAGE_PATH = process.env.PHOTO_STORAGE_PATH ?? path.join(DATA_DIR, "photos");
 
 export function loadAlbums() {
   initDb();
@@ -108,11 +112,71 @@ export function startWebServer(): void {
       });
       return;
     }
-    if (url.startsWith("/api/album/")) {
+    // POST /api/album/:id/photos — upload a photo file
+    if (url.match(/^\/api\/album\/[^/]+\/photos$/) && method === "POST") {
+      const channelId = url.split("/")[3];
+      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const uploader = getSessionUser(token);
+      if (!uploader) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      if (!dbHasAlbum(channelId)) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Album not found" })); return; }
+      const albumDir = path.join(PHOTO_STORAGE_PATH, channelId);
+      fs.mkdirSync(albumDir, { recursive: true });
+      const bb = Busboy({ headers: req.headers, limits: { files: 1, fileSize: 50 * 1024 * 1024 } });
+      let responded = false;
+      bb.on("file", (_field, fileStream, { filename, mimeType }) => {
+        if (!mimeType.startsWith("image/")) {
+          fileStream.resume();
+          if (!responded) { responded = true; res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Only images allowed" })); }
+          return;
+        }
+        const ext = path.extname(filename) || ".jpg";
+        const name = crypto.randomBytes(16).toString("hex") + ext;
+        const filePath = path.join(albumDir, name);
+        const writeStream = fs.createWriteStream(filePath);
+        fileStream.pipe(writeStream);
+        writeStream.on("finish", () => {
+          if (responded) return;
+          responded = true;
+          const photoUrl = `/photos/${channelId}/${name}`;
+          const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, uploader.displayName);
+          res.writeHead(201, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(photo));
+        });
+        writeStream.on("error", () => {
+          if (!responded) { responded = true; res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Write failed" })); }
+        });
+      });
+      bb.on("error", () => {
+        if (!responded) { responded = true; res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Upload failed" })); }
+      });
+      req.pipe(bb);
+      return;
+    }
+
+    // GET /api/album/:id
+    if (url.match(/^\/api\/album\/[^/]+$/) && method === "GET") {
       const channelId = url.slice("/api/album/".length);
       const album = dbGetAlbumWithPhotos(channelId);
       res.writeHead(album ? 200 : 404, { "Content-Type": "application/json" });
       res.end(JSON.stringify(album ?? { error: "Not found" }));
+      return;
+    }
+
+    // GET /photos/:channelId/:filename — serve uploaded photo files
+    if (url.startsWith("/photos/")) {
+      const parts = url.slice("/photos/".length).split("/");
+      if (parts.length < 2 || parts[0].includes("..") || parts[1].includes("..")) {
+        res.writeHead(400); res.end("Bad request"); return;
+      }
+      const [channelId, filename] = parts;
+      const filePath = path.join(PHOTO_STORAGE_PATH, channelId, filename);
+      if (!filePath.startsWith(PHOTO_STORAGE_PATH) || !fs.existsSync(filePath)) {
+        res.writeHead(404); res.end("Not found"); return;
+      }
+      const ext = path.extname(filename).toLowerCase();
+      const imgMime: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp", ".heic": "image/heic" };
+      res.writeHead(200, { "Content-Type": imgMime[ext] ?? "application/octet-stream", "Cache-Control": "public, max-age=31536000" });
+      fs.createReadStream(filePath).pipe(res);
       return;
     }
 

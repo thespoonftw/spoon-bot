@@ -17,8 +17,17 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .card { display: block; background: #313244; border-radius: 10px; padding: 20px; margin-bottom: 16px; text-decoration: none; color: inherit; }
 .card:hover { background: #45475a; }
 
-.gallery { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
-.gallery img { width: 220px; height: 220px; object-fit: cover; border-radius: 6px; cursor: pointer; }
+.album-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 16px; }
+.album-header h1 { margin-bottom: 4px; }
+.upload-area { flex-shrink: 0; }
+.upload-error { color: #f38ba8; margin-bottom: 12px; font-size: 0.9em; }
+
+.gallery { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.photo-item { display: flex; flex-direction: column; gap: 4px; }
+.photo-item img { width: 220px; height: 220px; object-fit: cover; border-radius: 6px; cursor: pointer; display: block; }
+.photo-meta { display: flex; flex-direction: column; width: 220px; }
+.uploader { color: #cdd6f4; font-size: 0.8em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.upload-time { color: #6c7086; font-size: 0.75em; }
 
 .btn-primary { background: #cba6f7; color: #1e1e2e; border: none; border-radius: 8px; padding: 10px 20px; cursor: pointer; font-size: 0.95rem; font-weight: 600; }
 .btn-primary:hover:not(:disabled) { background: #d5b5f8; }

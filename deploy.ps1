@@ -16,8 +16,8 @@ if ($Full) {
     Write-Host "Running npm install and deploy on server..."
     & $plink @conn "cd /home/spoon/spoon-bot && git pull && npm install && npm run deploy && (set -a; source .env.snek; set +a; npm run deploy)"
 } else {
-    Write-Host "Pulling on server..."
-    & $plink @conn "cd /home/spoon/spoon-bot && git pull"
+    Write-Host "Pulling on server and installing dependencies..."
+    & $plink @conn "cd /home/spoon/spoon-bot && git pull && npm install --silent"
 }
 
 Write-Host "Building web app..."
