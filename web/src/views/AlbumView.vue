@@ -58,10 +58,18 @@
   <!-- Lightbox -->
   <div class="lightbox-overlay" v-if="focusedPhoto"
     @click="lightboxIndex = null"
-    @touchstart.passive="touchStartX = $event.touches[0].clientX"
-    @touchend.passive="($event.changedTouches[0].clientX - touchStartX) > 50 ? lightboxPrev() : ($event.changedTouches[0].clientX - touchStartX) < -50 ? lightboxNext() : null">
+    @touchstart.passive="onTouchStart"
+    @touchmove.passive="onTouchMove"
+    @touchend.passive="onTouchEnd">
     <button class="lightbox-arrow lightbox-prev" @click.stop="lightboxPrev">‹</button>
-    <img :src="focusedPhoto.url" class="lightbox-img" @click.stop />
+    <div class="lightbox-content" @click.stop>
+      <img :src="focusedPhoto.url" class="lightbox-img"
+        :style="{ transform: `translateX(${swipeDelta}px)`, transition: swipeTransition ? 'transform 0.25s ease' : 'none' }" />
+      <div class="lightbox-meta">
+        <span v-if="focusedPhoto.uploadedByName" class="lightbox-uploader">{{ focusedPhoto.uploadedByName }}</span>
+        <span class="lightbox-date">{{ formatTime(focusedPhoto.uploadedAt) }}</span>
+      </div>
+    </div>
     <button class="lightbox-arrow lightbox-next" @click.stop="lightboxNext">›</button>
     <button class="lightbox-close" @click.stop="lightboxIndex = null">✕</button>
   </div>
@@ -134,6 +142,8 @@ const uploadProgress = ref("");
 const uploadError = ref("");
 const lightboxIndex = ref<number | null>(null);
 const focusedPhoto = computed(() => lightboxIndex.value !== null ? album.value?.photos[lightboxIndex.value] ?? null : null);
+const swipeDelta = ref(0);
+const swipeTransition = ref(false);
 let touchStartX = 0;
 
 const showEdit = ref(false);
@@ -163,10 +173,37 @@ onUnmounted(() => { window.removeEventListener("keydown", onKeyDown); });
 function lightboxNext() {
   if (lightboxIndex.value === null || !album.value) return;
   lightboxIndex.value = (lightboxIndex.value + 1) % album.value.photos.length;
+  swipeDelta.value = 0;
+  swipeTransition.value = false;
 }
 function lightboxPrev() {
   if (lightboxIndex.value === null || !album.value) return;
   lightboxIndex.value = (lightboxIndex.value - 1 + album.value.photos.length) % album.value.photos.length;
+  swipeDelta.value = 0;
+  swipeTransition.value = false;
+}
+
+function onTouchStart(e: TouchEvent) {
+  touchStartX = e.touches[0].clientX;
+  swipeTransition.value = false;
+  swipeDelta.value = 0;
+}
+function onTouchMove(e: TouchEvent) {
+  swipeDelta.value = e.touches[0].clientX - touchStartX;
+}
+function onTouchEnd(e: TouchEvent) {
+  const delta = e.changedTouches[0].clientX - touchStartX;
+  swipeTransition.value = true;
+  if (delta > 50) {
+    swipeDelta.value = window.innerWidth;
+    setTimeout(() => { lightboxPrev(); }, 250);
+  } else if (delta < -50) {
+    swipeDelta.value = -window.innerWidth;
+    setTimeout(() => { lightboxNext(); }, 250);
+  } else {
+    swipeDelta.value = 0;
+    setTimeout(() => { swipeTransition.value = false; }, 250);
+  }
 }
 
 function openEdit() {
