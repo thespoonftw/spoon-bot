@@ -1,5 +1,6 @@
-import { Client, Interaction, TextChannel } from "discord.js";
+import { Client, Interaction, TextChannel, MessageReaction, User } from "discord.js";
 import http from "http";
+import https from "https";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -90,6 +91,76 @@ export async function handleAlbumInteractions(interaction: Interaction): Promise
   return null;
 }
 
+
+const ALBUM_REACTION_EMOJIS = ["📷", "📸"];
+
+async function downloadFile(url: string, destPath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(destPath);
+    https.get(url, (res) => {
+      if (res.statusCode !== 200) { file.close(); reject(new Error(`HTTP ${res.statusCode}`)); return; }
+      res.pipe(file);
+      file.on("finish", () => { file.close(); resolve(); });
+    }).on("error", (err) => { file.close(); reject(err); });
+  });
+}
+
+export async function handleAlbumReaction(reaction: MessageReaction, user: User): Promise<void> {
+  if (!ALBUM_REACTION_EMOJIS.includes(reaction.emoji.name ?? "")) return;
+  const channelId = reaction.message.channelId;
+  if (!dbHasAlbum(channelId)) return;
+
+  // Fetch full message if partial
+  const message = reaction.message.partial ? await reaction.message.fetch() : reaction.message;
+  const imageAttachments = [...message.attachments.values()].filter(a => a.contentType?.startsWith("image/"));
+  if (imageAttachments.length === 0) return;
+
+  // Upsert the reacting user
+  const member = reaction.message.guild?.members.cache.get(user.id);
+  const displayName = member?.displayName ?? user.displayName ?? user.username;
+  dbUpsertUser(user.id, displayName, user.avatarURL() ?? undefined);
+
+  const albumDir = path.join(PHOTO_STORAGE_PATH, channelId);
+  fs.mkdirSync(albumDir, { recursive: true });
+  const thumbDir = path.join(albumDir, "thumbs");
+  fs.mkdirSync(thumbDir, { recursive: true });
+
+  let anySuccess = false;
+  for (const attachment of imageAttachments) {
+    try {
+      const ext = path.extname(attachment.name || ".jpg") || ".jpg";
+      const name = crypto.randomBytes(16).toString("hex") + ext;
+      const filePath = path.join(albumDir, name);
+      await downloadFile(attachment.url, filePath);
+
+      let width = 0, height = 0;
+      try { const meta = await sharp(filePath).metadata(); width = meta.width ?? 0; height = meta.height ?? 0; } catch {}
+
+      let takenAt: string | undefined;
+      try {
+        const exif = await exifr.parse(filePath, ["DateTimeOriginal", "CreateDate", "DateTime"]);
+        const raw = exif?.DateTimeOriginal ?? exif?.CreateDate ?? exif?.DateTime;
+        if (raw instanceof Date && !isNaN(raw.getTime())) {
+          takenAt = raw.toISOString();
+        } else if (typeof raw === "string") {
+          const normalized = raw.replace(/^(\d{4}):(\d{2}):(\d{2})/, "$1-$2-$3");
+          const d = new Date(normalized);
+          if (!isNaN(d.getTime())) takenAt = d.toISOString();
+        }
+      } catch {}
+
+      try { await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(path.join(thumbDir, name)); } catch {}
+
+      const photoUrl = `/uploads/${channelId}/${name}`;
+      dbAddUploadedPhoto(channelId, photoUrl, name, user.id, displayName, width, height, takenAt);
+      anySuccess = true;
+    } catch (e) { console.error("Failed to download/process reaction attachment:", e); }
+  }
+
+  if (anySuccess) {
+    try { await message.react(reaction.emoji.name!); } catch {}
+  }
+}
 
 const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "application/javascript", ".css": "text/css",

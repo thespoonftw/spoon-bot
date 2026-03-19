@@ -15,7 +15,7 @@ import { handleEventInteractions } from "./interactions/eventInteractions";
 import { handleDatePickerInteractions } from "./interactions/datePickerInteractions";
 import { handleGroupInteractions } from "./interactions/groupInteractions";
 import { loadBirthdays, handleBirthdayInteractions, scheduleBirthdayAnnouncements } from "./birthdays";
-import { loadAlbums, startWebServer, setAlbumDiscordClient, setUpdateEventMessages } from "./albums";
+import { loadAlbums, startWebServer, setAlbumDiscordClient, setUpdateEventMessages, handleAlbumReaction } from "./albums";
 import { initAuth } from "./auth";
 
 dotenv.config();
@@ -26,6 +26,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessageReactions,
   ],
 });
 
@@ -192,6 +193,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     } catch {}
   }
+});
+
+client.on(Events.MessageReactionAdd, async (reaction, user) => {
+  if (user.bot) return;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  try { await handleAlbumReaction(reaction as any, user as any); } catch (e) { console.error("Reaction handler error:", e); }
 });
 
 process.on('unhandledRejection', (reason) => { console.error('Unhandled rejection:', reason); });
