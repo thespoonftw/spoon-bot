@@ -76,6 +76,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .gallery-mobile { display: flex; }
 }
 
+.btn-icon { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 2px 4px; opacity: 0.5; line-height: 1; flex-shrink: 0; }
+.btn-icon:hover { opacity: 1; }
 .btn-primary { background: #cba6f7; color: #1e1e2e; border: none; border-radius: 8px; padding: 10px 20px; cursor: pointer; font-size: 0.95rem; font-weight: 600; }
 .btn-primary:hover:not(:disabled) { background: #d5b5f8; }
 .btn-primary:disabled { opacity: 0.6; cursor: default; }

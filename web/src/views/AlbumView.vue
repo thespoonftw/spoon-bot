@@ -4,12 +4,14 @@
     <template v-if="album">
       <div class="album-header">
         <div>
-          <h1>{{ album.groupName }}</h1>
+          <div style="display:flex;align-items:center;gap:8px">
+            <h1>{{ album.groupName }}</h1>
+            <button class="btn-icon" @click="openEdit" title="Edit album">✏️</button>
+          </div>
           <p v-if="album.dateText" class="date">{{ album.dateText }}</p>
           <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
         </div>
-        <div class="upload-area" style="display:flex;gap:10px">
-          <button class="btn-secondary" @click="openEdit">Edit</button>
+        <div class="upload-area">
           <button class="btn-primary" @click="triggerUpload" :disabled="uploading">
             {{ uploading ? `Uploading ${uploadProgress}…` : '+ Upload Photos' }}
           </button>
@@ -27,8 +29,8 @@
               <span v-else class="member-avatar member-avatar-placeholder">{{ member.displayName[0] }}</span>
               <span class="member-name">{{ member.displayName }}</span>
             </div>
+            <button class="btn-icon" @click="openEditMembers" title="Edit members">✏️</button>
           </div>
-          <button class="btn-secondary btn-small" @click="openEditMembers">Edit</button>
         </div>
       </div>
 
@@ -38,7 +40,7 @@
           <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
           <div class="photo-meta">
             <span v-if="photo.uploadedByName" class="uploader">{{ photo.uploadedByName }}</span>
-            <span class="upload-time">{{ formatTime(photo.uploadedAt) }}</span>
+            <span v-if="photo.takenAt" class="upload-time">{{ formatTime(photo.takenAt) }}</span>
           </div>
         </div>
       </div>
@@ -47,7 +49,7 @@
           <img :src="photo.url" loading="lazy" />
           <div class="photo-meta">
             <span v-if="photo.uploadedByName" class="uploader">{{ photo.uploadedByName }}</span>
-            <span class="upload-time">{{ formatTime(photo.uploadedAt) }}</span>
+            <span v-if="photo.takenAt" class="upload-time">{{ formatTime(photo.takenAt) }}</span>
           </div>
         </div>
       </div>
@@ -114,7 +116,7 @@ import { useRoute } from "vue-router";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
 
-interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; width?: number; height?: number }
+interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number }
 interface Member { userId: string; displayName: string; avatarUrl?: string; rsvpStatus?: string }
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; endDate?: string; photos: Photo[]; members: Member[] }
 
@@ -160,7 +162,7 @@ function openLightbox(index: number) {
       onInit: (el) => {
         const update = () => {
           const p = photos[pswp.currIndex];
-          el.textContent = [p?.uploadedByName, p?.uploadedAt ? formatTime(p.uploadedAt) : ""].filter(Boolean).join(" · ");
+          el.textContent = [p?.uploadedByName, p?.takenAt ? formatTime(p.takenAt) : ""].filter(Boolean).join(" · ");
         };
         pswp.on("change", update);
         update();

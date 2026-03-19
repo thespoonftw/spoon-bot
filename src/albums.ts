@@ -5,6 +5,8 @@ import path from "path";
 import crypto from "crypto";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const sharp = require("sharp") as (input: string) => { resize(w: number, h: number, opts?: object): { toFile(p: string): Promise<void> }; metadata(): Promise<{ width?: number; height?: number }> };
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const exifr = require("exifr") as { parse(file: string, tags: string[]): Promise<Record<string, unknown> | null> };
 type BusboyFile = { filename: string; encoding: string; mimeType: string };
 type BusboyInstance = { on(e: "file", cb: (f: string, s: NodeJS.ReadableStream, i: BusboyFile) => void): BusboyInstance; on(e: "error", cb: (err: Error) => void): BusboyInstance; };
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -210,11 +212,17 @@ export function startWebServer(): void {
             const meta = await sharp(filePath).metadata();
             width = meta.width ?? 0; height = meta.height ?? 0;
           } catch (e) { console.error("Failed to read image dimensions:", e); }
+          let takenAt: string | undefined;
+          try {
+            const exif = await exifr.parse(filePath, ["DateTimeOriginal", "CreateDate", "DateTime"]);
+            const date = (exif?.DateTimeOriginal ?? exif?.CreateDate ?? exif?.DateTime) as Date | undefined;
+            if (date instanceof Date && !isNaN(date.getTime())) takenAt = date.toISOString();
+          } catch { /* no EXIF data */ }
           try {
             await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(thumbPath);
           } catch (e) { console.error("Thumbnail generation failed:", e); }
           const photoUrl = `/uploads/${channelId}/${name}`;
-          const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, uploader.displayName, width, height);
+          const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, uploader.displayName, width, height, takenAt);
           res.writeHead(201, { "Content-Type": "application/json" });
           res.end(JSON.stringify(photo));
         });
