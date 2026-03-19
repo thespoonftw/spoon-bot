@@ -85,8 +85,14 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .btn-secondary:hover { background: #585b70; }
 
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.modal { background: #181825; border-radius: 12px; padding: 32px; width: 100%; max-width: 480px; }
+.modal { background: #181825; border-radius: 12px; padding: 32px; width: 100%; max-width: 480px; position: relative; }
 .modal h2 { color: #cba6f7; margin-bottom: 24px; }
+.modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: #6c7086; font-size: 1.1rem; cursor: pointer; line-height: 1; padding: 4px; }
+.modal-close:hover { color: #cdd6f4; }
+.members-add-section { display: flex; gap: 8px; margin-top: 10px; }
+.members-add-select { flex: 1; background: #313244; border: 1px solid #45475a; border-radius: 8px; padding: 8px 10px; color: #cdd6f4; font-size: 0.85rem; outline: none; }
+.members-add-input { flex: 1; background: #313244; border: 1px solid #45475a; border-radius: 8px; padding: 8px 10px; color: #cdd6f4; font-size: 0.85rem; outline: none; }
+.members-add-input:focus, .members-add-select:focus { border-color: #cba6f7; }
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; color: #a6adc8; font-size: 0.85em; margin-bottom: 6px; }
 .form-group input { width: 100%; background: #313244; border: 1px solid #45475a; border-radius: 8px; padding: 10px 14px; color: #cdd6f4; font-size: 1rem; outline: none; }

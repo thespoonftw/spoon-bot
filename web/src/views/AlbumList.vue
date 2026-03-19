@@ -35,8 +35,9 @@
   </div>
 
   <!-- Create Album Modal -->
-  <div class="modal-overlay" v-if="showModal" @click.self="closeModal">
+  <div class="modal-overlay" v-if="showModal">
     <div class="modal">
+      <button class="modal-close" @click="closeModal">✕</button>
       <h2>New Album</h2>
       <div class="form-group">
         <label>Name</label>
@@ -56,10 +57,7 @@
       </div>
       <div v-if="formError" class="error">{{ formError }}</div>
       <div class="modal-actions">
-        <button class="btn-secondary" @click="closeModal">Cancel</button>
-        <button class="btn-primary" @click="createAlbum" :disabled="creating">
-          {{ creating ? "Creating…" : "Create" }}
-        </button>
+        <button class="btn-primary" @click="createAlbum" :disabled="creating">{{ creating ? "Creating…" : "Create" }}</button>
       </div>
     </div>
   </div>

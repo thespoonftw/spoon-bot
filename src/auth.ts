@@ -4,7 +4,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
-import { dbUpsertUser, dbUpdateUserLastLogin, dbGetAllUsers } from "./db";
+import { dbUpsertUser, dbUpdateUserLastLogin, dbGetAllUsers, dbUpdateUserFirstName } from "./db";
 
 const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const ALLOWED_USER_IDS = (process.env.AUTH_USER_IDS ?? "148516020007600128").split(",");
@@ -141,6 +141,26 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     if (!sessions.has(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return true; }
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(dbGetAllUsers()));
+    return true;
+  }
+
+  if (url.match(/^\/api\/site-users\/[^/]+$/) && method === "PUT") {
+    const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+    if (!sessions.has(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return true; }
+    const userId = url.slice("/api/site-users/".length);
+    let body = "";
+    req.on("data", chunk => body += chunk);
+    req.on("end", () => {
+      try {
+        const { firstName } = JSON.parse(body);
+        dbUpdateUserFirstName(userId, firstName ?? null);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      } catch {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Failed to update" }));
+      }
+    });
     return true;
   }
 

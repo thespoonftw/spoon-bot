@@ -15,6 +15,7 @@ export function initDb() {
     CREATE TABLE IF NOT EXISTS users (
       user_id       TEXT PRIMARY KEY,
       display_name  TEXT NOT NULL,
+      first_name    TEXT,
       avatar_url    TEXT,
       last_login_at TEXT,
       level         INTEGER NOT NULL DEFAULT 1
@@ -56,6 +57,7 @@ export function initDb() {
     "ALTER TABLE photos ADD COLUMN uploaded_by_id TEXT",
     "ALTER TABLE photos ADD COLUMN uploaded_by_name TEXT",
     "ALTER TABLE users ADD COLUMN level INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE users ADD COLUMN first_name TEXT",
     "ALTER TABLE album_members ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE photos ADD COLUMN taken_at TEXT",
     "ALTER TABLE photos ADD COLUMN width INTEGER",
@@ -183,7 +185,7 @@ export function dbAddPhoto(channelId: string, url: string) {
     .run(channelId, url, new Date().toISOString());
 }
 
-export type UserRow = { userId: string; displayName: string; avatarUrl?: string; lastLoginAt?: string; level: number };
+export type UserRow = { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastLoginAt?: string; level: number };
 
 export function dbUpsertUser(userId: string, displayName: string, avatarUrl?: string) {
   db.prepare(`
@@ -198,7 +200,7 @@ export function dbUpdateUserLastLogin(userId: string) {
 
 export function dbGetAllUsers(): UserRow[] {
   return db.prepare(
-    "SELECT user_id AS userId, display_name AS displayName, avatar_url AS avatarUrl, last_login_at AS lastLoginAt, level FROM users WHERE level > 0 ORDER BY display_name ASC"
+    "SELECT user_id AS userId, display_name AS displayName, first_name AS firstName, avatar_url AS avatarUrl, last_login_at AS lastLoginAt, level FROM users WHERE level > 0 ORDER BY display_name ASC"
   ).all() as UserRow[];
 }
 
@@ -220,7 +222,7 @@ export function dbUnhideAlbumMember(channelId: string, userId: string) {
 
 export function dbGetAlbumMembers(channelId: string): UserRow[] {
   return db.prepare(`
-    SELECT u.user_id AS userId, u.display_name AS displayName, u.avatar_url AS avatarUrl, u.last_login_at AS lastLoginAt, u.level
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.avatar_url AS avatarUrl, u.last_login_at AS lastLoginAt, u.level
     FROM album_members am JOIN users u ON u.user_id = am.user_id
     WHERE am.channel_id = ? AND am.hidden = 0 AND u.level > 0 ORDER BY u.display_name ASC
   `).all(channelId) as UserRow[];
@@ -228,9 +230,19 @@ export function dbGetAlbumMembers(channelId: string): UserRow[] {
 
 export type AlbumMemberRow = UserRow & { hidden: number };
 
+export function dbUpdateUserFirstName(userId: string, firstName: string | null) {
+  db.prepare("UPDATE users SET first_name=? WHERE user_id=?").run(firstName || null, userId);
+}
+
+export function dbCreateGuestUser(name: string): UserRow {
+  const userId = "guest_" + crypto.randomBytes(8).toString("hex");
+  db.prepare("INSERT INTO users (user_id, display_name, level) VALUES (?, ?, 1)").run(userId, name);
+  return { userId, displayName: name, level: 1 };
+}
+
 export function dbGetAllAlbumMembers(channelId: string): AlbumMemberRow[] {
   return db.prepare(`
-    SELECT u.user_id AS userId, u.display_name AS displayName, u.avatar_url AS avatarUrl, u.last_login_at AS lastLoginAt, u.level, am.hidden
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.avatar_url AS avatarUrl, u.last_login_at AS lastLoginAt, u.level, am.hidden
     FROM album_members am JOIN users u ON u.user_id = am.user_id
     WHERE am.channel_id = ? AND u.level > 0 ORDER BY am.hidden ASC, u.display_name ASC
   `).all(channelId) as AlbumMemberRow[];

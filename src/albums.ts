@@ -14,7 +14,7 @@ const Busboy = require("busboy") as (opts: { headers: Record<string, string | st
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser } from "./auth";
-import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers } from "./db";
+import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser } from "./db";
 import type { Guild } from "discord.js";
 
 type UpdateEventMessagesFn = (guild: Guild, channelId: string) => Promise<void>;
@@ -252,6 +252,36 @@ export function startWebServer(): void {
       const members = dbGetAllAlbumMembers(channelId).map(m => ({ ...m, rsvpStatus: state?.members.get(m.userId)?.status ?? null }));
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(members));
+      return;
+    }
+
+    // POST /api/album/:id/members — add existing user or create guest and add
+    if (url.match(/^\/api\/album\/[^/]+\/members$/) && method === "POST") {
+      const channelId = url.split("/")[3];
+      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      let body = "";
+      req.on("data", chunk => body += chunk);
+      req.on("end", () => {
+        try {
+          const { userId, name } = JSON.parse(body);
+          let user;
+          if (userId) {
+            user = dbGetAllUsers().find(u => u.userId === userId);
+            if (!user) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "User not found" })); return; }
+          } else if (name?.trim()) {
+            user = dbCreateGuestUser(name.trim());
+          } else {
+            res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "userId or name required" })); return;
+          }
+          dbAddAlbumMember(channelId, user.userId);
+          const state = eventStates.get(channelId);
+          res.writeHead(201, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ...user, hidden: 0, rsvpStatus: state?.members.get(user.userId)?.status ?? null }));
+        } catch {
+          res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Failed" }));
+        }
+      });
       return;
     }
 

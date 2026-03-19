@@ -24,10 +24,10 @@
       <div v-if="album.members.length > 0" class="members-section">
         <div class="members-header">
           <div class="members-list">
-            <div v-for="member in album.members" :key="member.userId" class="member-chip" :title="member.displayName">
+            <div v-for="member in album.members" :key="member.userId" class="member-chip" :title="member.firstName || member.displayName">
               <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
-              <span v-else class="member-avatar member-avatar-placeholder">{{ member.displayName[0] }}</span>
-              <span class="member-name">{{ member.displayName }}</span>
+              <span v-else class="member-avatar member-avatar-placeholder">{{ (member.firstName || member.displayName)[0] }}</span>
+              <span class="member-name">{{ member.firstName || member.displayName }}</span>
             </div>
             <button class="btn-icon" @click="openEditMembers" title="Edit members">✏️</button>
           </div>
@@ -59,8 +59,9 @@
 
 
   <!-- Edit Album Modal -->
-  <div class="modal-overlay" v-if="showEdit" @click.self="showEdit = false">
+  <div class="modal-overlay" v-if="showEdit">
     <div class="modal">
+      <button class="modal-close" @click="showEdit = false">✕</button>
       <h2>Edit Album</h2>
       <div class="form-group">
         <label>Name</label>
@@ -80,44 +81,50 @@
       </div>
       <div v-if="editError" class="error">{{ editError }}</div>
       <div class="modal-actions">
-        <button class="btn-secondary" @click="showEdit = false">Cancel</button>
-        <button class="btn-primary" @click="saveEdit" :disabled="saving">
-          {{ saving ? "Saving…" : "Save" }}
-        </button>
+        <button class="btn-primary" @click="saveEdit" :disabled="saving">{{ saving ? "Saving…" : "Save" }}</button>
       </div>
     </div>
   </div>
 
   <!-- Edit Members Modal -->
-  <div class="modal-overlay" v-if="showEditMembers" @click.self="showEditMembers = false">
+  <div class="modal-overlay" v-if="showEditMembers">
     <div class="modal">
+      <button class="modal-close" @click="showEditMembers = false">✕</button>
       <h2>Members</h2>
       <div class="members-modal-list">
         <div v-for="member in allMembers" :key="member.userId" :class="['members-modal-row', { 'member-hidden': member.hidden }]">
           <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
-          <span v-else class="member-avatar member-avatar-placeholder">{{ member.displayName[0] }}</span>
-          <span class="members-modal-name">{{ member.displayName }}</span>
+          <span v-else class="member-avatar member-avatar-placeholder">{{ (member.firstName || member.displayName)[0] }}</span>
+          <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
           <span v-if="member.rsvpStatus" :class="['rsvp-badge', 'rsvp-' + member.rsvpStatus]">{{ rsvpLabel(member.rsvpStatus) }}</span>
           <span v-if="member.hidden" class="rsvp-badge">hidden</span>
           <button v-if="!member.hidden" class="btn-remove" @click="hideMember(member.userId)" title="Hide from album">hide</button>
           <button v-else class="btn-remove btn-unhide" @click="unhideMember(member.userId)" title="Show in album">show</button>
         </div>
       </div>
-      <div class="modal-actions">
-        <button class="btn-primary" @click="showEditMembers = false">Done</button>
+      <div class="members-add-section">
+        <select v-model="addMemberUserId" class="members-add-select" @change="addMemberName = ''">
+          <option value="">— Add existing user —</option>
+          <option v-for="u in addableUsers" :key="u.userId" :value="u.userId">{{ u.firstName || u.displayName }}</option>
+        </select>
+        <button class="btn-secondary btn-small" @click="addExistingMember" :disabled="!addMemberUserId">Add</button>
+      </div>
+      <div class="members-add-section">
+        <input v-model="addMemberName" class="members-add-input" type="text" placeholder="Or type a new person's name…" @input="addMemberUserId = ''" />
+        <button class="btn-secondary btn-small" @click="addNewMember" :disabled="!addMemberName.trim()">Add</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
 
 interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number }
-interface Member { userId: string; displayName: string; avatarUrl?: string; rsvpStatus?: string }
+interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string; rsvpStatus?: string }
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; endDate?: string; photos: Photo[]; members: Member[] }
 
 const route = useRoute();
@@ -135,6 +142,13 @@ const editForm = ref({ name: "", location: "", startDate: "", endDate: "" });
 interface AllMember extends Member { hidden: number; rsvpStatus?: string }
 const showEditMembers = ref(false);
 const allMembers = ref<AllMember[]>([]);
+const allUsers = ref<Member[]>([]);
+const addMemberUserId = ref("");
+const addMemberName = ref("");
+const addableUsers = computed(() => {
+  const memberIds = new Set(allMembers.value.map(m => m.userId));
+  return allUsers.value.filter(u => !memberIds.has(u.userId));
+});
 
 onMounted(async () => {
   const res = await fetch(`/api/album/${route.params.channelId}`);
@@ -212,9 +226,47 @@ async function saveEdit() {
 async function openEditMembers() {
   if (!album.value) return;
   const session = localStorage.getItem("snek_session");
-  const res = await fetch(`/api/album/${album.value.channelId}/members`, { headers: { Authorization: `Bearer ${session}` } });
-  if (res.ok) allMembers.value = await res.json();
+  const [membersRes, usersRes] = await Promise.all([
+    fetch(`/api/album/${album.value.channelId}/members`, { headers: { Authorization: `Bearer ${session}` } }),
+    fetch("/api/users"),
+  ]);
+  if (membersRes.ok) allMembers.value = await membersRes.json();
+  if (usersRes.ok) allUsers.value = await usersRes.json();
+  addMemberUserId.value = "";
+  addMemberName.value = "";
   showEditMembers.value = true;
+}
+
+async function addExistingMember() {
+  if (!album.value || !addMemberUserId.value) return;
+  const session = localStorage.getItem("snek_session");
+  const res = await fetch(`/api/album/${album.value.channelId}/members`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
+    body: JSON.stringify({ userId: addMemberUserId.value }),
+  });
+  if (res.ok) {
+    const member: AllMember = await res.json();
+    allMembers.value.push(member);
+    album.value.members.push(member);
+    addMemberUserId.value = "";
+  }
+}
+
+async function addNewMember() {
+  if (!album.value || !addMemberName.value.trim()) return;
+  const session = localStorage.getItem("snek_session");
+  const res = await fetch(`/api/album/${album.value.channelId}/members`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
+    body: JSON.stringify({ name: addMemberName.value.trim() }),
+  });
+  if (res.ok) {
+    const member: AllMember = await res.json();
+    allMembers.value.push(member);
+    album.value.members.push(member);
+    addMemberName.value = "";
+  }
 }
 
 async function hideMember(userId: string) {
