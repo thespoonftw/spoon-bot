@@ -139,6 +139,11 @@ export function dbCreateAlbum(name: string, location: string, startDate: string,
   return album;
 }
 
+export function dbSyncAlbumFromEvent(channelId: string, eventName: string, location: string, dateText?: string) {
+  db.prepare("UPDATE albums SET group_name=?, location=?, date_text=? WHERE channel_id=?")
+    .run(eventName, location, dateText ?? null, channelId);
+}
+
 export function dbDeleteAlbum(channelId: string) {
   db.prepare("DELETE FROM photos WHERE channel_id = ?").run(channelId);
   db.prepare("DELETE FROM albums WHERE channel_id = ?").run(channelId);
