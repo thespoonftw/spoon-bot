@@ -215,9 +215,18 @@ export function startWebServer(): void {
           let takenAt: string | undefined;
           try {
             const exif = await exifr.parse(filePath, ["DateTimeOriginal", "CreateDate", "DateTime"]);
-            const date = (exif?.DateTimeOriginal ?? exif?.CreateDate ?? exif?.DateTime) as Date | undefined;
-            if (date instanceof Date && !isNaN(date.getTime())) takenAt = date.toISOString();
-          } catch { /* no EXIF data */ }
+            console.log("EXIF result:", JSON.stringify(exif));
+            const raw = exif?.DateTimeOriginal ?? exif?.CreateDate ?? exif?.DateTime;
+            console.log("EXIF raw date:", raw, typeof raw);
+            if (raw instanceof Date && !isNaN(raw.getTime())) {
+              takenAt = raw.toISOString();
+            } else if (typeof raw === "string") {
+              // EXIF date strings: "2024:01:15 14:30:00"
+              const normalized = raw.replace(/^(\d{4}):(\d{2}):(\d{2})/, "$1-$2-$3");
+              const d = new Date(normalized);
+              if (!isNaN(d.getTime())) takenAt = d.toISOString();
+            }
+          } catch (e) { console.error("EXIF parse error:", e); }
           try {
             await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(thumbPath);
           } catch (e) { console.error("Thumbnail generation failed:", e); }
