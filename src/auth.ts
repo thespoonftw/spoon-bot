@@ -59,7 +59,10 @@ export function isValidSession(token: string): boolean {
 export function getSessionUser(token: string): UserInfo | null {
   const userId = sessions.get(token);
   if (!userId) return null;
-  return userInfoCache.get(userId) ?? { userId, displayName: userId, avatarUrl: "" };
+  if (userInfoCache.has(userId)) return userInfoCache.get(userId)!;
+  const dbUser = dbGetAllUsers().find(u => u.userId === userId);
+  if (dbUser) return { userId, displayName: dbUser.displayName, avatarUrl: dbUser.avatarUrl ?? "" };
+  return { userId, displayName: userId, avatarUrl: "" };
 }
 
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
@@ -71,7 +74,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
 
   if (url === "/api/users" && method === "GET") {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify([...userInfoCache.values()]));
+    res.end(JSON.stringify(dbGetAllUsers()));
     return true;
   }
 
@@ -81,7 +84,8 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     req.on("end", async () => {
       try {
         const { userId } = JSON.parse(body);
-        if (!ALLOWED_USER_IDS.includes(userId)) {
+        const allUsers = dbGetAllUsers();
+        if (!allUsers.some(u => u.userId === userId)) {
           res.writeHead(403, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: "Not allowed" })); return;
         }
