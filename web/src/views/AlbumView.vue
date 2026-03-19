@@ -20,19 +20,22 @@
       <p v-if="uploadError" class="upload-error">{{ uploadError }}</p>
 
       <div v-if="album.members.length > 0" class="members-section">
-        <div class="members-list">
-          <div v-for="member in album.members" :key="member.userId" class="member-chip" :title="member.displayName">
-            <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
-            <span v-else class="member-avatar member-avatar-placeholder">{{ member.displayName[0] }}</span>
-            <span class="member-name">{{ member.displayName }}</span>
+        <div class="members-header">
+          <div class="members-list">
+            <div v-for="member in album.members" :key="member.userId" class="member-chip" :title="member.displayName">
+              <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
+              <span v-else class="member-avatar member-avatar-placeholder">{{ member.displayName[0] }}</span>
+              <span class="member-name">{{ member.displayName }}</span>
+            </div>
           </div>
+          <button class="btn-secondary btn-small" @click="showEditMembers = true">Edit</button>
         </div>
       </div>
 
       <p v-if="album.photos.length === 0" class="empty" style="margin-top:24px">No photos yet.</p>
       <div class="gallery">
         <div v-for="photo in album.photos" :key="photo.id" class="photo-item">
-          <a :href="photo.url" target="_blank">
+          <a :href="photo.url" target="_blank" @click.prevent="openPhoto(photo, $event)">
             <img :src="thumbUrl(photo.url)" @error="($event.target as HTMLImageElement).src = photo.url" />
           </a>
           <div class="photo-meta">
@@ -43,6 +46,12 @@
       </div>
     </template>
     <p v-else class="empty">Album not found.</p>
+  </div>
+
+  <!-- Mobile lightbox -->
+  <div class="lightbox-overlay" v-if="focusedPhoto" @click="focusedPhoto = null">
+    <img :src="focusedPhoto.url" class="lightbox-img" @click.stop />
+    <button class="lightbox-close" @click="focusedPhoto = null">✕</button>
   </div>
 
   <!-- Edit Album Modal -->
@@ -74,6 +83,25 @@
       </div>
     </div>
   </div>
+
+  <!-- Edit Members Modal -->
+  <div class="modal-overlay" v-if="showEditMembers" @click.self="showEditMembers = false">
+    <div class="modal">
+      <h2>Members</h2>
+      <div class="members-modal-list">
+        <div v-for="member in album?.members" :key="member.userId" class="members-modal-row">
+          <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
+          <span v-else class="member-avatar member-avatar-placeholder">{{ member.displayName[0] }}</span>
+          <span class="members-modal-name">{{ member.displayName }}</span>
+          <span v-if="member.rsvpStatus" :class="['rsvp-badge', 'rsvp-' + member.rsvpStatus]">{{ rsvpLabel(member.rsvpStatus) }}</span>
+          <button class="btn-remove" @click="removeMember(member.userId)" title="Remove from album">✕</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-primary" @click="showEditMembers = false">Done</button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -81,7 +109,7 @@ import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 
 interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string }
-interface Member { userId: string; displayName: string; avatarUrl?: string }
+interface Member { userId: string; displayName: string; avatarUrl?: string; rsvpStatus?: string }
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; endDate?: string; photos: Photo[]; members: Member[] }
 
 const route = useRoute();
@@ -90,16 +118,27 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const uploading = ref(false);
 const uploadProgress = ref("");
 const uploadError = ref("");
+const focusedPhoto = ref<Photo | null>(null);
 
 const showEdit = ref(false);
 const saving = ref(false);
 const editError = ref("");
 const editForm = ref({ name: "", location: "", startDate: "", endDate: "" });
 
+const showEditMembers = ref(false);
+
 onMounted(async () => {
   const res = await fetch(`/api/album/${route.params.channelId}`);
   if (res.ok) album.value = await res.json();
 });
+
+function openPhoto(photo: Photo, e: MouseEvent) {
+  if (window.innerWidth < 768) {
+    focusedPhoto.value = photo;
+  } else {
+    window.open(photo.url, "_blank");
+  }
+}
 
 function openEdit() {
   if (!album.value) return;
@@ -136,6 +175,22 @@ async function saveEdit() {
   } else {
     editError.value = "Failed to save. Try again.";
   }
+}
+
+async function removeMember(userId: string) {
+  if (!album.value) return;
+  const session = localStorage.getItem("snek_session");
+  const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${session}` },
+  });
+  if (res.ok && album.value) {
+    album.value.members = album.value.members.filter(m => m.userId !== userId);
+  }
+}
+
+function rsvpLabel(status: string): string {
+  return { coming: "✅ Coming", maybe: "🤔 Maybe", decline: "❌ Can't go", lurking: "👀 Lurking" }[status] ?? status;
 }
 
 function triggerUpload() {

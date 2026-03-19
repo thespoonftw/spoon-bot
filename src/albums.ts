@@ -12,7 +12,7 @@ const Busboy = require("busboy") as (opts: { headers: Record<string, string | st
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser } from "./auth";
-import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember } from "./db";
+import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember } from "./db";
 import type { Guild } from "discord.js";
 
 type UpdateEventMessagesFn = (guild: Guild, channelId: string) => Promise<void>;
@@ -195,7 +195,7 @@ export function startWebServer(): void {
           fs.mkdirSync(thumbDir, { recursive: true });
           const thumbPath = path.join(thumbDir, name);
           try {
-            await sharp(filePath).resize(256, 256, { fit: "inside", withoutEnlargement: true }).toFile(thumbPath);
+            await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(thumbPath);
           } catch (e) { console.error("Thumbnail generation failed:", e); }
           const photoUrl = `/uploads/${channelId}/${name}`;
           const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, uploader.displayName);
@@ -213,12 +213,28 @@ export function startWebServer(): void {
       return;
     }
 
+    // DELETE /api/album/:id/members/:userId
+    if (url.match(/^\/api\/album\/[^/]+\/members\/[^/]+$/) && method === "DELETE") {
+      const parts = url.split("/");
+      const channelId = parts[3];
+      const userId = parts[5];
+      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      dbRemoveAlbumMember(channelId, userId);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+
     // GET /api/album/:id
     if (url.match(/^\/api\/album\/[^/]+$/) && method === "GET") {
       const channelId = url.slice("/api/album/".length);
       const album = dbGetAlbumWithPhotos(channelId);
-      res.writeHead(album ? 200 : 404, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(album ?? { error: "Not found" }));
+      if (!album) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }
+      const state = eventStates.get(channelId);
+      const members = album.members.map(m => ({ ...m, rsvpStatus: state?.members.get(m.userId)?.status ?? null }));
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ...album, members }));
       return;
     }
 
