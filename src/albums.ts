@@ -12,7 +12,7 @@ const Busboy = require("busboy") as (opts: { headers: Record<string, string | st
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser } from "./auth";
-import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember } from "./db";
+import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers } from "./db";
 import type { Guild } from "discord.js";
 
 type UpdateEventMessagesFn = (guild: Guild, channelId: string) => Promise<void>;
@@ -100,8 +100,13 @@ export function startWebServer(): void {
     if (handleAuthRoutes(req, res)) return;
 
     if (url === "/api/albums" && method === "GET") {
+      const albums = dbGetAllAlbumsWithPhotos().map(a => {
+        const state = eventStates.get(a.channelId);
+        const members = a.members.filter(m => (state?.members.get(m.userId)?.status ?? null) !== "decline");
+        return { ...a, members };
+      });
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(dbGetAllAlbumsWithPhotos()));
+      res.end(JSON.stringify(albums));
       return;
     }
 
@@ -213,14 +218,39 @@ export function startWebServer(): void {
       return;
     }
 
-    // DELETE /api/album/:id/members/:userId
+    // GET /api/album/:id/members — all members including hidden, with RSVP status (for edit modal)
+    if (url.match(/^\/api\/album\/[^/]+\/members$/) && method === "GET") {
+      const channelId = url.split("/")[3];
+      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      const state = eventStates.get(channelId);
+      const members = dbGetAllAlbumMembers(channelId).map(m => ({ ...m, rsvpStatus: state?.members.get(m.userId)?.status ?? null }));
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(members));
+      return;
+    }
+
+    // DELETE /api/album/:id/members/:userId — hide member
     if (url.match(/^\/api\/album\/[^/]+\/members\/[^/]+$/) && method === "DELETE") {
       const parts = url.split("/");
       const channelId = parts[3];
       const userId = parts[5];
       const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
       if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
-      dbRemoveAlbumMember(channelId, userId);
+      dbHideAlbumMember(channelId, userId);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+
+    // PATCH /api/album/:id/members/:userId — unhide member
+    if (url.match(/^\/api\/album\/[^/]+\/members\/[^/]+$/) && method === "PATCH") {
+      const parts = url.split("/");
+      const channelId = parts[3];
+      const userId = parts[5];
+      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      dbUnhideAlbumMember(channelId, userId);
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
       return;
@@ -232,7 +262,9 @@ export function startWebServer(): void {
       const album = dbGetAlbumWithPhotos(channelId);
       if (!album) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }
       const state = eventStates.get(channelId);
-      const members = album.members.map(m => ({ ...m, rsvpStatus: state?.members.get(m.userId)?.status ?? null }));
+      const members = album.members
+        .map(m => ({ ...m, rsvpStatus: state?.members.get(m.userId)?.status ?? null }))
+        .filter(m => m.rsvpStatus !== "decline");
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ...album, members }));
       return;

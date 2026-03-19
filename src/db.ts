@@ -31,6 +31,7 @@ export function initDb() {
     CREATE TABLE IF NOT EXISTS album_members (
       channel_id  TEXT NOT NULL,
       user_id     TEXT NOT NULL,
+      hidden      INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (channel_id, user_id)
     );
     CREATE TABLE IF NOT EXISTS photos (
@@ -52,6 +53,7 @@ export function initDb() {
     "ALTER TABLE photos ADD COLUMN uploaded_by_id TEXT",
     "ALTER TABLE photos ADD COLUMN uploaded_by_name TEXT",
     "ALTER TABLE users ADD COLUMN level INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE album_members ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
@@ -201,12 +203,30 @@ export function dbRemoveAlbumMember(channelId: string, userId: string) {
   db.prepare("DELETE FROM album_members WHERE channel_id=? AND user_id=?").run(channelId, userId);
 }
 
+export function dbHideAlbumMember(channelId: string, userId: string) {
+  db.prepare("UPDATE album_members SET hidden=1 WHERE channel_id=? AND user_id=?").run(channelId, userId);
+}
+
+export function dbUnhideAlbumMember(channelId: string, userId: string) {
+  db.prepare("UPDATE album_members SET hidden=0 WHERE channel_id=? AND user_id=?").run(channelId, userId);
+}
+
 export function dbGetAlbumMembers(channelId: string): UserRow[] {
   return db.prepare(`
     SELECT u.user_id AS userId, u.display_name AS displayName, u.avatar_url AS avatarUrl, u.last_login_at AS lastLoginAt, u.level
     FROM album_members am JOIN users u ON u.user_id = am.user_id
-    WHERE am.channel_id = ? AND u.level > 0 ORDER BY u.display_name ASC
+    WHERE am.channel_id = ? AND am.hidden = 0 AND u.level > 0 ORDER BY u.display_name ASC
   `).all(channelId) as UserRow[];
+}
+
+export type AlbumMemberRow = UserRow & { hidden: number };
+
+export function dbGetAllAlbumMembers(channelId: string): AlbumMemberRow[] {
+  return db.prepare(`
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.avatar_url AS avatarUrl, u.last_login_at AS lastLoginAt, u.level, am.hidden
+    FROM album_members am JOIN users u ON u.user_id = am.user_id
+    WHERE am.channel_id = ? AND u.level > 0 ORDER BY am.hidden ASC, u.display_name ASC
+  `).all(channelId) as AlbumMemberRow[];
 }
 
 export function dbAddUploadedPhoto(channelId: string, url: string, filename: string, uploadedById: string, uploadedByName: string): PhotoRow {

@@ -20,7 +20,17 @@
       <h2>{{ album.groupName }}</h2>
       <p v-if="album.dateText" class="date">{{ album.dateText }}</p>
       <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
-      <p class="meta">{{ album.photos.length }} photo(s)</p>
+      <div class="card-footer">
+        <span class="meta">{{ album.photos.length }} photo(s)</span>
+        <div v-if="album.members.length > 0" class="card-members">
+          <div v-for="member in album.members.slice(0, 8)" :key="member.userId" class="card-member-avatar" :title="member.displayName">
+            <img v-if="member.avatarUrl" :src="member.avatarUrl" />
+            <span v-else>{{ member.displayName[0] }}</span>
+          </div>
+          <span v-if="album.members.length > 8" class="card-member-overflow">+{{ album.members.length - 8 }}</span>
+          <span class="meta" style="margin-left:4px">{{ album.members.length }}</span>
+        </div>
+      </div>
     </router-link>
   </div>
 
@@ -59,7 +69,8 @@
 import { ref, onMounted } from "vue";
 import { useCurrentUser } from "../composables/useCurrentUser";
 
-interface Album { channelId: string; groupName: string; dateText?: string; location?: string; photos: { id: number }[] }
+interface Member { userId: string; displayName: string; avatarUrl?: string }
+interface Album { channelId: string; groupName: string; dateText?: string; location?: string; photos: { id: number }[]; members: Member[] }
 
 const albums = ref<Album[]>([]);
 const { currentUser, logout } = useCurrentUser();

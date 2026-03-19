@@ -28,7 +28,7 @@
               <span class="member-name">{{ member.displayName }}</span>
             </div>
           </div>
-          <button class="btn-secondary btn-small" @click="showEditMembers = true">Edit</button>
+          <button class="btn-secondary btn-small" @click="openEditMembers">Edit</button>
         </div>
       </div>
 
@@ -96,12 +96,14 @@
     <div class="modal">
       <h2>Members</h2>
       <div class="members-modal-list">
-        <div v-for="member in album?.members" :key="member.userId" class="members-modal-row">
+        <div v-for="member in allMembers" :key="member.userId" :class="['members-modal-row', { 'member-hidden': member.hidden }]">
           <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
           <span v-else class="member-avatar member-avatar-placeholder">{{ member.displayName[0] }}</span>
           <span class="members-modal-name">{{ member.displayName }}</span>
           <span v-if="member.rsvpStatus" :class="['rsvp-badge', 'rsvp-' + member.rsvpStatus]">{{ rsvpLabel(member.rsvpStatus) }}</span>
-          <button class="btn-remove" @click="removeMember(member.userId)" title="Remove from album">✕</button>
+          <span v-if="member.hidden" class="rsvp-badge">hidden</span>
+          <button v-if="!member.hidden" class="btn-remove" @click="hideMember(member.userId)" title="Hide from album">hide</button>
+          <button v-else class="btn-remove btn-unhide" @click="unhideMember(member.userId)" title="Show in album">show</button>
         </div>
       </div>
       <div class="modal-actions">
@@ -132,7 +134,9 @@ const saving = ref(false);
 const editError = ref("");
 const editForm = ref({ name: "", location: "", startDate: "", endDate: "" });
 
+interface AllMember extends Member { hidden: number; rsvpStatus?: string }
 const showEditMembers = ref(false);
+const allMembers = ref<AllMember[]>([]);
 
 onMounted(async () => {
   const res = await fetch(`/api/album/${route.params.channelId}`);
@@ -176,15 +180,35 @@ async function saveEdit() {
   }
 }
 
-async function removeMember(userId: string) {
+async function openEditMembers() {
   if (!album.value) return;
   const session = localStorage.getItem("snek_session");
-  const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${session}` },
-  });
-  if (res.ok && album.value) {
+  const res = await fetch(`/api/album/${album.value.channelId}/members`, { headers: { Authorization: `Bearer ${session}` } });
+  if (res.ok) allMembers.value = await res.json();
+  showEditMembers.value = true;
+}
+
+async function hideMember(userId: string) {
+  if (!album.value) return;
+  const session = localStorage.getItem("snek_session");
+  const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}`, { method: "DELETE", headers: { Authorization: `Bearer ${session}` } });
+  if (res.ok) {
+    const m = allMembers.value.find(m => m.userId === userId);
+    if (m) m.hidden = 1;
     album.value.members = album.value.members.filter(m => m.userId !== userId);
+  }
+}
+
+async function unhideMember(userId: string) {
+  if (!album.value) return;
+  const session = localStorage.getItem("snek_session");
+  const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}`, { method: "PATCH", headers: { Authorization: `Bearer ${session}` } });
+  if (res.ok) {
+    const m = allMembers.value.find(m => m.userId === userId);
+    if (m) {
+      m.hidden = 0;
+      if (!album.value!.members.find(x => x.userId === userId)) album.value!.members.push(m);
+    }
   }
 }
 
