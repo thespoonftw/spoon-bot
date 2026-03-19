@@ -152,7 +152,7 @@ export function startWebServer(): void {
       bb.on("error", () => {
         if (!responded) { responded = true; res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Upload failed" })); }
       });
-      req.pipe(bb);
+      req.pipe(bb as unknown as NodeJS.WritableStream);
       return;
     }
 
