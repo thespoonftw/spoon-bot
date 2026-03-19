@@ -34,7 +34,7 @@
 
       <p v-if="album.photos.length === 0" class="empty" style="margin-top:24px">No photos yet.</p>
       <div class="gallery">
-        <div v-for="photo in album.photos" :key="photo.id" class="photo-item" @click="focusedPhoto = photo">
+        <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item" @click="lightboxIndex = i">
           <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
           <div class="photo-meta">
             <span v-if="photo.uploadedByName" class="uploader">{{ photo.uploadedByName }}</span>
@@ -43,7 +43,7 @@
         </div>
       </div>
       <div class="gallery-mobile">
-        <div v-for="photo in album.photos" :key="photo.id" class="photo-item-mobile" @click="focusedPhoto = photo">
+        <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item-mobile" @click="lightboxIndex = i">
           <img :src="photo.url" loading="lazy" />
           <div class="photo-meta">
             <span v-if="photo.uploadedByName" class="uploader">{{ photo.uploadedByName }}</span>
@@ -55,10 +55,15 @@
     <p v-else class="empty">Album not found.</p>
   </div>
 
-  <!-- Mobile lightbox -->
-  <div class="lightbox-overlay" v-if="focusedPhoto" @click="focusedPhoto = null">
+  <!-- Lightbox -->
+  <div class="lightbox-overlay" v-if="focusedPhoto"
+    @click="lightboxIndex = null"
+    @touchstart.passive="touchStartX = $event.touches[0].clientX"
+    @touchend.passive="($event.changedTouches[0].clientX - touchStartX) > 50 ? lightboxPrev() : ($event.changedTouches[0].clientX - touchStartX) < -50 ? lightboxNext() : null">
+    <button class="lightbox-arrow lightbox-prev" @click.stop="lightboxPrev">‹</button>
     <img :src="focusedPhoto.url" class="lightbox-img" @click.stop />
-    <button class="lightbox-close" @click="focusedPhoto = null">✕</button>
+    <button class="lightbox-arrow lightbox-next" @click.stop="lightboxNext">›</button>
+    <button class="lightbox-close" @click.stop="lightboxIndex = null">✕</button>
   </div>
 
   <!-- Edit Album Modal -->
@@ -114,7 +119,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
 
 interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string }
@@ -127,7 +132,9 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const uploading = ref(false);
 const uploadProgress = ref("");
 const uploadError = ref("");
-const focusedPhoto = ref<Photo | null>(null);
+const lightboxIndex = ref<number | null>(null);
+const focusedPhoto = computed(() => lightboxIndex.value !== null ? album.value?.photos[lightboxIndex.value] ?? null : null);
+let touchStartX = 0;
 
 const showEdit = ref(false);
 const saving = ref(false);
@@ -138,10 +145,29 @@ interface AllMember extends Member { hidden: number; rsvpStatus?: string }
 const showEditMembers = ref(false);
 const allMembers = ref<AllMember[]>([]);
 
+function onKeyDown(e: KeyboardEvent) {
+  if (lightboxIndex.value === null) return;
+  if (e.key === "ArrowRight") lightboxNext();
+  else if (e.key === "ArrowLeft") lightboxPrev();
+  else if (e.key === "Escape") lightboxIndex.value = null;
+}
+
 onMounted(async () => {
   const res = await fetch(`/api/album/${route.params.channelId}`);
   if (res.ok) album.value = await res.json();
+  window.addEventListener("keydown", onKeyDown);
 });
+
+onUnmounted(() => { window.removeEventListener("keydown", onKeyDown); });
+
+function lightboxNext() {
+  if (lightboxIndex.value === null || !album.value) return;
+  lightboxIndex.value = (lightboxIndex.value + 1) % album.value.photos.length;
+}
+function lightboxPrev() {
+  if (lightboxIndex.value === null || !album.value) return;
+  lightboxIndex.value = (lightboxIndex.value - 1 + album.value.photos.length) % album.value.photos.length;
+}
 
 function openEdit() {
   if (!album.value) return;
