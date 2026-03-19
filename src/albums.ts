@@ -3,7 +3,10 @@ import http from "http";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import Busboy from "busboy";
+type BusboyFile = { filename: string; encoding: string; mimeType: string };
+type BusboyInstance = { on(e: "file", cb: (f: string, s: NodeJS.ReadableStream, i: BusboyFile) => void): BusboyInstance; on(e: "error", cb: (err: Error) => void): BusboyInstance; };
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const Busboy = require("busboy") as (opts: { headers: Record<string, string | string[] | undefined>; limits?: { files?: number; fileSize?: number } }) => BusboyInstance;
 import { eventStates, DATA_DIR } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser } from "./auth";
