@@ -150,6 +150,13 @@ export function dbSyncAlbumFromEvent(channelId: string, eventName: string, locat
     .run(eventName, location, dateText ?? null, channelId);
 }
 
+export function dbUpdateAlbum(channelId: string, name: string, location: string, startDate?: string, endDate?: string): AlbumRow | undefined {
+  const dateText = startDate ? formatDateDisplay(startDate, endDate) : undefined;
+  db.prepare("UPDATE albums SET group_name=?, location=?, start_date=?, end_date=?, date_text=? WHERE channel_id=?")
+    .run(name, location, startDate ?? null, endDate ?? null, dateText ?? null, channelId);
+  return dbGetAlbum(channelId);
+}
+
 export function dbDeleteAlbum(channelId: string) {
   db.prepare("DELETE FROM photos WHERE channel_id = ?").run(channelId);
   db.prepare("DELETE FROM albums WHERE channel_id = ?").run(channelId);

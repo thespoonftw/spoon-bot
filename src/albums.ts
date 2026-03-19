@@ -1,4 +1,4 @@
-import { Interaction, TextChannel } from "discord.js";
+import { Client, Interaction, TextChannel } from "discord.js";
 import http from "http";
 import fs from "fs";
 import path from "path";
@@ -10,9 +10,14 @@ const Busboy = require("busboy") as (opts: { headers: Record<string, string | st
 import { eventStates, DATA_DIR } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser } from "./auth";
-import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser } from "./db";
+import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser } from "./db";
+import { updateEventMessages } from "./messageSync";
+import { eventStates, persistState } from "./state";
 
 const PHOTO_STORAGE_PATH = process.env.PHOTO_STORAGE_PATH ?? path.join(DATA_DIR, "photos");
+
+let albumDiscordClient: Client | null = null;
+export function setAlbumDiscordClient(client: Client) { albumDiscordClient = client; }
 
 export function loadAlbums() {
   initDb();
@@ -119,6 +124,40 @@ export function startWebServer(): void {
       });
       return;
     }
+    // PUT /api/album/:id — update album metadata
+    if (url.match(/^\/api\/album\/[^/]+$/) && method === "PUT") {
+      const channelId = url.slice("/api/album/".length);
+      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      if (!dbHasAlbum(channelId)) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }
+      let body = "";
+      req.on("data", chunk => body += chunk);
+      req.on("end", async () => {
+        try {
+          const { name, location, startDate, endDate } = JSON.parse(body);
+          const updated = dbUpdateAlbum(channelId, name, location, startDate || undefined, endDate || undefined);
+          // Sync to Discord if this is a real event channel
+          if (!channelId.startsWith("web_") && albumDiscordClient) {
+            const state = eventStates.get(channelId);
+            if (state) {
+              state.eventName = name;
+              state.location = location;
+              if (updated?.dateText) state.dateText = updated.dateText;
+              persistState();
+              const guild = albumDiscordClient.guilds.cache.get(process.env.GUILD_ID ?? "");
+              if (guild) updateEventMessages(guild, channelId).catch(e => console.error("Failed to sync album edit to Discord:", e));
+            }
+          }
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(updated));
+        } catch (e) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Update failed" }));
+        }
+      });
+      return;
+    }
+
     // POST /api/album/:id/photos — upload a photo file
     if (url.match(/^\/api\/album\/[^/]+\/photos$/) && method === "POST") {
       const channelId = url.split("/")[3];

@@ -40,7 +40,15 @@ const { currentUser, logout } = useCurrentUser();
 onMounted(async () => {
   const session = localStorage.getItem("snek_session");
   const res = await fetch("/api/site-users", { headers: { Authorization: `Bearer ${session}` } });
-  if (res.ok) users.value = await res.json();
+  if (res.ok) {
+    const data: SiteUser[] = await res.json();
+    users.value = data.sort((a, b) => {
+      if (a.lastLoginAt && b.lastLoginAt) return b.lastLoginAt.localeCompare(a.lastLoginAt);
+      if (a.lastLoginAt) return -1;
+      if (b.lastLoginAt) return 1;
+      return a.displayName.localeCompare(b.displayName);
+    });
+  }
 });
 
 function formatDate(iso: string): string {

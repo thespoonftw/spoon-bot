@@ -8,7 +8,8 @@
           <p v-if="album.dateText" class="date">{{ album.dateText }}</p>
           <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
         </div>
-        <div class="upload-area">
+        <div class="upload-area" style="display:flex;gap:10px">
+          <button class="btn-secondary" @click="openEdit">Edit</button>
           <button class="btn-primary" @click="triggerUpload" :disabled="uploading">
             {{ uploading ? `Uploading ${uploadProgress}…` : '+ Upload Photos' }}
           </button>
@@ -33,6 +34,36 @@
     </template>
     <p v-else class="empty">Album not found.</p>
   </div>
+
+  <!-- Edit Album Modal -->
+  <div class="modal-overlay" v-if="showEdit" @click.self="showEdit = false">
+    <div class="modal">
+      <h2>Edit Album</h2>
+      <div class="form-group">
+        <label>Name</label>
+        <input v-model="editForm.name" type="text" />
+      </div>
+      <div class="form-group">
+        <label>Location</label>
+        <input v-model="editForm.location" type="text" />
+      </div>
+      <div class="form-group">
+        <label>Start Date</label>
+        <input v-model="editForm.startDate" type="date" />
+      </div>
+      <div class="form-group">
+        <label>End Date <span class="optional">(optional)</span></label>
+        <input v-model="editForm.endDate" type="date" />
+      </div>
+      <div v-if="editError" class="error">{{ editError }}</div>
+      <div class="modal-actions">
+        <button class="btn-secondary" @click="showEdit = false">Cancel</button>
+        <button class="btn-primary" @click="saveEdit" :disabled="saving">
+          {{ saving ? "Saving…" : "Save" }}
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -40,7 +71,7 @@ import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 
 interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string }
-interface Album { channelId: string; groupName: string; dateText?: string; location?: string; photos: Photo[] }
+interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; endDate?: string; photos: Photo[] }
 
 const route = useRoute();
 const album = ref<Album | null>(null);
@@ -49,10 +80,52 @@ const uploading = ref(false);
 const uploadProgress = ref("");
 const uploadError = ref("");
 
+const showEdit = ref(false);
+const saving = ref(false);
+const editError = ref("");
+const editForm = ref({ name: "", location: "", startDate: "", endDate: "" });
+
 onMounted(async () => {
   const res = await fetch(`/api/album/${route.params.channelId}`);
   if (res.ok) album.value = await res.json();
 });
+
+function openEdit() {
+  if (!album.value) return;
+  editForm.value = {
+    name: album.value.groupName,
+    location: album.value.location ?? "",
+    startDate: album.value.startDate ?? "",
+    endDate: album.value.endDate ?? "",
+  };
+  editError.value = "";
+  showEdit.value = true;
+}
+
+async function saveEdit() {
+  if (!album.value) return;
+  editError.value = "";
+  saving.value = true;
+  const session = localStorage.getItem("snek_session");
+  const res = await fetch(`/api/album/${album.value.channelId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
+    body: JSON.stringify({
+      name: editForm.value.name.trim(),
+      location: editForm.value.location.trim(),
+      startDate: editForm.value.startDate || undefined,
+      endDate: editForm.value.endDate || undefined,
+    }),
+  });
+  saving.value = false;
+  if (res.ok) {
+    const updated = await res.json();
+    album.value = { ...album.value, ...updated };
+    showEdit.value = false;
+  } else {
+    editError.value = "Failed to save. Try again.";
+  }
+}
 
 function triggerUpload() {
   uploadError.value = "";
