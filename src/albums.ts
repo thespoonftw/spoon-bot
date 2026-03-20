@@ -449,12 +449,11 @@ export function startWebServer(): void {
     }
 
     // DELETE /api/album/:id/members/:userId — hide or remove member
-    if (url.match(/^\/api\/album\/[^/]+\/members\/[^/]+(\?.*)?$/) && method === "DELETE") {
-      const [path, query] = url.split("?");
-      const parts = path.split("/");
+    if (url.match(/^\/api\/album\/[^/]+\/members\/[^/]+$/) && method === "DELETE") {
+      const parts = url.split("/");
       const channelId = parts[3];
       const userId = parts[5];
-      const remove = new URLSearchParams(query ?? "").get("remove") === "true";
+      const remove = (req.url ?? "").includes("?remove=true");
       const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
       if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
       if (userId.startsWith("guest_")) {

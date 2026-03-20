@@ -300,6 +300,7 @@ function openFeatured(photo: Photo) {
   featuredPhoto.value = photo;
   featuredSelection.value = new Set(photo.featuredIds ?? []);
   showFeatured.value = true;
+  showFeaturedPicker.value = !photo.featuredIds?.length;
 }
 
 function getFeaturedMembers(photo: Photo): Member[] {
