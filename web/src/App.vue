@@ -8,7 +8,7 @@ import { onMounted, onUnmounted } from "vue";
 function applyZoom() {
   const w = window.innerWidth;
   const zoom = w > 1600 ? Math.min(w / 1600, 3) : 1;
-  document.documentElement.style.zoom = String(zoom);
+  document.body.style.zoom = String(zoom);
 }
 
 onMounted(() => {
