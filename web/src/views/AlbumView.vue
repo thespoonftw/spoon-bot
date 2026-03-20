@@ -45,7 +45,11 @@
             <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' }" @click="handleVote($event, photo.id, 'up')" title="Upvote">👍</button>
             <span class="vote-score">{{ getVoteState(photo).score }}</span>
             <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo.id, 'down')" title="Downvote">👎</button>
-            <button class="vote-btn vote-group" @click.stop="openFeatured(photo)" title="Featuring">👥</button>
+            <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Featuring">
+              <img v-if="getFeaturedPreview(photo)?.avatarUrl" :src="getFeaturedPreview(photo)!.avatarUrl" class="featured-mini-avatar" />
+              <span v-else-if="getFeaturedPreview(photo)" class="featured-mini-avatar featured-mini-initial">{{ (getFeaturedPreview(photo)!.firstName || getFeaturedPreview(photo)!.displayName)[0] }}</span>
+              <span v-else>👥</span>
+            </button>
           </div>
         </div>
       </div>
@@ -57,7 +61,11 @@
             <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' }" @click="handleVote($event, photo.id, 'up')" title="Upvote">👍</button>
             <span class="vote-score">{{ getVoteState(photo).score }}</span>
             <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo.id, 'down')" title="Downvote">👎</button>
-            <button class="vote-btn vote-group" @click.stop="openFeatured(photo)" title="Featuring">👥</button>
+            <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Featuring">
+              <img v-if="getFeaturedPreview(photo)?.avatarUrl" :src="getFeaturedPreview(photo)!.avatarUrl" class="featured-mini-avatar" />
+              <span v-else-if="getFeaturedPreview(photo)" class="featured-mini-avatar featured-mini-initial">{{ (getFeaturedPreview(photo)!.firstName || getFeaturedPreview(photo)!.displayName)[0] }}</span>
+              <span v-else>👥</span>
+            </button>
           </div>
         </div>
       </div>
@@ -284,6 +292,11 @@ function openFeatured(photo: Photo) {
   showFeatured.value = true;
 }
 
+function getFeaturedPreview(photo: Photo): Member | null {
+  if (!photo.featuredIds?.length || !album.value) return null;
+  return album.value.members.find(m => photo.featuredIds!.includes(m.userId)) ?? null;
+}
+
 function removeFeatured(userId: string) {
   const s = new Set(featuredSelection.value);
   s.delete(userId);
@@ -470,12 +483,18 @@ function openLightbox(index: number) {
           const p = photos[pswp.currIndex];
           const { score, userVote } = getVoteState(p);
           const scoreStr = `${score}`;
+          const featuredMember = album.value?.members.find(m => p.featuredIds?.includes(m.userId));
+          const featuredBtnContent = featuredMember
+            ? (featuredMember.avatarUrl
+                ? `<img src="${featuredMember.avatarUrl}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;display:block;pointer-events:none" />`
+                : `<span style="width:22px;height:22px;border-radius:50%;background:#585b70;display:inline-flex;align-items:center;justify-content:center;font-size:0.6em;font-weight:600;color:#cdd6f4;pointer-events:none">${(featuredMember.firstName || featuredMember.displayName)[0]}</span>`)
+            : "👥";
           el.innerHTML = `
             <button data-vote="fav" class="pswp-vote-btn${userVote === "fav" ? " active-fav" : ""}">⭐</button>
             <button data-vote="up" class="pswp-vote-btn${userVote === "up" ? " active-up" : ""}">👍</button>
             <span class="pswp-vote-score">${scoreStr}</span>
             <button data-vote="down" class="pswp-vote-btn${userVote === "down" ? " active-down" : ""}">👎</button>
-            <button data-action="featured" class="pswp-vote-btn">👥</button>
+            <button data-action="featured" class="pswp-vote-btn${featuredMember ? " active-fav" : ""}" style="padding:3px">${featuredBtnContent}</button>
           `;
         };
         refreshLightboxVotes = update;

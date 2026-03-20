@@ -35,7 +35,7 @@
       <h2>Edit User</h2>
       <p style="color:#a6adc8;font-size:0.85em;margin-bottom:20px">{{ editingUser.displayName }}</p>
       <div class="form-group">
-        <label>Brunch Name <span class="optional">(overrides Discord name)</span></label>
+        <label>Brunch Name</label>
         <input v-model="editFirstName" type="text" :placeholder="editingUser.displayName" />
       </div>
       <div v-if="saveError" class="error">{{ saveError }}</div>
