@@ -313,6 +313,8 @@ export function startWebServer(): void {
           let lat: number | undefined, lon: number | undefined;
           try {
             const exif = await exifr.parse(filePath, { exif: true, gps: true, xmp: false, iptc: false, icc: false, jfif: false });
+            console.log(`[upload] raw exif keys=${exif ? Object.keys(exif).join(",") : "null"}`);
+            console.log(`[upload] raw gps=${JSON.stringify({ lat: exif?.latitude, lon: exif?.longitude, GPSLatitude: exif?.GPSLatitude, GPSLongitude: exif?.GPSLongitude })}`);
             const raw = exif?.DateTimeOriginal ?? exif?.CreateDate ?? exif?.DateTime;
             if (raw instanceof Date && !isNaN(raw.getTime())) {
               takenAt = raw.toISOString();
@@ -326,7 +328,7 @@ export function startWebServer(): void {
             // Client-provided GPS overrides (iOS Safari strips GPS before upload)
             if (clientLat !== undefined) lat = clientLat;
             if (clientLon !== undefined) lon = clientLon;
-            console.log(`[upload] EXIF takenAt=${takenAt} lat=${lat} lon=${lon}`);
+            console.log(`[upload] final takenAt=${takenAt} lat=${lat} lon=${lon} (clientLat=${clientLat} clientLon=${clientLon})`);
           } catch (e) { console.error("[upload] EXIF parse failed:", e); }
           try {
             await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(thumbPath);
