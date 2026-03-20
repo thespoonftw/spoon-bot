@@ -448,15 +448,19 @@ export function startWebServer(): void {
       return;
     }
 
-    // DELETE /api/album/:id/members/:userId — hide member
-    if (url.match(/^\/api\/album\/[^/]+\/members\/[^/]+$/) && method === "DELETE") {
-      const parts = url.split("/");
+    // DELETE /api/album/:id/members/:userId — hide or remove member
+    if (url.match(/^\/api\/album\/[^/]+\/members\/[^/]+(\?.*)?$/) && method === "DELETE") {
+      const [path, query] = url.split("?");
+      const parts = path.split("/");
       const channelId = parts[3];
       const userId = parts[5];
+      const remove = new URLSearchParams(query ?? "").get("remove") === "true";
       const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
       if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
       if (userId.startsWith("guest_")) {
         dbDeleteUser(userId);
+      } else if (remove) {
+        dbRemoveAlbumMember(channelId, userId);
       } else {
         dbHideAlbumMember(channelId, userId);
       }
