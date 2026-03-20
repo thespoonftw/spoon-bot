@@ -7,19 +7,23 @@
     <template v-if="!confirming">
       <template v-if="regulars.length">
         <p class="user-category">Regulars</p>
-        <button v-for="user in regulars" :key="user.userId" class="user-card" @click="confirming = user">
-          <img v-if="user.avatarUrl" :src="user.avatarUrl" class="avatar" />
-          <div class="avatar placeholder" v-else>{{ user.displayName[0] }}</div>
-          <span>{{ user.displayName }}</span>
-        </button>
+        <div class="login-grid">
+          <button v-for="user in regulars" :key="user.userId" class="user-card" @click="confirming = user">
+            <img v-if="user.avatarUrl" :src="user.avatarUrl" class="avatar" />
+            <div class="avatar placeholder" v-else>{{ user.displayName[0] }}</div>
+            <span>{{ user.displayName }}</span>
+          </button>
+        </div>
       </template>
       <template v-if="newcomers.length">
         <p class="user-category">Newcomers</p>
-        <button v-for="user in newcomers" :key="user.userId" class="user-card" @click="confirming = user">
-          <img v-if="user.avatarUrl" :src="user.avatarUrl" class="avatar" />
-          <div class="avatar placeholder" v-else>{{ user.displayName[0] }}</div>
-          <span>{{ user.displayName }}</span>
-        </button>
+        <div class="login-grid">
+          <button v-for="user in newcomers" :key="user.userId" class="user-card" @click="confirming = user">
+            <img v-if="user.avatarUrl" :src="user.avatarUrl" class="avatar" />
+            <div class="avatar placeholder" v-else>{{ user.displayName[0] }}</div>
+            <span>{{ user.displayName }}</span>
+          </button>
+        </div>
       </template>
     </template>
 
