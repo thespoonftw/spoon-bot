@@ -96,7 +96,7 @@
     <div class="modal-overlay" v-if="showFeaturedPicker" style="z-index:210000">
       <div class="modal">
         <button class="modal-close" @click="showFeaturedPicker = false">✕</button>
-        <h2>Add User</h2>
+        <h2>Tag User</h2>
         <div class="members-modal-list">
           <div v-for="member in pickableMembers" :key="member.userId" class="members-modal-row featured-row" @click="addFeatured(member.userId)">
             <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
