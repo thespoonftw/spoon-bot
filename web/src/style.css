@@ -150,7 +150,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .avatar.placeholder { background: #585b70; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1rem; flex-shrink: 0; }
 .avatar.large { width: 72px; height: 72px; font-size: 1.8rem; }
 
-.user-category { color: #a6adc8; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.08em; margin: 16px 0 6px; width: 100%; max-width: 400px; text-align: left; }
+.user-category { color: #a6adc8; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.08em; margin: 16px 0 6px; width: 100%; max-width: 400px; text-align: center; }
 .confirm-card { display: flex; flex-direction: column; align-items: center; gap: 16px; background: #313244; border-radius: 16px; padding: 32px 40px; max-width: 360px; width: 100%; }
 .confirm-text { color: #cdd6f4; text-align: center; line-height: 1.5; margin: 0; }
 .confirm-actions { display: flex; gap: 12px; margin-top: 4px; }
