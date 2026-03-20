@@ -100,8 +100,6 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .card-members .meta { margin-left: 0 !important; }
   .landing-grid { flex-direction: column; }
   .gallery-mobile { margin: 20px -16px 0; }
-  .pswp__top-meta { display: flex; }
-  .pswp__bottom-bar .pswp-meta-left, .pswp__bottom-bar .pswp-meta-right { display: none; }
 }
 
 .btn-icon { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 2px 4px; opacity: 0.5; line-height: 1; flex-shrink: 0; filter: grayscale(1); }
@@ -221,8 +219,10 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .pswp-vote-btn.active-up, .pswp-vote-btn.active-down, .pswp-vote-btn.active-fav { filter: none; }
 .pswp-vote-score { color: rgba(255,255,255,0.8); font-weight: 600; font-size: 0.95em; min-width: 24px; text-align: center; }
 @media (max-width: 767px) {
-  .pswp-vote-btn { font-size: 3.6em; padding: 6px 8px; }
+  .pswp-vote-btn { font-size: 2.4em; padding: 6px 8px; }
   .pswp-vote-score { font-size: 1.1em; }
+  .pswp__top-meta { display: flex; }
+  .pswp__bottom-bar .pswp-meta-left, .pswp__bottom-bar .pswp-meta-right { display: none; }
 }
 
 .featured-avatars { display: inline-flex; align-items: center; pointer-events: none; }

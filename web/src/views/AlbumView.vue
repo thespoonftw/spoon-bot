@@ -448,8 +448,9 @@ function openLightbox(index: number) {
     if (e.originalEvent?.pointerType === "touch") {
       const x = e.originalEvent.clientX ?? window.innerWidth / 2;
       const y = e.originalEvent.clientY ?? window.innerHeight / 2;
-      spawnFloat(x, y, "up");
-      doVote(photos[pswp.currIndex].id, "up");
+      const p = photos[pswp.currIndex];
+      spawnFloat(x, y, "up", isRemovingVote(getVoteState(p).userVote, "up"));
+      doVote(p.id, "up");
     }
   });
   (pswp as any).on("doubleTapAction", (e: any) => {
@@ -457,8 +458,9 @@ function openLightbox(index: number) {
     if (e.originalEvent?.pointerType === "touch") {
       const x = e.originalEvent.clientX ?? window.innerWidth / 2;
       const y = e.originalEvent.clientY ?? window.innerHeight / 2;
-      spawnFloat(x, y, "fav");
-      doVote(photos[pswp.currIndex].id, "fav");
+      const p = photos[pswp.currIndex];
+      spawnFloat(x, y, "fav", isRemovingVote(getVoteState(p).userVote, "fav"));
+      doVote(p.id, "fav");
     }
   });
 
