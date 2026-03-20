@@ -240,6 +240,22 @@ interface Member { userId: string; displayName: string; firstName?: string; avat
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; endDate?: string; photos: Photo[]; members: Member[] }
 
 const route = useRoute();
+
+// Inject sine-wave keyframes mathematically
+(function() {
+  const cycles = 5, amplitude = 18, steps = 60;
+  const stops = Array.from({ length: steps + 1 }, (_, i) => {
+    const t = i / steps;
+    const x = (amplitude * Math.sin(2 * Math.PI * cycles * t)).toFixed(1);
+    const y = (-50 - 640 * t).toFixed(0);
+    const scale = (1 + 0.6 * t).toFixed(3);
+    const opacity = t < 0.7 ? 0.9 : (0.9 * (1 - (t - 0.7) / 0.3)).toFixed(3);
+    return `  ${(t * 100).toFixed(1)}% { opacity:${opacity}; transform:translate(calc(-50% + ${x}px),${y}%) scale(${scale}); }`;
+  });
+  const style = document.createElement("style");
+  style.textContent = `@keyframes vote-float-wave {\n${stops.join("\n")}\n}`;
+  document.head.appendChild(style);
+})();
 const album = ref<Album | null>(null);
 const loading = ref(true);
 const fileInput = ref<HTMLInputElement | null>(null);
