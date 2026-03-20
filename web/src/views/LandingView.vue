@@ -1,12 +1,14 @@
 <template>
   <div class="page">
-    <div class="user-info landing-user" v-if="currentUser">
-      <img v-if="currentUser.avatarUrl" :src="currentUser.avatarUrl" class="avatar" />
-      <div class="avatar placeholder" v-else>{{ (currentUser.firstName || currentUser.displayName)[0] }}</div>
-      <span class="user-name">{{ currentUser.firstName || currentUser.displayName }}</span>
-      <button class="logout" @click="logout">Log out</button>
+    <div class="landing-header">
+      <h1>Brunch Projects</h1>
+      <div class="user-info" v-if="currentUser">
+        <img v-if="currentUser.avatarUrl" :src="currentUser.avatarUrl" class="avatar" />
+        <div class="avatar placeholder" v-else>{{ (currentUser.firstName || currentUser.displayName)[0] }}</div>
+        <span class="user-name">{{ currentUser.firstName || currentUser.displayName }}</span>
+        <button class="logout" @click="logout">Log out</button>
+      </div>
     </div>
-    <h1>Brunch Projects</h1>
 
     <div class="landing-grid">
       <router-link to="/albums" class="feature-card">

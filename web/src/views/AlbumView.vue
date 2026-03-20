@@ -425,6 +425,7 @@ function openLightbox(index: number) {
     arrowKeys: true,
     pinchToClose: false,
     closeOnVerticalDrag: false,
+    loop: false,
   });
   history.pushState({ pswp: true }, "");
   let closedByBack = false;

@@ -61,15 +61,15 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   left: 0; right: 0;
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   padding: 0 16px;
   gap: 12px;
-  pointer-events: auto;
+  pointer-events: none;
   text-shadow: 0 1px 3px rgba(0,0,0,0.6);
 }
 .pswp-caption-left { display: flex; flex-direction: column; gap: 3px; }
 .pswp-caption-date { color: rgba(255,255,255,0.85); font-size: 0.9em; }
-.pswp-caption-map { color: rgba(255,255,255,0.7); font-size: 0.8em; text-decoration: none; pointer-events: auto; }
+.pswp-caption-map { color: rgba(255,255,255,0.7); font-size: 0.8em; text-decoration: none; pointer-events: auto; display: inline-block; }
 .pswp-caption-map:hover { color: #fff; text-decoration: underline; }
 .pswp-caption-right { flex-shrink: 0; }
 .pswp-caption-uploader { color: rgba(255,255,255,0.85); font-size: 0.9em; }
@@ -77,7 +77,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .gallery { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
 .gallery-mobile { display: none; flex-direction: column; gap: 0; margin-top: 20px; }
 .photo-item { display: flex; flex-direction: column; gap: 0; cursor: pointer; position: relative; }
-.photo-item img { width: 220px; height: 220px; object-fit: cover; border-radius: 6px; display: block; }
+.photo-item > img { width: 220px; height: 220px; object-fit: cover; border-radius: 6px; display: block; }
 .photo-delete-btn { display: none; position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.6); border: none; color: #fff; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.9em; z-index: 1; }
 .photo-item:hover .photo-delete-btn { display: block; }
 .btn-danger { background: #f38ba8; color: #1e1e2e; border: none; border-radius: 6px; padding: 10px 20px; font-size: 1em; cursor: pointer; font-weight: 600; }
@@ -138,7 +138,9 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .login-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 100%; margin-bottom: 8px; }
   .user-card { max-width: unset; margin-bottom: 0; }
   .user-category { max-width: unset; }
-  .pswp__vote-bar { bottom: 40px; }
+  .pswp__vote-bar { bottom: 20px; }
+  .landing-header { flex-direction: row; align-items: center; }
+  .landing-header h1 { margin-bottom: 0; }
 }
 .user-card:hover:not(:disabled) { background: #45475a; }
 .user-card:disabled { opacity: 0.6; cursor: default; }
@@ -162,7 +164,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .logout { background: #313244; border: none; border-radius: 8px; padding: 8px 16px; color: #cdd6f4; cursor: pointer; font-size: 0.9rem; }
 .logout:hover { background: #45475a; }
 
-.landing-user { margin-bottom: 16px; }
+.landing-header { display: flex; flex-direction: column; margin-bottom: 24px; gap: 12px; }
+.landing-header .user-info { justify-content: flex-end; }
 .landing-grid { display: flex; gap: 24px; margin-top: 16px; }
 .feature-card { flex: 1; background: #313244; border-radius: 16px; padding: 48px 32px; text-decoration: none; color: inherit; display: flex; flex-direction: column; align-items: center; gap: 14px; transition: background 0.15s; }
 .feature-card:hover { background: #45475a; }

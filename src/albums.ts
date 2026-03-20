@@ -307,7 +307,7 @@ export function startWebServer(): void {
           let takenAt: string | undefined;
           let lat: number | undefined, lon: number | undefined;
           try {
-            const exif = await exifr.parse(filePath, { gps: true });
+            const exif = await exifr.parse(filePath, { exif: true, gps: true, xmp: false, iptc: false, icc: false, jfif: false });
             const raw = exif?.DateTimeOriginal ?? exif?.CreateDate ?? exif?.DateTime;
             if (raw instanceof Date && !isNaN(raw.getTime())) {
               takenAt = raw.toISOString();
@@ -318,7 +318,8 @@ export function startWebServer(): void {
             }
             if (typeof exif?.latitude === "number") lat = exif.latitude as number;
             if (typeof exif?.longitude === "number") lon = exif.longitude as number;
-          } catch { /* no EXIF data */ }
+            console.log(`[upload] EXIF takenAt=${takenAt} lat=${lat} lon=${lon}`);
+          } catch (e) { console.error("[upload] EXIF parse failed:", e); }
           try {
             await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(thumbPath);
           } catch (e) { console.error("Thumbnail generation failed:", e); }
