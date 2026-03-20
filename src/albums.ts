@@ -315,7 +315,10 @@ export function startWebServer(): void {
           let takenAt: string | undefined;
           let lat: number | undefined, lon: number | undefined;
           try {
-            const exif = await exifr.parse(filePath, { exif: true, gps: false, xmp: false, iptc: false, icc: false, jfif: false });
+            const exif = await exifr.parse(filePath, { tiff: true, exif: true, gps: true, xmp: true, iptc: true, icc: false, jfif: true, translateValues: false, reviveValues: false });
+            console.log(`[upload] ALL EXIF: ${JSON.stringify(exif, null, 2)}`);
+            const gpsResult = await exifr.gps(filePath);
+            console.log(`[upload] exifr.gps: ${JSON.stringify(gpsResult)}`);
             const raw = exif?.DateTimeOriginal ?? exif?.CreateDate ?? exif?.DateTime;
             if (raw instanceof Date && !isNaN(raw.getTime())) {
               takenAt = raw.toISOString();
@@ -324,14 +327,11 @@ export function startWebServer(): void {
               const d = new Date(normalized);
               if (!isNaN(d.getTime())) takenAt = d.toISOString();
             }
-            const gpsResult = await exifr.gps(filePath);
-            console.log(`[upload] exifr.gps result=${JSON.stringify(gpsResult)}`);
             if (gpsResult && typeof gpsResult.latitude === "number" && !isNaN(gpsResult.latitude)) lat = gpsResult.latitude;
             if (gpsResult && typeof gpsResult.longitude === "number" && !isNaN(gpsResult.longitude)) lon = gpsResult.longitude;
-            // Client-provided GPS overrides (mobile browsers sometimes strip GPS before upload)
             if (clientLat !== undefined) lat = clientLat;
             if (clientLon !== undefined) lon = clientLon;
-            console.log(`[upload] final takenAt=${takenAt} lat=${lat} lon=${lon} (clientLat=${clientLat} clientLon=${clientLon})`);
+            console.log(`[upload] final takenAt=${takenAt} lat=${lat} lon=${lon}`);
           } catch (e) { console.error("[upload] EXIF parse failed:", e); }
           try {
             await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(thumbPath);
