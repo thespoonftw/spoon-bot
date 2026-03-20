@@ -204,8 +204,15 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   0% { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
   100% { opacity: 0; transform: translate(-50%, -690%) scale(1.6); }
 }
+@keyframes vote-float-wave {
+  0%   { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
+  25%  { transform: translate(calc(-50% + 16px), -220%) scale(1.2); }
+  50%  { transform: translate(calc(-50% - 16px), -390%) scale(1.35); }
+  75%  { transform: translate(calc(-50% + 16px), -545%) scale(1.5); }
+  100% { opacity: 0; transform: translate(-50%, -690%) scale(1.6); }
+}
 .vote-float { position: fixed; pointer-events: none; font-size: 1.5em; animation: vote-float 0.7s ease-out forwards; z-index: 200000; }
-.vote-float-grey { filter: grayscale(1); }
+.vote-float-grey { filter: grayscale(1); animation-name: vote-float-wave; }
 .vote-btn { flex: 1; background: none; border: none; cursor: pointer; padding: 0; border-radius: 4px; font-size: 0.8em; line-height: 1; filter: grayscale(1) opacity(0.4); display: flex; align-items: center; justify-content: center; height: 20px; }
 .vote-btn:hover { filter: grayscale(0.2) opacity(0.85); background: #45475a; }
 .vote-btn.active { filter: none; }
