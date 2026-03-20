@@ -202,7 +202,7 @@
       <button class="modal-close" @click="showEditMembers = false">✕</button>
       <h2>Members</h2>
       <div class="members-modal-list">
-        <div v-for="member in allMembers" :key="member.userId" :class="['members-modal-row', { 'member-hidden': member.hidden }]">
+        <div v-for="member in allMembers.filter(m => !deletedMemberIds.has(m.userId))" :key="member.userId" :class="['members-modal-row', { 'member-hidden': member.hidden }]">
           <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
           <span v-else class="member-avatar member-avatar-placeholder">{{ (member.firstName || member.displayName)[0] }}</span>
           <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
@@ -304,8 +304,8 @@ function openFeatured(photo: Photo) {
 }
 
 function getFeaturedMembers(photo: Photo): Member[] {
-  if (!photo.featuredIds?.length || !album.value) return [];
-  return photo.featuredIds.map(id => album.value!.members.find(m => m.userId === id)).filter(Boolean) as Member[];
+  if (!photo.featuredIds?.length) return [];
+  return photo.featuredIds.map(id => allMembers.value.find(m => m.userId === id)).filter(Boolean) as Member[];
 }
 
 function removeFeatured(userId: string) {
@@ -346,6 +346,7 @@ interface AllMember extends Member { hidden: number; rsvpStatus?: string }
 const showEditMembers = ref(false);
 const showMemberPicker = ref(false);
 const allMembers = ref<AllMember[]>([]);
+const deletedMemberIds = ref(new Set<string>());
 const allUsers = ref<Member[]>([]);
 const addMemberUserId = ref("");
 const addMemberName = ref("");
@@ -704,7 +705,7 @@ async function deleteMember(userId: string) {
   const session = localStorage.getItem("snek_session");
   const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}?remove=true`, { method: "DELETE", headers: { Authorization: `Bearer ${session}` } });
   if (res.ok) {
-    allMembers.value = allMembers.value.filter(m => m.userId !== userId);
+    deletedMemberIds.value = new Set([...deletedMemberIds.value, userId]);
     album.value.members = album.value.members.filter(m => m.userId !== userId);
   }
 }
