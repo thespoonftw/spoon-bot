@@ -111,7 +111,7 @@
 
   <!-- Delete Photo Confirmation Modal -->
   <!-- Vote Breakdown Modal -->
-  <div class="modal-overlay" v-if="voteModalPhoto" @click.self="voteModalPhoto = null">
+  <div class="modal-overlay" v-if="voteModalPhoto" @click.self="voteModalPhoto = null" style="z-index:200000">
     <div class="modal">
       <button class="modal-close" @click="voteModalPhoto = null">✕</button>
       <h2>Votes</h2>
