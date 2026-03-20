@@ -332,7 +332,10 @@ async function saveFeatured() {
   savingFeatured.value = false;
   if (res.ok) {
     const photo = album.value.photos.find(p => p.id === featuredPhoto.value!.id);
-    if (photo) photo.featuredIds = userIds;
+    if (photo) {
+      photo.featuredIds = userIds;
+      refreshLightboxVotes?.();
+    }
     showFeatured.value = false;
   }
 }
@@ -520,7 +523,7 @@ function openLightbox(index: number) {
           const featuredBtnContent = featuredMs.length
             ? `<span style="display:inline-flex;align-items:center">${featuredMs.map((m, i) => m.avatarUrl
                 ? `<img src="${m.avatarUrl}" style="${avStyle(i)}display:block" />`
-                : `<span style="${avStyle(i)}background:#585b70;display:inline-flex;align-items:center;justify-content:center;font-size:0.55em;font-weight:600;color:#cdd6f4">${(m.firstName || m.displayName)[0]}</span>`
+                : `<span style="${avStyle(i)}background:#585b70;display:inline-flex;align-items:center;justify-content:center;"><span style="font-size:0.55em;font-weight:600;color:#cdd6f4;pointer-events:none">${(m.firstName || m.displayName)[0]}</span></span>`
               ).join("")}</span>`
             : "👥";
           const { dateHtml, mapHtml, uploaderHtml } = buildMetaHtml(p);
