@@ -43,11 +43,11 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .members-modal-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; max-height: 400px; overflow-y: auto; }
 .members-modal-row { display: flex; align-items: center; gap: 10px; }
 .members-modal-name { flex: 1; color: #cdd6f4; }
-.rsvp-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 10px; background: #313244; color: #cdd6f4; white-space: nowrap; }
-.rsvp-coming { background: #a6e3a1; color: #1e1e2e; }
-.rsvp-maybe { background: #f9e2af; color: #1e1e2e; }
-.rsvp-decline { background: #f38ba8; color: #1e1e2e; }
-.rsvp-lurking { background: #45475a; color: #cdd6f4; }
+.rsvp-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 10px; background: #45475a; color: #cdd6f4; white-space: nowrap; min-width: 68px; text-align: center; }
+.rsvp-coming { }
+.rsvp-maybe { }
+.rsvp-decline { }
+.rsvp-lurking { }
 .btn-remove { background: none; border: none; color: #6c7086; cursor: pointer; font-size: 0.8em; padding: 2px 8px; border-radius: 4px; }
 .btn-remove:hover { color: #f38ba8; background: #313244; }
 .btn-unhide:hover { color: #a6e3a1 !important; }
@@ -88,8 +88,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .card-member-avatar { display: none; }
   .card-members .meta { margin-left: 0 !important; }
   .landing-grid { flex-direction: column; }
-  .gallery-mobile .vote-btn { font-size: 22px !important; }
-  .gallery-mobile .vote-score { font-size: 16px !important; }
+  .gallery-mobile .vote-btn { font-size: 22px; }
+  .gallery-mobile .vote-score { font-size: 16px; }
 }
 
 .btn-icon { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 2px 4px; opacity: 0.5; line-height: 1; flex-shrink: 0; filter: grayscale(1); }

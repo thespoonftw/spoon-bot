@@ -199,7 +199,7 @@
           <template v-if="member.userId.startsWith('guest_')">
             <button class="btn-remove" @click="deleteMember(member.userId)" title="Remove">delete</button>
           </template>
-          <template v-else>
+          <template v-else-if="member.rsvpStatus !== 'decline'">
             <button v-if="!member.hidden" class="btn-remove" @click="hideMember(member.userId)" title="Hide from album">hide</button>
             <button v-else class="btn-remove btn-unhide" @click="unhideMember(member.userId)" title="Show in album">show</button>
           </template>
@@ -591,6 +591,8 @@ async function openEditMembers() {
     allMembers.value = raw.sort((a, b) => {
       const ag = a.userId.startsWith("guest_"), bg = b.userId.startsWith("guest_");
       if (ag !== bg) return ag ? 1 : -1;
+      const aDecline = a.rsvpStatus === "decline" ? 1 : 0, bDecline = b.rsvpStatus === "decline" ? 1 : 0;
+      if (aDecline !== bDecline) return aDecline - bDecline;
       return (a.hidden - b.hidden) || (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName);
     });
   }
@@ -667,7 +669,7 @@ async function unhideMember(userId: string) {
 }
 
 function rsvpLabel(status: string): string {
-  return { coming: "✅ Coming", maybe: "🤔 Maybe", decline: "❌ Can't go", lurking: "👀 Lurking" }[status] ?? status;
+  return { coming: "Attended", maybe: "Maybe", decline: "Declined", lurking: "Lurking" }[status] ?? status;
 }
 
 function triggerUpload() {

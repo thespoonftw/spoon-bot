@@ -91,7 +91,7 @@ async function saveEdit() {
       u.firstName?.trim().toLowerCase() === trimmed.toLowerCase()
     );
     if (duplicate) {
-      saveError.value = `"${trimmed}" is already taken by ${duplicate.firstName || duplicate.displayName}`;
+      saveError.value = `"${trimmed}" is already taken by ${duplicate.displayName}`;
       return;
     }
   }

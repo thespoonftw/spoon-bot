@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <div class="header-row">
-      <h1>Snek</h1>
+      <h1>Brunch Projects</h1>
       <div class="user-info" v-if="currentUser">
         <img v-if="currentUser.avatarUrl" :src="currentUser.avatarUrl" class="avatar" />
         <div class="avatar placeholder" v-else>{{ currentUser.displayName[0] }}</div>
