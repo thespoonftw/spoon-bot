@@ -476,25 +476,8 @@ function openLightbox(index: number) {
   });
   pswp.on("uiRegister", () => {
     pswp.ui!.registerElement({
-      name: "photo-caption",
+      name: "bottom-bar",
       order: 9,
-      isButton: false,
-      appendTo: "root",
-      onInit: (el) => {
-        const update = () => {
-          const p = photos[pswp.currIndex];
-          const dateHtml = p?.takenAt ? `<span class="pswp-caption-date">${formatTime(p.takenAt)}</span>` : "";
-          const mapHtml = (p?.lat && p?.lon) ? `<a class="pswp-caption-map" href="https://www.google.com/maps?q=${p.lat},${p.lon}" target="_blank">📍 Map</a>` : "";
-          const uploaderHtml = p?.uploadedByName ? `<span class="pswp-caption-uploader">By: ${p.uploadedByName}</span>` : "";
-          el.innerHTML = `<div class="pswp-caption-left">${dateHtml}${mapHtml}</div><div class="pswp-caption-right">${uploaderHtml}</div>`;
-        };
-        pswp.on("change", update);
-        update();
-      },
-    });
-    pswp.ui!.registerElement({
-      name: "vote-bar",
-      order: 8,
       isButton: false,
       appendTo: "root",
       onInit: (el) => {
@@ -514,21 +497,27 @@ function openLightbox(index: number) {
           const p = photos[pswp.currIndex];
           const { score, userVote } = getVoteState(p);
           const upActive = userVote === "up" || userVote === "fav";
-          const scoreStr = `${score}`;
           const featuredMs = (album.value?.members ?? []).filter(m => p.featuredIds?.includes(m.userId));
-          const avatarStyle = (i: number) => `width:22px;height:22px;border-radius:50%;object-fit:cover;pointer-events:none;border:1.5px solid rgba(0,0,0,0.4);flex-shrink:0;${i > 0 ? "margin-left:-8px;" : ""}`;
+          const avStyle = (i: number) => `width:22px;height:22px;border-radius:50%;object-fit:cover;pointer-events:none;border:1.5px solid rgba(0,0,0,0.4);flex-shrink:0;${i > 0 ? "margin-left:-8px;" : ""}`;
           const featuredBtnContent = featuredMs.length
             ? `<span style="display:inline-flex;align-items:center">${featuredMs.map((m, i) => m.avatarUrl
-                ? `<img src="${m.avatarUrl}" style="${avatarStyle(i)}display:block" />`
-                : `<span style="${avatarStyle(i)}background:#585b70;display:inline-flex;align-items:center;justify-content:center;font-size:0.55em;font-weight:600;color:#cdd6f4">${(m.firstName || m.displayName)[0]}</span>`
+                ? `<img src="${m.avatarUrl}" style="${avStyle(i)}display:block" />`
+                : `<span style="${avStyle(i)}background:#585b70;display:inline-flex;align-items:center;justify-content:center;font-size:0.55em;font-weight:600;color:#cdd6f4">${(m.firstName || m.displayName)[0]}</span>`
               ).join("")}</span>`
             : "👥";
+          const dateHtml = p?.takenAt ? `<span class="pswp-caption-date">${formatTime(p.takenAt)}</span>` : "";
+          const mapHtml = (p?.lat && p?.lon) ? `<a class="pswp-caption-map" href="https://www.google.com/maps?q=${p.lat},${p.lon}" target="_blank">📍 Map</a>` : "";
+          const uploaderHtml = p?.uploadedByName ? `<span class="pswp-caption-uploader">By: ${p.uploadedByName}</span>` : "";
           el.innerHTML = `
-            <button data-vote="fav" class="pswp-vote-btn${userVote === "fav" ? " active-fav" : ""}">⭐</button>
-            <button data-vote="up" class="pswp-vote-btn${upActive ? " active-up" : ""}">👍</button>
-            <span class="pswp-vote-score">${scoreStr}</span>
-            <button data-vote="down" class="pswp-vote-btn${userVote === "down" ? " active-down" : ""}">👎</button>
-            <button data-action="featured" class="pswp-vote-btn${featuredMs.length ? " active-fav" : ""}" style="padding:3px">${featuredBtnContent}</button>
+            <div class="pswp-meta-left">${dateHtml}${mapHtml}</div>
+            <div class="pswp-meta-right">${uploaderHtml}</div>
+            <div class="pswp-votes">
+              <button data-vote="fav" class="pswp-vote-btn${userVote === "fav" ? " active-fav" : ""}">⭐</button>
+              <button data-vote="up" class="pswp-vote-btn${upActive ? " active-up" : ""}">👍</button>
+              <span class="pswp-vote-score">${score}</span>
+              <button data-vote="down" class="pswp-vote-btn${userVote === "down" ? " active-down" : ""}">👎</button>
+              <button data-action="featured" class="pswp-vote-btn${featuredMs.length ? " active-fav" : ""}" style="padding:3px">${featuredBtnContent}</button>
+            </div>
           `;
         };
         refreshLightboxVotes = update;
