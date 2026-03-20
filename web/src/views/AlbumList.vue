@@ -5,7 +5,8 @@
 
     <button class="btn-primary" @click="showModal = true" style="margin-bottom:20px">New Album</button>
 
-    <p v-if="albums.length === 0" class="empty">No albums yet.</p>
+    <p v-if="loading" class="empty">Loading…</p>
+    <p v-else-if="albums.length === 0" class="empty">No albums yet.</p>
     <template v-for="group in albumsByYear" :key="group.year">
       <h2 class="year-header">{{ group.year }}</h2>
       <router-link v-for="album in group.items" :key="album.channelId" :to="`/album/${album.channelId}`" class="card">
@@ -68,6 +69,7 @@ interface Member { userId: string; displayName: string; firstName?: string; avat
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; createdAt: string; photos: { id: number }[]; members: Member[] }
 
 const albums = ref<Album[]>([]);
+const loading = ref(true);
 useCurrentUser();
 
 const showModal = ref(false);
@@ -96,6 +98,7 @@ function stripYear(dateText: string): string {
 onMounted(async () => {
   const res = await fetch("/api/albums");
   albums.value = await res.json();
+  loading.value = false;
 });
 
 function closeModal() {

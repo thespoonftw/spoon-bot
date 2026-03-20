@@ -15,7 +15,8 @@
         </div>
         <button class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
       </div>
-      <p v-if="discordUsers.length === 0" class="empty">No users yet.</p>
+      <p v-if="loading" class="empty">Loading…</p>
+      <p v-else-if="discordUsers.length === 0" class="empty">No users yet.</p>
       <template v-if="guestUsers.length > 0">
         <p class="user-category" style="margin-top:20px">Not on Discord</p>
         <div v-for="user in guestUsers" :key="user.userId" class="user-row">
@@ -53,6 +54,7 @@ import { useCurrentUser } from "../composables/useCurrentUser";
 interface SiteUser { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastLoginAt?: string }
 
 const users = ref<SiteUser[]>([]);
+const loading = ref(true);
 const discordUsers = computed(() => users.value.filter(u => !u.userId.startsWith("guest_")));
 const guestUsers = computed(() => users.value.filter(u => u.userId.startsWith("guest_")));
 useCurrentUser();
@@ -73,6 +75,7 @@ onMounted(async () => {
       return a.displayName.localeCompare(b.displayName);
     });
   }
+  loading.value = false;
 });
 
 function openEdit(user: SiteUser) {

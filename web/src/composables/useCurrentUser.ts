@@ -3,14 +3,14 @@ import { useRouter } from "vue-router";
 
 export function useCurrentUser() {
   const router = useRouter();
-  const currentUser = ref<{ displayName: string; avatarUrl: string } | null>(null);
+  const currentUser = ref<{ displayName: string; firstName?: string; avatarUrl: string } | null>(null);
 
   onMounted(async () => {
     const session = localStorage.getItem("snek_session");
     const res = await fetch("/api/auth/check", { headers: { Authorization: `Bearer ${session}` } });
     if (res.ok) {
       const data = await res.json();
-      if (data.valid) currentUser.value = { displayName: data.displayName, avatarUrl: data.avatarUrl };
+      if (data.valid) currentUser.value = { displayName: data.displayName, firstName: data.firstName ?? undefined, avatarUrl: data.avatarUrl };
     }
   });
 

@@ -141,7 +141,7 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
       let takenAt: string | undefined;
       let lat: number | undefined, lon: number | undefined;
       try {
-        const exif = await exifr.parse(filePath, { pick: ["DateTimeOriginal", "CreateDate", "DateTime"], gps: true });
+        const exif = await exifr.parse(filePath, { gps: true });
         const raw = exif?.DateTimeOriginal ?? exif?.CreateDate ?? exif?.DateTime;
         if (raw instanceof Date && !isNaN(raw.getTime())) {
           takenAt = raw.toISOString();
@@ -307,7 +307,7 @@ export function startWebServer(): void {
           let takenAt: string | undefined;
           let lat: number | undefined, lon: number | undefined;
           try {
-            const exif = await exifr.parse(filePath, { pick: ["DateTimeOriginal", "CreateDate", "DateTime"], gps: true });
+            const exif = await exifr.parse(filePath, { gps: true });
             const raw = exif?.DateTimeOriginal ?? exif?.CreateDate ?? exif?.DateTime;
             if (raw instanceof Date && !isNaN(raw.getTime())) {
               takenAt = raw.toISOString();

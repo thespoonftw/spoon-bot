@@ -4,7 +4,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
-import { dbUpsertUser, dbUpdateUserLastLogin, dbGetAllUsers, dbUpdateUserFirstName } from "./db";
+import { dbUpsertUser, dbUpdateUserLastLogin, dbGetAllUsers, dbUpdateUserFirstName, dbGetUserById } from "./db";
 
 const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const ALLOWED_USER_IDS = (process.env.AUTH_USER_IDS ?? "148516020007600128").split(",");
@@ -130,8 +130,9 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
       res.end(JSON.stringify({ valid: false }));
     } else {
       const user = userInfoCache.get(userId);
+      const dbUser = dbGetUserById(userId);
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ valid: true, userId, displayName: user?.displayName ?? userId, avatarUrl: user?.avatarUrl ?? "" }));
+      res.end(JSON.stringify({ valid: true, userId, displayName: user?.displayName ?? userId, avatarUrl: user?.avatarUrl ?? "", firstName: dbUser?.firstName ?? null }));
     }
     return true;
   }

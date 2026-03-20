@@ -45,7 +45,7 @@
             <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo.id, 'up')" title="Upvote">👍</button>
             <span class="vote-score">{{ getVoteState(photo).score }}</span>
             <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo.id, 'down')" title="Downvote">👎</button>
-            <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Featuring" style="padding:2px 3px">
+            <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Tagging" style="padding:2px 3px">
               <span v-if="getFeaturedMembers(photo).length" class="featured-avatars">
                 <template v-for="(m, idx) in getFeaturedMembers(photo)" :key="m.userId">
                   <img v-if="m.avatarUrl" :src="m.avatarUrl" class="featured-mini-avatar" />
@@ -65,7 +65,7 @@
             <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo.id, 'up')" title="Upvote">👍</button>
             <span class="vote-score">{{ getVoteState(photo).score }}</span>
             <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo.id, 'down')" title="Downvote">👎</button>
-            <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Featuring" style="padding:2px 3px">
+            <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Tagging" style="padding:2px 3px">
               <span v-if="getFeaturedMembers(photo).length" class="featured-avatars">
                 <template v-for="(m, idx) in getFeaturedMembers(photo)" :key="m.userId">
                   <img v-if="m.avatarUrl" :src="m.avatarUrl" class="featured-mini-avatar" />
@@ -78,16 +78,17 @@
         </div>
       </div>
     </template>
+    <p v-else-if="loading" class="empty">Loading…</p>
     <p v-else class="empty">Album not found.</p>
   </div>
 
 
   <Teleport to="body">
-    <!-- Featuring Modal -->
+    <!-- Tagging Modal -->
     <div class="modal-overlay" v-if="showFeatured" style="z-index:200000">
       <div class="modal">
         <button class="modal-close" @click="showFeatured = false">✕</button>
-        <h2>Featuring</h2>
+        <h2>Tagging</h2>
         <div class="members-modal-list" style="min-height:40px">
           <div v-for="member in featuredMembers" :key="member.userId" class="members-modal-row">
             <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
@@ -221,7 +222,7 @@
           <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
           <span v-if="member.rsvpStatus" :class="['rsvp-badge', 'rsvp-' + member.rsvpStatus]">{{ rsvpLabel(member.rsvpStatus) }}</span>
           <span v-if="member.hidden" class="rsvp-badge">hidden</span>
-          <template v-if="member.userId.startsWith('guest_')">
+          <template v-if="member.userId.startsWith('guest_') || !member.rsvpStatus">
             <button class="btn-remove" @click="deleteMember(member.userId)" title="Remove">delete</button>
           </template>
           <template v-else-if="member.rsvpStatus !== 'decline'">
@@ -254,6 +255,7 @@ interface Album { channelId: string; groupName: string; dateText?: string; locat
 
 const route = useRoute();
 const album = ref<Album | null>(null);
+const loading = ref(true);
 const fileInput = ref<HTMLInputElement | null>(null);
 const uploading = ref(false);
 const uploadProgress = ref("");
@@ -373,6 +375,7 @@ onMounted(async () => {
     data.photos.sort((a: Photo, b: Photo) => (b.score ?? 0) - (a.score ?? 0));
     album.value = data;
   }
+  loading.value = false;
 });
 
 function spawnFloat(x: number, y: number, voteType: string) {
