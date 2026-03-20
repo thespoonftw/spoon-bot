@@ -1,12 +1,13 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import { getSession, clearSession } from "../utils/session";
 
 export function useCurrentUser() {
   const router = useRouter();
   const currentUser = ref<{ displayName: string; firstName?: string; avatarUrl: string } | null>(null);
 
   onMounted(async () => {
-    const session = localStorage.getItem("snek_session");
+    const session = getSession();
     const res = await fetch("/api/auth/check", { headers: { Authorization: `Bearer ${session}` } });
     if (res.ok) {
       const data = await res.json();
@@ -15,9 +16,9 @@ export function useCurrentUser() {
   });
 
   async function logout() {
-    const session = localStorage.getItem("snek_session");
+    const session = getSession();
     await fetch("/api/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${session}` } });
-    localStorage.removeItem("snek_session");
+    clearSession();
     router.push("/login");
   }
 

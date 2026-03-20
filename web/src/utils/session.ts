@@ -1,0 +1,15 @@
+const KEY = "snek_session";
+const MAX_AGE = 365 * 24 * 60 * 60;
+
+export function getSession(): string | null {
+  const match = document.cookie.match(/(?:^|; )snek_session=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+export function setSession(token: string): void {
+  document.cookie = `${KEY}=${encodeURIComponent(token)}; Max-Age=${MAX_AGE}; path=/; SameSite=Lax`;
+}
+
+export function clearSession(): void {
+  document.cookie = `${KEY}=; Max-Age=0; path=/`;
+}

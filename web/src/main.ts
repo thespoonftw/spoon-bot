@@ -11,6 +11,7 @@ import LoginView from "./views/LoginView.vue";
 import MagicLinkSent from "./views/MagicLinkSent.vue";
 import AuthVerify from "./views/AuthVerify.vue";
 import "./style.css";
+import { getSession } from "./utils/session";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -29,7 +30,7 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   if (to.meta.public) return true;
-  const session = localStorage.getItem("snek_session");
+  const session = getSession();
   if (!session) return { path: "/login" };
   return true;
 });

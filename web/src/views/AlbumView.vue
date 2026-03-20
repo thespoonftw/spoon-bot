@@ -251,6 +251,7 @@ import { ref, computed, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
+import { getSession } from "../utils/session";
 
 interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; score?: number; userVote?: string | null; featuredIds?: string[] }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string; rsvpStatus?: string }
@@ -299,7 +300,7 @@ const pickableMembers = computed(() =>
 
 async function fetchVoteBreakdown(photo: Photo) {
   if (!album.value) return [];
-  const session = localStorage.getItem("snek_session");
+  const session = getSession();
   const res = await fetch(`/api/album/${album.value.channelId}/photos/${photo.id}/votes`, { headers: { Authorization: `Bearer ${session}` } });
   return res.ok ? await res.json() : [];
 }
@@ -315,7 +316,7 @@ function getVoteState(photo: Photo) {
 
 async function doVote(photoId: number, voteType: string) {
   if (!album.value) return;
-  const session = localStorage.getItem("snek_session");
+  const session = getSession();
   const res = await fetch(`/api/album/${album.value.channelId}/photos/${photoId}/vote`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
@@ -356,7 +357,7 @@ function addFeatured(userId: string) {
 async function saveFeatured() {
   if (!album.value || !featuredPhoto.value) return;
   savingFeatured.value = true;
-  const session = localStorage.getItem("snek_session");
+  const session = getSession();
   const userIds = [...featuredSelection.value];
   const res = await fetch(`/api/album/${album.value.channelId}/photos/${featuredPhoto.value.id}/featured`, {
     method: "POST",
@@ -389,7 +390,7 @@ const addableUsers = computed(() => {
 });
 
 onMounted(async () => {
-  const session = localStorage.getItem("snek_session");
+  const session = getSession();
   const res = await fetch(`/api/album/${route.params.channelId}`, {
     headers: { Authorization: `Bearer ${session}` },
   });
@@ -430,7 +431,7 @@ function confirmDelete(photo: Photo) { deletingPhoto.value = photo; }
 async function deletePhoto() {
   if (!album.value || !deletingPhoto.value) return;
   deleting.value = true;
-  const session = localStorage.getItem("snek_session");
+  const session = getSession();
   const res = await fetch(`/api/album/${album.value.channelId}/photos/${deletingPhoto.value.id}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${session}` },
@@ -599,7 +600,7 @@ function openShare() {
 async function generateShareLink() {
   if (!album.value || !sharePassword.value.trim()) return;
   sharing.value = true;
-  const session = localStorage.getItem("snek_session");
+  const session = getSession();
   const res = await fetch(`/api/album/${album.value.channelId}/share`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
@@ -640,7 +641,7 @@ async function saveEdit() {
   if (!album.value) return;
   editError.value = "";
   saving.value = true;
-  const session = localStorage.getItem("snek_session");
+  const session = getSession();
   const res = await fetch(`/api/album/${album.value.channelId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
@@ -663,7 +664,7 @@ async function saveEdit() {
 
 async function openEditMembers() {
   if (!album.value) return;
-  const session = localStorage.getItem("snek_session");
+  const session = getSession();
   const [membersRes, usersRes] = await Promise.all([
     fetch(`/api/album/${album.value.channelId}/members`, { headers: { Authorization: `Bearer ${session}` } }),
     fetch("/api/users"),
@@ -690,7 +691,7 @@ async function openEditMembers() {
 
 async function addExistingMember() {
   if (!album.value || !addMemberUserId.value) return;
-  const session = localStorage.getItem("snek_session");
+  const session = getSession();
   const res = await fetch(`/api/album/${album.value.channelId}/members`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
@@ -720,7 +721,7 @@ async function addNewMember() {
     addMemberError.value = `"${trimmed}" is already someone's name`;
     return;
   }
-  const session = localStorage.getItem("snek_session");
+  const session = getSession();
   const res = await fetch(`/api/album/${album.value.channelId}/members`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
@@ -736,7 +737,7 @@ async function addNewMember() {
 
 async function deleteMember(userId: string) {
   if (!album.value) return;
-  const session = localStorage.getItem("snek_session");
+  const session = getSession();
   const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}?remove=true`, { method: "DELETE", headers: { Authorization: `Bearer ${session}` } });
   if (res.ok) {
     deletedMemberIds.value = new Set([...deletedMemberIds.value, userId]);
@@ -746,7 +747,7 @@ async function deleteMember(userId: string) {
 
 async function hideMember(userId: string) {
   if (!album.value) return;
-  const session = localStorage.getItem("snek_session");
+  const session = getSession();
   const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}`, { method: "DELETE", headers: { Authorization: `Bearer ${session}` } });
   if (res.ok) {
     const m = allMembers.value.find(m => m.userId === userId);
@@ -757,7 +758,7 @@ async function hideMember(userId: string) {
 
 async function unhideMember(userId: string) {
   if (!album.value) return;
-  const session = localStorage.getItem("snek_session");
+  const session = getSession();
   const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}`, { method: "PATCH", headers: { Authorization: `Bearer ${session}` } });
   if (res.ok) {
     const m = allMembers.value.find(m => m.userId === userId);
@@ -782,7 +783,7 @@ async function onFilesSelected(e: Event) {
   if (!files.length || !album.value) return;
   uploading.value = true;
   uploadError.value = "";
-  const session = localStorage.getItem("snek_session");
+  const session = getSession();
   for (let i = 0; i < files.length; i++) {
     uploadProgress.value = `${i + 1}/${files.length}`;
     const fd = new FormData();

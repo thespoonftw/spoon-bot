@@ -16,6 +16,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { setSession } from "../utils/session";
 
 const route = useRoute();
 const router = useRouter();
@@ -26,7 +27,7 @@ onMounted(async () => {
   const res = await fetch(`/api/auth/verify/${token}`);
   if (res.ok) {
     const { sessionToken } = await res.json();
-    localStorage.setItem("snek_session", sessionToken);
+    setSession(sessionToken);
     status.value = "ok";
     setTimeout(() => router.push("/"), 1000);
   } else {

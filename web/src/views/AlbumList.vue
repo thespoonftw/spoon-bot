@@ -64,6 +64,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useCurrentUser } from "../composables/useCurrentUser";
+import { getSession } from "../utils/session";
 
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; createdAt: string; photos: { id: number }[]; members: Member[] }
@@ -113,7 +114,7 @@ async function createAlbum() {
   if (!form.value.location.trim()) { formError.value = "Location is required."; return; }
   if (!form.value.startDate) { formError.value = "Start date is required."; return; }
   creating.value = true;
-  const session = localStorage.getItem("snek_session");
+  const session = getSession();
   const res = await fetch("/api/albums", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
