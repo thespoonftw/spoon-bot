@@ -219,10 +219,11 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .pswp-vote-btn.active-up, .pswp-vote-btn.active-down, .pswp-vote-btn.active-fav { filter: none; }
 .pswp-vote-score { color: rgba(255,255,255,0.8); font-weight: 600; font-size: 0.95em; min-width: 24px; text-align: center; }
 @media (max-width: 767px) {
-  .pswp-vote-btn { font-size: 2.4em; padding: 6px 8px; }
-  .pswp-vote-score { font-size: 1.1em; }
-  .pswp__top-meta { display: flex; }
+  .pswp-vote-btn { font-size: 1.8em; padding: 6px 8px; }
+  .pswp-vote-score { font-size: 1.4em; min-width: 32px; }
+  .pswp__top-meta { display: flex; top: 56px; }
   .pswp__bottom-bar .pswp-meta-left, .pswp__bottom-bar .pswp-meta-right { display: none; }
+  .vote-float { font-size: 2.2em; }
 }
 
 .featured-avatars { display: inline-flex; align-items: center; pointer-events: none; }
