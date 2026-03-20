@@ -43,7 +43,7 @@
           <div class="photo-votes" @click.stop>
             <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'fav')" title="Favourite">⭐</button>
             <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'up')" title="Upvote">👍</button>
-            <span class="vote-score">{{ getVoteState(photo).score }}</span>
+            <button class="vote-score" @click.stop="openVoteModal(photo)" @mouseenter="onScoreMouseEnter($event, photo)" @mouseleave="onScoreMouseLeave()">{{ getVoteState(photo).score }}</button>
             <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo, 'down')" title="Downvote">👎</button>
             <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Tagging" style="padding:2px 3px">
               <span v-if="getFeaturedMembers(photo).length >= 4" style="color:#fff">{{ getFeaturedMembers(photo).length }}👥</span>
@@ -110,6 +110,34 @@
   </Teleport>
 
   <!-- Delete Photo Confirmation Modal -->
+  <!-- Vote Breakdown Tooltip -->
+  <div v-if="voteTooltipPhoto && voteTooltipEl" class="vote-tooltip" :style="tooltipStyle()" @mouseenter="() => { if (tooltipTimeout) clearTimeout(tooltipTimeout) }" @mouseleave="onScoreMouseLeave()">
+    <div v-for="v in voteTooltipData.slice(0, 5)" :key="v.userId" class="vote-tooltip-row">
+      <img v-if="v.avatarUrl" :src="v.avatarUrl" class="vote-tooltip-avatar" />
+      <span v-else class="vote-tooltip-avatar vote-tooltip-initial">{{ (v.firstName || v.displayName)[0] }}</span>
+      <span class="vote-tooltip-name">{{ v.firstName || v.displayName }}</span>
+      <span class="vote-tooltip-icon">{{ v.voteType === 'fav' ? '⭐' : v.voteType === 'up' ? '👍' : '👎' }}</span>
+    </div>
+    <div v-if="voteTooltipData.length === 0" style="color:#6c7086;font-size:0.85em">No votes yet</div>
+  </div>
+
+  <!-- Vote Breakdown Modal -->
+  <div class="modal-overlay" v-if="voteModalPhoto" @click.self="voteModalPhoto = null">
+    <div class="modal">
+      <button class="modal-close" @click="voteModalPhoto = null">✕</button>
+      <h2>Votes</h2>
+      <div v-if="voteModalData.length === 0" style="color:#6c7086;margin-top:12px">No votes yet</div>
+      <div v-else class="vote-modal-list">
+        <div v-for="v in voteModalData" :key="v.userId" class="vote-modal-row">
+          <img v-if="v.avatarUrl" :src="v.avatarUrl" class="vote-modal-avatar" />
+          <span v-else class="vote-modal-avatar vote-modal-initial">{{ (v.firstName || v.displayName)[0] }}</span>
+          <span class="vote-modal-name">{{ v.firstName || v.displayName }}</span>
+          <span class="vote-modal-icon">{{ v.voteType === 'fav' ? '⭐' : v.voteType === 'up' ? '👍' : '👎' }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" v-if="deletingPhoto">
     <div class="modal">
       <button class="modal-close" @click="deletingPhoto = null">✕</button>
@@ -241,21 +269,6 @@ interface Album { channelId: string; groupName: string; dateText?: string; locat
 
 const route = useRoute();
 
-// Inject sine-wave keyframes mathematically
-(function() {
-  const cycles = 5, amplitude = 18, steps = 60;
-  const stops = Array.from({ length: steps + 1 }, (_, i) => {
-    const t = i / steps;
-    const x = (amplitude * Math.sin(2 * Math.PI * cycles * t)).toFixed(1);
-    const y = (-50 - 640 * t).toFixed(0);
-    const scale = (1 + 0.6 * t).toFixed(3);
-    const opacity = t < 0.7 ? 0.9 : (0.9 * (1 - (t - 0.7) / 0.3)).toFixed(3);
-    return `  ${(t * 100).toFixed(1)}% { opacity:${opacity}; transform:translate(calc(-50% + ${x}px),${y}%) scale(${scale}); }`;
-  });
-  const style = document.createElement("style");
-  style.textContent = `@keyframes vote-float-wave {\n${stops.join("\n")}\n}`;
-  document.head.appendChild(style);
-})();
 const album = ref<Album | null>(null);
 const loading = ref(true);
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -264,6 +277,11 @@ const uploadProgress = ref("");
 const uploadError = ref("");
 
 const deletingPhoto = ref<Photo | null>(null);
+const voteModalPhoto = ref<Photo | null>(null);
+const voteModalData = ref<{ userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; voteType: string }[]>([]);
+const voteTooltipPhoto = ref<Photo | null>(null);
+const voteTooltipData = ref<typeof voteModalData.value>([]);
+const voteTooltipEl = ref<HTMLElement | null>(null);
 const deleting = ref(false);
 
 const showShare = ref(false);
@@ -292,6 +310,38 @@ const featuredMembers = computed(() =>
 const pickableMembers = computed(() =>
   album.value?.members.filter(m => !featuredSelection.value.has(m.userId)) ?? []
 );
+
+async function fetchVoteBreakdown(photo: Photo) {
+  if (!album.value) return [];
+  const session = localStorage.getItem("snek_session");
+  const res = await fetch(`/api/album/${album.value.channelId}/photos/${photo.id}/votes`, { headers: { Authorization: `Bearer ${session}` } });
+  return res.ok ? await res.json() : [];
+}
+
+function tooltipStyle() {
+  const el = voteTooltipEl.value;
+  if (!el) return {};
+  const r = el.getBoundingClientRect();
+  return { position: "fixed", left: `${r.left + r.width / 2}px`, top: `${r.top - 8}px`, transform: "translate(-50%, -100%)" };
+}
+
+async function openVoteModal(photo: Photo) {
+  voteModalPhoto.value = photo;
+  voteModalData.value = await fetchVoteBreakdown(photo);
+}
+
+let tooltipTimeout: ReturnType<typeof setTimeout> | null = null;
+async function onScoreMouseEnter(e: MouseEvent, photo: Photo) {
+  voteTooltipEl.value = e.currentTarget as HTMLElement;
+  if (tooltipTimeout) clearTimeout(tooltipTimeout);
+  voteTooltipPhoto.value = photo;
+  if (voteTooltipData.value.length === 0 || voteTooltipPhoto.value?.id !== photo.id) {
+    voteTooltipData.value = await fetchVoteBreakdown(photo);
+  }
+}
+function onScoreMouseLeave() {
+  tooltipTimeout = setTimeout(() => { voteTooltipPhoto.value = null; }, 120);
+}
 
 function getVoteState(photo: Photo) {
   return votes.value[photo.id] ?? { score: photo.score ?? 0, userVote: photo.userVote ?? null };

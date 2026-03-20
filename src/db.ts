@@ -345,6 +345,15 @@ export function dbSetPhotoFeatured(photoId: number, userIds: string[]): void {
   })();
 }
 
+export function dbGetPhotoVotes(photoId: number): { userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; voteType: string }[] {
+  return db.prepare(`
+    SELECT pv.user_id as userId, u.display_name as displayName, u.first_name as firstName, u.avatar_url as avatarUrl, pv.vote_type as voteType
+    FROM photo_votes pv LEFT JOIN users u ON u.user_id = pv.user_id
+    WHERE pv.photo_id = ?
+    ORDER BY CASE pv.vote_type WHEN 'fav' THEN 1 WHEN 'up' THEN 2 WHEN 'down' THEN 3 END
+  `).all(photoId) as any[];
+}
+
 export function dbVotePhoto(photoId: number, userId: string, voteType: string): { score: number; userVote: string | null } {
   const existing = db.prepare("SELECT vote_type FROM photo_votes WHERE photo_id = ? AND user_id = ?").get(photoId, userId) as { vote_type: string } | undefined;
   if (existing?.vote_type === voteType) {
