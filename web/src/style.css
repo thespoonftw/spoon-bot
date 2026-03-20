@@ -139,7 +139,9 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .user-card { max-width: unset; margin-bottom: 0; }
   .user-category { max-width: unset; }
   .pswp__bottom-bar { flex-wrap: nowrap; }
-  .pswp-votes { width: auto; order: 2; }
+  .pswp-votes { width: auto; order: 2; gap: 6px; justify-content: center; }
+  .pswp-vote-btn { flex: none; }
+  .pswp-vote-score { flex: none; min-width: 24px; }
   .pswp-meta-right { order: 3; }
 }
 .user-card:hover:not(:disabled) { background: #45475a; }
@@ -219,8 +221,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .pswp-vote-btn.active-up, .pswp-vote-btn.active-down, .pswp-vote-btn.active-fav { filter: none; }
 .pswp-vote-score { flex: 1; color: rgba(255,255,255,0.8); font-weight: 600; font-size: 0.95em; text-align: center; }
 @media (max-width: 767px) {
-  .pswp-vote-btn { font-size: 1.8em; padding: 6px 8px; }
-  .pswp-vote-score { font-size: 1.4em; min-width: 32px; }
+  .pswp-vote-btn { font-size: 1.8em; padding: 4px 6px; }
+  .pswp-vote-score { font-size: 1.8em; min-width: 2ch; }
   .pswp__top-meta { display: flex; top: 56px; }
   .pswp__bottom-bar .pswp-meta-left, .pswp__bottom-bar .pswp-meta-right { display: none; }
   .vote-float { font-size: 2.2em; }
