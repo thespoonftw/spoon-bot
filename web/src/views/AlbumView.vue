@@ -95,7 +95,7 @@
     <!-- Featured User Picker Modal -->
     <div class="modal-overlay" v-if="showFeaturedPicker" style="z-index:210000">
       <div class="modal">
-        <button class="modal-close" @click="showFeaturedPicker = false">✕</button>
+        <button class="modal-close" @click="showFeaturedPicker = false; if (!featuredSelection.size) showFeatured = false">✕</button>
         <h2>Tag User</h2>
         <div class="members-modal-list">
           <div v-for="member in pickableMembers" :key="member.userId" class="members-modal-row featured-row" @click="addFeatured(member.userId)">
