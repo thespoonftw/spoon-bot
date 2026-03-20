@@ -42,12 +42,16 @@
           <button class="photo-delete-btn" @click.stop="confirmDelete(photo)" title="Delete photo">🗑</button>
           <div class="photo-votes" @click.stop>
             <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo.id, 'fav')" title="Favourite">⭐</button>
-            <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' }" @click="handleVote($event, photo.id, 'up')" title="Upvote">👍</button>
+            <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo.id, 'up')" title="Upvote">👍</button>
             <span class="vote-score">{{ getVoteState(photo).score }}</span>
             <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo.id, 'down')" title="Downvote">👎</button>
-            <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Featuring">
-              <img v-if="getFeaturedPreview(photo)?.avatarUrl" :src="getFeaturedPreview(photo)!.avatarUrl" class="featured-mini-avatar" />
-              <span v-else-if="getFeaturedPreview(photo)" class="featured-mini-avatar featured-mini-initial">{{ (getFeaturedPreview(photo)!.firstName || getFeaturedPreview(photo)!.displayName)[0] }}</span>
+            <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Featuring" style="padding:2px 3px">
+              <span v-if="getFeaturedMembers(photo).length" class="featured-avatars">
+                <template v-for="(m, idx) in getFeaturedMembers(photo)" :key="m.userId">
+                  <img v-if="m.avatarUrl" :src="m.avatarUrl" class="featured-mini-avatar" />
+                  <span v-else class="featured-mini-avatar featured-mini-initial">{{ (m.firstName || m.displayName)[0] }}</span>
+                </template>
+              </span>
               <span v-else>👥</span>
             </button>
           </div>
@@ -58,12 +62,16 @@
           <img :src="photo.url" loading="lazy" />
           <div class="photo-votes" @click.stop>
             <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo.id, 'fav')" title="Favourite">⭐</button>
-            <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' }" @click="handleVote($event, photo.id, 'up')" title="Upvote">👍</button>
+            <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo.id, 'up')" title="Upvote">👍</button>
             <span class="vote-score">{{ getVoteState(photo).score }}</span>
             <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo.id, 'down')" title="Downvote">👎</button>
-            <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Featuring">
-              <img v-if="getFeaturedPreview(photo)?.avatarUrl" :src="getFeaturedPreview(photo)!.avatarUrl" class="featured-mini-avatar" />
-              <span v-else-if="getFeaturedPreview(photo)" class="featured-mini-avatar featured-mini-initial">{{ (getFeaturedPreview(photo)!.firstName || getFeaturedPreview(photo)!.displayName)[0] }}</span>
+            <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Featuring" style="padding:2px 3px">
+              <span v-if="getFeaturedMembers(photo).length" class="featured-avatars">
+                <template v-for="(m, idx) in getFeaturedMembers(photo)" :key="m.userId">
+                  <img v-if="m.avatarUrl" :src="m.avatarUrl" class="featured-mini-avatar" />
+                  <span v-else class="featured-mini-avatar featured-mini-initial">{{ (m.firstName || m.displayName)[0] }}</span>
+                </template>
+              </span>
               <span v-else>👥</span>
             </button>
           </div>
@@ -76,7 +84,7 @@
 
   <Teleport to="body">
     <!-- Featuring Modal -->
-    <div class="modal-overlay" v-if="showFeatured" style="z-index:2000">
+    <div class="modal-overlay" v-if="showFeatured" style="z-index:200000">
       <div class="modal">
         <button class="modal-close" @click="showFeatured = false">✕</button>
         <h2>Featuring</h2>
@@ -98,7 +106,7 @@
       </div>
     </div>
     <!-- Featured User Picker Modal -->
-    <div class="modal-overlay" v-if="showFeaturedPicker" style="z-index:2100">
+    <div class="modal-overlay" v-if="showFeaturedPicker" style="z-index:210000">
       <div class="modal">
         <button class="modal-close" @click="showFeaturedPicker = false">✕</button>
         <h2>Add User</h2>
@@ -184,6 +192,23 @@
     </div>
   </div>
 
+  <Teleport to="body">
+    <div class="modal-overlay" v-if="showMemberPicker" style="z-index:200">
+      <div class="modal">
+        <button class="modal-close" @click="showMemberPicker = false">✕</button>
+        <h2>Add User</h2>
+        <div class="members-modal-list">
+          <div v-for="u in addableUsers" :key="u.userId" class="members-modal-row featured-row" @click="pickAndAddMember(u.userId)">
+            <img v-if="u.avatarUrl" :src="u.avatarUrl" class="member-avatar" />
+            <span v-else class="member-avatar member-avatar-placeholder">{{ (u.firstName || u.displayName)[0] }}</span>
+            <span class="members-modal-name">{{ u.firstName || u.displayName }}</span>
+          </div>
+          <p v-if="addableUsers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">No more users to add.</p>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
   <!-- Edit Members Modal -->
   <div class="modal-overlay" v-if="showEditMembers">
     <div class="modal">
@@ -205,15 +230,12 @@
           </template>
         </div>
       </div>
-      <div class="members-add-section">
-        <select v-model="addMemberUserId" class="members-add-select" @change="addMemberName = ''">
-          <option value="">— Add existing user —</option>
-          <option v-for="u in addableUsers" :key="u.userId" :value="u.userId">{{ u.firstName || u.displayName }}</option>
-        </select>
-        <button class="btn-secondary btn-small" @click="addExistingMember" :disabled="!addMemberUserId">Add</button>
+      <div class="members-add-section" style="margin-top:8px">
+        <button class="btn-secondary btn-small" @click="showMemberPicker = true" :disabled="addableUsers.length === 0">+ Add Existing User</button>
       </div>
+      <div v-if="addMemberError" class="error" style="margin-top:8px;font-size:0.85em;padding:8px 12px">{{ addMemberError }}</div>
       <div class="members-add-section">
-        <input v-model="addMemberName" class="members-add-input" type="text" placeholder="Or type a new person's name…" @input="addMemberUserId = ''" />
+        <input v-model="addMemberName" class="members-add-input" type="text" placeholder="Or type a new person's name…" @input="addMemberError = ''" />
         <button class="btn-secondary btn-small" @click="addNewMember" :disabled="!addMemberName.trim()">Add</button>
       </div>
     </div>
@@ -292,9 +314,9 @@ function openFeatured(photo: Photo) {
   showFeatured.value = true;
 }
 
-function getFeaturedPreview(photo: Photo): Member | null {
-  if (!photo.featuredIds?.length || !album.value) return null;
-  return album.value.members.find(m => photo.featuredIds!.includes(m.userId)) ?? null;
+function getFeaturedMembers(photo: Photo): Member[] {
+  if (!photo.featuredIds?.length || !album.value) return [];
+  return photo.featuredIds.map(id => album.value!.members.find(m => m.userId === id)).filter(Boolean) as Member[];
 }
 
 function removeFeatured(userId: string) {
@@ -330,10 +352,12 @@ async function saveFeatured() {
 
 interface AllMember extends Member { hidden: number; rsvpStatus?: string }
 const showEditMembers = ref(false);
+const showMemberPicker = ref(false);
 const allMembers = ref<AllMember[]>([]);
 const allUsers = ref<Member[]>([]);
 const addMemberUserId = ref("");
 const addMemberName = ref("");
+const addMemberError = ref("");
 const addableUsers = computed(() => {
   const memberIds = new Set(allMembers.value.map(m => m.userId));
   return allUsers.value.filter(u => !memberIds.has(u.userId));
@@ -482,19 +506,22 @@ function openLightbox(index: number) {
         const update = () => {
           const p = photos[pswp.currIndex];
           const { score, userVote } = getVoteState(p);
+          const upActive = userVote === "up" || userVote === "fav";
           const scoreStr = `${score}`;
-          const featuredMember = album.value?.members.find(m => p.featuredIds?.includes(m.userId));
-          const featuredBtnContent = featuredMember
-            ? (featuredMember.avatarUrl
-                ? `<img src="${featuredMember.avatarUrl}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;display:block;pointer-events:none" />`
-                : `<span style="width:22px;height:22px;border-radius:50%;background:#585b70;display:inline-flex;align-items:center;justify-content:center;font-size:0.6em;font-weight:600;color:#cdd6f4;pointer-events:none">${(featuredMember.firstName || featuredMember.displayName)[0]}</span>`)
+          const featuredMs = (album.value?.members ?? []).filter(m => p.featuredIds?.includes(m.userId));
+          const avatarStyle = (i: number) => `width:22px;height:22px;border-radius:50%;object-fit:cover;pointer-events:none;border:1.5px solid rgba(0,0,0,0.4);flex-shrink:0;${i > 0 ? "margin-left:-8px;" : ""}`;
+          const featuredBtnContent = featuredMs.length
+            ? `<span style="display:inline-flex;align-items:center">${featuredMs.map((m, i) => m.avatarUrl
+                ? `<img src="${m.avatarUrl}" style="${avatarStyle(i)}display:block" />`
+                : `<span style="${avatarStyle(i)}background:#585b70;display:inline-flex;align-items:center;justify-content:center;font-size:0.55em;font-weight:600;color:#cdd6f4">${(m.firstName || m.displayName)[0]}</span>`
+              ).join("")}</span>`
             : "👥";
           el.innerHTML = `
             <button data-vote="fav" class="pswp-vote-btn${userVote === "fav" ? " active-fav" : ""}">⭐</button>
-            <button data-vote="up" class="pswp-vote-btn${userVote === "up" ? " active-up" : ""}">👍</button>
+            <button data-vote="up" class="pswp-vote-btn${upActive ? " active-up" : ""}">👍</button>
             <span class="pswp-vote-score">${scoreStr}</span>
             <button data-vote="down" class="pswp-vote-btn${userVote === "down" ? " active-down" : ""}">👎</button>
-            <button data-action="featured" class="pswp-vote-btn${featuredMember ? " active-fav" : ""}" style="padding:3px">${featuredBtnContent}</button>
+            <button data-action="featured" class="pswp-vote-btn${featuredMs.length ? " active-fav" : ""}" style="padding:3px">${featuredBtnContent}</button>
           `;
         };
         refreshLightboxVotes = update;
@@ -618,13 +645,27 @@ async function addExistingMember() {
   }
 }
 
+async function pickAndAddMember(userId: string) {
+  showMemberPicker.value = false;
+  addMemberUserId.value = userId;
+  await addExistingMember();
+}
+
 async function addNewMember() {
   if (!album.value || !addMemberName.value.trim()) return;
+  const trimmed = addMemberName.value.trim();
+  addMemberError.value = "";
+  const allKnown = [...allMembers.value, ...allUsers.value];
+  const dup = allKnown.find(u => (u.firstName || u.displayName).toLowerCase() === trimmed.toLowerCase());
+  if (dup) {
+    addMemberError.value = `"${trimmed}" is already someone's name`;
+    return;
+  }
   const session = localStorage.getItem("snek_session");
   const res = await fetch(`/api/album/${album.value.channelId}/members`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
-    body: JSON.stringify({ name: addMemberName.value.trim() }),
+    body: JSON.stringify({ name: trimmed }),
   });
   if (res.ok) {
     const member: AllMember = await res.json();
