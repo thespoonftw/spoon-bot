@@ -41,12 +41,11 @@
           <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
           <button class="photo-delete-btn" @click.stop="confirmDelete(photo)" title="Delete photo">🗑</button>
           <div class="photo-meta">
-            <span v-if="photo.uploadedByName" class="uploader">{{ photo.uploadedByName }}</span>
             <span v-if="photo.takenAt" class="upload-time">{{ formatTime(photo.takenAt) }}</span>
           </div>
           <div class="photo-votes" @click.stop>
             <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' }" @click="doVote(photo.id, 'up')" title="Upvote">👍</button>
-            <span class="vote-score">{{ getVoteState(photo).score > 0 ? '+' + getVoteState(photo).score : getVoteState(photo).score }}</span>
+            <span class="vote-score">{{ getVoteState(photo).score }}</span>
             <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="doVote(photo.id, 'down')" title="Downvote">👎</button>
             <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="doVote(photo.id, 'fav')" title="Favourite">⭐</button>
           </div>
@@ -56,8 +55,13 @@
         <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(i)">
           <img :src="photo.url" loading="lazy" />
           <div class="photo-meta">
-            <span v-if="photo.uploadedByName" class="uploader">{{ photo.uploadedByName }}</span>
             <span v-if="photo.takenAt" class="upload-time">{{ formatTime(photo.takenAt) }}</span>
+          </div>
+          <div class="photo-votes" @click.stop>
+            <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' }" @click="doVote(photo.id, 'up')" title="Upvote">👍</button>
+            <span class="vote-score">{{ getVoteState(photo).score }}</span>
+            <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="doVote(photo.id, 'down')" title="Downvote">👎</button>
+            <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="doVote(photo.id, 'fav')" title="Favourite">⭐</button>
           </div>
         </div>
       </div>
@@ -241,7 +245,11 @@ onMounted(async () => {
   const res = await fetch(`/api/album/${route.params.channelId}`, {
     headers: { Authorization: `Bearer ${session}` },
   });
-  if (res.ok) album.value = await res.json();
+  if (res.ok) {
+    const data = await res.json();
+    data.photos.sort((a: Photo, b: Photo) => (b.score ?? 0) - (a.score ?? 0));
+    album.value = data;
+  }
 });
 
 function confirmDelete(photo: Photo) { deletingPhoto.value = photo; }
@@ -279,8 +287,34 @@ function openLightbox(index: number) {
   let closedByBack = false;
   const onPopState = () => { closedByBack = true; pswp.close(); };
   window.addEventListener("popstate", onPopState, { once: true });
+
+  // Keyboard up/down to vote (up=upvote or fav if already upvoted, down=downvote)
+  const onKeyDown = (e: KeyboardEvent) => {
+    const p = photos[pswp.currIndex];
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const currentVote = getVoteState(p).userVote;
+      doVote(p.id, currentVote === "up" ? "fav" : "up");
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      doVote(p.id, "down");
+    }
+  };
+  window.addEventListener("keydown", onKeyDown);
+
+  // Mobile single tap = upvote, double tap = favourite
+  pswp.addFilter("tapAction", () => "none" as never);
+  pswp.addFilter("doubleTapAction", () => "none" as never);
+  pswp.on("tap", ({ originalEvent }) => {
+    if (originalEvent.pointerType === "touch") doVote(photos[pswp.currIndex].id, "up");
+  });
+  pswp.on("doubleTap", ({ originalEvent }) => {
+    if (originalEvent.pointerType === "touch") doVote(photos[pswp.currIndex].id, "fav");
+  });
+
   pswp.on("close", () => {
     window.removeEventListener("popstate", onPopState);
+    window.removeEventListener("keydown", onKeyDown);
     if (!closedByBack) history.back();
   });
   pswp.on("uiRegister", () => {
@@ -312,7 +346,7 @@ function openLightbox(index: number) {
         const update = () => {
           const p = photos[pswp.currIndex];
           const { score, userVote } = getVoteState(p);
-          const scoreStr = score > 0 ? `+${score}` : `${score}`;
+          const scoreStr = `${score}`;
           el.innerHTML = `
             <button data-vote="up" class="pswp-vote-btn${userVote === "up" ? " active-up" : ""}">👍</button>
             <span class="pswp-vote-score">${scoreStr}</span>
