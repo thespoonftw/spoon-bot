@@ -44,10 +44,11 @@
             <span v-if="photo.takenAt" class="upload-time">{{ formatTime(photo.takenAt) }}</span>
           </div>
           <div class="photo-votes" @click.stop>
-            <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' }" @click="doVote(photo.id, 'up')" title="Upvote">👍</button>
+            <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo.id, 'fav')" title="Favourite">⭐</button>
+            <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' }" @click="handleVote($event, photo.id, 'up')" title="Upvote">👍</button>
             <span class="vote-score">{{ getVoteState(photo).score }}</span>
-            <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="doVote(photo.id, 'down')" title="Downvote">👎</button>
-            <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="doVote(photo.id, 'fav')" title="Favourite">⭐</button>
+            <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo.id, 'down')" title="Downvote">👎</button>
+            <button class="vote-btn vote-group" title="">👥</button>
           </div>
         </div>
       </div>
@@ -58,10 +59,11 @@
             <span v-if="photo.takenAt" class="upload-time">{{ formatTime(photo.takenAt) }}</span>
           </div>
           <div class="photo-votes" @click.stop>
-            <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' }" @click="doVote(photo.id, 'up')" title="Upvote">👍</button>
+            <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo.id, 'fav')" title="Favourite">⭐</button>
+            <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' }" @click="handleVote($event, photo.id, 'up')" title="Upvote">👍</button>
             <span class="vote-score">{{ getVoteState(photo).score }}</span>
-            <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="doVote(photo.id, 'down')" title="Downvote">👎</button>
-            <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="doVote(photo.id, 'fav')" title="Favourite">⭐</button>
+            <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo.id, 'down')" title="Downvote">👎</button>
+            <button class="vote-btn vote-group" title="">👥</button>
           </div>
         </div>
       </div>
@@ -252,6 +254,23 @@ onMounted(async () => {
   }
 });
 
+function spawnFloat(x: number, y: number, voteType: string) {
+  const emoji = voteType === "fav" ? "⭐" : voteType === "up" ? "👍" : "👎";
+  const span = document.createElement("span");
+  span.className = "vote-float";
+  span.textContent = emoji;
+  span.style.left = `${x}px`;
+  span.style.top = `${y}px`;
+  document.body.appendChild(span);
+  span.addEventListener("animationend", () => span.remove());
+}
+
+function handleVote(e: Event, photoId: number, voteType: string) {
+  const rect = (e.currentTarget as Element).getBoundingClientRect();
+  spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, voteType);
+  doVote(photoId, voteType);
+}
+
 function confirmDelete(photo: Photo) { deletingPhoto.value = photo; }
 
 async function deletePhoto() {
@@ -273,7 +292,7 @@ function openLightbox(index: number) {
   if (!album.value) return;
   const photos = album.value.photos;
   const pswp = new PhotoSwipe({
-    dataSource: photos.map(p => ({ src: p.url, width: p.width || 1200, height: p.height || 900 })),
+    dataSource: photos.map(p => ({ src: p.url, width: p.width || 1200, height: p.height || 900, msrc: thumbUrl(p.url) })),
     index,
     bgOpacity: 0.92,
     zoom: true,
@@ -288,28 +307,41 @@ function openLightbox(index: number) {
   const onPopState = () => { closedByBack = true; pswp.close(); };
   window.addEventListener("popstate", onPopState, { once: true });
 
-  // Keyboard up/down to vote (up=upvote or fav if already upvoted, down=downvote)
+  // Keyboard up/down to vote (up → fav → neutral cycle, down = downvote)
   const onKeyDown = (e: KeyboardEvent) => {
     const p = photos[pswp.currIndex];
     if (e.key === "ArrowUp") {
       e.preventDefault();
       const currentVote = getVoteState(p).userVote;
-      doVote(p.id, currentVote === "up" ? "fav" : "up");
+      const voteType = (currentVote === "up" || currentVote === "fav") ? "fav" : "up";
+      spawnFloat(window.innerWidth / 2, window.innerHeight / 2, voteType);
+      doVote(p.id, voteType);
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
+      spawnFloat(window.innerWidth / 2, window.innerHeight / 2, "down");
       doVote(p.id, "down");
     }
   };
   window.addEventListener("keydown", onKeyDown);
 
-  // Mobile single tap = upvote, double tap = favourite
-  pswp.addFilter("tapAction", () => "none" as never);
-  pswp.addFilter("doubleTapAction", () => "none" as never);
-  pswp.on("tap", ({ originalEvent }) => {
-    if (originalEvent.pointerType === "touch") doVote(photos[pswp.currIndex].id, "up");
+  // Mobile single tap = upvote, double tap = favourite (preventDefault stops toggle-controls/zoom)
+  (pswp as any).on("tapAction", (e: any) => {
+    e.preventDefault();
+    if (e.originalEvent?.pointerType === "touch") {
+      const x = e.point?.x ?? window.innerWidth / 2;
+      const y = e.point?.y ?? window.innerHeight / 2;
+      spawnFloat(x, y, "up");
+      doVote(photos[pswp.currIndex].id, "up");
+    }
   });
-  pswp.on("doubleTap", ({ originalEvent }) => {
-    if (originalEvent.pointerType === "touch") doVote(photos[pswp.currIndex].id, "fav");
+  (pswp as any).on("doubleTapAction", (e: any) => {
+    e.preventDefault();
+    if (e.originalEvent?.pointerType === "touch") {
+      const x = e.point?.x ?? window.innerWidth / 2;
+      const y = e.point?.y ?? window.innerHeight / 2;
+      spawnFloat(x, y, "fav");
+      doVote(photos[pswp.currIndex].id, "fav");
+    }
   });
 
   pswp.on("close", () => {
@@ -341,17 +373,21 @@ function openLightbox(index: number) {
         el.addEventListener("click", (e) => {
           const btn = (e.target as Element).closest("[data-vote]") as HTMLElement | null;
           if (!btn) return;
-          doVote(photos[pswp.currIndex].id, btn.dataset.vote!);
+          const voteType = btn.dataset.vote!;
+          const rect = btn.getBoundingClientRect();
+          spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, voteType);
+          doVote(photos[pswp.currIndex].id, voteType);
         });
         const update = () => {
           const p = photos[pswp.currIndex];
           const { score, userVote } = getVoteState(p);
           const scoreStr = `${score}`;
           el.innerHTML = `
+            <button data-vote="fav" class="pswp-vote-btn${userVote === "fav" ? " active-fav" : ""}">⭐</button>
             <button data-vote="up" class="pswp-vote-btn${userVote === "up" ? " active-up" : ""}">👍</button>
             <span class="pswp-vote-score">${scoreStr}</span>
             <button data-vote="down" class="pswp-vote-btn${userVote === "down" ? " active-down" : ""}">👎</button>
-            <button data-vote="fav" class="pswp-vote-btn${userVote === "fav" ? " active-fav" : ""}">⭐</button>
+            <button class="pswp-vote-btn">👥</button>
           `;
         };
         refreshLightboxVotes = update;
