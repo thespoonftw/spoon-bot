@@ -206,9 +206,13 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 }
 @keyframes vote-float-wave {
   0%   { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
-  25%  { transform: translate(calc(-50% + 16px), -220%) scale(1.2); }
-  50%  { transform: translate(calc(-50% - 16px), -390%) scale(1.35); }
-  75%  { transform: translate(calc(-50% + 16px), -545%) scale(1.5); }
+  12%  { transform: translate(calc(-50% + 12px), -127%) scale(1.07); }
+  25%  { transform: translate(calc(-50% + 16px), -210%) scale(1.15); }
+  38%  { transform: translate(calc(-50% + 12px), -293%) scale(1.23); }
+  50%  { transform: translate(-50%, -370%) scale(1.30); }
+  62%  { transform: translate(calc(-50% - 12px), -447%) scale(1.37); }
+  75%  { transform: translate(calc(-50% - 16px), -530%) scale(1.45); }
+  88%  { transform: translate(calc(-50% - 12px), -613%) scale(1.53); }
   100% { opacity: 0; transform: translate(-50%, -690%) scale(1.6); }
 }
 .vote-float { position: fixed; pointer-events: none; font-size: 1.5em; animation: vote-float 0.7s ease-out forwards; z-index: 200000; }
