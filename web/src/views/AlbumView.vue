@@ -365,6 +365,7 @@ onMounted(async () => {
     const data = await res.json();
     data.photos.sort((a: Photo, b: Photo) => (b.score ?? 0) - (a.score ?? 0));
     album.value = data;
+    allMembers.value = (data.members ?? []) as AllMember[];
   }
   loading.value = false;
 });
