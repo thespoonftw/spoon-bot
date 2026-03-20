@@ -282,6 +282,11 @@ export function startWebServer(): void {
       fs.mkdirSync(albumDir, { recursive: true });
       const bb = Busboy({ headers: req.headers, limits: { files: 1, fileSize: 50 * 1024 * 1024 } });
       let responded = false;
+      let clientLat: number | undefined, clientLon: number | undefined;
+      bb.on("field", (name, val) => {
+        if (name === "lat") { const v = parseFloat(val); if (!isNaN(v) && v !== 0) clientLat = v; }
+        if (name === "lon") { const v = parseFloat(val); if (!isNaN(v) && v !== 0) clientLon = v; }
+      });
       bb.on("file", (_field, fileStream, { filename, mimeType }) => {
         if (!mimeType.startsWith("image/")) {
           fileStream.resume();
@@ -318,6 +323,9 @@ export function startWebServer(): void {
             }
             if (typeof exif?.latitude === "number" && !isNaN(exif.latitude) && exif.latitude !== 0) lat = exif.latitude as number;
             if (typeof exif?.longitude === "number" && !isNaN(exif.longitude) && exif.longitude !== 0) lon = exif.longitude as number;
+            // Client-provided GPS overrides (iOS Safari strips GPS before upload)
+            if (clientLat !== undefined) lat = clientLat;
+            if (clientLon !== undefined) lon = clientLon;
             console.log(`[upload] EXIF takenAt=${takenAt} lat=${lat} lon=${lon}`);
           } catch (e) { console.error("[upload] EXIF parse failed:", e); }
           try {
