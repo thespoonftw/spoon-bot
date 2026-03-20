@@ -99,9 +99,12 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .card-member-avatar { display: none; }
   .card-members .meta { margin-left: 0 !important; }
   .landing-grid { flex-direction: column; }
-  .page { padding: 12px; }
+  .gallery-mobile { margin: 20px -32px 0; }
   .pswp-vote-btn { font-size: 1.8em; padding: 6px 8px; }
   .pswp-vote-score { font-size: 1.1em; }
+  .pswp-votes { order: 1; }
+  .pswp-meta-left { order: 2; }
+  .pswp-meta-right { order: 3; text-align: left; }
 }
 
 .btn-icon { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 2px 4px; opacity: 0.5; line-height: 1; flex-shrink: 0; filter: grayscale(1); }
@@ -206,7 +209,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   0% { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
   100% { opacity: 0; transform: translate(-50%, -690%) scale(1.6); }
 }
-.vote-float { position: fixed; pointer-events: none; font-size: 1.5em; animation: vote-float 0.4s ease-out forwards; z-index: 200000; }
+.vote-float { position: fixed; pointer-events: none; font-size: 1.5em; animation: vote-float 0.7s ease-out forwards; z-index: 200000; }
 .vote-btn { background: none; border: none; cursor: pointer; padding: 2px 5px; border-radius: 4px; font-size: 0.8em; line-height: 1; filter: grayscale(1) opacity(0.4); }
 .vote-btn:hover { filter: grayscale(0.2) opacity(0.85); background: #45475a; }
 .vote-btn.active { filter: none; }

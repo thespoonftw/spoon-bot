@@ -412,7 +412,7 @@ function openLightbox(index: number) {
     closeOnVerticalDrag: false,
     loop: false,
     paddingFn: (viewportSize: { x: number; y: number }) =>
-      viewportSize.x >= 768 ? { top: 10, bottom: 40, left: 0, right: 0 } : { top: 0, bottom: 0, left: 0, right: 0 },
+      viewportSize.x >= 768 ? { top: 10, bottom: 80, left: 0, right: 0 } : { top: 0, bottom: 0, left: 0, right: 0 },
   });
   history.pushState({ pswp: true }, "");
   let closedByBack = false;
