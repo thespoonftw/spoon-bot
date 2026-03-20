@@ -33,6 +33,7 @@ function loadSessions() {
 }
 
 function persistSessions() {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(SESSIONS_FILE, JSON.stringify(Object.fromEntries(sessions), null, 2));
 }
 
