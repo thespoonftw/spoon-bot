@@ -35,9 +35,10 @@
       <h2>Edit User</h2>
       <p style="color:#a6adc8;font-size:0.85em;margin-bottom:20px">{{ editingUser.displayName }}</p>
       <div class="form-group">
-        <label>First Name <span class="optional">(overrides Discord name)</span></label>
+        <label>Brunch Name <span class="optional">(overrides Discord name)</span></label>
         <input v-model="editFirstName" type="text" :placeholder="editingUser.displayName" />
       </div>
+      <div v-if="saveError" class="error">{{ saveError }}</div>
       <div class="modal-actions">
         <button class="btn-primary" @click="saveEdit" :disabled="saving">{{ saving ? 'Saving…' : 'Save' }}</button>
       </div>
@@ -58,6 +59,7 @@ useCurrentUser();
 const editingUser = ref<SiteUser | null>(null);
 const editFirstName = ref("");
 const saving = ref(false);
+const saveError = ref("");
 
 onMounted(async () => {
   const session = localStorage.getItem("snek_session");
@@ -76,20 +78,33 @@ onMounted(async () => {
 function openEdit(user: SiteUser) {
   editingUser.value = user;
   editFirstName.value = user.firstName ?? "";
+  saveError.value = "";
 }
 
 async function saveEdit() {
   if (!editingUser.value) return;
+  saveError.value = "";
+  const trimmed = editFirstName.value.trim();
+  if (trimmed) {
+    const duplicate = users.value.find(u =>
+      u.userId !== editingUser.value!.userId &&
+      u.firstName?.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (duplicate) {
+      saveError.value = `"${trimmed}" is already taken by ${duplicate.firstName || duplicate.displayName}`;
+      return;
+    }
+  }
   saving.value = true;
   const session = localStorage.getItem("snek_session");
   const res = await fetch(`/api/site-users/${editingUser.value.userId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
-    body: JSON.stringify({ firstName: editFirstName.value.trim() || null }),
+    body: JSON.stringify({ firstName: trimmed || null }),
   });
   saving.value = false;
   if (res.ok) {
-    editingUser.value.firstName = editFirstName.value.trim() || undefined;
+    editingUser.value.firstName = trimmed || undefined;
     editingUser.value = null;
   }
 }

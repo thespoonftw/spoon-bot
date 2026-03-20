@@ -88,8 +88,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .card-member-avatar { display: none; }
   .card-members .meta { margin-left: 0 !important; }
   .landing-grid { flex-direction: column; }
-  .vote-btn { font-size: 1.4em; }
-  .vote-score { font-size: 1em; }
+  .vote-btn { font-size: 2.1em; }
+  .vote-score { font-size: 1.1em; }
 }
 
 .btn-icon { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 2px 4px; opacity: 0.5; line-height: 1; flex-shrink: 0; filter: grayscale(1); }
@@ -178,7 +178,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .user-row-login { color: #a6adc8; font-size: 0.82em; }
 .user-row-login.never { color: #585b70; }
 
-.photo-votes { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 0; }
+.photo-votes { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 4px; }
 
 @keyframes vote-float {
   0% { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }

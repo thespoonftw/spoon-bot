@@ -40,30 +40,24 @@
         <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item" @click="openLightbox(i)">
           <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
           <button class="photo-delete-btn" @click.stop="confirmDelete(photo)" title="Delete photo">🗑</button>
-          <div v-if="photo.takenAt" class="photo-meta">
-            <span class="upload-time">{{ formatTime(photo.takenAt) }}</span>
-          </div>
           <div class="photo-votes" @click.stop>
             <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo.id, 'fav')" title="Favourite">⭐</button>
             <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' }" @click="handleVote($event, photo.id, 'up')" title="Upvote">👍</button>
             <span class="vote-score">{{ getVoteState(photo).score }}</span>
             <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo.id, 'down')" title="Downvote">👎</button>
-            <button class="vote-btn vote-group" @click.stop="openFeatured(photo)" title="Who's in this photo?">👥</button>
+            <button class="vote-btn vote-group" @click.stop="openFeatured(photo)" title="Featuring">👥</button>
           </div>
         </div>
       </div>
       <div class="gallery-mobile">
         <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(i)">
           <img :src="photo.url" loading="lazy" />
-          <div v-if="photo.takenAt" class="photo-meta">
-            <span class="upload-time">{{ formatTime(photo.takenAt) }}</span>
-          </div>
           <div class="photo-votes" @click.stop>
             <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo.id, 'fav')" title="Favourite">⭐</button>
             <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' }" @click="handleVote($event, photo.id, 'up')" title="Upvote">👍</button>
             <span class="vote-score">{{ getVoteState(photo).score }}</span>
             <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo.id, 'down')" title="Downvote">👎</button>
-            <button class="vote-btn vote-group" @click.stop="openFeatured(photo)" title="Who's in this photo?">👥</button>
+            <button class="vote-btn vote-group" @click.stop="openFeatured(photo)" title="Featuring">👥</button>
           </div>
         </div>
       </div>
@@ -72,24 +66,45 @@
   </div>
 
 
-  <!-- Featured People Modal -->
-  <div class="modal-overlay featured-modal-overlay" v-if="showFeatured">
-    <div class="modal">
-      <button class="modal-close" @click="showFeatured = false">✕</button>
-      <h2>Who's in this photo?</h2>
-      <div class="members-modal-list" style="max-height:300px">
-        <div v-for="member in album!.members" :key="member.userId" class="members-modal-row featured-row" @click="toggleFeatured(member.userId)">
-          <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
-          <span v-else class="member-avatar member-avatar-placeholder">{{ (member.firstName || member.displayName)[0] }}</span>
-          <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
-          <input type="checkbox" :checked="featuredSelection.has(member.userId)" @click.stop="toggleFeatured(member.userId)" style="width:18px;height:18px;accent-color:#cba6f7;cursor:pointer" />
+  <Teleport to="body">
+    <!-- Featuring Modal -->
+    <div class="modal-overlay" v-if="showFeatured" style="z-index:2000">
+      <div class="modal">
+        <button class="modal-close" @click="showFeatured = false">✕</button>
+        <h2>Featuring</h2>
+        <div class="members-modal-list" style="min-height:40px">
+          <div v-for="member in featuredMembers" :key="member.userId" class="members-modal-row">
+            <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
+            <span v-else class="member-avatar member-avatar-placeholder">{{ (member.firstName || member.displayName)[0] }}</span>
+            <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
+            <button class="btn-remove" @click="removeFeatured(member.userId)">remove</button>
+          </div>
+          <p v-if="featuredMembers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">No one tagged yet.</p>
+        </div>
+        <div style="margin-top:12px">
+          <button class="btn-secondary btn-small" @click="showFeaturedPicker = true">+ Add User</button>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-primary" @click="saveFeatured" :disabled="savingFeatured">{{ savingFeatured ? 'Saving…' : 'Save' }}</button>
         </div>
       </div>
-      <div class="modal-actions">
-        <button class="btn-primary" @click="saveFeatured" :disabled="savingFeatured">{{ savingFeatured ? 'Saving…' : 'Save' }}</button>
+    </div>
+    <!-- Featured User Picker Modal -->
+    <div class="modal-overlay" v-if="showFeaturedPicker" style="z-index:2100">
+      <div class="modal">
+        <button class="modal-close" @click="showFeaturedPicker = false">✕</button>
+        <h2>Add User</h2>
+        <div class="members-modal-list">
+          <div v-for="member in pickableMembers" :key="member.userId" class="members-modal-row featured-row" @click="addFeatured(member.userId)">
+            <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
+            <span v-else class="member-avatar member-avatar-placeholder">{{ (member.firstName || member.displayName)[0] }}</span>
+            <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
+          </div>
+          <p v-if="pickableMembers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">All members already featured.</p>
+        </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 
   <!-- Delete Photo Confirmation Modal -->
   <div class="modal-overlay" v-if="deletingPhoto">
@@ -232,9 +247,17 @@ const votes = ref<Record<number, { score: number; userVote: string | null }>>({}
 let refreshLightboxVotes: (() => void) | null = null;
 
 const showFeatured = ref(false);
+const showFeaturedPicker = ref(false);
 const featuredPhoto = ref<Photo | null>(null);
 const featuredSelection = ref(new Set<string>());
 const savingFeatured = ref(false);
+
+const featuredMembers = computed(() =>
+  album.value?.members.filter(m => featuredSelection.value.has(m.userId)) ?? []
+);
+const pickableMembers = computed(() =>
+  album.value?.members.filter(m => !featuredSelection.value.has(m.userId)) ?? []
+);
 
 function getVoteState(photo: Photo) {
   return votes.value[photo.id] ?? { score: photo.score ?? 0, userVote: photo.userVote ?? null };
@@ -261,10 +284,17 @@ function openFeatured(photo: Photo) {
   showFeatured.value = true;
 }
 
-function toggleFeatured(userId: string) {
+function removeFeatured(userId: string) {
   const s = new Set(featuredSelection.value);
-  if (s.has(userId)) s.delete(userId); else s.add(userId);
+  s.delete(userId);
   featuredSelection.value = s;
+}
+
+function addFeatured(userId: string) {
+  const s = new Set(featuredSelection.value);
+  s.add(userId);
+  featuredSelection.value = s;
+  showFeaturedPicker.value = false;
 }
 
 async function saveFeatured() {
