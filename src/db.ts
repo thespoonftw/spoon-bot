@@ -61,6 +61,11 @@ export function initDb() {
       vote_type TEXT NOT NULL,
       PRIMARY KEY (photo_id, user_id)
     );
+    CREATE TABLE IF NOT EXISTS photo_featured (
+      photo_id INTEGER NOT NULL,
+      user_id  TEXT NOT NULL,
+      PRIMARY KEY (photo_id, user_id)
+    );
   `);
   // Add new columns to existing DBs (safe to run repeatedly — fails silently if column exists)
   for (const sql of [
@@ -133,7 +138,7 @@ export type PhotoRow = {
   id: number; channelId: string; url: string;
   filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string;
   takenAt?: string; width?: number; height?: number; lat?: number; lon?: number;
-  score?: number; userVote?: string | null;
+  score?: number; userVote?: string | null; featuredIds?: string[];
 };
 export type AlbumWithPhotos = AlbumRow & { photos: PhotoRow[]; members: UserRow[] };
 
@@ -148,28 +153,34 @@ export function dbGetAlbum(channelId: string): AlbumRow | undefined {
 }
 
 export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
+  type RawRow = PhotoRow & { featuredIds: string | null };
+  const toRow = (r: RawRow): PhotoRow => ({ ...r, featuredIds: r.featuredIds ? r.featuredIds.split(",") : [] });
   if (userId) {
-    return db.prepare(`
+    const rows = db.prepare(`
       SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
         p.uploaded_by_id AS uploadedById,
         COALESCE(u.first_name, p.uploaded_by_name) AS uploadedByName,
         p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height,
         COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
-        (SELECT vote_type FROM photo_votes WHERE photo_id = p.id AND user_id = ?) AS userVote
+        (SELECT vote_type FROM photo_votes WHERE photo_id = p.id AND user_id = ?) AS userVote,
+        (SELECT GROUP_CONCAT(pf.user_id) FROM photo_featured pf WHERE pf.photo_id = p.id) AS featuredIds
       FROM photos p LEFT JOIN users u ON u.user_id = p.uploaded_by_id
       WHERE p.channel_id = ? ORDER BY p.id
-    `).all(userId, channelId) as PhotoRow[];
+    `).all(userId, channelId) as RawRow[];
+    return rows.map(toRow);
   }
-  return db.prepare(`
+  const rows = db.prepare(`
     SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
       p.uploaded_by_id AS uploadedById,
       COALESCE(u.first_name, p.uploaded_by_name) AS uploadedByName,
       p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height,
       COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
-      NULL AS userVote
+      NULL AS userVote,
+      (SELECT GROUP_CONCAT(pf.user_id) FROM photo_featured pf WHERE pf.photo_id = p.id) AS featuredIds
     FROM photos p LEFT JOIN users u ON u.user_id = p.uploaded_by_id
     WHERE p.channel_id = ? ORDER BY p.id
-  `).all(channelId) as PhotoRow[];
+  `).all(channelId) as RawRow[];
+  return rows.map(toRow);
 }
 
 export function dbGetAlbumWithPhotos(channelId: string, userId?: string): AlbumWithPhotos | null {
@@ -319,6 +330,15 @@ export function dbDeletePhoto(photoId: number): string | null {
   if (!row) return null;
   db.prepare("DELETE FROM photos WHERE id = ?").run(photoId);
   return row.filename;
+}
+
+export function dbSetPhotoFeatured(photoId: number, userIds: string[]): void {
+  const del = db.prepare("DELETE FROM photo_featured WHERE photo_id = ?");
+  const ins = db.prepare("INSERT INTO photo_featured (photo_id, user_id) VALUES (?, ?)");
+  db.transaction(() => {
+    del.run(photoId);
+    for (const uid of userIds) ins.run(photoId, uid);
+  })();
 }
 
 export function dbVotePhoto(photoId: number, userId: string, voteType: string): { score: number; userVote: string | null } {

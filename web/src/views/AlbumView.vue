@@ -40,30 +40,30 @@
         <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item" @click="openLightbox(i)">
           <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
           <button class="photo-delete-btn" @click.stop="confirmDelete(photo)" title="Delete photo">🗑</button>
-          <div class="photo-meta">
-            <span v-if="photo.takenAt" class="upload-time">{{ formatTime(photo.takenAt) }}</span>
+          <div v-if="photo.takenAt" class="photo-meta">
+            <span class="upload-time">{{ formatTime(photo.takenAt) }}</span>
           </div>
           <div class="photo-votes" @click.stop>
             <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo.id, 'fav')" title="Favourite">⭐</button>
             <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' }" @click="handleVote($event, photo.id, 'up')" title="Upvote">👍</button>
             <span class="vote-score">{{ getVoteState(photo).score }}</span>
             <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo.id, 'down')" title="Downvote">👎</button>
-            <button class="vote-btn vote-group" title="">👥</button>
+            <button class="vote-btn vote-group" @click.stop="openFeatured(photo)" title="Who's in this photo?">👥</button>
           </div>
         </div>
       </div>
       <div class="gallery-mobile">
         <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(i)">
           <img :src="photo.url" loading="lazy" />
-          <div class="photo-meta">
-            <span v-if="photo.takenAt" class="upload-time">{{ formatTime(photo.takenAt) }}</span>
+          <div v-if="photo.takenAt" class="photo-meta">
+            <span class="upload-time">{{ formatTime(photo.takenAt) }}</span>
           </div>
           <div class="photo-votes" @click.stop>
             <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo.id, 'fav')" title="Favourite">⭐</button>
             <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' }" @click="handleVote($event, photo.id, 'up')" title="Upvote">👍</button>
             <span class="vote-score">{{ getVoteState(photo).score }}</span>
             <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo.id, 'down')" title="Downvote">👎</button>
-            <button class="vote-btn vote-group" title="">👥</button>
+            <button class="vote-btn vote-group" @click.stop="openFeatured(photo)" title="Who's in this photo?">👥</button>
           </div>
         </div>
       </div>
@@ -71,6 +71,25 @@
     <p v-else class="empty">Album not found.</p>
   </div>
 
+
+  <!-- Featured People Modal -->
+  <div class="modal-overlay featured-modal-overlay" v-if="showFeatured">
+    <div class="modal">
+      <button class="modal-close" @click="showFeatured = false">✕</button>
+      <h2>Who's in this photo?</h2>
+      <div class="members-modal-list" style="max-height:300px">
+        <div v-for="member in album!.members" :key="member.userId" class="members-modal-row featured-row" @click="toggleFeatured(member.userId)">
+          <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
+          <span v-else class="member-avatar member-avatar-placeholder">{{ (member.firstName || member.displayName)[0] }}</span>
+          <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
+          <input type="checkbox" :checked="featuredSelection.has(member.userId)" @click.stop="toggleFeatured(member.userId)" style="width:18px;height:18px;accent-color:#cba6f7;cursor:pointer" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-primary" @click="saveFeatured" :disabled="savingFeatured">{{ savingFeatured ? 'Saving…' : 'Save' }}</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Delete Photo Confirmation Modal -->
   <div class="modal-overlay" v-if="deletingPhoto">
@@ -184,7 +203,7 @@ import { useRoute } from "vue-router";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
 
-interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; score?: number; userVote?: string | null }
+interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; score?: number; userVote?: string | null; featuredIds?: string[] }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string; rsvpStatus?: string }
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; endDate?: string; photos: Photo[]; members: Member[] }
 
@@ -212,6 +231,11 @@ const editForm = ref({ name: "", location: "", startDate: "", endDate: "" });
 const votes = ref<Record<number, { score: number; userVote: string | null }>>({});
 let refreshLightboxVotes: (() => void) | null = null;
 
+const showFeatured = ref(false);
+const featuredPhoto = ref<Photo | null>(null);
+const featuredSelection = ref(new Set<string>());
+const savingFeatured = ref(false);
+
 function getVoteState(photo: Photo) {
   return votes.value[photo.id] ?? { score: photo.score ?? 0, userVote: photo.userVote ?? null };
 }
@@ -228,6 +252,36 @@ async function doVote(photoId: number, voteType: string) {
     const { score, userVote } = await res.json();
     votes.value = { ...votes.value, [photoId]: { score, userVote } };
     refreshLightboxVotes?.();
+  }
+}
+
+function openFeatured(photo: Photo) {
+  featuredPhoto.value = photo;
+  featuredSelection.value = new Set(photo.featuredIds ?? []);
+  showFeatured.value = true;
+}
+
+function toggleFeatured(userId: string) {
+  const s = new Set(featuredSelection.value);
+  if (s.has(userId)) s.delete(userId); else s.add(userId);
+  featuredSelection.value = s;
+}
+
+async function saveFeatured() {
+  if (!album.value || !featuredPhoto.value) return;
+  savingFeatured.value = true;
+  const session = localStorage.getItem("snek_session");
+  const userIds = [...featuredSelection.value];
+  const res = await fetch(`/api/album/${album.value.channelId}/photos/${featuredPhoto.value.id}/featured`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
+    body: JSON.stringify({ userIds }),
+  });
+  savingFeatured.value = false;
+  if (res.ok) {
+    const photo = album.value.photos.find(p => p.id === featuredPhoto.value!.id);
+    if (photo) photo.featuredIds = userIds;
+    showFeatured.value = false;
   }
 }
 
@@ -328,8 +382,8 @@ function openLightbox(index: number) {
   (pswp as any).on("tapAction", (e: any) => {
     e.preventDefault();
     if (e.originalEvent?.pointerType === "touch") {
-      const x = e.point?.x ?? window.innerWidth / 2;
-      const y = e.point?.y ?? window.innerHeight / 2;
+      const x = e.originalEvent.clientX ?? window.innerWidth / 2;
+      const y = e.originalEvent.clientY ?? window.innerHeight / 2;
       spawnFloat(x, y, "up");
       doVote(photos[pswp.currIndex].id, "up");
     }
@@ -337,8 +391,8 @@ function openLightbox(index: number) {
   (pswp as any).on("doubleTapAction", (e: any) => {
     e.preventDefault();
     if (e.originalEvent?.pointerType === "touch") {
-      const x = e.point?.x ?? window.innerWidth / 2;
-      const y = e.point?.y ?? window.innerHeight / 2;
+      const x = e.originalEvent.clientX ?? window.innerWidth / 2;
+      const y = e.originalEvent.clientY ?? window.innerHeight / 2;
       spawnFloat(x, y, "fav");
       doVote(photos[pswp.currIndex].id, "fav");
     }
@@ -372,11 +426,15 @@ function openLightbox(index: number) {
       onInit: (el) => {
         el.addEventListener("click", (e) => {
           const btn = (e.target as Element).closest("[data-vote]") as HTMLElement | null;
-          if (!btn) return;
-          const voteType = btn.dataset.vote!;
-          const rect = btn.getBoundingClientRect();
-          spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, voteType);
-          doVote(photos[pswp.currIndex].id, voteType);
+          const featBtn = (e.target as Element).closest("[data-action='featured']") as HTMLElement | null;
+          if (btn) {
+            const voteType = btn.dataset.vote!;
+            const rect = btn.getBoundingClientRect();
+            spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, voteType);
+            doVote(photos[pswp.currIndex].id, voteType);
+          } else if (featBtn) {
+            openFeatured(photos[pswp.currIndex]);
+          }
         });
         const update = () => {
           const p = photos[pswp.currIndex];
@@ -387,7 +445,7 @@ function openLightbox(index: number) {
             <button data-vote="up" class="pswp-vote-btn${userVote === "up" ? " active-up" : ""}">👍</button>
             <span class="pswp-vote-score">${scoreStr}</span>
             <button data-vote="down" class="pswp-vote-btn${userVote === "down" ? " active-down" : ""}">👎</button>
-            <button class="pswp-vote-btn">👥</button>
+            <button data-action="featured" class="pswp-vote-btn">👥</button>
           `;
         };
         refreshLightboxVotes = update;
