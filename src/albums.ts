@@ -7,7 +7,10 @@ import crypto from "crypto";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const sharp = require("sharp") as (input: string) => { resize(w: number, h: number, opts?: object): { toFile(p: string): Promise<void> }; metadata(): Promise<{ width?: number; height?: number }> };
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const exifr = require("exifr") as { parse(file: string, opts: unknown): Promise<Record<string, unknown> | null> };
+const exifr = require("exifr") as {
+  parse(file: string, opts: unknown): Promise<Record<string, unknown> | null>;
+  gps(file: string): Promise<{ latitude: number; longitude: number } | null>;
+};
 type BusboyFile = { filename: string; encoding: string; mimeType: string };
 type BusboyInstance = { on(e: "file", cb: (f: string, s: NodeJS.ReadableStream, i: BusboyFile) => void): BusboyInstance; on(e: "field", cb: (name: string, val: string) => void): BusboyInstance; on(e: "error", cb: (err: Error) => void): BusboyInstance; };
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -312,9 +315,7 @@ export function startWebServer(): void {
           let takenAt: string | undefined;
           let lat: number | undefined, lon: number | undefined;
           try {
-            const exif = await exifr.parse(filePath, { exif: true, gps: true, xmp: false, iptc: false, icc: false, jfif: false });
-            console.log(`[upload] raw exif keys=${exif ? Object.keys(exif).join(",") : "null"}`);
-            console.log(`[upload] raw gps=${JSON.stringify({ lat: exif?.latitude, lon: exif?.longitude, GPSLatitude: exif?.GPSLatitude, GPSLongitude: exif?.GPSLongitude })}`);
+            const exif = await exifr.parse(filePath, { exif: true, gps: false, xmp: false, iptc: false, icc: false, jfif: false });
             const raw = exif?.DateTimeOriginal ?? exif?.CreateDate ?? exif?.DateTime;
             if (raw instanceof Date && !isNaN(raw.getTime())) {
               takenAt = raw.toISOString();
@@ -323,9 +324,11 @@ export function startWebServer(): void {
               const d = new Date(normalized);
               if (!isNaN(d.getTime())) takenAt = d.toISOString();
             }
-            if (typeof exif?.latitude === "number" && !isNaN(exif.latitude) && exif.latitude !== 0) lat = exif.latitude as number;
-            if (typeof exif?.longitude === "number" && !isNaN(exif.longitude) && exif.longitude !== 0) lon = exif.longitude as number;
-            // Client-provided GPS overrides (iOS Safari strips GPS before upload)
+            const gpsResult = await exifr.gps(filePath);
+            console.log(`[upload] exifr.gps result=${JSON.stringify(gpsResult)}`);
+            if (gpsResult && typeof gpsResult.latitude === "number" && !isNaN(gpsResult.latitude)) lat = gpsResult.latitude;
+            if (gpsResult && typeof gpsResult.longitude === "number" && !isNaN(gpsResult.longitude)) lon = gpsResult.longitude;
+            // Client-provided GPS overrides (mobile browsers sometimes strip GPS before upload)
             if (clientLat !== undefined) lat = clientLat;
             if (clientLon !== undefined) lon = clientLon;
             console.log(`[upload] final takenAt=${takenAt} lat=${lat} lon=${lon} (clientLat=${clientLat} clientLon=${clientLon})`);
