@@ -43,7 +43,7 @@
           <div class="photo-votes" @click.stop>
             <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'fav')" title="Favourite">⭐</button>
             <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'up')" title="Upvote">👍</button>
-            <button class="vote-score" @click.stop="openVoteModal(photo)" @mouseenter="onScoreMouseEnter($event, photo)" @mouseleave="onScoreMouseLeave()">{{ getVoteState(photo).score }}</button>
+            <button class="vote-btn vote-score" @click.stop="openVoteModal(photo)">{{ getVoteState(photo).score }}</button>
             <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo, 'down')" title="Downvote">👎</button>
             <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Tagging" style="padding:2px 3px">
               <span v-if="getFeaturedMembers(photo).length >= 4" style="color:#fff">{{ getFeaturedMembers(photo).length }}👥</span>
@@ -110,17 +110,6 @@
   </Teleport>
 
   <!-- Delete Photo Confirmation Modal -->
-  <!-- Vote Breakdown Tooltip -->
-  <div v-if="voteTooltipPhoto && voteTooltipEl" class="vote-tooltip" :style="tooltipStyle()" @mouseenter="() => { if (tooltipTimeout) clearTimeout(tooltipTimeout) }" @mouseleave="onScoreMouseLeave()">
-    <div v-for="v in voteTooltipData.slice(0, 5)" :key="v.userId" class="vote-tooltip-row">
-      <img v-if="v.avatarUrl" :src="v.avatarUrl" class="vote-tooltip-avatar" />
-      <span v-else class="vote-tooltip-avatar vote-tooltip-initial">{{ (v.firstName || v.displayName)[0] }}</span>
-      <span class="vote-tooltip-name">{{ v.firstName || v.displayName }}</span>
-      <span class="vote-tooltip-icon">{{ v.voteType === 'fav' ? '⭐' : v.voteType === 'up' ? '👍' : '👎' }}</span>
-    </div>
-    <div v-if="voteTooltipData.length === 0" style="color:#6c7086;font-size:0.85em">No votes yet</div>
-  </div>
-
   <!-- Vote Breakdown Modal -->
   <div class="modal-overlay" v-if="voteModalPhoto" @click.self="voteModalPhoto = null">
     <div class="modal">
@@ -279,9 +268,6 @@ const uploadError = ref("");
 const deletingPhoto = ref<Photo | null>(null);
 const voteModalPhoto = ref<Photo | null>(null);
 const voteModalData = ref<{ userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; voteType: string }[]>([]);
-const voteTooltipPhoto = ref<Photo | null>(null);
-const voteTooltipData = ref<typeof voteModalData.value>([]);
-const voteTooltipEl = ref<HTMLElement | null>(null);
 const deleting = ref(false);
 
 const showShare = ref(false);
@@ -318,29 +304,9 @@ async function fetchVoteBreakdown(photo: Photo) {
   return res.ok ? await res.json() : [];
 }
 
-function tooltipStyle() {
-  const el = voteTooltipEl.value;
-  if (!el) return {};
-  const r = el.getBoundingClientRect();
-  return { position: "fixed", left: `${r.left + r.width / 2}px`, top: `${r.top - 8}px`, transform: "translate(-50%, -100%)" };
-}
-
 async function openVoteModal(photo: Photo) {
   voteModalPhoto.value = photo;
   voteModalData.value = await fetchVoteBreakdown(photo);
-}
-
-let tooltipTimeout: ReturnType<typeof setTimeout> | null = null;
-async function onScoreMouseEnter(e: MouseEvent, photo: Photo) {
-  voteTooltipEl.value = e.currentTarget as HTMLElement;
-  if (tooltipTimeout) clearTimeout(tooltipTimeout);
-  voteTooltipPhoto.value = photo;
-  if (voteTooltipData.value.length === 0 || voteTooltipPhoto.value?.id !== photo.id) {
-    voteTooltipData.value = await fetchVoteBreakdown(photo);
-  }
-}
-function onScoreMouseLeave() {
-  tooltipTimeout = setTimeout(() => { voteTooltipPhoto.value = null; }, 120);
 }
 
 function getVoteState(photo: Photo) {
@@ -582,6 +548,8 @@ function openLightbox(index: number) {
             doVote(p.id, voteType);
           } else if (featBtn) {
             openFeatured(photos[pswp.currIndex]);
+          } else if ((e.target as Element).closest("[data-action='score']")) {
+            openVoteModal(photos[pswp.currIndex]);
           }
         });
         const update = () => {
@@ -605,7 +573,7 @@ function openLightbox(index: number) {
             <div class="pswp-votes">
               <button data-vote="fav" class="pswp-vote-btn${userVote === "fav" ? " active-fav" : ""}">⭐</button>
               <button data-vote="up" class="pswp-vote-btn${upActive ? " active-up" : ""}">👍</button>
-              <span class="pswp-vote-score">${score}</span>
+              <button data-action="score" class="pswp-vote-btn pswp-vote-score">${score}</button>
               <button data-vote="down" class="pswp-vote-btn${userVote === "down" ? " active-down" : ""}">👎</button>
               <button data-action="featured" class="pswp-vote-btn${featuredMs.length ? " active-fav" : ""}" style="padding:3px">${featuredBtnContent}</button>
             </div>
