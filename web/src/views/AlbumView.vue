@@ -46,7 +46,8 @@
             <span class="vote-score">{{ getVoteState(photo).score }}</span>
             <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo, 'down')" title="Downvote">👎</button>
             <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Tagging" style="padding:2px 3px">
-              <span v-if="getFeaturedMembers(photo).length" class="featured-avatars">
+              <span v-if="getFeaturedMembers(photo).length >= 4">{{ getFeaturedMembers(photo).length }}👥</span>
+              <span v-else-if="getFeaturedMembers(photo).length" class="featured-avatars">
                 <template v-for="(m, idx) in getFeaturedMembers(photo)" :key="m.userId">
                   <img v-if="m.avatarUrl" :src="m.avatarUrl" class="featured-mini-avatar" />
                   <span v-else class="featured-mini-avatar featured-mini-initial">{{ (m.firstName || m.displayName)[0] }}</span>
@@ -520,7 +521,9 @@ function openLightbox(index: number) {
           const upActive = userVote === "up" || userVote === "fav";
           const featuredMs = (album.value?.members ?? []).filter(m => p.featuredIds?.includes(m.userId));
           const avStyle = (i: number) => `width:1em;height:1em;border-radius:50%;object-fit:cover;pointer-events:none;border:1.5px solid rgba(0,0,0,0.4);flex-shrink:0;${i > 0 ? "margin-left:-0.35em;" : ""}`;
-          const featuredBtnContent = featuredMs.length
+          const featuredBtnContent = featuredMs.length >= 4
+            ? `${featuredMs.length}👥`
+            : featuredMs.length
             ? `<span style="display:inline-flex;align-items:center">${featuredMs.map((m, i) => m.avatarUrl
                 ? `<img src="${m.avatarUrl}" style="${avStyle(i)}display:block" />`
                 : `<span style="${avStyle(i)}background:#585b70;display:inline-flex;align-items:center;justify-content:center;"><span style="font-size:0.55em;font-weight:600;color:#cdd6f4;pointer-events:none">${(m.firstName || m.displayName)[0]}</span></span>`
