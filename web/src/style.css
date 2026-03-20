@@ -69,7 +69,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 }
 .pswp-meta-left { flex: 1; display: flex; flex-direction: column; gap: 2px; order: 1; }
 .pswp-meta-right { flex: 1; text-align: right; order: 2; }
-.pswp-votes { width: 100%; display: flex; align-items: center; order: 3; pointer-events: auto; min-height: 34px; }
+.pswp-votes { width: 100%; display: flex; align-items: center; order: 3; pointer-events: auto; }
 .pswp-caption-date { color: rgba(255,255,255,0.85); font-size: 0.9em; }
 .pswp-caption-map { color: rgba(255,255,255,0.7); font-size: 0.8em; text-decoration: none; pointer-events: auto; display: inline-block; }
 .pswp-caption-map:hover { color: #fff; text-decoration: underline; }
@@ -198,7 +198,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .user-row-login { color: #a6adc8; font-size: 0.82em; }
 .user-row-login.never { color: #585b70; }
 
-.photo-votes { display: flex; align-items: center; margin-top: 4px; width: 220px; min-height: 20px; }
+.photo-votes { display: flex; align-items: center; margin-top: 4px; width: 220px; }
 
 @keyframes vote-float {
   0% { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
@@ -206,7 +206,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 }
 .vote-float { position: fixed; pointer-events: none; font-size: 1.5em; animation: vote-float 0.7s ease-out forwards; z-index: 200000; }
 .vote-float-grey { filter: grayscale(1); }
-.vote-btn { flex: 1; background: none; border: none; cursor: pointer; padding: 2px 5px; border-radius: 4px; font-size: 0.8em; line-height: 1; filter: grayscale(1) opacity(0.4); display: flex; align-items: center; justify-content: center; }
+.vote-btn { flex: 1; background: none; border: none; cursor: pointer; padding: 2px 5px; border-radius: 4px; font-size: 0.8em; line-height: 1; filter: grayscale(1) opacity(0.4); display: flex; align-items: center; justify-content: center; min-height: 1em; }
 .vote-btn:hover { filter: grayscale(0.2) opacity(0.85); background: #45475a; }
 .vote-btn.active { filter: none; }
 .vote-score { flex: 1; color: #a6adc8; font-size: 0.8em; font-weight: 600; text-align: center; }
@@ -214,14 +214,13 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .pswp__top-meta { display: none; position: absolute; top: 20px; left: 0; right: 0; padding: 0 16px; text-shadow: 0 1px 3px rgba(0,0,0,0.6); pointer-events: none; }
 .pswp__top-meta .pswp-meta-left { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .pswp__top-meta .pswp-meta-right { flex: 1; text-align: right; }
-.pswp-vote-btn { flex: 1; background: none; border: none; cursor: pointer; font-size: 1.6em; padding: 4px 6px; border-radius: 6px; line-height: 1; filter: grayscale(1) opacity(0.45); display: flex; align-items: center; justify-content: center; }
+.pswp-vote-btn { flex: 1; background: none; border: none; cursor: pointer; font-size: 1.6em; padding: 4px 6px; border-radius: 6px; line-height: 1; filter: grayscale(1) opacity(0.45); display: flex; align-items: center; justify-content: center; min-height: 1em; }
 .pswp-vote-btn:hover { filter: grayscale(0.2) opacity(0.9); background: rgba(255,255,255,0.1); }
 .pswp-vote-btn.active-up, .pswp-vote-btn.active-down, .pswp-vote-btn.active-fav { filter: none; }
 .pswp-vote-score { flex: 1; color: rgba(255,255,255,0.8); font-weight: 600; font-size: 1.6em; text-align: center; }
 @media (max-width: 767px) {
   .pswp-vote-btn { font-size: 1.8em; padding: 0px 2px; }
   .pswp-vote-score { font-size: 1.8em; min-width: 2ch; }
-  .pswp-votes { min-height: 30px; }
   .pswp__top-meta { display: flex; top: 56px; }
   .pswp__bottom-bar .pswp-meta-left, .pswp__bottom-bar .pswp-meta-right { display: none; }
   .vote-float { font-size: 2.2em; }
