@@ -41,10 +41,10 @@
           <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
           <button class="photo-delete-btn" @click.stop="confirmDelete(photo)" title="Delete photo">🗑</button>
           <div class="photo-votes" @click.stop>
-            <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo.id, 'fav')" title="Favourite">⭐</button>
-            <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo.id, 'up')" title="Upvote">👍</button>
+            <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'fav')" title="Favourite">⭐</button>
+            <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'up')" title="Upvote">👍</button>
             <span class="vote-score">{{ getVoteState(photo).score }}</span>
-            <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo.id, 'down')" title="Downvote">👎</button>
+            <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo, 'down')" title="Downvote">👎</button>
             <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Tagging" style="padding:2px 3px">
               <span v-if="getFeaturedMembers(photo).length" class="featured-avatars">
                 <template v-for="(m, idx) in getFeaturedMembers(photo)" :key="m.userId">
@@ -363,10 +363,10 @@ onMounted(async () => {
   loading.value = false;
 });
 
-function spawnFloat(x: number, y: number, voteType: string) {
+function spawnFloat(x: number, y: number, voteType: string, grey = false) {
   const emoji = voteType === "fav" ? "⭐" : voteType === "up" ? "👍" : "👎";
   const span = document.createElement("span");
-  span.className = "vote-float";
+  span.className = grey ? "vote-float vote-float-grey" : "vote-float";
   span.textContent = emoji;
   span.style.left = `${x}px`;
   span.style.top = `${y}px`;
@@ -374,10 +374,16 @@ function spawnFloat(x: number, y: number, voteType: string) {
   span.addEventListener("animationend", () => span.remove());
 }
 
-function handleVote(e: Event, photoId: number, voteType: string) {
+function isRemovingVote(currentVote: string | null | undefined, voteType: string) {
+  return (voteType === "fav" && currentVote === "fav") ||
+    (voteType === "up" && (currentVote === "up" || currentVote === "fav")) ||
+    (voteType === "down" && currentVote === "down");
+}
+
+function handleVote(e: Event, photo: Photo, voteType: string) {
   const rect = (e.currentTarget as Element).getBoundingClientRect();
-  spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, voteType);
-  doVote(photoId, voteType);
+  spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, voteType, isRemovingVote(getVoteState(photo).userVote, voteType));
+  doVote(photo.id, voteType);
 }
 
 function confirmDelete(photo: Photo) { deletingPhoto.value = photo; }
@@ -412,7 +418,7 @@ function openLightbox(index: number) {
     closeOnVerticalDrag: false,
     loop: false,
     paddingFn: (viewportSize: { x: number; y: number }) =>
-      viewportSize.x >= 768 ? { top: 10, bottom: 80, left: 0, right: 0 } : { top: 0, bottom: 0, left: 0, right: 0 },
+      viewportSize.x >= 768 ? { top: 20, bottom: 70, left: 0, right: 0 } : { top: 0, bottom: 0, left: 0, right: 0 },
   });
   history.pushState({ pswp: true }, "");
   let closedByBack = false;
@@ -462,6 +468,28 @@ function openLightbox(index: number) {
     if (!closedByBack) history.back();
   });
   pswp.on("uiRegister", () => {
+    let topMetaEl: HTMLElement | null = null;
+    const buildMetaHtml = (p: Photo) => {
+      const dateHtml = p?.takenAt ? `<span class="pswp-caption-date">${formatTime(p.takenAt)}</span>` : "";
+      const mapHtml = (p?.lat && p?.lon) ? `<a class="pswp-caption-map" href="https://www.google.com/maps?q=${p.lat},${p.lon}" target="_blank">📍 Map</a>` : "";
+      const uploaderHtml = p?.uploadedByName ? `<span class="pswp-caption-uploader">By: ${p.uploadedByName}</span>` : "";
+      return { dateHtml, mapHtml, uploaderHtml };
+    };
+    pswp.ui!.registerElement({
+      name: "top-meta",
+      order: 8,
+      isButton: false,
+      appendTo: "root",
+      onInit: (el) => {
+        topMetaEl = el;
+        const update = () => {
+          const { dateHtml, mapHtml, uploaderHtml } = buildMetaHtml(photos[pswp.currIndex]);
+          el.innerHTML = `<div class="pswp-meta-left">${dateHtml}${mapHtml}</div><div class="pswp-meta-right">${uploaderHtml}</div>`;
+        };
+        pswp.on("change", update);
+        update();
+      },
+    });
     pswp.ui!.registerElement({
       name: "bottom-bar",
       order: 9,
@@ -473,9 +501,10 @@ function openLightbox(index: number) {
           const featBtn = (e.target as Element).closest("[data-action='featured']") as HTMLElement | null;
           if (btn) {
             const voteType = btn.dataset.vote!;
+            const p = photos[pswp.currIndex];
             const rect = btn.getBoundingClientRect();
-            spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, voteType);
-            doVote(photos[pswp.currIndex].id, voteType);
+            spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, voteType, isRemovingVote(getVoteState(p).userVote, voteType));
+            doVote(p.id, voteType);
           } else if (featBtn) {
             openFeatured(photos[pswp.currIndex]);
           }
@@ -492,9 +521,7 @@ function openLightbox(index: number) {
                 : `<span style="${avStyle(i)}background:#585b70;display:inline-flex;align-items:center;justify-content:center;font-size:0.55em;font-weight:600;color:#cdd6f4">${(m.firstName || m.displayName)[0]}</span>`
               ).join("")}</span>`
             : "👥";
-          const dateHtml = p?.takenAt ? `<span class="pswp-caption-date">${formatTime(p.takenAt)}</span>` : "";
-          const mapHtml = (p?.lat && p?.lon) ? `<a class="pswp-caption-map" href="https://www.google.com/maps?q=${p.lat},${p.lon}" target="_blank">📍 Map</a>` : "";
-          const uploaderHtml = p?.uploadedByName ? `<span class="pswp-caption-uploader">By: ${p.uploadedByName}</span>` : "";
+          const { dateHtml, mapHtml, uploaderHtml } = buildMetaHtml(p);
           el.innerHTML = `
             <div class="pswp-meta-left">${dateHtml}${mapHtml}</div>
             <div class="pswp-meta-right">${uploaderHtml}</div>
@@ -506,6 +533,7 @@ function openLightbox(index: number) {
               <button data-action="featured" class="pswp-vote-btn${featuredMs.length ? " active-fav" : ""}" style="padding:3px">${featuredBtnContent}</button>
             </div>
           `;
+          if (topMetaEl) topMetaEl.innerHTML = `<div class="pswp-meta-left">${dateHtml}${mapHtml}</div><div class="pswp-meta-right">${uploaderHtml}</div>`;
         };
         refreshLightboxVotes = update;
         pswp.on("change", update);
