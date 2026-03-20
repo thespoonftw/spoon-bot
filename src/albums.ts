@@ -9,7 +9,7 @@ const sharp = require("sharp") as (input: string) => { resize(w: number, h: numb
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const exifr = require("exifr") as { parse(file: string, opts: unknown): Promise<Record<string, unknown> | null> };
 type BusboyFile = { filename: string; encoding: string; mimeType: string };
-type BusboyInstance = { on(e: "file", cb: (f: string, s: NodeJS.ReadableStream, i: BusboyFile) => void): BusboyInstance; on(e: "error", cb: (err: Error) => void): BusboyInstance; };
+type BusboyInstance = { on(e: "file", cb: (f: string, s: NodeJS.ReadableStream, i: BusboyFile) => void): BusboyInstance; on(e: "field", cb: (name: string, val: string) => void): BusboyInstance; on(e: "error", cb: (err: Error) => void): BusboyInstance; };
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const Busboy = require("busboy") as (opts: { headers: Record<string, string | string[] | undefined>; limits?: { files?: number; fileSize?: number } }) => BusboyInstance;
 import { eventStates, DATA_DIR, persistState } from "./state";
