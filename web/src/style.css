@@ -71,8 +71,6 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .pswp-meta-right { flex: 1; text-align: right; order: 2; }
 .pswp-votes { width: 100%; display: flex; align-items: center; order: 3; pointer-events: auto; }
 .pswp-caption-date { color: rgba(255,255,255,0.85); font-size: 0.9em; }
-.pswp-caption-map { color: rgba(255,255,255,0.7); font-size: 0.8em; text-decoration: none; pointer-events: auto; display: inline-block; }
-.pswp-caption-map:hover { color: #fff; text-decoration: underline; }
 .pswp-caption-uploader { color: rgba(255,255,255,0.85); font-size: 0.9em; }
 
 .gallery { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }

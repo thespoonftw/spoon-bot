@@ -137,7 +137,7 @@ export type AlbumRow = {
 export type PhotoRow = {
   id: number; channelId: string; url: string;
   filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string;
-  takenAt?: string; width?: number; height?: number; lat?: number; lon?: number;
+  takenAt?: string; width?: number; height?: number;
   score?: number; userVote?: string | null; featuredIds?: string[];
 };
 export type AlbumWithPhotos = AlbumRow & { photos: PhotoRow[]; members: UserRow[] };
@@ -160,7 +160,7 @@ export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
       SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
         p.uploaded_by_id AS uploadedById,
         COALESCE(u.first_name, p.uploaded_by_name) AS uploadedByName,
-        p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.lat, p.lon,
+        p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height,
         COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
         (SELECT vote_type FROM photo_votes WHERE photo_id = p.id AND user_id = ?) AS userVote,
         (SELECT GROUP_CONCAT(pf.user_id) FROM photo_featured pf WHERE pf.photo_id = p.id) AS featuredIds
@@ -304,12 +304,12 @@ export function dbGetAllAlbumMembers(channelId: string): AlbumMemberRow[] {
   `).all(channelId) as AlbumMemberRow[];
 }
 
-export function dbAddUploadedPhoto(channelId: string, url: string, filename: string, uploadedById: string, uploadedByName: string, width: number, height: number, takenAt?: string, lat?: number, lon?: number): PhotoRow {
+export function dbAddUploadedPhoto(channelId: string, url: string, filename: string, uploadedById: string, uploadedByName: string, width: number, height: number, takenAt?: string): PhotoRow {
   const uploadedAt = new Date().toISOString();
   const result = db.prepare(
-    "INSERT INTO photos (channel_id, url, filename, uploaded_by_id, uploaded_by_name, uploaded_at, taken_at, width, height, lat, lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  ).run(channelId, url, filename, uploadedById, uploadedByName, uploadedAt, takenAt ?? null, width, height, lat ?? null, lon ?? null);
-  return { id: result.lastInsertRowid as number, channelId, url, filename, uploadedById, uploadedByName, uploadedAt, takenAt, width, height, lat, lon };
+    "INSERT INTO photos (channel_id, url, filename, uploaded_by_id, uploaded_by_name, uploaded_at, taken_at, width, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run(channelId, url, filename, uploadedById, uploadedByName, uploadedAt, takenAt ?? null, width, height);
+  return { id: result.lastInsertRowid as number, channelId, url, filename, uploadedById, uploadedByName, uploadedAt, takenAt, width, height };
 }
 
 export function dbGetPhotoCount(): number {

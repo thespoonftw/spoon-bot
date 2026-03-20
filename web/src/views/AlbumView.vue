@@ -252,7 +252,7 @@ import { useRoute } from "vue-router";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
 
-interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; lat?: number; lon?: number; score?: number; userVote?: string | null; featuredIds?: string[] }
+interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; score?: number; userVote?: string | null; featuredIds?: string[] }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string; rsvpStatus?: string }
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; endDate?: string; photos: Photo[]; members: Member[] }
 
@@ -512,9 +512,8 @@ function openLightbox(index: number) {
     let topMetaEl: HTMLElement | null = null;
     const buildMetaHtml = (p: Photo) => {
       const dateHtml = p?.takenAt ? `<span class="pswp-caption-date">${formatTime(p.takenAt)}</span>` : "";
-      const mapHtml = (p?.lat && p?.lon) ? `<a class="pswp-caption-map" href="https://www.google.com/maps?q=${p.lat},${p.lon}" target="_blank">📍 Map</a>` : "";
       const uploaderHtml = p?.uploadedByName ? `<span class="pswp-caption-uploader">By: ${p.uploadedByName}</span>` : "";
-      return { dateHtml, mapHtml, uploaderHtml };
+      return { dateHtml, uploaderHtml };
     };
     pswp.ui!.registerElement({
       name: "top-meta",
@@ -524,8 +523,8 @@ function openLightbox(index: number) {
       onInit: (el) => {
         topMetaEl = el;
         const update = () => {
-          const { dateHtml, mapHtml, uploaderHtml } = buildMetaHtml(photos[pswp.currIndex]);
-          el.innerHTML = `<div class="pswp-meta-left">${dateHtml}${mapHtml}</div><div class="pswp-meta-right">${uploaderHtml}</div>`;
+          const { dateHtml, uploaderHtml } = buildMetaHtml(photos[pswp.currIndex]);
+          el.innerHTML = `<div class="pswp-meta-left">${dateHtml}</div><div class="pswp-meta-right">${uploaderHtml}</div>`;
         };
         pswp.on("change", update);
         update();
@@ -566,9 +565,9 @@ function openLightbox(index: number) {
                 : `<span style="${avStyle(i)}background:#585b70;display:inline-flex;align-items:center;justify-content:center;"><span style="font-size:0.55em;font-weight:600;color:#cdd6f4;pointer-events:none">${(m.firstName || m.displayName)[0]}</span></span>`
               ).join("")}</span>`
             : "👥";
-          const { dateHtml, mapHtml, uploaderHtml } = buildMetaHtml(p);
+          const { dateHtml, uploaderHtml } = buildMetaHtml(p);
           el.innerHTML = `
-            <div class="pswp-meta-left">${dateHtml}${mapHtml}</div>
+            <div class="pswp-meta-left">${dateHtml}</div>
             <div class="pswp-meta-right">${uploaderHtml}</div>
             <div class="pswp-votes">
               <button data-vote="fav" class="pswp-vote-btn${userVote === "fav" ? " active-fav" : ""}">⭐</button>
@@ -578,7 +577,7 @@ function openLightbox(index: number) {
               <button data-action="featured" class="pswp-vote-btn${featuredMs.length ? " active-fav" : ""}" style="padding:3px">${featuredBtnContent}</button>
             </div>
           `;
-          if (topMetaEl) topMetaEl.innerHTML = `<div class="pswp-meta-left">${dateHtml}${mapHtml}</div><div class="pswp-meta-right">${uploaderHtml}</div>`;
+          if (topMetaEl) topMetaEl.innerHTML = `<div class="pswp-meta-left">${dateHtml}</div><div class="pswp-meta-right">${uploaderHtml}</div>`;
         };
         refreshLightboxVotes = update;
         pswp.on("change", update);
@@ -788,8 +787,6 @@ async function onFilesSelected(e: Event) {
     uploadProgress.value = `${i + 1}/${files.length}`;
     const fd = new FormData();
     fd.append("photo", files[i]);
-    const gps = await readGpsFromFile(files[i]);
-    if (gps) { fd.append("lat", String(gps.lat)); fd.append("lon", String(gps.lon)); }
     const res = await fetch(`/api/album/${album.value.channelId}/photos`, {
       method: "POST",
       headers: { Authorization: `Bearer ${session}` },
@@ -807,58 +804,6 @@ async function onFilesSelected(e: Event) {
   (e.target as HTMLInputElement).value = "";
 }
 
-async function readGpsFromFile(file: File): Promise<{ lat: number; lon: number } | null> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const buf = new Uint8Array(e.target!.result as ArrayBuffer);
-        if (buf[0] !== 0xFF || buf[1] !== 0xD8) return resolve(null);
-        let pos = 2;
-        while (pos < buf.length - 4) {
-          if (buf[pos] !== 0xFF) break;
-          const marker = buf[pos + 1];
-          const segLen = (buf[pos + 2] << 8) | buf[pos + 3];
-          if (marker === 0xE1) {
-            const hdr = String.fromCharCode(buf[pos+4], buf[pos+5], buf[pos+6], buf[pos+7], buf[pos+8], buf[pos+9]);
-            if (hdr === "Exif\0\0") {
-              const ts = pos + 10; // TIFF start
-              const le = buf[ts] === 0x49;
-              const r16 = (o: number) => le ? buf[ts+o] | buf[ts+o+1]<<8 : buf[ts+o]<<8 | buf[ts+o+1];
-              const r32 = (o: number) => le
-                ? (buf[ts+o] | buf[ts+o+1]<<8 | buf[ts+o+2]<<16 | buf[ts+o+3]*16777216) >>> 0
-                : ((buf[ts+o]*16777216 | buf[ts+o+1]<<16 | buf[ts+o+2]<<8 | buf[ts+o+3]) >>> 0);
-              const ifd0 = r32(4), ifd0n = r16(ifd0);
-              let gpsOff: number | null = null;
-              for (let i = 0; i < ifd0n; i++) { const t = ifd0 + 2 + i * 12; if (r16(t) === 0x8825) { gpsOff = r32(t + 8); break; } }
-              if (gpsOff === null) return resolve(null);
-              const gpsn = r16(gpsOff);
-              let latRef = "N", lonRef = "E", latDataOff: number | null = null, lonDataOff: number | null = null;
-              for (let i = 0; i < gpsn; i++) {
-                const t = gpsOff + 2 + i * 12, tag = r16(t);
-                if (tag === 0x0001) latRef = String.fromCharCode(buf[ts + t + 8]);
-                else if (tag === 0x0002 && r16(t+2) === 5 && r32(t+4) === 3) latDataOff = r32(t + 8);
-                else if (tag === 0x0003) lonRef = String.fromCharCode(buf[ts + t + 8]);
-                else if (tag === 0x0004 && r16(t+2) === 5 && r32(t+4) === 3) lonDataOff = r32(t + 8);
-              }
-              if (latDataOff === null || lonDataOff === null) return resolve(null);
-              const rat = (o: number) => { const n = r32(o), d = r32(o+4); return d === 0 ? NaN : n / d; };
-              const dms = (o: number, ref: string) => { const v = rat(o) + rat(o+8)/60 + rat(o+16)/3600; return (ref === "S" || ref === "W") ? -v : v; };
-              const lat = dms(latDataOff, latRef), lon = dms(lonDataOff, lonRef);
-              if (isNaN(lat) || isNaN(lon) || (lat === 0 && lon === 0)) return resolve(null);
-              return resolve({ lat, lon });
-            }
-          }
-          if (marker === 0xDA) break;
-          pos += 2 + segLen;
-        }
-        resolve(null);
-      } catch { resolve(null); }
-    };
-    reader.onerror = () => resolve(null);
-    reader.readAsArrayBuffer(file);
-  });
-}
 
 function thumbUrl(url: string): string {
   return url.replace("/uploads/", "/thumbnails/");
