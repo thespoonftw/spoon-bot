@@ -160,7 +160,7 @@ export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
       SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
         p.uploaded_by_id AS uploadedById,
         COALESCE(u.first_name, p.uploaded_by_name) AS uploadedByName,
-        p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height,
+        p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.lat, p.lon,
         COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
         (SELECT vote_type FROM photo_votes WHERE photo_id = p.id AND user_id = ?) AS userVote,
         (SELECT GROUP_CONCAT(pf.user_id) FROM photo_featured pf WHERE pf.photo_id = p.id) AS featuredIds
@@ -173,7 +173,7 @@ export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
     SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
       p.uploaded_by_id AS uploadedById,
       COALESCE(u.first_name, p.uploaded_by_name) AS uploadedByName,
-      p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height,
+      p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.lat, p.lon,
       COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
       NULL AS userVote,
       (SELECT GROUP_CONCAT(pf.user_id) FROM photo_featured pf WHERE pf.photo_id = p.id) AS featuredIds

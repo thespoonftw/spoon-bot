@@ -248,7 +248,7 @@ import { useRoute } from "vue-router";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
 
-interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; score?: number; userVote?: string | null; featuredIds?: string[] }
+interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; lat?: number; lon?: number; score?: number; userVote?: string | null; featuredIds?: string[] }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string; rsvpStatus?: string }
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; endDate?: string; photos: Photo[]; members: Member[] }
 
@@ -479,7 +479,10 @@ function openLightbox(index: number) {
       onInit: (el) => {
         const update = () => {
           const p = photos[pswp.currIndex];
-          el.textContent = [p?.uploadedByName, p?.takenAt ? formatTime(p.takenAt) : ""].filter(Boolean).join(" · ");
+          const dateHtml = p?.takenAt ? `<span class="pswp-caption-date">${formatTime(p.takenAt)}</span>` : "";
+          const mapHtml = (p?.lat && p?.lon) ? `<a class="pswp-caption-map" href="https://www.google.com/maps?q=${p.lat},${p.lon}" target="_blank">📍 Map</a>` : "";
+          const uploaderHtml = p?.uploadedByName ? `<span class="pswp-caption-uploader">By: ${p.uploadedByName}</span>` : "";
+          el.innerHTML = `<div class="pswp-caption-left">${dateHtml}${mapHtml}</div><div class="pswp-caption-right">${uploaderHtml}</div>`;
         };
         pswp.on("change", update);
         update();
@@ -615,13 +618,17 @@ async function openEditMembers() {
   ]);
   if (membersRes.ok) {
     const raw: AllMember[] = await membersRes.json();
-    allMembers.value = raw.sort((a, b) => {
-      const ag = a.userId.startsWith("guest_"), bg = b.userId.startsWith("guest_");
-      if (ag !== bg) return ag ? 1 : -1;
-      const aDecline = a.rsvpStatus === "decline" ? 1 : 0, bDecline = b.rsvpStatus === "decline" ? 1 : 0;
-      if (aDecline !== bDecline) return aDecline - bDecline;
-      return (a.hidden - b.hidden) || (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName);
-    });
+    const memberOrder = (u: AllMember) => {
+      if (u.userId.startsWith("guest_")) return 2;
+      if (u.rsvpStatus === "coming") return 0;
+      if (!u.rsvpStatus) return 1;
+      if (u.rsvpStatus === "maybe") return 3;
+      if (u.rsvpStatus === "lurking") return 4;
+      return 5; // decline
+    };
+    allMembers.value = raw.sort((a, b) =>
+      memberOrder(a) - memberOrder(b) || (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName)
+    );
   }
   if (usersRes.ok) allUsers.value = await usersRes.json();
   addMemberUserId.value = "";
