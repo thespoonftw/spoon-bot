@@ -60,21 +60,6 @@
       <div class="gallery-mobile">
         <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(i)">
           <img :src="photo.url" loading="lazy" />
-          <div class="photo-votes" @click.stop>
-            <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo.id, 'fav')" title="Favourite">⭐</button>
-            <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo.id, 'up')" title="Upvote">👍</button>
-            <span class="vote-score">{{ getVoteState(photo).score }}</span>
-            <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo.id, 'down')" title="Downvote">👎</button>
-            <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Tagging" style="padding:2px 3px">
-              <span v-if="getFeaturedMembers(photo).length" class="featured-avatars">
-                <template v-for="(m, idx) in getFeaturedMembers(photo)" :key="m.userId">
-                  <img v-if="m.avatarUrl" :src="m.avatarUrl" class="featured-mini-avatar" />
-                  <span v-else class="featured-mini-avatar featured-mini-initial">{{ (m.firstName || m.displayName)[0] }}</span>
-                </template>
-              </span>
-              <span v-else>👥</span>
-            </button>
-          </div>
         </div>
       </div>
     </template>
@@ -418,7 +403,7 @@ function openLightbox(index: number) {
   const pswp = new PhotoSwipe({
     dataSource: photos.map(p => ({ src: p.url, width: p.width || 1200, height: p.height || 900, msrc: thumbUrl(p.url) })),
     index,
-    bgOpacity: 0.92,
+    bgOpacity: 1,
     zoom: true,
     close: true,
     counter: true,
@@ -426,6 +411,8 @@ function openLightbox(index: number) {
     pinchToClose: false,
     closeOnVerticalDrag: false,
     loop: false,
+    paddingFn: (viewportSize: { x: number; y: number }) =>
+      viewportSize.x >= 768 ? { top: 10, bottom: 40, left: 0, right: 0 } : { top: 0, bottom: 0, left: 0, right: 0 },
   });
   history.pushState({ pswp: true }, "");
   let closedByBack = false;
@@ -680,7 +667,6 @@ async function deleteMember(userId: string) {
   const session = localStorage.getItem("snek_session");
   const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}`, { method: "DELETE", headers: { Authorization: `Bearer ${session}` } });
   if (res.ok) {
-    allMembers.value = allMembers.value.filter(m => m.userId !== userId);
     album.value.members = album.value.members.filter(m => m.userId !== userId);
   }
 }
