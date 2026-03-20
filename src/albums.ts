@@ -14,7 +14,7 @@ type BusboyInstance = { on(e: "file", cb: (f: string, s: NodeJS.ReadableStream, 
 const Busboy = require("busboy") as (opts: { headers: Record<string, string | string[] | undefined>; limits?: { files?: number; fileSize?: number } }) => BusboyInstance;
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
-import { handleAuthRoutes, isValidSession, getSessionUser } from "./auth";
+import { handleAuthRoutes, isValidSession, getSessionUser, getTokenFromRequest } from "./auth";
 import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoFeatured, dbGetPhotoVotes } from "./db";
 import type { Guild } from "discord.js";
 
@@ -181,7 +181,7 @@ export function startWebServer(): void {
     if (handleAuthRoutes(req, res)) return;
 
     if (url === "/api/status" && method === "GET") {
-      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const token = getTokenFromRequest(req);
       if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
       try {
         const stats = fs.statfsSync(PHOTO_STORAGE_PATH);
@@ -208,7 +208,7 @@ export function startWebServer(): void {
     }
 
     if (url === "/api/albums" && method === "POST") {
-      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const token = getTokenFromRequest(req);
       if (!isValidSession(token)) {
         res.writeHead(401, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Unauthorized" })); return;
@@ -237,7 +237,7 @@ export function startWebServer(): void {
     // PUT /api/album/:id — update album metadata
     if (url.match(/^\/api\/album\/[^/]+$/) && method === "PUT") {
       const channelId = url.slice("/api/album/".length);
-      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const token = getTokenFromRequest(req);
       if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
       if (!dbHasAlbum(channelId)) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }
       let body = "";
@@ -271,7 +271,7 @@ export function startWebServer(): void {
     // POST /api/album/:id/photos — upload a photo file
     if (url.match(/^\/api\/album\/[^/]+\/photos$/) && method === "POST") {
       const channelId = url.split("/")[3];
-      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const token = getTokenFromRequest(req);
       const uploader = getSessionUser(token);
       if (!uploader) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
       if (!dbHasAlbum(channelId)) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Album not found" })); return; }
@@ -336,7 +336,7 @@ export function startWebServer(): void {
     if (url.match(/^\/api\/album\/[^/]+\/photos\/\d+\/featured$/) && method === "POST") {
       const parts = url.split("/");
       const photoId = parseInt(parts[5]);
-      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const token = getTokenFromRequest(req);
       if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
       let body = "";
       req.on("data", chunk => body += chunk);
@@ -354,7 +354,7 @@ export function startWebServer(): void {
     // GET /api/album/:channelId/photos/:photoId/votes — get vote breakdown
     if (url.match(/^\/api\/album\/[^/]+\/photos\/\d+\/votes$/) && method === "GET") {
       const photoId = parseInt(url.split("/")[5]);
-      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const token = getTokenFromRequest(req);
       if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(dbGetPhotoVotes(photoId)));
@@ -365,7 +365,7 @@ export function startWebServer(): void {
     if (url.match(/^\/api\/album\/[^/]+\/photos\/\d+\/vote$/) && method === "POST") {
       const parts = url.split("/");
       const photoId = parseInt(parts[5]);
-      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const token = getTokenFromRequest(req);
       const sessionUser = token ? getSessionUser(token) : null;
       if (!sessionUser) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
       let body = "";
@@ -389,7 +389,7 @@ export function startWebServer(): void {
       const parts = url.split("/");
       const channelId = parts[3];
       const photoId = parseInt(parts[5]);
-      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const token = getTokenFromRequest(req);
       if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
       const filename = dbDeletePhoto(photoId);
       if (!filename) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }
@@ -404,7 +404,7 @@ export function startWebServer(): void {
     // GET /api/album/:id/members — all members including hidden, with RSVP status (for edit modal)
     if (url.match(/^\/api\/album\/[^/]+\/members$/) && method === "GET") {
       const channelId = url.split("/")[3];
-      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const token = getTokenFromRequest(req);
       if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
       const state = eventStates.get(channelId);
       const members = dbGetAllAlbumMembers(channelId).map(m => ({ ...m, rsvpStatus: state?.members.get(m.userId)?.status ?? null }));
@@ -416,7 +416,7 @@ export function startWebServer(): void {
     // POST /api/album/:id/members — add existing user or create guest and add
     if (url.match(/^\/api\/album\/[^/]+\/members$/) && method === "POST") {
       const channelId = url.split("/")[3];
-      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const token = getTokenFromRequest(req);
       if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
       let body = "";
       req.on("data", chunk => body += chunk);
@@ -449,7 +449,7 @@ export function startWebServer(): void {
       const channelId = parts[3];
       const userId = parts[5];
       const remove = (req.url ?? "").includes("?remove=true");
-      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const token = getTokenFromRequest(req);
       if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
       if (userId.startsWith("guest_")) {
         dbDeleteUser(userId);
@@ -468,7 +468,7 @@ export function startWebServer(): void {
       const parts = url.split("/");
       const channelId = parts[3];
       const userId = parts[5];
-      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const token = getTokenFromRequest(req);
       if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
       dbUnhideAlbumMember(channelId, userId);
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -479,7 +479,7 @@ export function startWebServer(): void {
     // POST /api/album/:id/share — create a password-protected share link
     if (url.match(/^\/api\/album\/[^/]+\/share$/) && method === "POST") {
       const channelId = url.split("/")[3];
-      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const token = getTokenFromRequest(req);
       if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
       if (!dbHasAlbum(channelId)) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }
       let body = "";
@@ -522,7 +522,7 @@ export function startWebServer(): void {
     // GET /api/album/:id
     if (url.match(/^\/api\/album\/[^/]+$/) && method === "GET") {
       const channelId = url.slice("/api/album/".length);
-      const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+      const token = getTokenFromRequest(req);
       const sessionUser = token ? getSessionUser(token) : null;
       const album = dbGetAlbumWithPhotos(channelId, sessionUser?.userId);
       if (!album) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }

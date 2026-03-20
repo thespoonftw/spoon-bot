@@ -53,6 +53,18 @@ export async function initAuth(client: Client) {
   }
 }
 
+const SESSION_COOKIE = "snek_session";
+const SESSION_MAX_AGE = 365 * 24 * 60 * 60;
+const SESSION_COOKIE_ATTRS = `; Max-Age=${SESSION_MAX_AGE}; Path=/; SameSite=Lax; Secure`;
+
+export function getTokenFromRequest(req: IncomingMessage): string {
+  const bearer = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+  if (bearer && bearer !== "null" && bearer !== "undefined") return bearer;
+  const cookieHeader = req.headers["cookie"] ?? "";
+  const match = cookieHeader.match(/(?:^|; )snek_session=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
 export function isValidSession(token: string): boolean {
   return sessions.has(token);
 }
@@ -118,13 +130,13 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     sessions.set(sessionToken, magic.userId);
     persistSessions();
     dbUpdateUserLastLogin(magic.userId);
-    res.writeHead(200, { "Content-Type": "application/json" });
+    res.writeHead(200, { "Content-Type": "application/json", "Set-Cookie": `${SESSION_COOKIE}=${sessionToken}${SESSION_COOKIE_ATTRS}` });
     res.end(JSON.stringify({ sessionToken, userId: magic.userId }));
     return true;
   }
 
   if (url === "/api/auth/check" && method === "GET") {
-    const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+    const token = getTokenFromRequest(req);
     const userId = sessions.get(token);
     if (!userId) {
       res.writeHead(401, { "Content-Type": "application/json" });
@@ -139,7 +151,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
   }
 
   if (url === "/api/site-users" && method === "GET") {
-    const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+    const token = getTokenFromRequest(req);
     if (!sessions.has(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return true; }
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(dbGetAllUsers()));
@@ -147,7 +159,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
   }
 
   if (url.match(/^\/api\/site-users\/[^/]+$/) && method === "PUT") {
-    const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+    const token = getTokenFromRequest(req);
     if (!sessions.has(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return true; }
     const userId = url.slice("/api/site-users/".length);
     let body = "";
@@ -167,10 +179,10 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
   }
 
   if (url === "/api/auth/logout" && method === "POST") {
-    const token = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+    const token = getTokenFromRequest(req);
     sessions.delete(token);
     persistSessions();
-    res.writeHead(200, { "Content-Type": "application/json" });
+    res.writeHead(200, { "Content-Type": "application/json", "Set-Cookie": `${SESSION_COOKIE}=; Max-Age=0; Path=/` });
     res.end(JSON.stringify({ ok: true }));
     return true;
   }
