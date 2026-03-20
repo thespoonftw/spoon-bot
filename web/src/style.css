@@ -139,7 +139,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .user-card { max-width: unset; margin-bottom: 0; }
   .user-category { max-width: unset; }
   .pswp__bottom-bar { flex-wrap: nowrap; }
-  .pswp-votes { width: auto; order: 2; min-width: 260px; }
+  .pswp-votes { width: auto; order: 2; min-width: 300px; }
   .pswp-meta-right { order: 3; }
 }
 .user-card:hover:not(:disabled) { background: #45475a; }
