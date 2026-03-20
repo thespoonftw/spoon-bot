@@ -134,10 +134,10 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .login-grid { display: flex; flex-direction: column; width: 100%; max-width: 400px; }
 .user-card { display: flex; align-items: center; gap: 12px; background: #313244; border: none; border-radius: 10px; padding: 14px 20px; margin-bottom: 10px; cursor: pointer; color: #cdd6f4; font-size: 1rem; width: 100%; max-width: 400px; }
 @media (min-width: 768px) {
-  .page.center { display: block; min-height: unset; text-align: left; padding-top: 48px; }
-  .login-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 100%; margin-bottom: 8px; }
+  .page.center { min-height: unset; padding-top: 48px; }
+  .login-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 600px; max-width: 100%; margin-bottom: 8px; }
   .user-card { max-width: unset; margin-bottom: 0; }
-  .user-category { max-width: unset; }
+  .user-category { width: 600px; max-width: 100%; }
   .pswp__bottom-bar { flex-wrap: nowrap; }
   .pswp-votes { width: auto; order: 2; min-width: 330px; }
   .pswp-meta-right { order: 3; }
