@@ -138,9 +138,11 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .login-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 100%; margin-bottom: 8px; }
   .user-card { max-width: unset; margin-bottom: 0; }
   .user-category { max-width: unset; }
-  .pswp__vote-bar { bottom: 20px; }
-  .landing-header { flex-direction: row; align-items: center; }
-  .landing-header h1 { margin-bottom: 0; }
+  .pswp__vote-bar { bottom: 20px; background: none; box-shadow: none; padding: 0; }
+  .pswp-vote-btn { text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
+  .pswp-vote-score { text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
+  .landing-header { flex-direction: row; align-items: center; justify-content: space-between; }
+  .landing-title { order: -1; }
 }
 .user-card:hover:not(:disabled) { background: #45475a; }
 .user-card:disabled { opacity: 0.6; cursor: default; }
@@ -164,8 +166,9 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .logout { background: #313244; border: none; border-radius: 8px; padding: 8px 16px; color: #cdd6f4; cursor: pointer; font-size: 0.9rem; }
 .logout:hover { background: #45475a; }
 
-.landing-header { display: flex; flex-direction: column; margin-bottom: 24px; gap: 12px; }
-.landing-header .user-info { justify-content: flex-end; }
+.landing-header { display: flex; flex-direction: column; margin-bottom: 24px; gap: 8px; }
+.landing-user-info { justify-content: flex-end; }
+.landing-title { margin-bottom: 0; }
 .landing-grid { display: flex; gap: 24px; margin-top: 16px; }
 .feature-card { flex: 1; background: #313244; border-radius: 16px; padding: 48px 32px; text-decoration: none; color: inherit; display: flex; flex-direction: column; align-items: center; gap: 14px; transition: background 0.15s; }
 .feature-card:hover { background: #45475a; }

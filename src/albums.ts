@@ -316,8 +316,8 @@ export function startWebServer(): void {
               const d = new Date(normalized);
               if (!isNaN(d.getTime())) takenAt = d.toISOString();
             }
-            if (typeof exif?.latitude === "number") lat = exif.latitude as number;
-            if (typeof exif?.longitude === "number") lon = exif.longitude as number;
+            if (typeof exif?.latitude === "number" && !isNaN(exif.latitude) && exif.latitude !== 0) lat = exif.latitude as number;
+            if (typeof exif?.longitude === "number" && !isNaN(exif.longitude) && exif.longitude !== 0) lon = exif.longitude as number;
             console.log(`[upload] EXIF takenAt=${takenAt} lat=${lat} lon=${lon}`);
           } catch (e) { console.error("[upload] EXIF parse failed:", e); }
           try {
