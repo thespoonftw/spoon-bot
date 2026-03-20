@@ -704,6 +704,7 @@ async function deleteMember(userId: string) {
   const session = localStorage.getItem("snek_session");
   const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}?remove=true`, { method: "DELETE", headers: { Authorization: `Bearer ${session}` } });
   if (res.ok) {
+    allMembers.value = allMembers.value.filter(m => m.userId !== userId);
     album.value.members = album.value.members.filter(m => m.userId !== userId);
   }
 }
