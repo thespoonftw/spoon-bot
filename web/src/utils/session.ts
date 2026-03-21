@@ -7,7 +7,7 @@ export function getSession(): string | null {
 }
 
 export function setSession(token: string): void {
-  document.cookie = `${KEY}=${encodeURIComponent(token)}; Max-Age=${MAX_AGE}; path=/; SameSite=Lax`;
+  document.cookie = `${KEY}=${encodeURIComponent(token)}; Max-Age=${MAX_AGE}; path=/; SameSite=Lax; Secure`;
 }
 
 export function clearSession(): void {
