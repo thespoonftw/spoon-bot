@@ -45,11 +45,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 
 interface UserInfo { userId: string; displayName: string; avatarUrl: string; lastLoginAt?: string }
 
 const router = useRouter();
+const route = useRoute();
 const users = ref<UserInfo[]>([]);
 const loading = ref(false);
 const error = ref("");
@@ -63,6 +64,7 @@ const newcomers = computed(() =>
 );
 
 onMounted(async () => {
+  if (route.query.expired) error.value = "This login link has expired. Please request a new one.";
   users.value = await fetch("/api/users").then(r => r.json());
 });
 

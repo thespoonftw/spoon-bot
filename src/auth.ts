@@ -118,12 +118,12 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     return true;
   }
 
-  if (url.startsWith("/api/auth/verify/") && method === "GET") {
-    const token = url.slice("/api/auth/verify/".length);
+  if (url.startsWith("/auth/verify/") && method === "GET") {
+    const token = url.slice("/auth/verify/".length);
     const magic = magicTokens.get(token);
     if (!magic || magic.expires < Date.now()) {
-      res.writeHead(401, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Invalid or expired token" })); return true;
+      res.writeHead(302, { Location: "/login?expired=1" });
+      res.end(); return true;
     }
     magicTokens.delete(token);
     const sessionToken = crypto.randomBytes(32).toString("hex");
@@ -131,9 +131,9 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     persistSessions();
     dbUpdateUserLastLogin(magic.userId);
     const cookieHeader = `${SESSION_COOKIE}=${sessionToken}${SESSION_COOKIE_ATTRS}`;
-    console.log(`[auth/verify] setting cookie: ${cookieHeader.slice(0, 80)}`);
-    res.writeHead(200, { "Content-Type": "application/json", "Set-Cookie": cookieHeader });
-    res.end(JSON.stringify({ sessionToken, userId: magic.userId }));
+    console.log(`[auth/verify] redirect with cookie: ${cookieHeader.slice(0, 80)}`);
+    res.writeHead(302, { "Set-Cookie": cookieHeader, Location: "/" });
+    res.end();
     return true;
   }
 

@@ -9,7 +9,6 @@ import ShareView from "./views/ShareView.vue";
 import StatusView from "./views/StatusView.vue";
 import LoginView from "./views/LoginView.vue";
 import MagicLinkSent from "./views/MagicLinkSent.vue";
-import AuthVerify from "./views/AuthVerify.vue";
 import "./style.css";
 
 const router = createRouter({
@@ -17,7 +16,6 @@ const router = createRouter({
   routes: [
     { path: "/login", component: LoginView, meta: { public: true } },
     { path: "/login/sent", component: MagicLinkSent, meta: { public: true } },
-    { path: "/auth/verify/:token", component: AuthVerify, meta: { public: true } },
     { path: "/share/:token", component: ShareView, meta: { public: true } },
     { path: "/", component: LandingView },
     { path: "/albums", component: AlbumList },
