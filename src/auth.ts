@@ -55,7 +55,7 @@ export async function initAuth(client: Client) {
 
 const SESSION_COOKIE = "snek_session";
 const SESSION_MAX_AGE = 365 * 24 * 60 * 60;
-const SESSION_COOKIE_ATTRS = `; Max-Age=${SESSION_MAX_AGE}; Path=/; SameSite=Lax; Secure; HttpOnly`;
+const SESSION_COOKIE_ATTRS = `; Max-Age=${SESSION_MAX_AGE}; Path=/; SameSite=Lax; HttpOnly`;
 
 export function getTokenFromRequest(req: IncomingMessage): string {
   const bearer = (req.headers["authorization"] ?? "").replace("Bearer ", "");
@@ -130,7 +130,9 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     sessions.set(sessionToken, magic.userId);
     persistSessions();
     dbUpdateUserLastLogin(magic.userId);
-    res.writeHead(200, { "Content-Type": "application/json", "Set-Cookie": `${SESSION_COOKIE}=${sessionToken}${SESSION_COOKIE_ATTRS}` });
+    const cookieHeader = `${SESSION_COOKIE}=${sessionToken}${SESSION_COOKIE_ATTRS}`;
+    console.log(`[auth/verify] setting cookie: ${cookieHeader.slice(0, 80)}`);
+    res.writeHead(200, { "Content-Type": "application/json", "Set-Cookie": cookieHeader });
     res.end(JSON.stringify({ sessionToken, userId: magic.userId }));
     return true;
   }
