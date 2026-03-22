@@ -11,7 +11,6 @@ import LoginView from "./views/LoginView.vue";
 import MagicLinkSent from "./views/MagicLinkSent.vue";
 import AuthVerify from "./views/AuthVerify.vue";
 import "./style.css";
-import { getSession } from "./utils/session";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -28,11 +27,14 @@ const router = createRouter({
   ],
 });
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   if (to.meta.public) return true;
-  const session = getSession();
-  if (!session) return { path: "/login" };
-  return true;
+  try {
+    const res = await fetch("/api/auth/check");
+    const data = await res.json();
+    if (data.valid) return true;
+  } catch { /* network error, let it through */ }
+  return { path: "/login" };
 });
 
 createApp(App).use(router).mount("#app");

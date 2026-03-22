@@ -55,7 +55,7 @@ export async function initAuth(client: Client) {
 
 const SESSION_COOKIE = "snek_session";
 const SESSION_MAX_AGE = 365 * 24 * 60 * 60;
-const SESSION_COOKIE_ATTRS = `; Max-Age=${SESSION_MAX_AGE}; Path=/; SameSite=Lax; Secure`;
+const SESSION_COOKIE_ATTRS = `; Max-Age=${SESSION_MAX_AGE}; Path=/; SameSite=Lax; Secure; HttpOnly`;
 
 export function getTokenFromRequest(req: IncomingMessage): string {
   const bearer = (req.headers["authorization"] ?? "").replace("Bearer ", "");
