@@ -137,6 +137,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
 
   if (url === "/api/auth/check" && method === "GET") {
     const token = getTokenFromRequest(req);
+    console.log(`[auth/check] cookie=${req.headers["cookie"]?.slice(0,40)} token=${token.slice(0,8)} valid=${sessions.has(token)}`);
     const userId = sessions.get(token);
     if (!userId) {
       res.writeHead(401, { "Content-Type": "application/json" });
