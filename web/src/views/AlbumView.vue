@@ -608,7 +608,7 @@ function openLightbox(index: number) {
       const avatarHtml = uploaderMember?.avatarUrl
         ? `<img src="${uploaderMember.avatarUrl}" style="width:1.4em;height:1.4em;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:5px" />`
         : "";
-      const uploadedAtHtml = p?.uploadedAt ? `<span class="pswp-caption-date" style="display:block">${formatTime(p.uploadedAt)}</span>` : "";
+      const uploadedAtHtml = p?.uploadedAt ? `<span class="pswp-upload-date">${formatTime(p.uploadedAt)}</span>` : "";
       const uploaderHtml = p?.uploadedByName ? `<span class="pswp-caption-uploader">Uploader: ${avatarHtml}${p.uploadedByName}</span>${uploadedAtHtml}` : "";
       return { dateHtml, uploaderHtml };
     };

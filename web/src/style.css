@@ -74,6 +74,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .pswp-votes { width: 100%; display: flex; align-items: center; order: 3; pointer-events: auto; }
 .pswp-caption-date { color: rgba(255,255,255,0.85); font-size: 0.9em; }
 .pswp-caption-uploader { color: rgba(255,255,255,0.85); font-size: 0.9em; }
+.pswp-upload-date { color: rgba(255,255,255,0.85); font-size: 0.9em; display: none; }
+@media (min-width: 768px) { .pswp-upload-date { display: block; } }
 
 .sort-bar { display: flex; align-items: center; gap: 10px; margin-top: 20px; }
 .sort-label { color: #a6adc8; font-size: 0.9em; white-space: nowrap; }
