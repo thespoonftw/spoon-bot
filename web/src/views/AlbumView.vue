@@ -318,25 +318,37 @@ const sortBy = ref<'popular' | 'tagging' | 'uploader' | 'newest' | 'oldest'>('po
 const currentUserId = ref<string | null>(null);
 const tagFilterUserId = ref<string>('__nobody__');
 
+function cmp(a: Photo, b: Photo): number {
+  const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
+  if (scoreDiff !== 0) return scoreDiff;
+  return (b.uploadedAt ?? '').localeCompare(a.uploadedAt ?? '');
+}
+
 const allPhotosFlat = computed(() => sortedSections.value.flatMap(s => s.photos));
 
 const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
   const photos = album.value?.photos ?? [];
   if (sortBy.value === 'popular') {
-    return [{ label: '', photos: [...photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)) }];
+    return [{ label: '', photos: [...photos].sort(cmp) }];
   }
   if (sortBy.value === 'newest') {
-    return [{ label: '', photos: [...photos].sort((a, b) => (b.uploadedAt ?? '').localeCompare(a.uploadedAt ?? '')) }];
+    return [{ label: '', photos: [...photos].sort((a, b) => {
+      const t = (b.uploadedAt ?? '').localeCompare(a.uploadedAt ?? '');
+      return t !== 0 ? t : cmp(a, b);
+    }) }];
   }
   if (sortBy.value === 'oldest') {
-    return [{ label: '', photos: [...photos].sort((a, b) => (a.uploadedAt ?? '').localeCompare(b.uploadedAt ?? '')) }];
+    return [{ label: '', photos: [...photos].sort((a, b) => {
+      const t = (a.uploadedAt ?? '').localeCompare(b.uploadedAt ?? '');
+      return t !== 0 ? t : cmp(a, b);
+    }) }];
   }
   if (sortBy.value === 'tagging') {
     const target = tagFilterUserId.value;
     const filtered = target === '__nobody__'
       ? photos.filter(p => !p.featuredIds?.length)
       : photos.filter(p => p.featuredIds?.includes(target));
-    return [{ label: '', photos: filtered }];
+    return [{ label: '', photos: [...filtered].sort(cmp) }];
   }
   if (sortBy.value === 'uploader') {
     const groups = new Map<string, { label: string; photos: Photo[] }>();
@@ -346,7 +358,9 @@ const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
       if (!groups.has(key)) groups.set(key, { label, photos: [] });
       groups.get(key)!.photos.push(photo);
     }
-    return [...groups.values()].sort((a, b) => a.label.localeCompare(b.label));
+    const sections = [...groups.values()].sort((a, b) => a.label.localeCompare(b.label));
+    for (const s of sections) s.photos.sort(cmp);
+    return sections;
   }
   return [{ label: '', photos }];
 });
