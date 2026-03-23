@@ -184,7 +184,8 @@ export function startWebServer(): void {
       const token = getTokenFromRequest(req);
       if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
       try {
-        const stats = fs.statfsSync(PHOTO_STORAGE_PATH);
+        const statPath = fs.existsSync(PHOTO_STORAGE_PATH) ? PHOTO_STORAGE_PATH : DATA_DIR;
+        const stats = fs.statfsSync(statPath);
         const total = stats.blocks * stats.bsize;
         const available = stats.bavail * stats.bsize;
         const used = total - available;
