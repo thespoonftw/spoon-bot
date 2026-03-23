@@ -651,7 +651,7 @@ function openLightbox(index: number) {
           const featuredMs = (album.value?.members ?? []).filter(m => p.featuredIds?.includes(m.userId));
           const avStyle = (i: number) => `width:1em;height:1em;border-radius:50%;object-fit:cover;pointer-events:none;border:1.5px solid rgba(0,0,0,0.4);flex-shrink:0;${i > 0 ? "margin-left:-0.35em;" : ""}`;
           const featuredBtnContent = featuredMs.length >= 4
-            ? `<span style="color:#fff">${featuredMs.length}👥</span>`
+            ? `<span style="color:#fff"><span class="tag-count">${featuredMs.length}</span>👥</span>`
             : featuredMs.length
             ? `<span style="display:inline-flex;align-items:center">${featuredMs.map((m, i) => m.avatarUrl
                 ? `<img src="${m.avatarUrl}" style="${avStyle(i)}display:block" />`
