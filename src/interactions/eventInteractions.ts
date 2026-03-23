@@ -25,7 +25,7 @@ import {
 } from "../eventBuilders";
 import { parseDateText } from "../dateUtils";
 import { updateJoinMessage, updateInnerMessage, updateEventMessages } from "../messageSync";
-import { hasAlbum, handleAlbumInteractions, startAlbumForChannel } from "../albums";
+import { hasAlbum, getAlbumUrl, handleAlbumInteractions, startAlbumForChannel } from "../albums";
 import { dbAddAlbumMember, dbRemoveAlbumMember, dbUpsertUser } from "../db";
 
 const RSVP_LABELS: Record<RSVPStatus, string> = {
@@ -588,7 +588,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       return;
     }
     if (hasAlbum(channelId)) {
-      await interaction.reply({ content: "This channel already has a photo album.", ephemeral: true });
+      await interaction.reply({ content: `This channel's album is available at ${getAlbumUrl(channelId)}.` });
       return;
     }
     if (!interaction.guild) return;
