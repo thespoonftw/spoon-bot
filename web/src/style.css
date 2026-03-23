@@ -222,8 +222,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .pswp-vote-btn.active-up, .pswp-vote-btn.active-down, .pswp-vote-btn.active-fav { filter: none; }
 .pswp-vote-score { flex: 1; color: rgba(255,255,255,0.8); font-weight: 600; font-size: 1.6em; text-align: center; filter: none !important; cursor: pointer; }
 @media (max-width: 767px) {
-  .pswp-vote-btn { font-size: 1.675em; padding: 0px 2px; height: 45px; }
-  .pswp-vote-score { font-size: 1.675em; min-width: 2ch; }
+  .pswp-vote-btn { font-size: 1.45em; padding: 0px 2px; height: 40px; }
+  .pswp-vote-score { font-size: 1.45em; min-width: 2ch; }
   .pswp__top-meta { display: flex; top: 56px; }
   .pswp__bottom-bar .pswp-meta-left, .pswp__bottom-bar .pswp-meta-right { display: none; }
   .vote-float { font-size: 2.2em; }
