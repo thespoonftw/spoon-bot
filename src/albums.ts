@@ -131,8 +131,9 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
   for (const attachment of imageAttachments) {
     try {
       const ext = path.extname(attachment.name || ".jpg") || ".jpg";
-      const name = crypto.randomBytes(16).toString("hex") + ext;
+      const name = crypto.createHash("md5").update(attachment.url).digest("hex") + ext;
       const filePath = path.join(albumDir, name);
+      if (fs.existsSync(filePath)) { console.log(`Skipping duplicate attachment: ${name}`); continue; }
       await downloadFile(attachment.url, filePath);
 
       let width = 0, height = 0;
@@ -551,13 +552,14 @@ export function startWebServer(): void {
       }
       const ext = path.extname(filename).toLowerCase();
       const imgMime: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp", ".heic": "image/heic" };
-      res.writeHead(200, { "Content-Type": imgMime[ext] ?? "application/octet-stream", "Cache-Control": "public, max-age=31536000" });
+      res.writeHead(200, { "Content-Type": imgMime[ext] ?? "application/octet-stream", "Cache-Control": "private, max-age=3600" });
       fs.createReadStream(servePath).pipe(res);
       return;
     }
 
-    // GET /uploads/:channelId/:filename — serve uploaded photo files
+    // GET /uploads/:channelId/:filename — serve uploaded photo files (auth required)
     if (url.startsWith("/uploads/")) {
+      if (!isValidSession(getTokenFromRequest(req))) { res.writeHead(401); res.end("Unauthorized"); return; }
       const parts = url.slice("/uploads/".length).split("/");
       if (parts.length < 2 || parts[0].includes("..") || parts[1].includes("..")) {
         res.writeHead(400); res.end("Bad request"); return;
@@ -569,7 +571,7 @@ export function startWebServer(): void {
       }
       const ext = path.extname(filename).toLowerCase();
       const imgMime: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp", ".heic": "image/heic" };
-      res.writeHead(200, { "Content-Type": imgMime[ext] ?? "application/octet-stream", "Cache-Control": "public, max-age=31536000" });
+      res.writeHead(200, { "Content-Type": imgMime[ext] ?? "application/octet-stream", "Cache-Control": "private, max-age=3600" });
       fs.createReadStream(filePath).pipe(res);
       return;
     }
