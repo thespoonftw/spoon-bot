@@ -667,7 +667,7 @@ function openLightbox(index: number) {
               <button data-vote="up" class="pswp-vote-btn${upActive ? " active-up" : ""}">👍</button>
               <button data-action="score" class="pswp-vote-btn pswp-vote-score">${score}</button>
               <button data-vote="down" class="pswp-vote-btn${userVote === "down" ? " active-down" : ""}">👎</button>
-              <button data-action="featured" class="pswp-vote-btn${featuredMs.length ? " active-fav" : ""}" style="padding:3px">${featuredBtnContent}</button>
+              <button data-action="featured" class="pswp-vote-btn${featuredMs.length ? " active-fav" : ""}">${featuredBtnContent}</button>
             </div>
           `;
           if (topMetaEl) topMetaEl.innerHTML = `<div class="pswp-meta-left">${dateHtml}</div><div class="pswp-meta-right">${uploaderHtml}</div>`;
