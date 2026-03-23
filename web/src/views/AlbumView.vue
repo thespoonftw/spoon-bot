@@ -36,28 +36,41 @@
       </div>
 
       <p v-if="album.photos.length === 0" class="empty" style="margin-top:24px">No photos yet.</p>
-      <div class="gallery">
-        <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item" @click="openLightbox(i)">
-          <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
-          <button class="photo-delete-btn" @click.stop="confirmDelete(photo)" title="Delete photo">🗑</button>
-          <div class="photo-votes" @click.stop>
-            <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'fav')" title="Favourite">⭐</button>
-            <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'up')" title="Upvote">👍</button>
-            <button class="vote-btn vote-score" @click.stop="openVoteModal(photo)">{{ getVoteState(photo).score }}</button>
-            <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo, 'down')" title="Downvote">👎</button>
-            <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Tagging" style="padding:2px 3px">
-              <span v-if="getFeaturedMembers(photo).length >= 4" style="color:#fff">{{ getFeaturedMembers(photo).length }}👥</span>
-              <span v-else-if="getFeaturedMembers(photo).length" class="featured-avatars">
-                <template v-for="(m, idx) in getFeaturedMembers(photo)" :key="m.userId">
-                  <img v-if="m.avatarUrl" :src="m.avatarUrl" class="featured-mini-avatar" />
-                  <span v-else class="featured-mini-avatar featured-mini-initial">{{ (m.firstName || m.displayName)[0] }}</span>
-                </template>
-              </span>
-              <span v-else>👥</span>
-            </button>
+      <div v-else class="sort-bar">
+        <label class="sort-label">Sort by</label>
+        <select v-model="sortBy" class="sort-select">
+          <option value="popular">Most Popular</option>
+          <option value="tagging-me">Tagging Me</option>
+          <option value="uploader">Uploader</option>
+          <option value="newest">Newest Upload</option>
+          <option value="oldest">Oldest Upload</option>
+        </select>
+      </div>
+      <template v-for="section in sortedSections" :key="section.label">
+        <h3 v-if="section.label" class="gallery-section-header">{{ section.label }}</h3>
+        <div class="gallery">
+          <div v-for="photo in section.photos" :key="photo.id" class="photo-item" @click="openLightbox(allPhotosFlat.indexOf(photo))">
+            <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
+            <button class="photo-delete-btn" @click.stop="confirmDelete(photo)" title="Delete photo">🗑</button>
+            <div class="photo-votes" @click.stop>
+              <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'fav')" title="Favourite">⭐</button>
+              <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'up')" title="Upvote">👍</button>
+              <button class="vote-btn vote-score" @click.stop="openVoteModal(photo)">{{ getVoteState(photo).score }}</button>
+              <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo, 'down')" title="Downvote">👎</button>
+              <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Tagging" style="padding:2px 3px">
+                <span v-if="getFeaturedMembers(photo).length >= 4" style="color:#fff">{{ getFeaturedMembers(photo).length }}👥</span>
+                <span v-else-if="getFeaturedMembers(photo).length" class="featured-avatars">
+                  <template v-for="(m, idx) in getFeaturedMembers(photo)" :key="m.userId">
+                    <img v-if="m.avatarUrl" :src="m.avatarUrl" class="featured-mini-avatar" />
+                    <span v-else class="featured-mini-avatar featured-mini-initial">{{ (m.firstName || m.displayName)[0] }}</span>
+                  </template>
+                </span>
+                <span v-else>👥</span>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </template>
       <div class="gallery-mobile">
         <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(i)">
           <img :src="photo.url" loading="lazy" />
@@ -295,6 +308,44 @@ const featuredPhoto = ref<Photo | null>(null);
 const featuredSelection = ref(new Set<string>());
 const savingFeatured = ref(false);
 
+const sortBy = ref<'popular' | 'tagging-me' | 'uploader' | 'newest' | 'oldest'>('popular');
+const currentUserId = ref<string | null>(null);
+
+const allPhotosFlat = computed(() => sortedSections.value.flatMap(s => s.photos));
+
+const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
+  const photos = album.value?.photos ?? [];
+  if (sortBy.value === 'popular') {
+    return [{ label: '', photos: [...photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)) }];
+  }
+  if (sortBy.value === 'newest') {
+    return [{ label: '', photos: [...photos].sort((a, b) => (b.uploadedAt ?? '').localeCompare(a.uploadedAt ?? '')) }];
+  }
+  if (sortBy.value === 'oldest') {
+    return [{ label: '', photos: [...photos].sort((a, b) => (a.uploadedAt ?? '').localeCompare(b.uploadedAt ?? '')) }];
+  }
+  if (sortBy.value === 'tagging-me') {
+    const me = currentUserId.value;
+    const tagged = photos.filter(p => me && p.featuredIds?.includes(me));
+    const untagged = photos.filter(p => !me || !p.featuredIds?.includes(me));
+    const sections: { label: string; photos: Photo[] }[] = [];
+    if (tagged.length) sections.push({ label: 'Featuring Me', photos: tagged });
+    if (untagged.length) sections.push({ label: 'Others', photos: untagged });
+    return sections.length ? sections : [{ label: '', photos }];
+  }
+  if (sortBy.value === 'uploader') {
+    const groups = new Map<string, { label: string; photos: Photo[] }>();
+    for (const photo of photos) {
+      const key = photo.uploadedById ?? '__unknown__';
+      const label = photo.uploadedByName ?? 'Unknown';
+      if (!groups.has(key)) groups.set(key, { label, photos: [] });
+      groups.get(key)!.photos.push(photo);
+    }
+    return [...groups.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }
+  return [{ label: '', photos }];
+});
+
 const featuredMembers = computed(() =>
   album.value?.members.filter(m => featuredSelection.value.has(m.userId)) ?? []
 );
@@ -400,14 +451,18 @@ const addableUsers = computed(() => {
 
 onMounted(async () => {
   const session = getSession();
-  const res = await fetch(`/api/album/${route.params.channelId}`, {
-    headers: { Authorization: `Bearer ${session}` },
-  });
-  if (res.ok) {
-    const data = await res.json();
-    data.photos.sort((a: Photo, b: Photo) => (b.score ?? 0) - (a.score ?? 0));
+  const [albumRes, checkRes] = await Promise.all([
+    fetch(`/api/album/${route.params.channelId}`, { headers: { Authorization: `Bearer ${session}` } }),
+    fetch(`/api/auth/check`, { headers: session ? { Authorization: `Bearer ${session}` } : {} }),
+  ]);
+  if (albumRes.ok) {
+    const data = await albumRes.json();
     album.value = data;
     allMembers.value = (data.members ?? []) as AllMember[];
+  }
+  if (checkRes.ok) {
+    const { userId } = await checkRes.json();
+    currentUserId.value = userId ?? null;
   }
   loading.value = false;
 });
@@ -454,7 +509,7 @@ async function deletePhoto() {
 
 function openLightbox(index: number) {
   if (!album.value) return;
-  const photos = album.value.photos;
+  const photos = allPhotosFlat.value;
   const pswp = new PhotoSwipe({
     dataSource: photos.map(p => ({ src: p.url, width: p.width || 1200, height: p.height || 900, msrc: thumbUrl(p.url) })),
     index,
