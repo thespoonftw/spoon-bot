@@ -77,11 +77,14 @@
           </div>
         </div>
       </template>
-      <div class="gallery-mobile">
-        <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(i)">
-          <img :src="photo.url" loading="lazy" />
+      <template v-for="section in sortedSections" :key="'m-' + section.label">
+        <h3 v-if="section.label" class="gallery-section-header">{{ section.label }}</h3>
+        <div class="gallery-mobile">
+          <div v-for="photo in section.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(allPhotosFlat.indexOf(photo))">
+            <img :src="photo.url" loading="lazy" />
+          </div>
         </div>
-      </div>
+      </template>
     </template>
     <p v-else-if="loading" class="empty">Loading…</p>
     <p v-else class="empty">Album not found.</p>
