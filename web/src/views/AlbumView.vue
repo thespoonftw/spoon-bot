@@ -40,11 +40,17 @@
         <label class="sort-label">Sort by</label>
         <select v-model="sortBy" class="sort-select">
           <option value="popular">Most Popular</option>
-          <option value="tagging-me">Tagging Me</option>
+          <option value="tagging">Tagging</option>
           <option value="uploader">Uploader</option>
           <option value="newest">Newest Upload</option>
           <option value="oldest">Oldest Upload</option>
         </select>
+        <template v-if="sortBy === 'tagging'">
+          <select v-model="tagFilterUserId" class="sort-select">
+            <option v-for="m in album.members" :key="m.userId" :value="m.userId">{{ m.firstName || m.displayName }}</option>
+            <option value="__nobody__">Nobody</option>
+          </select>
+        </template>
       </div>
       <template v-for="section in sortedSections" :key="section.label">
         <h3 v-if="section.label" class="gallery-section-header">{{ section.label }}</h3>
@@ -308,8 +314,9 @@ const featuredPhoto = ref<Photo | null>(null);
 const featuredSelection = ref(new Set<string>());
 const savingFeatured = ref(false);
 
-const sortBy = ref<'popular' | 'tagging-me' | 'uploader' | 'newest' | 'oldest'>('popular');
+const sortBy = ref<'popular' | 'tagging' | 'uploader' | 'newest' | 'oldest'>('popular');
 const currentUserId = ref<string | null>(null);
+const tagFilterUserId = ref<string>('__nobody__');
 
 const allPhotosFlat = computed(() => sortedSections.value.flatMap(s => s.photos));
 
@@ -324,14 +331,12 @@ const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
   if (sortBy.value === 'oldest') {
     return [{ label: '', photos: [...photos].sort((a, b) => (a.uploadedAt ?? '').localeCompare(b.uploadedAt ?? '')) }];
   }
-  if (sortBy.value === 'tagging-me') {
-    const me = currentUserId.value;
-    const tagged = photos.filter(p => me && p.featuredIds?.includes(me));
-    const untagged = photos.filter(p => !me || !p.featuredIds?.includes(me));
-    const sections: { label: string; photos: Photo[] }[] = [];
-    if (tagged.length) sections.push({ label: 'Featuring Me', photos: tagged });
-    if (untagged.length) sections.push({ label: 'Others', photos: untagged });
-    return sections.length ? sections : [{ label: '', photos }];
+  if (sortBy.value === 'tagging') {
+    const target = tagFilterUserId.value;
+    const filtered = target === '__nobody__'
+      ? photos.filter(p => !p.featuredIds?.length)
+      : photos.filter(p => p.featuredIds?.includes(target));
+    return [{ label: '', photos: filtered }];
   }
   if (sortBy.value === 'uploader') {
     const groups = new Map<string, { label: string; photos: Photo[] }>();
@@ -463,6 +468,8 @@ onMounted(async () => {
   if (checkRes.ok) {
     const { userId } = await checkRes.json();
     currentUserId.value = userId ?? null;
+    const members = album.value?.members ?? [];
+    tagFilterUserId.value = (userId && members.some(m => m.userId === userId)) ? userId : '__nobody__';
   }
   loading.value = false;
 });
