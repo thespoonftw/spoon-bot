@@ -270,7 +270,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
@@ -314,7 +314,11 @@ const featuredPhoto = ref<Photo | null>(null);
 const featuredSelection = ref(new Set<string>());
 const savingFeatured = ref(false);
 
-const sortBy = ref<'popular' | 'tagging' | 'uploader' | 'newest' | 'oldest'>('popular');
+const SORT_KEY = 'snek_sort_by';
+const sortBy = ref<'popular' | 'tagging' | 'uploader' | 'newest' | 'oldest'>(
+  (localStorage.getItem(SORT_KEY) as any) ?? 'popular'
+);
+watch(sortBy, val => localStorage.setItem(SORT_KEY, val));
 const currentUserId = ref<string | null>(null);
 const tagFilterUserId = ref<string>('__nobody__');
 
