@@ -625,6 +625,18 @@ function openLightbox(index: number) {
       },
     });
     pswp.ui!.registerElement({
+      name: "delete-button",
+      order: 9,
+      isButton: true,
+      html: "🗑",
+      appendTo: "bar",
+      onClick: () => {
+        const photo = photos[pswp.currIndex];
+        pswp.close();
+        confirmDelete(photo);
+      },
+    });
+    pswp.ui!.registerElement({
       name: "bottom-bar",
       order: 9,
       isButton: false,
