@@ -76,9 +76,6 @@
             </div>
           </div>
         </div>
-      </template>
-      <template v-for="section in sortedSections" :key="'m-' + section.label">
-        <h3 v-if="section.label" class="gallery-section-header">{{ section.label }}</h3>
         <div class="gallery-mobile">
           <div v-for="photo in section.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(allPhotosFlat.indexOf(photo))">
             <img :src="photo.url" loading="lazy" />
@@ -361,7 +358,7 @@ const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
       if (!groups.has(key)) groups.set(key, { label, photos: [] });
       groups.get(key)!.photos.push(photo);
     }
-    const sections = [...groups.values()].sort((a, b) => a.label.localeCompare(b.label));
+    const sections = [...groups.values()].sort((a, b) => b.photos.length - a.photos.length);
     for (const s of sections) s.photos.sort(cmp);
     return sections;
   }
