@@ -229,7 +229,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .vote-float { font-size: 2.2em; }
 }
 
-.vote-btn.vote-group > span { font-size: 0.75em; }
+.tag-count { font-size: 0.75em; }
 .featured-avatars { display: inline-flex; align-items: center; pointer-events: none; }
 .featured-mini-avatar { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; display: inline-block; vertical-align: middle; pointer-events: none; border: 1.5px solid #1e1e2e; flex-shrink: 0; }
 .featured-avatars .featured-mini-avatar + .featured-mini-avatar { margin-left: -7px; }

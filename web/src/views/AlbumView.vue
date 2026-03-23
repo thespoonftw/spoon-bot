@@ -64,7 +64,7 @@
               <button class="vote-btn vote-score" @click.stop="openVoteModal(photo)">{{ getVoteState(photo).score }}</button>
               <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo, 'down')" title="Downvote">👎</button>
               <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Tagging" style="padding:2px 3px">
-                <span v-if="getFeaturedMembers(photo).length >= 4" style="color:#fff">{{ getFeaturedMembers(photo).length }}👥</span>
+                <span v-if="getFeaturedMembers(photo).length >= 4" style="color:#fff"><span class="tag-count">{{ getFeaturedMembers(photo).length }}</span>👥</span>
                 <span v-else-if="getFeaturedMembers(photo).length" class="featured-avatars">
                   <template v-for="(m, idx) in getFeaturedMembers(photo)" :key="m.userId">
                     <img v-if="m.avatarUrl" :src="m.avatarUrl" class="featured-mini-avatar" />
