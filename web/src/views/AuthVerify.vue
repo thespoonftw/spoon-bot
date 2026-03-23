@@ -23,8 +23,13 @@ const status = ref<"loading" | "ok" | "error">("loading");
 
 onMounted(async () => {
   const token = route.params.token as string;
-  const res = await fetch(`/api/auth/verify/${token}`);
+  const res = await fetch(`/auth/verify/${token}`);
   if (res.ok) {
+    const { sessionToken } = await res.json();
+    if (sessionToken) {
+      localStorage.setItem("snek_session", sessionToken);
+      document.cookie = `snek_session=${sessionToken}; Max-Age=${365 * 24 * 60 * 60}; Path=/; SameSite=Lax`;
+    }
     status.value = "ok";
     setTimeout(() => router.push("/"), 1000);
   } else {
