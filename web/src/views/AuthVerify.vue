@@ -23,7 +23,7 @@ const status = ref<"loading" | "ok" | "error">("loading");
 
 onMounted(async () => {
   const token = route.params.token as string;
-  const res = await fetch(`/auth/verify/${token}`);
+  const res = await fetch(`/api/auth/verify/${token}`);
   if (res.ok) {
     const { sessionToken } = await res.json();
     if (sessionToken) {

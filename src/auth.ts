@@ -118,8 +118,8 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     return true;
   }
 
-  if (url.startsWith("/auth/verify/") && method === "GET") {
-    const token = url.slice("/auth/verify/".length);
+  if (url.startsWith("/api/auth/verify/") && method === "GET") {
+    const token = url.slice("/api/auth/verify/".length);
     const magic = magicTokens.get(token);
     if (!magic || magic.expires < Date.now()) {
       res.writeHead(200, { "Content-Type": "application/json" });
