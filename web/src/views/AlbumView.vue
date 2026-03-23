@@ -649,7 +649,7 @@ function openLightbox(index: number) {
           const { score, userVote } = getVoteState(p);
           const upActive = userVote === "up" || userVote === "fav";
           const featuredMs = (album.value?.members ?? []).filter(m => p.featuredIds?.includes(m.userId));
-          const avStyle = (i: number) => `width:1em;height:1em;border-radius:50%;object-fit:cover;pointer-events:none;border:1.5px solid rgba(0,0,0,0.4);flex-shrink:0;${i > 0 ? "margin-left:-0.35em;" : ""}`;
+          const avStyle = (i: number) => `width:1.4em;height:1.4em;border-radius:50%;object-fit:cover;pointer-events:none;border:1.5px solid rgba(0,0,0,0.4);flex-shrink:0;${i > 0 ? "margin-left:-0.5em;" : ""}`;
           const featuredBtnContent = featuredMs.length >= 4
             ? `<span style="color:#fff"><span class="tag-count">${featuredMs.length}</span>👥</span>`
             : featuredMs.length
