@@ -1,6 +1,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root { --pswp-root-z-index: 1500; --pswp-bg: #000; }
+.pswp__button--delete-button { display: flex !important; }
 
 body { font-family: sans-serif; background: #1e1e2e; color: #cdd6f4; }
 

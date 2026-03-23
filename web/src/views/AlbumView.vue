@@ -631,9 +631,7 @@ function openLightbox(index: number) {
       html: "🗑",
       appendTo: "bar",
       onClick: () => {
-        const photo = photos[pswp.currIndex];
-        pswp.close();
-        confirmDelete(photo);
+        confirmDelete(photos[pswp.currIndex]);
       },
     });
     pswp.ui!.registerElement({
