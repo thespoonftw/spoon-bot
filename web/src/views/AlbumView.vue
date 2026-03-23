@@ -150,7 +150,7 @@
     </div>
   </div>
 
-  <div class="modal-overlay" v-if="deletingPhoto">
+  <div class="modal-overlay" v-if="deletingPhoto" style="z-index:2000">
     <div class="modal">
       <button class="modal-close" @click="deletingPhoto = null">✕</button>
       <h2>Delete Photo?</h2>
