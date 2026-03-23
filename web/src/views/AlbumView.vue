@@ -150,16 +150,18 @@
     </div>
   </div>
 
-  <div class="modal-overlay" v-if="deletingPhoto" style="z-index:2000">
-    <div class="modal">
-      <button class="modal-close" @click="deletingPhoto = null">✕</button>
-      <h2>Delete Photo?</h2>
-      <p style="color:#a6adc8;margin-bottom:20px">This cannot be undone.</p>
-      <div class="modal-actions">
-        <button class="btn-danger" @click="deletePhoto" :disabled="deleting">{{ deleting ? 'Deleting…' : 'Delete' }}</button>
+  <Teleport to="body">
+    <div class="modal-overlay" v-if="deletingPhoto" style="z-index:200000">
+      <div class="modal">
+        <button class="modal-close" @click="deletingPhoto = null">✕</button>
+        <h2>Delete Photo?</h2>
+        <p style="color:#a6adc8;margin-bottom:20px">This cannot be undone.</p>
+        <div class="modal-actions">
+          <button class="btn-danger" @click="deletePhoto" :disabled="deleting">{{ deleting ? 'Deleting…' : 'Delete' }}</button>
+        </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 
   <!-- Share Album Modal -->
   <div class="modal-overlay" v-if="showShare">
