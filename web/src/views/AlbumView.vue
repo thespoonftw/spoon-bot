@@ -98,6 +98,10 @@
         <button class="modal-close" @click="showFeaturedPicker = false; if (!featuredSelection.size) showFeatured = false">✕</button>
         <h2>Tag User</h2>
         <div class="members-modal-list">
+          <div class="members-modal-row featured-row" @click="addEveryone()">
+            <span class="member-avatar member-avatar-placeholder">★</span>
+            <span class="members-modal-name"><strong>Everyone</strong></span>
+          </div>
           <div v-for="member in pickableMembers" :key="member.userId" class="members-modal-row featured-row" @click="addFeatured(member.userId)">
             <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
             <span v-else class="member-avatar member-avatar-placeholder">{{ (member.firstName || member.displayName)[0] }}</span>
@@ -351,6 +355,11 @@ function addFeatured(userId: string) {
   const s = new Set(featuredSelection.value);
   s.add(userId);
   featuredSelection.value = s;
+  showFeaturedPicker.value = false;
+}
+
+function addEveryone() {
+  featuredSelection.value = new Set(album.value?.members.map(m => m.userId) ?? []);
   showFeaturedPicker.value = false;
 }
 
