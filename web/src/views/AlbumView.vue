@@ -6,7 +6,7 @@
         <div>
           <div style="display:flex;align-items:center;gap:8px">
             <h1>{{ album.groupName }}</h1>
-            <button class="btn-icon" @click="openEdit" title="Edit album">✏️</button>
+            <button class="btn-icon" @click="showEdit = true" title="Edit album">✏️</button>
           </div>
           <p v-if="album.dateText" class="date">{{ album.dateText }}</p>
           <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
@@ -29,7 +29,7 @@
               <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
               <span class="member-name">{{ member.firstName || member.displayName }}</span>
             </div>
-            <button class="btn-icon" @click="openEditMembers" title="Edit members">✏️</button>
+            <button class="btn-icon" @click="showEditMembers = true" title="Edit members">✏️</button>
           </div>
         </div>
       </div>
@@ -62,12 +62,12 @@
               <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'up')" title="Upvote">👍</button>
               <button class="vote-btn vote-score" @click.stop="openVoteModal(photo)">{{ getVoteState(photo).score }}</button>
               <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo, 'down')" title="Downvote">👎</button>
-              <button class="vote-btn vote-group" :class="{ active: photo.featuredIds?.length }" @click.stop="openFeatured(photo)" title="Tagging">
-                <span v-if="getFeaturedMembers(photo).length >= 4" style="color:#fff"><span class="tag-count">{{ getFeaturedMembers(photo).length }}</span>👥</span>
-                <span v-else-if="getFeaturedMembers(photo).length" class="featured-avatars">
-                  <template v-for="(m, idx) in getFeaturedMembers(photo)" :key="m.userId">
-                    <img v-if="m.avatarUrl" :src="m.avatarUrl" class="featured-mini-avatar" />
-                    <span v-else class="featured-mini-avatar featured-mini-initial">{{ (m.firstName || m.displayName)[0] }}</span>
+              <button class="vote-btn vote-group" :class="{ active: photo.taggedIds?.length }" @click.stop="openTagging(photo)" title="Tagging">
+                <span v-if="getTaggedMembers(photo).length >= 4" style="color:#fff"><span class="tag-count">{{ getTaggedMembers(photo).length }}</span>👥</span>
+                <span v-else-if="getTaggedMembers(photo).length" class="tagging-avatars">
+                  <template v-for="(m, idx) in getTaggedMembers(photo)" :key="m.userId">
+                    <img v-if="m.avatarUrl" :src="m.avatarUrl" class="tagging-mini-avatar" />
+                    <span v-else class="tagging-mini-avatar tagging-mini-initial">{{ (m.firstName || m.displayName)[0] }}</span>
                   </template>
                 </span>
                 <span v-else>👥</span>
@@ -89,41 +89,41 @@
 
   <Teleport to="body">
     <!-- Tagging Modal -->
-    <div class="modal-overlay" v-if="showFeatured" style="z-index:200000">
+    <div class="modal-overlay" v-if="showTagging" style="z-index:200000">
       <div class="modal">
-        <button class="modal-close" @click="showFeatured = false">✕</button>
+        <button class="modal-close" @click="showTagging = false">✕</button>
         <h2>Tagging</h2>
         <div class="members-modal-list" style="min-height:40px">
-          <div v-for="member in featuredMembers" :key="member.userId" class="members-modal-row">
+          <div v-for="member in taggedMembers" :key="member.userId" class="members-modal-row">
             <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
             <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
-            <button class="btn-remove" @click="removeFeatured(member.userId)">remove</button>
+            <button class="btn-remove" @click="removeTagged(member.userId)">remove</button>
           </div>
-          <p v-if="featuredMembers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">No one tagged yet.</p>
+          <p v-if="taggedMembers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">No one tagged yet.</p>
         </div>
         <div style="margin-top:12px">
-          <button class="btn-secondary btn-small" @click="showFeaturedPicker = true">+ Add User</button>
+          <button class="btn-secondary btn-small" @click="showTaggingPicker = true">+ Add User</button>
         </div>
         <div class="modal-actions">
-          <button class="btn-primary" @click="saveFeatured" :disabled="savingFeatured">{{ savingFeatured ? 'Saving…' : 'Save' }}</button>
+          <button class="btn-primary" @click="saveTagging" :disabled="savingTagging">{{ savingTagging ? 'Saving…' : 'Save' }}</button>
         </div>
       </div>
     </div>
-    <!-- Featured User Picker Modal -->
-    <div class="modal-overlay" v-if="showFeaturedPicker" style="z-index:210000">
+    <!-- Tagging User Picker Modal -->
+    <div class="modal-overlay" v-if="showTaggingPicker" style="z-index:210000">
       <div class="modal">
-        <button class="modal-close" @click="showFeaturedPicker = false; if (!featuredSelection.size) showFeatured = false">✕</button>
+        <button class="modal-close" @click="showTaggingPicker = false; if (!taggingSelection.size) showTagging = false">✕</button>
         <h2>Tag User</h2>
         <div class="members-modal-list">
-          <div class="members-modal-row featured-row" @click="addEveryone()">
+          <div class="members-modal-row tagging-row" @click="addEveryone()">
             <span class="member-avatar member-avatar-placeholder">★</span>
             <span class="members-modal-name"><strong>Everyone</strong></span>
           </div>
-          <div v-for="member in pickableMembers" :key="member.userId" class="members-modal-row featured-row" @click="addFeatured(member.userId)">
+          <div v-for="member in pickableMembers" :key="member.userId" class="members-modal-row tagging-row" @click="addTagged(member.userId)">
             <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
             <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
           </div>
-          <p v-if="pickableMembers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">All members already featured.</p>
+          <p v-if="pickableMembers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">All members already tagged.</p>
         </div>
       </div>
     </div>
@@ -186,85 +186,32 @@
     </div>
   </div>
 
-  <!-- Edit Album Modal -->
-  <div class="modal-overlay" v-if="showEdit">
-    <div class="modal">
-      <button class="modal-close" @click="showEdit = false">✕</button>
-      <h2>Edit Album</h2>
-      <div class="form-group">
-        <label>Name</label>
-        <input v-model="editForm.name" type="text" />
-      </div>
-      <div class="form-group">
-        <label>Location</label>
-        <input v-model="editForm.location" type="text" />
-      </div>
-      <DateRangePicker v-model:start-date="editForm.startDate" v-model:end-date="editForm.endDate" />
-      <div v-if="editError" class="error">{{ editError }}</div>
-      <div class="modal-actions">
-        <button class="btn-primary" @click="saveEdit" :disabled="saving">{{ saving ? "Saving…" : "Save" }}</button>
-      </div>
-    </div>
-  </div>
+  <EditAlbumModal
+    :show="showEdit"
+    :channel-id="album?.channelId ?? ''"
+    :album="album ?? { groupName: '' }"
+    @close="showEdit = false"
+    @saved="onAlbumSaved"
+  />
 
-  <Teleport to="body">
-    <div class="modal-overlay" v-if="showMemberPicker" style="z-index:200">
-      <div class="modal">
-        <button class="modal-close" @click="showMemberPicker = false">✕</button>
-        <h2>Add User</h2>
-        <div class="members-modal-list">
-          <div v-for="u in addableUsers" :key="u.userId" class="members-modal-row featured-row" @click="pickAndAddMember(u.userId)">
-            <MemberAvatar :avatar-url="u.avatarUrl" :name="u.firstName || u.displayName" />
-            <span class="members-modal-name">{{ u.firstName || u.displayName }}</span>
-          </div>
-          <p v-if="addableUsers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">No more users to add.</p>
-        </div>
-      </div>
-    </div>
-  </Teleport>
-
-  <!-- Edit Members Modal -->
-  <div class="modal-overlay" v-if="showEditMembers">
-    <div class="modal">
-      <button class="modal-close" @click="showEditMembers = false">✕</button>
-      <h2>Members</h2>
-      <div class="members-modal-list">
-        <div v-for="member in allMembers.filter(m => !deletedMemberIds.has(m.userId))" :key="member.userId" :class="['members-modal-row', { 'member-hidden': member.hidden }]">
-          <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
-          <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
-          <span v-if="member.rsvpStatus" :class="['rsvp-badge', 'rsvp-' + member.rsvpStatus]">{{ rsvpLabel(member.rsvpStatus) }}</span>
-          <span v-if="member.hidden" class="rsvp-badge">hidden</span>
-          <template v-if="member.userId.startsWith('guest_') || !member.rsvpStatus">
-            <button class="btn-remove" @click="deleteMember(member.userId)" title="Remove">delete</button>
-          </template>
-          <template v-else-if="member.rsvpStatus !== 'decline'">
-            <button v-if="!member.hidden" class="btn-remove" @click="hideMember(member.userId)" title="Hide from album">hide</button>
-            <button v-else class="btn-remove btn-unhide" @click="unhideMember(member.userId)" title="Show in album">show</button>
-          </template>
-        </div>
-      </div>
-      <div class="members-add-section" style="margin-top:8px">
-        <button class="btn-secondary btn-small" @click="showMemberPicker = true" :disabled="addableUsers.length === 0">+ Add Existing User</button>
-      </div>
-      <div v-if="addMemberError" class="error" style="margin-top:8px;font-size:0.85em;padding:8px 12px">{{ addMemberError }}</div>
-      <div class="members-add-section">
-        <input v-model="addMemberName" class="members-add-input" type="text" placeholder="Or type a new person's name…" @input="addMemberError = ''" />
-        <button class="btn-secondary btn-small" @click="addNewMember" :disabled="!addMemberName.trim()">Add</button>
-      </div>
-    </div>
-  </div>
+  <MembersModal
+    v-model="showEditMembers"
+    :channel-id="album?.channelId ?? ''"
+    @members-updated="onMembersUpdated"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import MemberAvatar from "../components/MemberAvatar.vue";
-import DateRangePicker from "../components/DateRangePicker.vue";
+import EditAlbumModal from "../components/EditAlbumModal.vue";
+import MembersModal from "../components/MembersModal.vue";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 
-interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; score?: number; userVote?: string | null; featuredIds?: string[] }
+interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; score?: number; userVote?: string | null; taggedIds?: string[] }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string; rsvpStatus?: string }
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; endDate?: string; photos: Photo[]; members: Member[] }
 
@@ -289,18 +236,19 @@ const sharing = ref(false);
 const shareCopied = ref(false);
 
 const showEdit = ref(false);
-const saving = ref(false);
-const editError = ref("");
-const editForm = ref({ name: "", location: "", startDate: "", endDate: "" });
+const showEditMembers = ref(false);
+
+// allMembers is populated by MembersModal when it opens; used for getTaggedMembers
+const allMembers = ref<Member[]>([]);
 
 const votes = ref<Record<number, { score: number; userVote: string | null }>>({});
 let refreshLightboxVotes: (() => void) | null = null;
 
-const showFeatured = ref(false);
-const showFeaturedPicker = ref(false);
-const featuredPhoto = ref<Photo | null>(null);
-const featuredSelection = ref(new Set<string>());
-const savingFeatured = ref(false);
+const showTagging = ref(false);
+const showTaggingPicker = ref(false);
+const taggingPhoto = ref<Photo | null>(null);
+const taggingSelection = ref(new Set<string>());
+const savingTagging = ref(false);
 
 const SORT_KEY = 'snek_sort_by';
 const sortBy = ref<'popular' | 'tagging' | 'uploader' | 'newest' | 'oldest'>(
@@ -338,8 +286,8 @@ const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
   if (sortBy.value === 'tagging') {
     const target = tagFilterUserId.value;
     const filtered = target === '__nobody__'
-      ? photos.filter(p => !p.featuredIds?.length)
-      : photos.filter(p => p.featuredIds?.includes(target));
+      ? photos.filter(p => !p.taggedIds?.length)
+      : photos.filter(p => p.taggedIds?.includes(target));
     return [{ label: '', photos: [...filtered].sort(cmp) }];
   }
   if (sortBy.value === 'uploader') {
@@ -357,11 +305,11 @@ const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
   return [{ label: '', photos }];
 });
 
-const featuredMembers = computed(() =>
-  album.value?.members.filter(m => featuredSelection.value.has(m.userId)) ?? []
+const taggedMembers = computed(() =>
+  allMembers.value.filter(m => taggingSelection.value.has(m.userId))
 );
 const pickableMembers = computed(() =>
-  album.value?.members.filter(m => !featuredSelection.value.has(m.userId)) ?? []
+  (album.value?.members ?? []).filter(m => !taggingSelection.value.has(m.userId))
 );
 
 async function fetchVoteBreakdown(photo: Photo) {
@@ -393,69 +341,55 @@ async function doVote(photoId: number, voteType: string) {
   }
 }
 
-function openFeatured(photo: Photo) {
-  featuredPhoto.value = photo;
-  featuredSelection.value = new Set(photo.featuredIds ?? []);
-  showFeatured.value = true;
-  showFeaturedPicker.value = !photo.featuredIds?.length;
+function openTagging(photo: Photo) {
+  taggingPhoto.value = photo;
+  taggingSelection.value = new Set(photo.taggedIds ?? []);
+  showTagging.value = true;
+  showTaggingPicker.value = !photo.taggedIds?.length;
 }
 
-function getFeaturedMembers(photo: Photo): Member[] {
-  if (!photo.featuredIds?.length) return [];
-  return photo.featuredIds.map(id => allMembers.value.find(m => m.userId === id)).filter(Boolean) as Member[];
+function getTaggedMembers(photo: Photo): Member[] {
+  if (!photo.taggedIds?.length) return [];
+  return photo.taggedIds.map(id => allMembers.value.find(m => m.userId === id)).filter(Boolean) as Member[];
 }
 
-function removeFeatured(userId: string) {
-  const s = new Set(featuredSelection.value);
+function removeTagged(userId: string) {
+  const s = new Set(taggingSelection.value);
   s.delete(userId);
-  featuredSelection.value = s;
+  taggingSelection.value = s;
 }
 
-function addFeatured(userId: string) {
-  const s = new Set(featuredSelection.value);
+function addTagged(userId: string) {
+  const s = new Set(taggingSelection.value);
   s.add(userId);
-  featuredSelection.value = s;
-  showFeaturedPicker.value = false;
+  taggingSelection.value = s;
+  showTaggingPicker.value = false;
 }
 
 function addEveryone() {
-  featuredSelection.value = new Set(album.value?.members.map(m => m.userId) ?? []);
-  showFeaturedPicker.value = false;
+  taggingSelection.value = new Set(album.value?.members.map(m => m.userId) ?? []);
+  showTaggingPicker.value = false;
 }
 
-async function saveFeatured() {
-  if (!album.value || !featuredPhoto.value) return;
-  savingFeatured.value = true;
-  const userIds = [...featuredSelection.value];
-  const res = await fetch(`/api/album/${album.value.channelId}/photos/${featuredPhoto.value.id}/featured`, {
+async function saveTagging() {
+  if (!album.value || !taggingPhoto.value) return;
+  savingTagging.value = true;
+  const userIds = [...taggingSelection.value];
+  const res = await fetch(`/api/album/${album.value.channelId}/photos/${taggingPhoto.value.id}/tagged`, {
     method: "POST",
     headers: authJsonHeaders(),
     body: JSON.stringify({ userIds }),
   });
-  savingFeatured.value = false;
+  savingTagging.value = false;
   if (res.ok) {
-    const photo = album.value.photos.find(p => p.id === featuredPhoto.value!.id);
+    const photo = album.value.photos.find(p => p.id === taggingPhoto.value!.id);
     if (photo) {
-      photo.featuredIds = userIds;
+      photo.taggedIds = userIds;
       refreshLightboxVotes?.();
     }
-    showFeatured.value = false;
+    showTagging.value = false;
   }
 }
-
-interface AllMember extends Member { hidden: number; rsvpStatus?: string }
-const showEditMembers = ref(false);
-const showMemberPicker = ref(false);
-const allMembers = ref<AllMember[]>([]);
-const deletedMemberIds = ref(new Set<string>());
-const allUsers = ref<Member[]>([]);
-const addMemberUserId = ref("");
-const addMemberName = ref("");
-const addMemberError = ref("");
-const addableUsers = computed(() => {
-  const memberIds = new Set(allMembers.value.map(m => m.userId));
-  return allUsers.value.filter(u => !memberIds.has(u.userId));
-});
 
 onMounted(async () => {
   const [albumRes, checkRes] = await Promise.all([
@@ -465,7 +399,7 @@ onMounted(async () => {
   if (albumRes.ok) {
     const data = await albumRes.json();
     album.value = data;
-    allMembers.value = (data.members ?? []) as AllMember[];
+    allMembers.value = data.members ?? [];
   }
   if (checkRes.ok) {
     const { userId } = await checkRes.json();
@@ -475,6 +409,15 @@ onMounted(async () => {
   }
   loading.value = false;
 });
+
+function onAlbumSaved(updated: object) {
+  if (album.value) album.value = { ...album.value, ...updated };
+}
+
+function onMembersUpdated(visible: Member[], all: Member[]) {
+  if (album.value) album.value.members = visible;
+  allMembers.value = all;
+}
 
 function spawnFloat(x: number, y: number, voteType: string, grey = false) {
   const emoji = voteType === "fav" ? "⭐" : voteType === "up" ? "👍" : "👎";
@@ -528,6 +471,7 @@ function openLightbox(index: number) {
     arrowKeys: true,
     pinchToClose: false,
     closeOnVerticalDrag: false,
+    bgClickAction: "none",
     loop: false,
     paddingFn: (viewportSize: { x: number; y: number }) =>
       viewportSize.x >= 768 ? { top: 20, bottom: 70, left: 0, right: 0 } : { top: 0, bottom: 0, left: 0, right: 0 },
@@ -626,7 +570,7 @@ function openLightbox(index: number) {
       onInit: (el) => {
         el.addEventListener("click", (e) => {
           const btn = (e.target as Element).closest("[data-vote]") as HTMLElement | null;
-          const featBtn = (e.target as Element).closest("[data-action='featured']") as HTMLElement | null;
+          const featBtn = (e.target as Element).closest("[data-action='tagged']") as HTMLElement | null;
           if (btn) {
             const voteType = btn.dataset.vote!;
             const p = photos[pswp.currIndex];
@@ -634,7 +578,7 @@ function openLightbox(index: number) {
             spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, voteType, isRemovingVote(getVoteState(p).userVote, voteType));
             doVote(p.id, voteType);
           } else if (featBtn) {
-            openFeatured(photos[pswp.currIndex]);
+            openTagging(photos[pswp.currIndex]);
           } else if ((e.target as Element).closest("[data-action='score']")) {
             openVoteModal(photos[pswp.currIndex]);
           }
@@ -643,12 +587,12 @@ function openLightbox(index: number) {
           const p = photos[pswp.currIndex];
           const { score, userVote } = getVoteState(p);
           const upActive = userVote === "up" || userVote === "fav";
-          const featuredMs = (album.value?.members ?? []).filter(m => p.featuredIds?.includes(m.userId));
+          const taggedMs = (album.value?.members ?? []).filter(m => p.taggedIds?.includes(m.userId));
           const avStyle = (i: number) => `width:1.4em;height:1.4em;border-radius:50%;object-fit:cover;pointer-events:none;border:1.5px solid rgba(0,0,0,0.4);flex-shrink:0;${i > 0 ? "margin-left:-0.5em;" : ""}`;
-          const featuredBtnContent = featuredMs.length >= 4
-            ? `<span style="color:#fff"><span class="tag-count">${featuredMs.length}</span>👥</span>`
-            : featuredMs.length
-            ? `<span style="display:inline-flex;align-items:center">${featuredMs.map((m, i) => m.avatarUrl
+          const taggedBtnContent = taggedMs.length >= 4
+            ? `<span style="color:#fff"><span class="tag-count">${taggedMs.length}</span>👥</span>`
+            : taggedMs.length
+            ? `<span style="display:inline-flex;align-items:center">${taggedMs.map((m, i) => m.avatarUrl
                 ? `<img src="${m.avatarUrl}" style="${avStyle(i)}display:block" />`
                 : `<span style="${avStyle(i)}background:#585b70;display:inline-flex;align-items:center;justify-content:center;"><span style="font-size:0.55em;font-weight:600;color:#cdd6f4;pointer-events:none">${(m.firstName || m.displayName)[0]}</span></span>`
               ).join("")}</span>`
@@ -662,7 +606,7 @@ function openLightbox(index: number) {
               <button data-vote="up" class="pswp-vote-btn${upActive ? " active-up" : ""}">👍</button>
               <button data-action="score" class="pswp-vote-btn pswp-vote-score">${score}</button>
               <button data-vote="down" class="pswp-vote-btn${userVote === "down" ? " active-down" : ""}">👎</button>
-              <button data-action="featured" class="pswp-vote-btn${featuredMs.length ? " active-fav" : ""}">${featuredBtnContent}</button>
+              <button data-action="tagged" class="pswp-vote-btn${taggedMs.length ? " active-fav" : ""}">${taggedBtnContent}</button>
             </div>
           `;
           if (topMetaEl) topMetaEl.innerHTML = `<div class="pswp-meta-left">${dateHtml}</div><div class="pswp-meta-right">${uploaderHtml}</div>`;
@@ -711,147 +655,6 @@ function copyShareLink() {
   setTimeout(() => { shareCopied.value = false; }, 2000);
 }
 
-function openEdit() {
-  if (!album.value) return;
-  editForm.value = {
-    name: album.value.groupName,
-    location: album.value.location ?? "",
-    startDate: album.value.startDate ?? "",
-    endDate: album.value.endDate ?? "",
-  };
-  editError.value = "";
-  showEdit.value = true;
-}
-
-async function saveEdit() {
-  if (!album.value) return;
-  editError.value = "";
-  saving.value = true;
-  const res = await fetch(`/api/album/${album.value.channelId}`, {
-    method: "PUT",
-    headers: authJsonHeaders(),
-    body: JSON.stringify({
-      name: editForm.value.name.trim(),
-      location: editForm.value.location.trim(),
-      startDate: editForm.value.startDate || undefined,
-      endDate: editForm.value.endDate || undefined,
-    }),
-  });
-  saving.value = false;
-  if (res.ok) {
-    const updated = await res.json();
-    album.value = { ...album.value, ...updated };
-    showEdit.value = false;
-  } else {
-    editError.value = "Failed to save. Try again.";
-  }
-}
-
-async function openEditMembers() {
-  if (!album.value) return;
-  const [membersRes, usersRes] = await Promise.all([
-    fetch(`/api/album/${album.value.channelId}/members`, { headers: authHeaders() }),
-    fetch("/api/users"),
-  ]);
-  if (membersRes.ok) {
-    const raw: AllMember[] = await membersRes.json();
-    const memberOrder = (u: AllMember) => {
-      if (u.userId.startsWith("guest_")) return 2;
-      if (u.rsvpStatus === "coming") return 0;
-      if (!u.rsvpStatus) return 1;
-      if (u.rsvpStatus === "maybe") return 3;
-      if (u.rsvpStatus === "lurking") return 4;
-      return 5; // decline
-    };
-    allMembers.value = raw.sort((a, b) =>
-      memberOrder(a) - memberOrder(b) || (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName)
-    );
-  }
-  if (usersRes.ok) allUsers.value = await usersRes.json();
-  addMemberUserId.value = "";
-  addMemberName.value = "";
-  showEditMembers.value = true;
-}
-
-async function addExistingMember() {
-  if (!album.value || !addMemberUserId.value) return;
-  const res = await fetch(`/api/album/${album.value.channelId}/members`, {
-    method: "POST",
-    headers: authJsonHeaders(),
-    body: JSON.stringify({ userId: addMemberUserId.value }),
-  });
-  if (res.ok) {
-    const member: AllMember = await res.json();
-    allMembers.value.push(member);
-    album.value.members.push(member);
-    addMemberUserId.value = "";
-  }
-}
-
-async function pickAndAddMember(userId: string) {
-  showMemberPicker.value = false;
-  addMemberUserId.value = userId;
-  await addExistingMember();
-}
-
-async function addNewMember() {
-  if (!album.value || !addMemberName.value.trim()) return;
-  const trimmed = addMemberName.value.trim();
-  addMemberError.value = "";
-  const allKnown = [...allMembers.value, ...allUsers.value];
-  const dup = allKnown.find(u => (u.firstName || u.displayName).toLowerCase() === trimmed.toLowerCase());
-  if (dup) {
-    addMemberError.value = `"${trimmed}" is already someone's name`;
-    return;
-  }
-  const res = await fetch(`/api/album/${album.value.channelId}/members`, {
-    method: "POST",
-    headers: authJsonHeaders(),
-    body: JSON.stringify({ name: trimmed }),
-  });
-  if (res.ok) {
-    const member: AllMember = await res.json();
-    allMembers.value.push(member);
-    album.value.members.push(member);
-    addMemberName.value = "";
-  }
-}
-
-async function deleteMember(userId: string) {
-  if (!album.value) return;
-  const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}?remove=true`, { method: "DELETE", headers: authHeaders() });
-  if (res.ok) {
-    deletedMemberIds.value = new Set([...deletedMemberIds.value, userId]);
-    album.value.members = album.value.members.filter(m => m.userId !== userId);
-  }
-}
-
-async function hideMember(userId: string) {
-  if (!album.value) return;
-  const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}`, { method: "DELETE", headers: authHeaders() });
-  if (res.ok) {
-    const m = allMembers.value.find(m => m.userId === userId);
-    if (m) m.hidden = 1;
-    album.value.members = album.value.members.filter(m => m.userId !== userId);
-  }
-}
-
-async function unhideMember(userId: string) {
-  if (!album.value) return;
-  const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}`, { method: "PATCH", headers: authHeaders() });
-  if (res.ok) {
-    const m = allMembers.value.find(m => m.userId === userId);
-    if (m) {
-      m.hidden = 0;
-      if (!album.value!.members.find(x => x.userId === userId)) album.value!.members.push(m);
-    }
-  }
-}
-
-function rsvpLabel(status: string): string {
-  return { coming: "Attended", maybe: "Maybe", decline: "Declined", lurking: "Lurking" }[status] ?? status;
-}
-
 function triggerUpload() {
   uploadError.value = "";
   fileInput.value?.click();
@@ -882,7 +685,6 @@ async function onFilesSelected(e: Event) {
   uploadProgress.value = "";
   (e.target as HTMLInputElement).value = "";
 }
-
 
 function thumbUrl(url: string): string {
   return url.replace("/uploads/", "/thumbnails/");
