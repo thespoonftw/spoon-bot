@@ -26,8 +26,7 @@
         <div class="members-header">
           <div class="members-list">
             <div v-for="member in album.members" :key="member.userId" class="member-chip" :title="member.firstName || member.displayName">
-              <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
-              <span v-else class="member-avatar member-avatar-placeholder">{{ (member.firstName || member.displayName)[0] }}</span>
+              <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
               <span class="member-name">{{ member.firstName || member.displayName }}</span>
             </div>
             <button class="btn-icon" @click="openEditMembers" title="Edit members">✏️</button>
@@ -228,8 +227,7 @@
         <h2>Add User</h2>
         <div class="members-modal-list">
           <div v-for="u in addableUsers" :key="u.userId" class="members-modal-row featured-row" @click="pickAndAddMember(u.userId)">
-            <img v-if="u.avatarUrl" :src="u.avatarUrl" class="member-avatar" />
-            <span v-else class="member-avatar member-avatar-placeholder">{{ (u.firstName || u.displayName)[0] }}</span>
+            <MemberAvatar :avatar-url="u.avatarUrl" :name="u.firstName || u.displayName" />
             <span class="members-modal-name">{{ u.firstName || u.displayName }}</span>
           </div>
           <p v-if="addableUsers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">No more users to add.</p>
@@ -274,6 +272,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
+import MemberAvatar from "../components/MemberAvatar.vue";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
 import { getSession } from "../utils/session";

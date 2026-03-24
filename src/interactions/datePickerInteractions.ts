@@ -38,84 +38,52 @@ export async function handleDatePickerInteractions(interaction: Interaction): Pr
   }
 
   // Day select
-  if (interaction.isStringSelectMenu() && interaction.customId.startsWith("edit_day_")) {
-    const channelId = interaction.customId.slice("edit_day_".length);
-    const session = editSessions.get(channelId);
+  if (interaction.isStringSelectMenu() && (interaction.customId.startsWith("edit_day_") || interaction.customId.startsWith("edit_endday_"))) {
+    const isEnd = interaction.customId.startsWith("edit_endday_");
+    const channelId = interaction.customId.slice(isEnd ? "edit_endday_".length : "edit_day_".length);
+    const session = editSessions.get(isEnd ? `end_${channelId}` : channelId);
     if (!session) { await interaction.update({ content: "Session expired.", components: [] }); return; }
     const value = interaction.values[0];
     if (value === "more") { session.dayPage = "high"; }
     else if (value === "back") { session.dayPage = "low"; session.day = null; }
     else { session.day = parseInt(value); }
-    await interaction.update({ content: buildEditDateContent(session), components: buildEditDateComponents(session, channelId) });
-    return;
-  }
-
-  if (interaction.isStringSelectMenu() && interaction.customId.startsWith("edit_endday_")) {
-    const channelId = interaction.customId.slice("edit_endday_".length);
-    const session = editSessions.get(`end_${channelId}`);
-    if (!session) { await interaction.update({ content: "Session expired.", components: [] }); return; }
-    const value = interaction.values[0];
-    if (value === "more") { session.dayPage = "high"; }
-    else if (value === "back") { session.dayPage = "low"; session.day = null; }
-    else { session.day = parseInt(value); }
-    await interaction.update({ content: buildEditDateContent(session, true), components: buildEditDateComponents(session, channelId, true) });
+    await interaction.update({ content: buildEditDateContent(session, isEnd), components: buildEditDateComponents(session, channelId, isEnd) });
     return;
   }
 
   // Month select
-  if (interaction.isStringSelectMenu() && interaction.customId.startsWith("edit_month_")) {
-    const channelId = interaction.customId.slice("edit_month_".length);
-    const session = editSessions.get(channelId);
+  if (interaction.isStringSelectMenu() && (interaction.customId.startsWith("edit_month_") || interaction.customId.startsWith("edit_endmonth_"))) {
+    const isEnd = interaction.customId.startsWith("edit_endmonth_");
+    const channelId = interaction.customId.slice(isEnd ? "edit_endmonth_".length : "edit_month_".length);
+    const session = editSessions.get(isEnd ? `end_${channelId}` : channelId);
     if (!session) { await interaction.update({ content: "Session expired.", components: [] }); return; }
     session.month = parseInt(interaction.values[0]);
     const max = maxDaysInMonth(session.month, session.year);
     if (session.day && session.day > max) { session.day = null; session.dayPage = "low"; }
     if (session.dayPage === "high" && max <= 24) session.dayPage = "low";
-    await interaction.update({ content: buildEditDateContent(session), components: buildEditDateComponents(session, channelId) });
-    return;
-  }
-
-  if (interaction.isStringSelectMenu() && interaction.customId.startsWith("edit_endmonth_")) {
-    const channelId = interaction.customId.slice("edit_endmonth_".length);
-    const session = editSessions.get(`end_${channelId}`);
-    if (!session) { await interaction.update({ content: "Session expired.", components: [] }); return; }
-    session.month = parseInt(interaction.values[0]);
-    const max = maxDaysInMonth(session.month, session.year);
-    if (session.day && session.day > max) { session.day = null; session.dayPage = "low"; }
-    if (session.dayPage === "high" && max <= 24) session.dayPage = "low";
-    await interaction.update({ content: buildEditDateContent(session, true), components: buildEditDateComponents(session, channelId, true) });
+    await interaction.update({ content: buildEditDateContent(session, isEnd), components: buildEditDateComponents(session, channelId, isEnd) });
     return;
   }
 
   // Year select
-  if (interaction.isStringSelectMenu() && interaction.customId.startsWith("edit_year_")) {
-    const channelId = interaction.customId.slice("edit_year_".length);
-    const session = editSessions.get(channelId);
+  if (interaction.isStringSelectMenu() && (interaction.customId.startsWith("edit_year_") || interaction.customId.startsWith("edit_endyear_"))) {
+    const isEnd = interaction.customId.startsWith("edit_endyear_");
+    const channelId = interaction.customId.slice(isEnd ? "edit_endyear_".length : "edit_year_".length);
+    const session = editSessions.get(isEnd ? `end_${channelId}` : channelId);
     if (!session) { await interaction.update({ content: "Session expired.", components: [] }); return; }
     session.year = parseInt(interaction.values[0]);
     const max = maxDaysInMonth(session.month, session.year);
     if (session.day && session.day > max) { session.day = null; session.dayPage = "low"; }
     if (session.dayPage === "high" && max <= 24) session.dayPage = "low";
-    await interaction.update({ content: buildEditDateContent(session), components: buildEditDateComponents(session, channelId) });
-    return;
-  }
-
-  if (interaction.isStringSelectMenu() && interaction.customId.startsWith("edit_endyear_")) {
-    const channelId = interaction.customId.slice("edit_endyear_".length);
-    const session = editSessions.get(`end_${channelId}`);
-    if (!session) { await interaction.update({ content: "Session expired.", components: [] }); return; }
-    session.year = parseInt(interaction.values[0]);
-    const max = maxDaysInMonth(session.month, session.year);
-    if (session.day && session.day > max) { session.day = null; session.dayPage = "low"; }
-    if (session.dayPage === "high" && max <= 24) session.dayPage = "low";
-    await interaction.update({ content: buildEditDateContent(session, true), components: buildEditDateComponents(session, channelId, true) });
+    await interaction.update({ content: buildEditDateContent(session, isEnd), components: buildEditDateComponents(session, channelId, isEnd) });
     return;
   }
 
   // Time select
-  if (interaction.isStringSelectMenu() && interaction.customId.startsWith("edit_time_")) {
-    const channelId = interaction.customId.slice("edit_time_".length);
-    const session = editSessions.get(channelId);
+  if (interaction.isStringSelectMenu() && (interaction.customId.startsWith("edit_time_") || interaction.customId.startsWith("edit_endtime_"))) {
+    const isEnd = interaction.customId.startsWith("edit_endtime_");
+    const channelId = interaction.customId.slice(isEnd ? "edit_endtime_".length : "edit_time_".length);
+    const session = editSessions.get(isEnd ? `end_${channelId}` : channelId);
     if (!session) { await interaction.update({ content: "Session expired.", components: [] }); return; }
     const value = interaction.values[0];
     if (value === "allday") {
@@ -134,32 +102,7 @@ export async function handleDatePickerInteractions(interaction: Interaction): Pr
     } else {
       session.time = value;
     }
-    await interaction.update({ content: buildEditDateContent(session), components: buildEditDateComponents(session, channelId) });
-    return;
-  }
-
-  if (interaction.isStringSelectMenu() && interaction.customId.startsWith("edit_endtime_")) {
-    const channelId = interaction.customId.slice("edit_endtime_".length);
-    const session = editSessions.get(`end_${channelId}`);
-    if (!session) { await interaction.update({ content: "Session expired.", components: [] }); return; }
-    const value = interaction.values[0];
-    if (value === "allday") {
-      session.time = "All Day";
-      session.timeHour = null;
-    } else if (value.startsWith("hour_")) {
-      const h = parseInt(value.slice(5));
-      if (session.time && session.time !== "All Day" && parseInt(session.time.split(":")[0]) !== h) {
-        session.time = null;
-      } else if (!session.time || session.time === "All Day") {
-        session.time = null;
-      }
-      session.timeHour = h;
-    } else if (value === "return") {
-      session.timeHour = null;
-    } else {
-      session.time = value;
-    }
-    await interaction.update({ content: buildEditDateContent(session, true), components: buildEditDateComponents(session, channelId, true) });
+    await interaction.update({ content: buildEditDateContent(session, isEnd), components: buildEditDateComponents(session, channelId, isEnd) });
     return;
   }
 

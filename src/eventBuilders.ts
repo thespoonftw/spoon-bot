@@ -39,26 +39,26 @@ export function buildJoinContent(state: EventState): string {
   return "@everyone Click to join!";
 }
 
-export function buildJoinEmbed(state: EventState, thumbnailUrl?: string | null) {
+function buildEventEmbedBase(state: EventState, thumbnailUrl?: string | null): EmbedBuilder {
   const embed = new EmbedBuilder()
     .setTitle(state.eventName)
     .setDescription(buildDescText(state.description, state.location, state.dateText, state.endDateText))
     .setColor(0x5865F2);
   if (thumbnailUrl) embed.setThumbnail(thumbnailUrl);
+  return embed;
+}
+
+export function buildJoinEmbed(state: EventState, thumbnailUrl?: string | null) {
+  const embed = buildEventEmbedBase(state, thumbnailUrl);
   if (state.members.size > 0) {
     const mentions = [...state.members.values()].map(m => `<@${m.userId}>`).join(" ");
-    const totalCount = state.members.size;
-    embed.addFields({ name: `👥 ${totalCount} Interested`, value: mentions });
+    embed.addFields({ name: `👥 ${state.members.size} Interested`, value: mentions });
   }
   return embed;
 }
 
 export function buildInnerEmbed(state: EventState, thumbnailUrl?: string | null, albumUrl?: string) {
-  const embed = new EmbedBuilder()
-    .setTitle(state.eventName)
-    .setDescription(buildDescText(state.description, state.location, state.dateText, state.endDateText))
-    .setColor(0x5865F2);
-  if (thumbnailUrl) embed.setThumbnail(thumbnailUrl);
+  const embed = buildEventEmbedBase(state, thumbnailUrl);
 
   if (state.members.size > 0) {
     const groups: Record<RSVPStatus, string[]> = { coming: [], maybe: [], decline: [], lurking: [] };

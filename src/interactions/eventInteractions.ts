@@ -28,6 +28,11 @@ import { updateJoinMessage, updateInnerMessage, updateEventMessages } from "../m
 import { hasAlbum, getAlbumUrl, handleAlbumInteractions, startAlbumForChannel } from "../albums";
 import { dbAddAlbumMember, dbRemoveAlbumMember, dbUpsertUser } from "../db";
 
+function getDisplayName(interaction: Interaction): string {
+  const member = interaction.member;
+  return (member && "displayName" in member ? member.displayName : null) ?? interaction.user.displayName;
+}
+
 const RSVP_LABELS: Record<RSVPStatus, string> = {
   coming: "✅ Coming",
   maybe: "❔ Maybe",
@@ -459,8 +464,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     await channel.permissionOverwrites.edit(interaction.user.id, { ViewChannel: true, SendMessages: true });
 
     if (state) {
-      const member = interaction.member;
-      const displayName = (member && "displayName" in member ? member.displayName : null) ?? interaction.user.displayName;
+      const displayName = getDisplayName(interaction);
       state.members.set(interaction.user.id, { userId: interaction.user.id, displayName, status: "lurking", plusOne: 0 });
       persistState();
       if (hasAlbum(channelId)) {
@@ -541,8 +545,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     if (existing) {
       existing.plusOne = count;
     } else {
-      const member = interaction.member;
-      const displayName = (member && "displayName" in member ? member.displayName : null) ?? interaction.user.displayName;
+      const displayName = getDisplayName(interaction);
       state.members.set(interaction.user.id, { userId: interaction.user.id, displayName, status: "lurking", plusOne: count });
     }
     persistState();
@@ -570,8 +573,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       if (existing) {
         existing.status = statusStr;
       } else {
-        const member = interaction.member;
-        const displayName = (member && "displayName" in member ? member.displayName : null) ?? interaction.user.displayName;
+        const displayName = getDisplayName(interaction);
         state.members.set(interaction.user.id, { userId: interaction.user.id, displayName, status: statusStr, plusOne: 0 });
       }
       persistState();

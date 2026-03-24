@@ -14,22 +14,26 @@ import type { GroupState } from "../types";
 import { buildGroupJoinEmbed, buildGroupPinEmbed, groupJoinComponents, groupLeaveComponents } from "../groupBuilders";
 import { updateJoinMessage, updateInnerMessage, updateGroupMessages } from "../messageSync";
 
+function buildGroupModalComponents(prefill?: GroupState): ActionRowBuilder<TextInputBuilder>[] {
+  return [
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder().setCustomId("name").setLabel("Group Name").setStyle(TextInputStyle.Short).setRequired(true).setValue(prefill?.groupName ?? "")
+    ),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder().setCustomId("description").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setValue(prefill?.description ?? "")
+    ),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder().setCustomId("imageUrl").setLabel("Image URL (leave blank to use server icon)").setStyle(TextInputStyle.Short).setRequired(false).setValue(prefill?.imageUrl ?? "")
+    ),
+  ];
+}
+
 export async function handleGroupInteractions(interaction: Interaction, guild: Guild | null): Promise<void> {
   // /group — open modal
   if (interaction.isChatInputCommand() && interaction.commandName === "group") {
     if (!config.groupsChannelId) { await interaction.reply({ content: "Groups not configured on this server.", flags: MessageFlags.Ephemeral }); return; }
     const modal = new ModalBuilder().setCustomId("group_create_modal").setTitle("New Group");
-    modal.addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("name").setLabel("Group Name").setStyle(TextInputStyle.Short).setRequired(true)
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("description").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false)
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("imageUrl").setLabel("Image URL (leave blank to use server icon)").setStyle(TextInputStyle.Short).setRequired(false)
-      ),
-    );
+    modal.addComponents(...buildGroupModalComponents());
     await interaction.showModal(modal);
     return;
   }
@@ -66,17 +70,7 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
   if (interaction.isChatInputCommand() && interaction.commandName === "addgroup") {
     if (!config.groupsChannelId) { await interaction.reply({ content: "Groups not configured on this server.", flags: MessageFlags.Ephemeral }); return; }
     const modal = new ModalBuilder().setCustomId(`addgroup_modal_${interaction.channelId}`).setTitle("Add Group");
-    modal.addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("name").setLabel("Group Name").setStyle(TextInputStyle.Short).setRequired(true)
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("description").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false)
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("imageUrl").setLabel("Image URL (leave blank to use server icon)").setStyle(TextInputStyle.Short).setRequired(false)
-      ),
-    );
+    modal.addComponents(...buildGroupModalComponents());
     await interaction.showModal(modal);
     return;
   }
@@ -111,17 +105,7 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
     const state = groupStates.get(channelId);
     if (!state) return; // not a group channel — let event handler deal with it
     const modal = new ModalBuilder().setCustomId(`group_edit_modal_${channelId}`).setTitle("Edit Group");
-    modal.addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("name").setLabel("Group Name").setStyle(TextInputStyle.Short).setRequired(true).setValue(state.groupName)
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("description").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setValue(state.description)
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("imageUrl").setLabel("Image URL (leave blank to use server icon)").setStyle(TextInputStyle.Short).setRequired(false).setValue(state.imageUrl ?? "")
-      ),
-    );
+    modal.addComponents(...buildGroupModalComponents(state));
     await interaction.showModal(modal);
     return;
   }
@@ -214,17 +198,7 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
     const state = groupStates.get(channelId);
     if (!state) { await interaction.reply({ content: "Group not found.", flags: MessageFlags.Ephemeral }); return; }
     const modal = new ModalBuilder().setCustomId(`group_edit_modal_${channelId}`).setTitle("Edit Group");
-    modal.addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("name").setLabel("Group Name").setStyle(TextInputStyle.Short).setRequired(true).setValue(state.groupName)
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("description").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setValue(state.description)
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("imageUrl").setLabel("Image URL (leave blank to use server icon)").setStyle(TextInputStyle.Short).setRequired(false).setValue(state.imageUrl ?? "")
-      ),
-    );
+    modal.addComponents(...buildGroupModalComponents(state));
     await interaction.showModal(modal);
     return;
   }
