@@ -351,7 +351,7 @@ export function dbGetPhotoVotes(photoId: number): { userId: string; displayName:
     FROM photo_votes pv LEFT JOIN users u ON u.user_id = pv.user_id
     WHERE pv.photo_id = ?
     ORDER BY CASE pv.vote_type WHEN 'fav' THEN 1 WHEN 'up' THEN 2 WHEN 'down' THEN 3 END
-  `).all(photoId) as any[];
+  `).all(photoId) as { userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; voteType: string }[];
 }
 
 export function dbVotePhoto(photoId: number, userId: string, voteType: string): { score: number; userVote: string | null } {

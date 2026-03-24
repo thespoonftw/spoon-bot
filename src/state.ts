@@ -8,7 +8,7 @@ export const GROUP_STATE_FILE = path.join(DATA_DIR, "groups.json");
 
 export const eventStates = new Map<string, EventState>();
 export const editSessions = new Map<string, EditSession>();
-export const pendingGearMenus = new Map<string, any>(); // channelId -> gear menu interaction (for deferred delete)
+export const pendingGearMenus = new Map<string, { deleteReply(): Promise<void> }>();
 export const groupStates = new Map<string, GroupState>();
 
 export function loadGroupState() {

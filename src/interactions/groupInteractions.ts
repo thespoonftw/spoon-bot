@@ -52,14 +52,14 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
       parent: config.groupsCategoryId ?? null,
     });
     const channelId = channel.id;
-    const tempState: GroupState = { groupName, description, imageUrl, joinMessageId: "", pinMessageId: "", members: new Map() };
+    const state: GroupState = { groupName, description, imageUrl, joinMessageId: "", pinMessageId: "", members: new Map() };
     const groupsChannel = g.channels.cache.get(config.groupsChannelId!);
     if (!groupsChannel?.isTextBased()) { await interaction.editReply("Groups channel not found."); return; }
     const thumbnailUrl = imageUrl || g.iconURL();
     const joinMsg = await (groupsChannel as TextChannel).send({ embeds: [buildGroupJoinEmbed(tempState, thumbnailUrl)], components: groupJoinComponents(channelId) });
     const pinMsg = await channel.send({ embeds: [buildGroupPinEmbed(tempState, thumbnailUrl)], components: groupLeaveComponents(channelId) });
-    tempState.joinMessageId = joinMsg.id;
-    tempState.pinMessageId = pinMsg.id;
+    state.joinMessageId = joinMsg.id;
+    state.pinMessageId = pinMsg.id;
     groupStates.set(channelId, tempState);
     persistGroupState();
     await interaction.editReply({ content: `Group **${groupName}** created!` });
@@ -83,7 +83,7 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
     const imageUrl = interaction.fields.getTextInputValue("imageUrl").trim() || undefined;
     await interaction.deferReply({ ephemeral: true });
     const g = interaction.guild!;
-    const tempState: GroupState = { groupName, description, imageUrl, joinMessageId: "", pinMessageId: "", members: new Map() };
+    const state: GroupState = { groupName, description, imageUrl, joinMessageId: "", pinMessageId: "", members: new Map() };
     const groupsChannel = g.channels.cache.get(config.groupsChannelId!);
     if (!groupsChannel?.isTextBased()) { await interaction.editReply("Groups channel not found."); return; }
     const groupChannel = g.channels.cache.get(channelId);
@@ -91,8 +91,8 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
     const thumbnailUrl = imageUrl || g.iconURL();
     const joinMsg = await (groupsChannel as TextChannel).send({ embeds: [buildGroupJoinEmbed(tempState, thumbnailUrl)], components: groupJoinComponents(channelId) });
     const pinMsg = await (groupChannel as TextChannel).send({ embeds: [buildGroupPinEmbed(tempState, thumbnailUrl)], components: groupLeaveComponents(channelId) });
-    tempState.joinMessageId = joinMsg.id;
-    tempState.pinMessageId = pinMsg.id;
+    state.joinMessageId = joinMsg.id;
+    state.pinMessageId = pinMsg.id;
     groupStates.set(channelId, tempState);
     persistGroupState();
     await interaction.editReply({ content: `Group **${groupName}** set up!` });
@@ -153,22 +153,20 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
 
   // group_join_ button
   if (interaction.isButton() && interaction.customId.startsWith("group_join_")) {
-    console.log(`group_join received: ${interaction.customId} by ${interaction.user.tag}`);
     const channelId = interaction.customId.slice("group_join_".length);
     const state = groupStates.get(channelId);
-    if (!state) { console.log(`group not found for channelId: ${channelId}`); await interaction.reply({ content: "Group not found.", flags: MessageFlags.Ephemeral }); return; }
+    if (!state) { await interaction.reply({ content: "Group not found.", flags: MessageFlags.Ephemeral }); return; }
     const userId = interaction.user.id;
-    if (state.members.has(userId)) { console.log('already member'); await interaction.reply({ content: "You're already in this group.", flags: MessageFlags.Ephemeral }); return; }
+    if (state.members.has(userId)) { await interaction.reply({ content: "You're already in this group.", flags: MessageFlags.Ephemeral }); return; }
     const member = interaction.guild?.members.cache.get(userId);
     const displayName = member?.displayName ?? interaction.user.displayName;
     state.members.set(userId, { userId, displayName });
     persistGroupState();
     await interaction.deferUpdate().catch((e) => { console.error('deferUpdate failed (join):', e); });
-    console.log('join deferUpdate done');
     const groupChannel = interaction.guild?.channels.cache.get(channelId);
     if (groupChannel?.isTextBased()) {
       await (groupChannel as TextChannel).permissionOverwrites.edit(userId, { ViewChannel: true });
-      await (groupChannel as TextChannel).send(`**${interaction.user.displayName}** joined.`);
+      await (groupChannel as TextChannel).send(`**${displayName}** joined.`);
     }
     await updateGroupMessages(interaction.guild!, channelId);
     return;
@@ -183,7 +181,6 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
     state.members.delete(userId);
     persistGroupState();
     await interaction.deferUpdate().catch((e) => { console.error('deferUpdate failed (leave):', e); });
-    console.log('leave deferUpdate done');
     const groupChannel = interaction.guild?.channels.cache.get(channelId);
     if (groupChannel?.isTextBased()) {
       await (groupChannel as TextChannel).permissionOverwrites.delete(userId);

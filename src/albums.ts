@@ -160,8 +160,8 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
     } catch (e) { console.error("Failed to download/process reaction attachment:", e); }
   }
 
-  if (anySuccess) {
-    try { await message.react(reaction.emoji.name!); } catch {}
+  if (anySuccess && reaction.emoji.name) {
+    try { await message.react(reaction.emoji.name); } catch {}
   }
 }
 
@@ -342,6 +342,7 @@ export function startWebServer(): void {
       req.on("end", async () => {
         try {
           const { name, location, startDate, endDate } = JSON.parse(body);
+          if (!name?.trim() || !location?.trim()) { sendJson(res, 400, { error: "name and location are required" }); return; }
           const updated = dbUpdateAlbum(channelId, name, location, startDate || undefined, endDate || undefined);
           // Sync to Discord if this is a real event channel
           if (!channelId.startsWith("web_") && albumDiscordClient) {
@@ -621,14 +622,13 @@ export function startWebServer(): void {
     // GET /thumbnails/:channelId/:filename — serve thumbnail (falls back to full image if thumb missing)
     if (url.startsWith("/thumbnails/")) {
       const parts = url.slice("/thumbnails/".length).split("/");
-      if (parts.length < 2 || parts[0].includes("..") || parts[1].includes("..")) {
-        res.writeHead(400); res.end("Bad request"); return;
-      }
+      if (parts.length < 2) { res.writeHead(400); res.end("Bad request"); return; }
       const [channelId, filename] = parts;
-      const thumbPath = path.join(PHOTO_STORAGE_PATH, channelId, "thumbs", filename);
-      const fullPath = path.join(PHOTO_STORAGE_PATH, channelId, filename);
+      const thumbPath = path.resolve(PHOTO_STORAGE_PATH, channelId, "thumbs", filename);
+      const fullPath = path.resolve(PHOTO_STORAGE_PATH, channelId, filename);
+      const storagePrefix = PHOTO_STORAGE_PATH + path.sep;
       const servePath = fs.existsSync(thumbPath) ? thumbPath : fullPath;
-      if (!servePath.startsWith(PHOTO_STORAGE_PATH) || !fs.existsSync(servePath)) {
+      if (!servePath.startsWith(storagePrefix) || !fs.existsSync(servePath)) {
         res.writeHead(404); res.end("Not found"); return;
       }
       const ext = path.extname(filename).toLowerCase();
@@ -642,12 +642,11 @@ export function startWebServer(): void {
     if (url.startsWith("/uploads/")) {
       if (!isValidSession(getTokenFromRequest(req))) { res.writeHead(401); res.end("Unauthorized"); return; }
       const parts = url.slice("/uploads/".length).split("/");
-      if (parts.length < 2 || parts[0].includes("..") || parts[1].includes("..")) {
-        res.writeHead(400); res.end("Bad request"); return;
-      }
+      if (parts.length < 2) { res.writeHead(400); res.end("Bad request"); return; }
       const [channelId, filename] = parts;
-      const filePath = path.join(PHOTO_STORAGE_PATH, channelId, filename);
-      if (!filePath.startsWith(PHOTO_STORAGE_PATH) || !fs.existsSync(filePath)) {
+      const filePath = path.resolve(PHOTO_STORAGE_PATH, channelId, filename);
+      const storagePrefix = PHOTO_STORAGE_PATH + path.sep;
+      if (!filePath.startsWith(storagePrefix) || !fs.existsSync(filePath)) {
         res.writeHead(404); res.end("Not found"); return;
       }
       const ext = path.extname(filename).toLowerCase();
