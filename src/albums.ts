@@ -171,6 +171,7 @@ interface PendingUpload {
   authorId: string;
   authorName: string;
   avatarUrl?: string;
+  originalMessage: Message;
 }
 const pendingUploads = new Map<string, PendingUpload>();
 
@@ -190,6 +191,7 @@ export async function handleAlbumMessageCreate(message: Message): Promise<void> 
     authorId: message.author.id,
     authorName: displayName,
     avatarUrl: message.author.avatarURL() ?? undefined,
+    originalMessage: message,
   });
   setTimeout(() => pendingUploads.delete(pendingId), 10 * 60 * 1000);
 
@@ -242,8 +244,8 @@ export async function handleAlbumUploadInteraction(interaction: Interaction): Pr
 
   if (customId.startsWith("album_ignore_")) {
     pendingUploads.delete(customId.slice("album_ignore_".length));
-    await interaction.update({ content: "Ignored.", components: [] });
-    setTimeout(() => interaction.message.delete().catch(() => {}), 3000);
+    await interaction.message.delete().catch(() => {});
+    await interaction.deferUpdate().catch(() => {});
     return true;
   }
 
@@ -256,11 +258,10 @@ export async function handleAlbumUploadInteraction(interaction: Interaction): Pr
       setTimeout(() => interaction.message.delete().catch(() => {}), 5000);
       return true;
     }
-    await interaction.update({ content: "Uploading…", components: [] });
-    const count = await processUpload(pending);
-    const uploaded = count === 1 ? "1 photo" : `${count} photos`;
-    await interaction.editReply({ content: `Uploaded ${uploaded} to the album.` });
-    setTimeout(() => interaction.message.delete().catch(() => {}), 5000);
+    await interaction.deferUpdate().catch(() => {});
+    await processUpload(pending);
+    await interaction.message.delete().catch(() => {});
+    await pending.originalMessage.react("📸").catch(() => {});
     return true;
   }
 
