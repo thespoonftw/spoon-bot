@@ -12,7 +12,7 @@ import {
 } from "discord.js";
 import type { Guild, Interaction } from "discord.js";
 import { config } from "../config";
-import { eventStates, editSessions, pendingGearMenus, persistState } from "../state";
+import { eventStates, pendingGearMenus, persistState } from "../state";
 import type { EventState, RSVPStatus } from "../types";
 import {
   buildJoinContent,
