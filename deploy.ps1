@@ -24,8 +24,7 @@ Write-Host "Building web app..."
 & $plink @conn "cd /home/spoon/spoon-bot/web && npm install --silent && npm run build"
 
 Write-Host "Restarting bots..."
-& $plink @conn "bash -c 'pkill -9 -f [t]s-node 2>/dev/null; pkill -9 -f src/index.ts 2>/dev/null; tmux kill-server 2>/dev/null; sleep 2; pkill -9 -f [t]s-node 2>/dev/null; pkill -9 -f src/index.ts 2>/dev/null; fuser -k 3000/tcp 2>/dev/null; sleep 1; exit 0'"
-& $plink @conn "cd /home/spoon/spoon-bot && tmux new-session -d -s himiko 'npm run dev >> bot.log 2>&1' && tmux new-session -d -s snek 'bash -c \`"set -a; source /home/spoon/spoon-bot/.env.snek; set +a; cd /home/spoon/spoon-bot; npx ts-node src/index.ts >> snek.log 2>&1\`"'"
+& $plink @conn "systemctl --user restart himiko snek"
 
 Write-Host "Waiting for startup..."
 Start-Sleep 6
