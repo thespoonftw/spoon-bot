@@ -318,9 +318,9 @@ const savingFeatured = ref(false);
 
 const SORT_KEY = 'snek_sort_by';
 const sortBy = ref<'popular' | 'tagging' | 'uploader' | 'newest' | 'oldest'>(
-  (localStorage.getItem(SORT_KEY) as any) ?? 'popular'
+  (sessionStorage.getItem(SORT_KEY) as any) ?? 'popular'
 );
-watch(sortBy, val => localStorage.setItem(SORT_KEY, val));
+watch(sortBy, val => sessionStorage.setItem(SORT_KEY, val));
 const currentUserId = ref<string | null>(null);
 const tagFilterUserId = ref<string>('__nobody__');
 
