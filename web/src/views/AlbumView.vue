@@ -201,18 +201,7 @@
         <label>Location</label>
         <input v-model="editForm.location" type="text" />
       </div>
-      <div class="form-group">
-        <label>Start Date</label>
-        <input v-model="editForm.startDate" type="date" />
-      </div>
-      <div class="form-group">
-        <label>End Date</label>
-        <div v-if="editForm.endDate" style="display:flex;gap:8px;align-items:center">
-          <input v-model="editForm.endDate" type="date" style="flex:1" />
-          <button type="button" class="btn-remove" @click="editForm.endDate = ''">remove</button>
-        </div>
-        <button v-else type="button" class="btn-secondary btn-small" @click="editForm.endDate = editForm.startDate">+ Add end date</button>
-      </div>
+      <DateRangePicker v-model:start-date="editForm.startDate" v-model:end-date="editForm.endDate" />
       <div v-if="editError" class="error">{{ editError }}</div>
       <div class="modal-actions">
         <button class="btn-primary" @click="saveEdit" :disabled="saving">{{ saving ? "Saving…" : "Save" }}</button>
@@ -273,6 +262,7 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import MemberAvatar from "../components/MemberAvatar.vue";
+import DateRangePicker from "../components/DateRangePicker.vue";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
 import { getSession } from "../utils/session";

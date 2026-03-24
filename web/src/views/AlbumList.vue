@@ -40,18 +40,7 @@
         <label>Location</label>
         <input v-model="form.location" type="text" placeholder="e.g. Barcelona" />
       </div>
-      <div class="form-group">
-        <label>Start Date</label>
-        <input v-model="form.startDate" type="date" />
-      </div>
-      <div class="form-group">
-        <label>End Date</label>
-        <div v-if="form.endDate" style="display:flex;gap:8px;align-items:center">
-          <input v-model="form.endDate" type="date" style="flex:1" />
-          <button type="button" class="btn-remove" @click="form.endDate = ''">remove</button>
-        </div>
-        <button v-else type="button" class="btn-secondary btn-small" @click="form.endDate = form.startDate">+ Add end date</button>
-      </div>
+      <DateRangePicker v-model:start-date="form.startDate" v-model:end-date="form.endDate" />
       <div v-if="formError" class="error">{{ formError }}</div>
       <div class="modal-actions">
         <button class="btn-primary" @click="createAlbum" :disabled="creating">{{ creating ? "Creating…" : "Create" }}</button>
@@ -65,6 +54,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useCurrentUser } from "../composables/useCurrentUser";
 import { getSession } from "../utils/session";
+import DateRangePicker from "../components/DateRangePicker.vue";
 
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; createdAt: string; photos: { id: number }[]; members: Member[] }

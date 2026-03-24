@@ -33,6 +33,24 @@ function getDisplayName(interaction: Interaction): string {
   return (member && "displayName" in member ? member.displayName : null) ?? interaction.user.displayName;
 }
 
+type EventModalPrefill = { eventName?: string; description?: string; location?: string; imageUrl?: string };
+function buildEventModalComponents(prefill?: EventModalPrefill): ActionRowBuilder<TextInputBuilder>[] {
+  return [
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder().setCustomId("event_name").setLabel("Event name").setStyle(TextInputStyle.Short).setRequired(true).setValue(prefill?.eventName ?? "")
+    ),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder().setCustomId("event_desc").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setPlaceholder("Optional").setValue(prefill?.description ?? "")
+    ),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder().setCustomId("event_location").setLabel("Location").setStyle(TextInputStyle.Short).setRequired(true).setValue(prefill?.location ?? "")
+    ),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder().setCustomId("event_image").setLabel("Image URL").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional — replaces server icon in embed").setValue(prefill?.imageUrl ?? "")
+    ),
+  ];
+}
+
 const RSVP_LABELS: Record<RSVPStatus, string> = {
   coming: "✅ Coming",
   maybe: "❔ Maybe",
@@ -55,20 +73,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       return;
     }
     const modal = new ModalBuilder().setCustomId("event_modal").setTitle("Create Event");
-    modal.addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("event_name").setLabel("Event name").setStyle(TextInputStyle.Short).setRequired(true)
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("event_desc").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setPlaceholder("Optional")
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("event_location").setLabel("Location").setStyle(TextInputStyle.Short).setRequired(true)
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("event_image").setLabel("Image URL").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional — replaces server icon in embed")
-      ),
-    );
+    modal.addComponents(...buildEventModalComponents());
     await interaction.showModal(modal);
     return;
   }
@@ -147,20 +152,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       return;
     }
     const modal = new ModalBuilder().setCustomId("addevent_modal").setTitle("Add Event to Channel");
-    modal.addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("event_name").setLabel("Event name").setStyle(TextInputStyle.Short).setRequired(true).setValue(channel.name.replace(/-/g, " "))
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("event_desc").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setPlaceholder("Optional")
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("event_location").setLabel("Location").setStyle(TextInputStyle.Short).setRequired(true)
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("event_image").setLabel("Image URL").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional — replaces server icon in embed")
-      ),
-    );
+    modal.addComponents(...buildEventModalComponents({ eventName: channel.name.replace(/-/g, " ") }));
     await interaction.showModal(modal);
     return;
   }
@@ -398,20 +390,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     const channelId = interaction.customId.slice("edit_open_desc_".length);
     const state = eventStates.get(channelId);
     const modal = new ModalBuilder().setCustomId(`edit_desc_modal_${channelId}`).setTitle("Edit Event");
-    modal.addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("event_name").setLabel("Event name").setStyle(TextInputStyle.Short).setRequired(true).setValue(state?.eventName ?? "")
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("event_desc").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setValue(state?.description ?? "")
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("event_location").setLabel("Location").setStyle(TextInputStyle.Short).setRequired(true).setValue(state?.location ?? "")
-      ),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder().setCustomId("event_image").setLabel("Image URL").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional — replaces server icon in embed").setValue(state?.imageUrl ?? "")
-      ),
-    );
+    modal.addComponents(...buildEventModalComponents(state));
     await interaction.showModal(modal);
     return;
   }

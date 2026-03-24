@@ -139,10 +139,10 @@ export async function handleDatePickerInteractions(interaction: Interaction): Pr
     try { await interaction.deleteReply(); } catch {}
 
     const member = interaction.guild.members.cache.get(interaction.user.id);
-    const displayName = member?.displayName ?? interaction.user.displayName;
+    const actorName = member?.displayName ?? interaction.user.displayName;
     const eventChannel = interaction.guild.channels.cache.get(channelId);
     if (eventChannel && eventChannel.type === ChannelType.GuildText) {
-      await eventChannel.send(`📅 **${displayName}** updated the event date to **${dateText}**.`);
+      await eventChannel.send(`📅 **${actorName}** updated the event date to **${dateText}**.`);
     }
     return;
   }

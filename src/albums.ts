@@ -14,7 +14,7 @@ type BusboyInstance = { on(e: "file", cb: (f: string, s: NodeJS.ReadableStream, 
 const Busboy = require("busboy") as (opts: { headers: Record<string, string | string[] | undefined>; limits?: { files?: number; fileSize?: number } }) => BusboyInstance;
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
-import { handleAuthRoutes, isValidSession, getSessionUser, getTokenFromRequest } from "./auth";
+import { handleAuthRoutes, isValidSession, getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
 import { initDb, dbHasAlbum, dbInsertAlbum, dbDeleteAlbum, dbUpdateAlbum, dbAddPhoto, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoFeatured, dbGetPhotoVotes } from "./db";
 import type { Guild } from "discord.js";
 
@@ -286,17 +286,16 @@ export function startWebServer(): void {
 
     if (url === "/api/status" && method === "GET") {
       const token = getTokenFromRequest(req);
-      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      if (!isValidSession(token)) { send401(res); return; }
       try {
         const statPath = fs.existsSync(PHOTO_STORAGE_PATH) ? PHOTO_STORAGE_PATH : DATA_DIR;
         const stats = fs.statfsSync(statPath);
         const total = stats.blocks * stats.bsize;
         const available = stats.bavail * stats.bsize;
         const used = total - available;
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ total, used, available, photoCount: dbGetPhotoCount(), albumCount: dbGetAlbumCount() }));
+        sendJson(res, 200, { total, used, available, photoCount: dbGetPhotoCount(), albumCount: dbGetAlbumCount() });
       } catch (e) {
-        res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Failed" }));
+        sendJson(res, 500, { error: "Failed" });
       }
       return;
     }
@@ -307,34 +306,27 @@ export function startWebServer(): void {
         const members = a.members.filter(m => (state?.members.get(m.userId)?.status ?? null) !== "decline");
         return { ...a, members };
       });
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(albums));
+      sendJson(res, 200, albums);
       return;
     }
 
     if (url === "/api/albums" && method === "POST") {
       const token = getTokenFromRequest(req);
-      if (!isValidSession(token)) {
-        res.writeHead(401, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Unauthorized" })); return;
-      }
+      if (!isValidSession(token)) { send401(res); return; }
       let body = "";
       req.on("data", chunk => body += chunk);
       req.on("end", () => {
         try {
           const { name, location, startDate, endDate } = JSON.parse(body);
           if (!name || !location || !startDate) {
-            res.writeHead(400, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ error: "name, location, and startDate are required" })); return;
+            sendJson(res, 400, { error: "name, location, and startDate are required" }); return;
           }
           const album = dbCreateAlbum(name, location, startDate, endDate || undefined);
           const creator = getSessionUser(token);
           if (creator) dbUpsertUser(creator.userId, creator.displayName, creator.avatarUrl);
-          res.writeHead(201, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ ...album, photos: [] }));
+          sendJson(res, 201, { ...album, photos: [] });
         } catch (e) {
-          res.writeHead(500, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: "Failed to create album" }));
+          sendJson(res, 500, { error: "Failed to create album" });
         }
       });
       return;
@@ -343,8 +335,8 @@ export function startWebServer(): void {
     if (url.match(/^\/api\/album\/[^/]+$/) && method === "PUT") {
       const channelId = url.slice("/api/album/".length);
       const token = getTokenFromRequest(req);
-      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
-      if (!dbHasAlbum(channelId)) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }
+      if (!isValidSession(token)) { send401(res); return; }
+      if (!dbHasAlbum(channelId)) { sendJson(res, 404, { error: "Not found" }); return; }
       let body = "";
       req.on("data", chunk => body += chunk);
       req.on("end", async () => {
@@ -363,11 +355,9 @@ export function startWebServer(): void {
               if (guild && updateEventMessagesFn) updateEventMessagesFn(guild, channelId).catch(e => console.error("Failed to sync album edit to Discord:", e));
             }
           }
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify(updated));
+          sendJson(res, 200, updated);
         } catch (e) {
-          res.writeHead(500, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: "Update failed" }));
+          sendJson(res, 500, { error: "Update failed" });
         }
       });
       return;
@@ -378,8 +368,8 @@ export function startWebServer(): void {
       const channelId = url.split("/")[3];
       const token = getTokenFromRequest(req);
       const uploader = getSessionUser(token);
-      if (!uploader) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
-      if (!dbHasAlbum(channelId)) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Album not found" })); return; }
+      if (!uploader) { send401(res); return; }
+      if (!dbHasAlbum(channelId)) { sendJson(res, 404, { error: "Album not found" }); return; }
       const albumDir = path.join(PHOTO_STORAGE_PATH, channelId);
       fs.mkdirSync(albumDir, { recursive: true });
       const bb = Busboy({ headers: req.headers, limits: { files: 1, fileSize: 50 * 1024 * 1024 } });
@@ -387,7 +377,7 @@ export function startWebServer(): void {
       bb.on("file", (_field, fileStream, { filename, mimeType }) => {
         if (!mimeType.startsWith("image/")) {
           fileStream.resume();
-          if (!responded) { responded = true; res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Only images allowed" })); }
+          if (!responded) { responded = true; sendJson(res, 400, { error: "Only images allowed" }); }
           return;
         }
         const ext = path.extname(filename) || ".jpg";
@@ -423,15 +413,14 @@ export function startWebServer(): void {
           } catch (e) { console.error("Thumbnail generation failed:", e); }
           const photoUrl = `/uploads/${channelId}/${name}`;
           const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, uploader.displayName, width, height, takenAt);
-          res.writeHead(201, { "Content-Type": "application/json" });
-          res.end(JSON.stringify(photo));
+          sendJson(res, 201, photo);
         });
         writeStream.on("error", () => {
-          if (!responded) { responded = true; res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Write failed" })); }
+          if (!responded) { responded = true; sendJson(res, 500, { error: "Write failed" }); }
         });
       });
       bb.on("error", () => {
-        if (!responded) { responded = true; res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Upload failed" })); }
+        if (!responded) { responded = true; sendJson(res, 400, { error: "Upload failed" }); }
       });
       req.pipe(bb as unknown as NodeJS.WritableStream);
       return;
@@ -442,16 +431,15 @@ export function startWebServer(): void {
       const parts = url.split("/");
       const photoId = parseInt(parts[5]);
       const token = getTokenFromRequest(req);
-      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      if (!isValidSession(token)) { send401(res); return; }
       let body = "";
       req.on("data", chunk => body += chunk);
       req.on("end", () => {
         try {
           const { userIds } = JSON.parse(body);
           dbSetPhotoFeatured(photoId, Array.isArray(userIds) ? userIds : []);
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ ok: true }));
-        } catch { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Failed" })); }
+          sendJson(res, 200, { ok: true });
+        } catch { sendJson(res, 500, { error: "Failed" }); }
       });
       return;
     }
@@ -460,9 +448,8 @@ export function startWebServer(): void {
     if (url.match(/^\/api\/album\/[^/]+\/photos\/\d+\/votes$/) && method === "GET") {
       const photoId = parseInt(url.split("/")[5]);
       const token = getTokenFromRequest(req);
-      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(dbGetPhotoVotes(photoId)));
+      if (!isValidSession(token)) { send401(res); return; }
+      sendJson(res, 200, dbGetPhotoVotes(photoId));
       return;
     }
 
@@ -472,19 +459,18 @@ export function startWebServer(): void {
       const photoId = parseInt(parts[5]);
       const token = getTokenFromRequest(req);
       const sessionUser = token ? getSessionUser(token) : null;
-      if (!sessionUser) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      if (!sessionUser) { send401(res); return; }
       let body = "";
       req.on("data", chunk => body += chunk);
       req.on("end", () => {
         try {
           const { voteType } = JSON.parse(body);
           if (!["up", "down", "fav"].includes(voteType)) {
-            res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Invalid vote type" })); return;
+            sendJson(res, 400, { error: "Invalid vote type" }); return;
           }
           const result = dbVotePhoto(photoId, sessionUser.userId, voteType);
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify(result));
-        } catch { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Failed" })); }
+          sendJson(res, 200, result);
+        } catch { sendJson(res, 500, { error: "Failed" }); }
       });
       return;
     }
@@ -495,14 +481,13 @@ export function startWebServer(): void {
       const channelId = parts[3];
       const photoId = parseInt(parts[5]);
       const token = getTokenFromRequest(req);
-      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      if (!isValidSession(token)) { send401(res); return; }
       const filename = dbDeletePhoto(photoId);
-      if (!filename) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }
+      if (!filename) { sendJson(res, 404, { error: "Not found" }); return; }
       const albumDir = path.join(PHOTO_STORAGE_PATH, channelId);
       try { fs.unlinkSync(path.join(albumDir, filename)); } catch {}
       try { fs.unlinkSync(path.join(albumDir, "thumbs", filename)); } catch {}
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: true }));
+      sendJson(res, 200, { ok: true });
       return;
     }
 
@@ -510,11 +495,10 @@ export function startWebServer(): void {
     if (url.match(/^\/api\/album\/[^/]+\/members$/) && method === "GET") {
       const channelId = url.split("/")[3];
       const token = getTokenFromRequest(req);
-      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      if (!isValidSession(token)) { send401(res); return; }
       const state = eventStates.get(channelId);
       const members = dbGetAllAlbumMembers(channelId).map(m => ({ ...m, rsvpStatus: state?.members.get(m.userId)?.status ?? null }));
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(members));
+      sendJson(res, 200, members);
       return;
     }
 
@@ -522,7 +506,7 @@ export function startWebServer(): void {
     if (url.match(/^\/api\/album\/[^/]+\/members$/) && method === "POST") {
       const channelId = url.split("/")[3];
       const token = getTokenFromRequest(req);
-      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      if (!isValidSession(token)) { send401(res); return; }
       let body = "";
       req.on("data", chunk => body += chunk);
       req.on("end", () => {
@@ -531,18 +515,17 @@ export function startWebServer(): void {
           let user;
           if (userId) {
             user = dbGetAllUsers().find(u => u.userId === userId);
-            if (!user) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "User not found" })); return; }
+            if (!user) { sendJson(res, 404, { error: "User not found" }); return; }
           } else if (name?.trim()) {
             user = dbCreateGuestUser(name.trim());
           } else {
-            res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "userId or name required" })); return;
+            sendJson(res, 400, { error: "userId or name required" }); return;
           }
           dbAddAlbumMember(channelId, user.userId);
           const state = eventStates.get(channelId);
-          res.writeHead(201, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ ...user, hidden: 0, rsvpStatus: state?.members.get(user.userId)?.status ?? null }));
+          sendJson(res, 201, { ...user, hidden: 0, rsvpStatus: state?.members.get(user.userId)?.status ?? null });
         } catch {
-          res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Failed" }));
+          sendJson(res, 500, { error: "Failed" });
         }
       });
       return;
@@ -555,7 +538,7 @@ export function startWebServer(): void {
       const userId = parts[5];
       const remove = (req.url ?? "").includes("?remove=true");
       const token = getTokenFromRequest(req);
-      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      if (!isValidSession(token)) { send401(res); return; }
       if (userId.startsWith("guest_")) {
         dbDeleteUser(userId);
       } else if (remove) {
@@ -563,8 +546,7 @@ export function startWebServer(): void {
       } else {
         dbHideAlbumMember(channelId, userId);
       }
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: true }));
+      sendJson(res, 200, { ok: true });
       return;
     }
 
@@ -574,10 +556,9 @@ export function startWebServer(): void {
       const channelId = parts[3];
       const userId = parts[5];
       const token = getTokenFromRequest(req);
-      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
+      if (!isValidSession(token)) { send401(res); return; }
       dbUnhideAlbumMember(channelId, userId);
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: true }));
+      sendJson(res, 200, { ok: true });
       return;
     }
 
@@ -585,20 +566,19 @@ export function startWebServer(): void {
     if (url.match(/^\/api\/album\/[^/]+\/share$/) && method === "POST") {
       const channelId = url.split("/")[3];
       const token = getTokenFromRequest(req);
-      if (!isValidSession(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return; }
-      if (!dbHasAlbum(channelId)) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }
+      if (!isValidSession(token)) { send401(res); return; }
+      if (!dbHasAlbum(channelId)) { sendJson(res, 404, { error: "Not found" }); return; }
       let body = "";
       req.on("data", chunk => body += chunk);
       req.on("end", () => {
         try {
           const { password } = JSON.parse(body);
-          if (!password?.trim()) { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Password required" })); return; }
+          if (!password?.trim()) { sendJson(res, 400, { error: "Password required" }); return; }
           const shareToken = crypto.randomBytes(24).toString("base64url");
           const passwordHash = crypto.createHash("sha256").update(shareToken + ":" + password.trim()).digest("hex");
           dbCreateAlbumShare(channelId, shareToken, passwordHash);
-          res.writeHead(201, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ url: `${getBaseUrl()}/share/${shareToken}` }));
-        } catch { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Failed" })); }
+          sendJson(res, 201, { url: `${getBaseUrl()}/share/${shareToken}` });
+        } catch { sendJson(res, 500, { error: "Failed" }); }
       });
       return;
     }
@@ -607,19 +587,18 @@ export function startWebServer(): void {
     if (url.match(/^\/api\/share\/[^/]+\/unlock$/) && method === "POST") {
       const shareToken = url.split("/")[3];
       const share = dbGetAlbumShare(shareToken);
-      if (!share) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }
+      if (!share) { sendJson(res, 404, { error: "Not found" }); return; }
       let body = "";
       req.on("data", chunk => body += chunk);
       req.on("end", () => {
         try {
           const { password } = JSON.parse(body);
           const hash = crypto.createHash("sha256").update(shareToken + ":" + (password ?? "")).digest("hex");
-          if (hash !== share.passwordHash) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Wrong password" })); return; }
+          if (hash !== share.passwordHash) { sendJson(res, 401, { error: "Wrong password" }); return; }
           const album = dbGetAlbumWithPhotos(share.channelId);
-          if (!album) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Album not found" })); return; }
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ groupName: album.groupName, dateText: album.dateText, location: album.location, photos: album.photos }));
-        } catch { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Failed" })); }
+          if (!album) { sendJson(res, 404, { error: "Album not found" }); return; }
+          sendJson(res, 200, { groupName: album.groupName, dateText: album.dateText, location: album.location, photos: album.photos });
+        } catch { sendJson(res, 500, { error: "Failed" }); }
       });
       return;
     }
@@ -630,13 +609,12 @@ export function startWebServer(): void {
       const token = getTokenFromRequest(req);
       const sessionUser = token ? getSessionUser(token) : null;
       const album = dbGetAlbumWithPhotos(channelId, sessionUser?.userId);
-      if (!album) { res.writeHead(404, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }
+      if (!album) { sendJson(res, 404, { error: "Not found" }); return; }
       const state = eventStates.get(channelId);
       const members = album.members
         .map(m => ({ ...m, rsvpStatus: state?.members.get(m.userId)?.status ?? null }))
         .filter(m => m.rsvpStatus !== "decline");
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ...album, members }));
+      sendJson(res, 200, { ...album, members });
       return;
     }
 

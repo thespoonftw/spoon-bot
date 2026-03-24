@@ -6,6 +6,15 @@ import path from "path";
 import { DATA_DIR } from "./state";
 import { dbUpsertUser, dbUpdateUserLastLogin, dbGetAllUsers, dbUpdateUserFirstName, dbGetUserById } from "./db";
 
+export function sendJson(res: ServerResponse, status: number, data: unknown, extraHeaders: Record<string, string> = {}): void {
+  res.writeHead(status, { "Content-Type": "application/json", ...extraHeaders });
+  res.end(JSON.stringify(data));
+}
+
+export function send401(res: ServerResponse): void {
+  sendJson(res, 401, { error: "Unauthorized" });
+}
+
 const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const ALLOWED_USER_IDS = (process.env.AUTH_USER_IDS ?? "148516020007600128").split(",");
 
@@ -86,8 +95,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
   const method = req.method ?? "GET";
 
   if (url === "/api/users" && method === "GET") {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(dbGetAllUsers()));
+    sendJson(res, 200, dbGetAllUsers());
     return true;
   }
 
@@ -98,21 +106,16 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
       try {
         const { userId } = JSON.parse(body);
         const allUsers = dbGetAllUsers();
-        if (!allUsers.some(u => u.userId === userId)) {
-          res.writeHead(403, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: "Not allowed" })); return;
-        }
+        if (!allUsers.some(u => u.userId === userId)) { sendJson(res, 403, { error: "Not allowed" }); return; }
         const token = crypto.randomBytes(32).toString("hex");
         magicTokens.set(token, { userId, expires: Date.now() + 15 * 60 * 1000 });
         const link = `${getBaseUrl()}/auth/verify/${token}`;
         const user = await discordClient!.users.fetch(userId);
         await user.send(`🔗 Click here to log in to the Snek site:\n${link}\n\n*This link expires in 15 minutes.*`);
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ ok: true }));
+        sendJson(res, 200, { ok: true });
       } catch (e) {
         console.error("Auth request error:", e);
-        res.writeHead(500, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Failed to send DM" }));
+        sendJson(res, 500, { error: "Failed to send DM" });
       }
     });
     return true;
@@ -121,10 +124,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
   if (url.startsWith("/api/auth/verify/") && method === "GET") {
     const token = url.slice("/api/auth/verify/".length);
     const magic = magicTokens.get(token);
-    if (!magic || magic.expires < Date.now()) {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Invalid or expired token" })); return true;
-    }
+    if (!magic || magic.expires < Date.now()) { sendJson(res, 200, { error: "Invalid or expired token" }); return true; }
     magicTokens.delete(token);
     const sessionToken = crypto.randomBytes(32).toString("hex");
     sessions.set(sessionToken, magic.userId);
@@ -132,8 +132,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     dbUpdateUserLastLogin(magic.userId);
     const cookieHeader = `${SESSION_COOKIE}=${sessionToken}${SESSION_COOKIE_ATTRS}`;
     console.log(`[auth/verify] setting cookie: ${cookieHeader.slice(0, 80)}`);
-    res.writeHead(200, { "Content-Type": "application/json", "Set-Cookie": cookieHeader });
-    res.end(JSON.stringify({ sessionToken, userId: magic.userId }));
+    sendJson(res, 200, { sessionToken, userId: magic.userId }, { "Set-Cookie": cookieHeader });
     return true;
   }
 
@@ -142,28 +141,23 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     console.log(`[auth/check] cookie=${req.headers["cookie"]?.slice(0,40)} token=${token.slice(0,8)} valid=${sessions.has(token)}`);
     const userId = sessions.get(token);
     if (!userId) {
-      res.writeHead(401, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ valid: false }));
+      sendJson(res, 401, { valid: false });
     } else {
       const user = userInfoCache.get(userId);
       const dbUser = dbGetUserById(userId);
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ valid: true, userId, displayName: user?.displayName ?? userId, avatarUrl: user?.avatarUrl ?? "", firstName: dbUser?.firstName ?? null }));
+      sendJson(res, 200, { valid: true, userId, displayName: user?.displayName ?? userId, avatarUrl: user?.avatarUrl ?? "", firstName: dbUser?.firstName ?? null });
     }
     return true;
   }
 
   if (url === "/api/site-users" && method === "GET") {
-    const token = getTokenFromRequest(req);
-    if (!sessions.has(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return true; }
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(dbGetAllUsers()));
+    if (!sessions.has(getTokenFromRequest(req))) { send401(res); return true; }
+    sendJson(res, 200, dbGetAllUsers());
     return true;
   }
 
   if (url.match(/^\/api\/site-users\/[^/]+$/) && method === "PUT") {
-    const token = getTokenFromRequest(req);
-    if (!sessions.has(token)) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Unauthorized" })); return true; }
+    if (!sessions.has(getTokenFromRequest(req))) { send401(res); return true; }
     const userId = url.slice("/api/site-users/".length);
     let body = "";
     req.on("data", chunk => body += chunk);
@@ -171,11 +165,9 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
       try {
         const { firstName } = JSON.parse(body);
         dbUpdateUserFirstName(userId, firstName ?? null);
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ ok: true }));
+        sendJson(res, 200, { ok: true });
       } catch {
-        res.writeHead(500, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Failed to update" }));
+        sendJson(res, 500, { error: "Failed to update" });
       }
     });
     return true;
@@ -185,8 +177,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     const token = getTokenFromRequest(req);
     sessions.delete(token);
     persistSessions();
-    res.writeHead(200, { "Content-Type": "application/json", "Set-Cookie": `${SESSION_COOKIE}=; Max-Age=0; Path=/` });
-    res.end(JSON.stringify({ ok: true }));
+    sendJson(res, 200, { ok: true }, { "Set-Cookie": `${SESSION_COOKIE}=; Max-Age=0; Path=/` });
     return true;
   }
 
