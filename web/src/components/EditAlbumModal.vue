@@ -1,5 +1,5 @@
 <template>
-  <div class="modal-overlay" v-if="show">
+  <div class="modal-overlay" v-if="show" @keydown.esc.window="emit('close')">
     <div class="modal" :style="drag.style.value">
       <button class="modal-close" @click="emit('close')">✕</button>
       <h2 class="modal-drag-handle" @mousedown="drag.onMouseDown">Edit Album</h2>

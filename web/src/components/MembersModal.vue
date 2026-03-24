@@ -1,5 +1,5 @@
 <template>
-  <div class="modal-overlay" v-if="modelValue">
+  <div class="modal-overlay" v-if="modelValue" @keydown.esc.window="showMemberPicker ? (showMemberPicker = false) : emit('update:modelValue', false)">
     <div class="modal" :style="drag.style.value">
       <button class="modal-close" @click="emit('update:modelValue', false)">✕</button>
       <h2 class="modal-drag-handle" @mousedown="drag.onMouseDown">Members</h2>

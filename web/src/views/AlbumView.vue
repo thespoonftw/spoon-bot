@@ -202,7 +202,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import MemberAvatar from "../components/MemberAvatar.vue";
 import EditAlbumModal from "../components/EditAlbumModal.vue";
@@ -453,6 +453,17 @@ function handleVote(e: Event, photo: Photo, voteType: string) {
 }
 
 function confirmDelete(photo: Photo) { dragDelete.reset(); deletingPhoto.value = photo; }
+
+function handleEscape(e: KeyboardEvent) {
+  if (e.key !== "Escape") return;
+  if (showTaggingPicker.value) { showTaggingPicker.value = false; e.stopImmediatePropagation(); return; }
+  if (showTagging.value)       { showTagging.value = false;       e.stopImmediatePropagation(); return; }
+  if (voteModalPhoto.value)    { voteModalPhoto.value = null;     e.stopImmediatePropagation(); return; }
+  if (deletingPhoto.value)     { deletingPhoto.value = null;      e.stopImmediatePropagation(); return; }
+  if (showShare.value)         { showShare.value = false;         e.stopImmediatePropagation(); return; }
+}
+onMounted(() => window.addEventListener("keydown", handleEscape, true));
+onUnmounted(() => window.removeEventListener("keydown", handleEscape, true));
 
 async function deletePhoto() {
   if (!album.value || !deletingPhoto.value) return;
