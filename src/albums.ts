@@ -1,4 +1,4 @@
-import { Client, Interaction, TextChannel, MessageReaction, User } from "discord.js";
+import { Client, Interaction, TextChannel, MessageReaction, User, Message, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import http from "http";
 import https from "https";
 import fs from "fs";
@@ -163,6 +163,108 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
   if (anySuccess) {
     try { await message.react(reaction.emoji.name!); } catch {}
   }
+}
+
+interface PendingUpload {
+  channelId: string;
+  attachments: { url: string; name: string }[];
+  authorId: string;
+  authorName: string;
+  avatarUrl?: string;
+}
+const pendingUploads = new Map<string, PendingUpload>();
+
+export async function handleAlbumMessageCreate(message: Message): Promise<void> {
+  if (!dbHasAlbum(message.channelId)) return;
+  const imageAttachments = [...message.attachments.values()].filter(a => a.contentType?.startsWith("image/"));
+  if (imageAttachments.length === 0) return;
+
+  const pendingId = message.id;
+  const label = imageAttachments.length === 1 ? "1 image" : `${imageAttachments.length} images`;
+  const member = message.guild?.members.cache.get(message.author.id);
+  const displayName = member?.displayName ?? message.author.displayName ?? message.author.username;
+
+  pendingUploads.set(pendingId, {
+    channelId: message.channelId,
+    attachments: imageAttachments.map(a => ({ url: a.url, name: a.name || "photo.jpg" })),
+    authorId: message.author.id,
+    authorName: displayName,
+    avatarUrl: message.author.avatarURL() ?? undefined,
+  });
+  setTimeout(() => pendingUploads.delete(pendingId), 10 * 60 * 1000);
+
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId(`album_upload_${pendingId}`).setLabel("Upload").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`album_ignore_${pendingId}`).setLabel("Ignore").setStyle(ButtonStyle.Secondary),
+  );
+  await message.reply({ content: `Upload ${label} to the album?`, components: [row] });
+}
+
+async function processUpload(pending: PendingUpload): Promise<number> {
+  const { channelId, attachments, authorId, authorName, avatarUrl } = pending;
+  dbUpsertUser(authorId, authorName, avatarUrl);
+  const albumDir = path.join(PHOTO_STORAGE_PATH, channelId);
+  fs.mkdirSync(albumDir, { recursive: true });
+  const thumbDir = path.join(albumDir, "thumbs");
+  fs.mkdirSync(thumbDir, { recursive: true });
+
+  let count = 0;
+  for (const { url, name: attachName } of attachments) {
+    try {
+      const ext = path.extname(attachName || ".jpg") || ".jpg";
+      const name = crypto.createHash("md5").update(url).digest("hex") + ext;
+      const filePath = path.join(albumDir, name);
+      if (fs.existsSync(filePath)) { count++; continue; }
+      await downloadFile(url, filePath);
+      let width = 0, height = 0;
+      try { const meta = await sharp(filePath).metadata(); width = meta.width ?? 0; height = meta.height ?? 0; } catch {}
+      let takenAt: string | undefined;
+      try {
+        const exif = await exifr.parse(filePath, { exif: true });
+        const raw = exif?.DateTimeOriginal ?? exif?.CreateDate ?? exif?.DateTime;
+        if (raw instanceof Date && !isNaN(raw.getTime())) takenAt = raw.toISOString();
+        else if (typeof raw === "string") {
+          const normalized = raw.replace(/^(\d{4}):(\d{2}):(\d{2})/, "$1-$2-$3");
+          const d = new Date(normalized); if (!isNaN(d.getTime())) takenAt = d.toISOString();
+        }
+      } catch {}
+      try { await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(path.join(thumbDir, name)); } catch {}
+      dbAddUploadedPhoto(channelId, `/uploads/${channelId}/${name}`, name, authorId, authorName, width, height, takenAt);
+      count++;
+    } catch (e) { console.error("Failed to upload photo:", e); }
+  }
+  return count;
+}
+
+export async function handleAlbumUploadInteraction(interaction: Interaction): Promise<boolean> {
+  if (!interaction.isButton()) return false;
+  const { customId } = interaction;
+
+  if (customId.startsWith("album_ignore_")) {
+    pendingUploads.delete(customId.slice("album_ignore_".length));
+    await interaction.update({ content: "Ignored.", components: [] });
+    setTimeout(() => interaction.message.delete().catch(() => {}), 3000);
+    return true;
+  }
+
+  if (customId.startsWith("album_upload_")) {
+    const pendingId = customId.slice("album_upload_".length);
+    const pending = pendingUploads.get(pendingId);
+    pendingUploads.delete(pendingId);
+    if (!pending) {
+      await interaction.update({ content: "This prompt has expired.", components: [] });
+      setTimeout(() => interaction.message.delete().catch(() => {}), 5000);
+      return true;
+    }
+    await interaction.update({ content: "Uploading…", components: [] });
+    const count = await processUpload(pending);
+    const uploaded = count === 1 ? "1 photo" : `${count} photos`;
+    await interaction.editReply({ content: `Uploaded ${uploaded} to the album.` });
+    setTimeout(() => interaction.message.delete().catch(() => {}), 5000);
+    return true;
+  }
+
+  return false;
 }
 
 const MIME: Record<string, string> = {

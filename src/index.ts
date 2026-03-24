@@ -16,7 +16,7 @@ import { handleEventInteractions } from "./interactions/eventInteractions";
 import { handleDatePickerInteractions } from "./interactions/datePickerInteractions";
 import { handleGroupInteractions } from "./interactions/groupInteractions";
 import { loadBirthdays, handleBirthdayInteractions, scheduleBirthdayAnnouncements } from "./birthdays";
-import { loadAlbums, startWebServer, setAlbumDiscordClient, setUpdateEventMessages, handleAlbumReaction } from "./albums";
+import { loadAlbums, startWebServer, setAlbumDiscordClient, setUpdateEventMessages, handleAlbumReaction, handleAlbumMessageCreate, handleAlbumUploadInteraction } from "./albums";
 import { initAuth } from "./auth";
 
 dotenv.config();
@@ -135,8 +135,9 @@ client.once(Events.ClientReady, async (readyClient) => {
   }
 });
 
-client.on(Events.MessageCreate, (message: Message) => {
+client.on(Events.MessageCreate, async (message: Message) => {
   if (message.author.bot) return;
+  await handleAlbumMessageCreate(message).catch(e => console.error("Album message create error:", e));
 
   if (process.env.HEADER_MESSAGE_ID && message.channelId === config.eventChannelId) {
     message.delete().catch(() => {});
@@ -178,6 +179,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
+    if (await handleAlbumUploadInteraction(interaction)) return;
     await handleEventInteractions(interaction, interaction.guild);
     await handleDatePickerInteractions(interaction);
     await handleGroupInteractions(interaction, interaction.guild);
