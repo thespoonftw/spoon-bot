@@ -56,11 +56,11 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
     const groupsChannel = g.channels.cache.get(config.groupsChannelId!);
     if (!groupsChannel?.isTextBased()) { await interaction.editReply("Groups channel not found."); return; }
     const thumbnailUrl = imageUrl || g.iconURL();
-    const joinMsg = await (groupsChannel as TextChannel).send({ embeds: [buildGroupJoinEmbed(tempState, thumbnailUrl)], components: groupJoinComponents(channelId) });
-    const pinMsg = await channel.send({ embeds: [buildGroupPinEmbed(tempState, thumbnailUrl)], components: groupLeaveComponents(channelId) });
+    const joinMsg = await (groupsChannel as TextChannel).send({ embeds: [buildGroupJoinEmbed(state, thumbnailUrl)], components: groupJoinComponents(channelId) });
+    const pinMsg = await channel.send({ embeds: [buildGroupPinEmbed(state, thumbnailUrl)], components: groupLeaveComponents(channelId) });
     state.joinMessageId = joinMsg.id;
     state.pinMessageId = pinMsg.id;
-    groupStates.set(channelId, tempState);
+    groupStates.set(channelId, state);
     persistGroupState();
     await interaction.editReply({ content: `Group **${groupName}** created!` });
     return;
@@ -89,11 +89,11 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
     const groupChannel = g.channels.cache.get(channelId);
     if (!groupChannel?.isTextBased()) { await interaction.editReply("Could not find this channel."); return; }
     const thumbnailUrl = imageUrl || g.iconURL();
-    const joinMsg = await (groupsChannel as TextChannel).send({ embeds: [buildGroupJoinEmbed(tempState, thumbnailUrl)], components: groupJoinComponents(channelId) });
-    const pinMsg = await (groupChannel as TextChannel).send({ embeds: [buildGroupPinEmbed(tempState, thumbnailUrl)], components: groupLeaveComponents(channelId) });
+    const joinMsg = await (groupsChannel as TextChannel).send({ embeds: [buildGroupJoinEmbed(state, thumbnailUrl)], components: groupJoinComponents(channelId) });
+    const pinMsg = await (groupChannel as TextChannel).send({ embeds: [buildGroupPinEmbed(state, thumbnailUrl)], components: groupLeaveComponents(channelId) });
     state.joinMessageId = joinMsg.id;
     state.pinMessageId = pinMsg.id;
-    groupStates.set(channelId, tempState);
+    groupStates.set(channelId, state);
     persistGroupState();
     await interaction.editReply({ content: `Group **${groupName}** set up!` });
     return;
