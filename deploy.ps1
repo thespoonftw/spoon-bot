@@ -20,6 +20,9 @@ if ($Full) {
     & $plink @conn "cd /home/spoon/spoon-bot && git pull && npm install --silent"
 }
 
+Write-Host "Building TypeScript..."
+& $plink @conn "cd /home/spoon/spoon-bot && npm run build"
+
 Write-Host "Building web app..."
 & $plink @conn "cd /home/spoon/spoon-bot/web && npm install --silent && npm run build"
 
