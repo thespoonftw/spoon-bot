@@ -13,3 +13,11 @@ export function setSession(token: string): void {
 export function clearSession(): void {
   document.cookie = `${KEY}=; Max-Age=0; path=/`;
 }
+
+export function authHeaders(): Record<string, string> {
+  return { Authorization: `Bearer ${getSession()}` };
+}
+
+export function authJsonHeaders(): Record<string, string> {
+  return { "Content-Type": "application/json", ...authHeaders() };
+}

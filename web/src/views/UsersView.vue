@@ -50,7 +50,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useCurrentUser } from "../composables/useCurrentUser";
-import { getSession } from "../utils/session";
+import { authHeaders, authJsonHeaders } from "../utils/session";
 
 interface SiteUser { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastLoginAt?: string }
 
@@ -65,8 +65,7 @@ const saving = ref(false);
 const saveError = ref("");
 
 onMounted(async () => {
-  const session = getSession();
-  const res = await fetch("/api/site-users", { headers: { Authorization: `Bearer ${session}` } });
+  const res = await fetch("/api/site-users", { headers: authHeaders() });
   if (res.ok) {
     const data: SiteUser[] = await res.json();
     users.value = data.sort((a, b) => {
@@ -100,10 +99,9 @@ async function saveEdit() {
     }
   }
   saving.value = true;
-  const session = getSession();
   const res = await fetch(`/api/site-users/${editingUser.value.userId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
+    headers: authJsonHeaders(),
     body: JSON.stringify({ firstName: trimmed || null }),
   });
   saving.value = false;

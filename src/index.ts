@@ -10,6 +10,7 @@ import {
 import type { Message } from "discord.js";
 import dotenv from "dotenv";
 import { config } from "./config";
+import { makeMemberEntry } from "./types";
 import { eventStates, groupStates, loadState, persistState, loadGroupState, persistGroupState } from "./state";
 import { updateEventMessages, updateGroupMessages } from "./messageSync";
 import { handleEventInteractions } from "./interactions/eventInteractions";
@@ -55,7 +56,7 @@ client.once(Events.ClientReady, async (readyClient) => {
             if (state.members.has(id)) continue;
             try {
               const member = await guild.members.fetch(id);
-              state.members.set(id, { userId: id, displayName: member.displayName, status: 'lurking', plusOne: 0 });
+              state.members.set(id, makeMemberEntry(id, member.displayName));
             } catch {}
           }
         }

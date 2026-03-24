@@ -53,7 +53,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useCurrentUser } from "../composables/useCurrentUser";
-import { getSession } from "../utils/session";
+import { authJsonHeaders } from "../utils/session";
 import DateRangePicker from "../components/DateRangePicker.vue";
 
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
@@ -104,10 +104,9 @@ async function createAlbum() {
   if (!form.value.location.trim()) { formError.value = "Location is required."; return; }
   if (!form.value.startDate) { formError.value = "Start date is required."; return; }
   creating.value = true;
-  const session = getSession();
   const res = await fetch("/api/albums", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
+    headers: authJsonHeaders(),
     body: JSON.stringify({
       name: form.value.name.trim(),
       location: form.value.location.trim(),

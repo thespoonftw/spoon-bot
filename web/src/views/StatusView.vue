@@ -59,7 +59,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { getSession } from "../utils/session";
+import { authHeaders } from "../utils/session";
 
 interface Status { total: number; used: number; available: number; photoCount: number; albumCount: number }
 
@@ -92,8 +92,7 @@ function fmt(bytes: number): string {
 }
 
 onMounted(async () => {
-  const session = getSession();
-  const res = await fetch("/api/status", { headers: { Authorization: `Bearer ${session}` } });
+  const res = await fetch("/api/status", { headers: authHeaders() });
   if (res.ok) status.value = await res.json();
   else error.value = "Failed to load status.";
 });

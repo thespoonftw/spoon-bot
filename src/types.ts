@@ -7,6 +7,10 @@ export type MemberEntry = {
   plusOne: number;
 };
 
+export function makeMemberEntry(userId: string, displayName: string, status: RSVPStatus = "lurking", plusOne = 0): MemberEntry {
+  return { userId, displayName, status, plusOne };
+}
+
 export type EventState = {
   eventName: string;
   description: string;

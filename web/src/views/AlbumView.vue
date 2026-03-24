@@ -95,8 +95,7 @@
         <h2>Tagging</h2>
         <div class="members-modal-list" style="min-height:40px">
           <div v-for="member in featuredMembers" :key="member.userId" class="members-modal-row">
-            <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
-            <span v-else class="member-avatar member-avatar-placeholder">{{ (member.firstName || member.displayName)[0] }}</span>
+            <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
             <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
             <button class="btn-remove" @click="removeFeatured(member.userId)">remove</button>
           </div>
@@ -121,8 +120,7 @@
             <span class="members-modal-name"><strong>Everyone</strong></span>
           </div>
           <div v-for="member in pickableMembers" :key="member.userId" class="members-modal-row featured-row" @click="addFeatured(member.userId)">
-            <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
-            <span v-else class="member-avatar member-avatar-placeholder">{{ (member.firstName || member.displayName)[0] }}</span>
+            <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
             <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
           </div>
           <p v-if="pickableMembers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">All members already featured.</p>
@@ -232,8 +230,7 @@
       <h2>Members</h2>
       <div class="members-modal-list">
         <div v-for="member in allMembers.filter(m => !deletedMemberIds.has(m.userId))" :key="member.userId" :class="['members-modal-row', { 'member-hidden': member.hidden }]">
-          <img v-if="member.avatarUrl" :src="member.avatarUrl" class="member-avatar" />
-          <span v-else class="member-avatar member-avatar-placeholder">{{ (member.firstName || member.displayName)[0] }}</span>
+          <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
           <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
           <span v-if="member.rsvpStatus" :class="['rsvp-badge', 'rsvp-' + member.rsvpStatus]">{{ rsvpLabel(member.rsvpStatus) }}</span>
           <span v-if="member.hidden" class="rsvp-badge">hidden</span>
@@ -265,7 +262,7 @@ import MemberAvatar from "../components/MemberAvatar.vue";
 import DateRangePicker from "../components/DateRangePicker.vue";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
-import { getSession } from "../utils/session";
+import { authHeaders, authJsonHeaders } from "../utils/session";
 
 interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; score?: number; userVote?: string | null; featuredIds?: string[] }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string; rsvpStatus?: string }
@@ -369,8 +366,7 @@ const pickableMembers = computed(() =>
 
 async function fetchVoteBreakdown(photo: Photo) {
   if (!album.value) return [];
-  const session = getSession();
-  const res = await fetch(`/api/album/${album.value.channelId}/photos/${photo.id}/votes`, { headers: { Authorization: `Bearer ${session}` } });
+  const res = await fetch(`/api/album/${album.value.channelId}/photos/${photo.id}/votes`, { headers: authHeaders() });
   return res.ok ? await res.json() : [];
 }
 
@@ -385,10 +381,9 @@ function getVoteState(photo: Photo) {
 
 async function doVote(photoId: number, voteType: string) {
   if (!album.value) return;
-  const session = getSession();
   const res = await fetch(`/api/album/${album.value.channelId}/photos/${photoId}/vote`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
+    headers: authJsonHeaders(),
     body: JSON.stringify({ voteType }),
   });
   if (res.ok) {
@@ -431,11 +426,10 @@ function addEveryone() {
 async function saveFeatured() {
   if (!album.value || !featuredPhoto.value) return;
   savingFeatured.value = true;
-  const session = getSession();
   const userIds = [...featuredSelection.value];
   const res = await fetch(`/api/album/${album.value.channelId}/photos/${featuredPhoto.value.id}/featured`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
+    headers: authJsonHeaders(),
     body: JSON.stringify({ userIds }),
   });
   savingFeatured.value = false;
@@ -464,10 +458,9 @@ const addableUsers = computed(() => {
 });
 
 onMounted(async () => {
-  const session = getSession();
   const [albumRes, checkRes] = await Promise.all([
-    fetch(`/api/album/${route.params.channelId}`, { headers: { Authorization: `Bearer ${session}` } }),
-    fetch(`/api/auth/check`, { headers: session ? { Authorization: `Bearer ${session}` } : {} }),
+    fetch(`/api/album/${route.params.channelId}`, { headers: authHeaders() }),
+    fetch(`/api/auth/check`, { headers: authHeaders() }),
   ]);
   if (albumRes.ok) {
     const data = await albumRes.json();
@@ -511,10 +504,9 @@ function confirmDelete(photo: Photo) { deletingPhoto.value = photo; }
 async function deletePhoto() {
   if (!album.value || !deletingPhoto.value) return;
   deleting.value = true;
-  const session = getSession();
   const res = await fetch(`/api/album/${album.value.channelId}/photos/${deletingPhoto.value.id}`, {
     method: "DELETE",
-    headers: { Authorization: `Bearer ${session}` },
+    headers: authHeaders(),
   });
   deleting.value = false;
   if (res.ok) {
@@ -695,10 +687,9 @@ function openShare() {
 async function generateShareLink() {
   if (!album.value || !sharePassword.value.trim()) return;
   sharing.value = true;
-  const session = getSession();
   const res = await fetch(`/api/album/${album.value.channelId}/share`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
+    headers: authJsonHeaders(),
     body: JSON.stringify({ password: sharePassword.value.trim() }),
   });
   sharing.value = false;
@@ -736,10 +727,9 @@ async function saveEdit() {
   if (!album.value) return;
   editError.value = "";
   saving.value = true;
-  const session = getSession();
   const res = await fetch(`/api/album/${album.value.channelId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
+    headers: authJsonHeaders(),
     body: JSON.stringify({
       name: editForm.value.name.trim(),
       location: editForm.value.location.trim(),
@@ -759,9 +749,8 @@ async function saveEdit() {
 
 async function openEditMembers() {
   if (!album.value) return;
-  const session = getSession();
   const [membersRes, usersRes] = await Promise.all([
-    fetch(`/api/album/${album.value.channelId}/members`, { headers: { Authorization: `Bearer ${session}` } }),
+    fetch(`/api/album/${album.value.channelId}/members`, { headers: authHeaders() }),
     fetch("/api/users"),
   ]);
   if (membersRes.ok) {
@@ -786,10 +775,9 @@ async function openEditMembers() {
 
 async function addExistingMember() {
   if (!album.value || !addMemberUserId.value) return;
-  const session = getSession();
   const res = await fetch(`/api/album/${album.value.channelId}/members`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
+    headers: authJsonHeaders(),
     body: JSON.stringify({ userId: addMemberUserId.value }),
   });
   if (res.ok) {
@@ -816,10 +804,9 @@ async function addNewMember() {
     addMemberError.value = `"${trimmed}" is already someone's name`;
     return;
   }
-  const session = getSession();
   const res = await fetch(`/api/album/${album.value.channelId}/members`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
+    headers: authJsonHeaders(),
     body: JSON.stringify({ name: trimmed }),
   });
   if (res.ok) {
@@ -832,8 +819,7 @@ async function addNewMember() {
 
 async function deleteMember(userId: string) {
   if (!album.value) return;
-  const session = getSession();
-  const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}?remove=true`, { method: "DELETE", headers: { Authorization: `Bearer ${session}` } });
+  const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}?remove=true`, { method: "DELETE", headers: authHeaders() });
   if (res.ok) {
     deletedMemberIds.value = new Set([...deletedMemberIds.value, userId]);
     album.value.members = album.value.members.filter(m => m.userId !== userId);
@@ -842,8 +828,7 @@ async function deleteMember(userId: string) {
 
 async function hideMember(userId: string) {
   if (!album.value) return;
-  const session = getSession();
-  const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}`, { method: "DELETE", headers: { Authorization: `Bearer ${session}` } });
+  const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}`, { method: "DELETE", headers: authHeaders() });
   if (res.ok) {
     const m = allMembers.value.find(m => m.userId === userId);
     if (m) m.hidden = 1;
@@ -853,8 +838,7 @@ async function hideMember(userId: string) {
 
 async function unhideMember(userId: string) {
   if (!album.value) return;
-  const session = getSession();
-  const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}`, { method: "PATCH", headers: { Authorization: `Bearer ${session}` } });
+  const res = await fetch(`/api/album/${album.value.channelId}/members/${userId}`, { method: "PATCH", headers: authHeaders() });
   if (res.ok) {
     const m = allMembers.value.find(m => m.userId === userId);
     if (m) {
@@ -878,14 +862,13 @@ async function onFilesSelected(e: Event) {
   if (!files.length || !album.value) return;
   uploading.value = true;
   uploadError.value = "";
-  const session = getSession();
   for (let i = 0; i < files.length; i++) {
     uploadProgress.value = `${i + 1}/${files.length}`;
     const fd = new FormData();
     fd.append("photo", files[i]);
     const res = await fetch(`/api/album/${album.value.channelId}/photos`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${session}` },
+      headers: authHeaders(),
       body: fd,
     });
     if (res.ok) {

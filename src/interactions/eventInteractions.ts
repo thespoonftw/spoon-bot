@@ -14,6 +14,7 @@ import type { Guild, Interaction } from "discord.js";
 import { config } from "../config";
 import { eventStates, pendingGearMenus, persistState } from "../state";
 import type { EventState, RSVPStatus } from "../types";
+import { makeMemberEntry } from "../types";
 import {
   buildJoinContent,
   buildJoinEmbed,
@@ -111,7 +112,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       joiningEnabled: true, members: new Map(), imageUrl,
     };
     state.creatorId = interaction.user.id;
-    state.members.set(interaction.user.id, { userId: interaction.user.id, displayName: creatorName, status: "lurking", plusOne: 0 });
+    state.members.set(interaction.user.id, makeMemberEntry(interaction.user.id, creatorName));
 
     const pinMsg = await eventChannel.send({
       content: "Please use the buttons to RSVP!",
@@ -181,7 +182,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       joiningEnabled: true, members: new Map(), imageUrl,
     };
     state.creatorId = interaction.user.id;
-    state.members.set(interaction.user.id, { userId: interaction.user.id, displayName: creatorName, status: "lurking", plusOne: 0 });
+    state.members.set(interaction.user.id, makeMemberEntry(interaction.user.id, creatorName));
 
     const pinMsg = await channel.send({
       content: "Please use the buttons to RSVP!",
@@ -444,7 +445,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
 
     if (state) {
       const displayName = getDisplayName(interaction);
-      state.members.set(interaction.user.id, { userId: interaction.user.id, displayName, status: "lurking", plusOne: 0 });
+      state.members.set(interaction.user.id, makeMemberEntry(interaction.user.id, displayName));
       persistState();
       if (hasAlbum(channelId)) {
         dbUpsertUser(interaction.user.id, displayName, interaction.user.displayAvatarURL({ extension: "png", size: 128 }));
@@ -525,7 +526,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       existing.plusOne = count;
     } else {
       const displayName = getDisplayName(interaction);
-      state.members.set(interaction.user.id, { userId: interaction.user.id, displayName, status: "lurking", plusOne: count });
+      state.members.set(interaction.user.id, makeMemberEntry(interaction.user.id, displayName, "lurking", count));
     }
     persistState();
     await interaction.deferReply({ ephemeral: true });
@@ -553,7 +554,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
         existing.status = statusStr;
       } else {
         const displayName = getDisplayName(interaction);
-        state.members.set(interaction.user.id, { userId: interaction.user.id, displayName, status: statusStr, plusOne: 0 });
+        state.members.set(interaction.user.id, makeMemberEntry(interaction.user.id, displayName, statusStr));
       }
       persistState();
       await updateInnerMessage(g, channelId);
