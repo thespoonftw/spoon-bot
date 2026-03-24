@@ -118,6 +118,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .modal h2 { color: #cba6f7; margin-bottom: 24px; }
 .modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: #6c7086; font-size: 1.1rem; cursor: pointer; line-height: 1; padding: 4px; }
 .modal-close:hover { color: #cdd6f4; }
+.modal-drag-handle { cursor: grab; user-select: none; }
+.modal-drag-handle:active { cursor: grabbing; }
 .members-add-section { display: flex; gap: 8px; margin-top: 10px; }
 .members-add-input { flex: 1; background: #313244; border: 1px solid #45475a; border-radius: 8px; padding: 8px 10px; color: #cdd6f4; font-size: 0.85rem; outline: none; }
 .members-add-input:focus { border-color: #cba6f7; }

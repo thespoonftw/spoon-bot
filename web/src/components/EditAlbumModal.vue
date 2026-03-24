@@ -1,8 +1,8 @@
 <template>
   <div class="modal-overlay" v-if="show">
-    <div class="modal">
+    <div class="modal" :style="drag.style.value">
       <button class="modal-close" @click="emit('close')">✕</button>
-      <h2>Edit Album</h2>
+      <h2 class="modal-drag-handle" @mousedown="drag.onMouseDown">Edit Album</h2>
       <div class="form-group">
         <label>Name</label>
         <input v-model="form.name" type="text" />
@@ -24,6 +24,9 @@
 import { ref, watch } from "vue";
 import DateRangePicker from "./DateRangePicker.vue";
 import { authJsonHeaders } from "../utils/session";
+import { useDraggable } from "../utils/draggable";
+
+const drag = useDraggable();
 
 interface AlbumFields { groupName: string; location?: string; startDate?: string; endDate?: string }
 
@@ -36,6 +39,7 @@ const error = ref("");
 
 watch(() => props.show, (v) => {
   if (v) {
+    drag.reset();
     form.value = {
       name: props.album.groupName,
       location: props.album.location ?? "",

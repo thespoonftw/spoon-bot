@@ -90,9 +90,9 @@
   <Teleport to="body">
     <!-- Tagging Modal -->
     <div class="modal-overlay" v-if="showTagging" style="z-index:200000">
-      <div class="modal">
+      <div class="modal" :style="dragTagging.style.value">
         <button class="modal-close" @click="showTagging = false">✕</button>
-        <h2>Tagging</h2>
+        <h2 class="modal-drag-handle" @mousedown="dragTagging.onMouseDown">Tagging</h2>
         <div class="members-modal-list" style="min-height:40px">
           <div v-for="member in taggedMembers" :key="member.userId" class="members-modal-row">
             <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
@@ -111,9 +111,9 @@
     </div>
     <!-- Tagging User Picker Modal -->
     <div class="modal-overlay" v-if="showTaggingPicker" style="z-index:210000">
-      <div class="modal">
+      <div class="modal" :style="dragTaggingPicker.style.value">
         <button class="modal-close" @click="showTaggingPicker = false; if (!taggingSelection.size) showTagging = false">✕</button>
-        <h2>Tag User</h2>
+        <h2 class="modal-drag-handle" @mousedown="dragTaggingPicker.onMouseDown">Tag User</h2>
         <div class="members-modal-list">
           <div class="members-modal-row tagging-row" @click="addEveryone()">
             <span class="member-avatar member-avatar-placeholder">★</span>
@@ -132,9 +132,9 @@
   <!-- Delete Photo Confirmation Modal -->
   <!-- Vote Breakdown Modal -->
   <div class="modal-overlay" v-if="voteModalPhoto" @click.self="voteModalPhoto = null" style="z-index:200000">
-    <div class="modal">
+    <div class="modal" :style="dragVotes.style.value">
       <button class="modal-close" @click="voteModalPhoto = null">✕</button>
-      <h2>Votes</h2>
+      <h2 class="modal-drag-handle" @mousedown="dragVotes.onMouseDown">Votes</h2>
       <div v-if="voteModalData.length === 0" style="color:#6c7086;margin-top:12px">No votes yet</div>
       <div v-else class="vote-modal-list">
         <div v-for="v in voteModalData" :key="v.userId" class="vote-modal-row">
@@ -149,9 +149,9 @@
 
   <Teleport to="body">
     <div class="modal-overlay" v-if="deletingPhoto" style="z-index:200000">
-      <div class="modal">
+      <div class="modal" :style="dragDelete.style.value">
         <button class="modal-close" @click="deletingPhoto = null">✕</button>
-        <h2>Delete Photo?</h2>
+        <h2 class="modal-drag-handle" @mousedown="dragDelete.onMouseDown">Delete Photo?</h2>
         <p style="color:#a6adc8;margin-bottom:20px">This cannot be undone.</p>
         <div class="modal-actions">
           <button class="btn-danger" @click="deletePhoto" :disabled="deleting">{{ deleting ? 'Deleting…' : 'Delete' }}</button>
@@ -162,9 +162,9 @@
 
   <!-- Share Album Modal -->
   <div class="modal-overlay" v-if="showShare">
-    <div class="modal">
+    <div class="modal" :style="dragShare.style.value">
       <button class="modal-close" @click="showShare = false">✕</button>
-      <h2>Share Album</h2>
+      <h2 class="modal-drag-handle" @mousedown="dragShare.onMouseDown">Share Album</h2>
       <template v-if="!shareUrl">
         <div class="form-group">
           <label>Password</label>
@@ -210,6 +210,13 @@ import MembersModal from "../components/MembersModal.vue";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
 import { authHeaders, authJsonHeaders } from "../utils/session";
+import { useDraggable } from "../utils/draggable";
+
+const dragTagging = useDraggable();
+const dragTaggingPicker = useDraggable();
+const dragVotes = useDraggable();
+const dragDelete = useDraggable();
+const dragShare = useDraggable();
 
 interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; score?: number; userVote?: string | null; taggedIds?: string[] }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string; rsvpStatus?: string }
@@ -319,6 +326,7 @@ async function fetchVoteBreakdown(photo: Photo) {
 }
 
 async function openVoteModal(photo: Photo) {
+  dragVotes.reset();
   voteModalPhoto.value = photo;
   voteModalData.value = await fetchVoteBreakdown(photo);
 }
@@ -344,6 +352,8 @@ async function doVote(photoId: number, voteType: string) {
 function openTagging(photo: Photo) {
   taggingPhoto.value = photo;
   taggingSelection.value = new Set(photo.taggedIds ?? []);
+  dragTagging.reset();
+  dragTaggingPicker.reset();
   showTagging.value = true;
   showTaggingPicker.value = !photo.taggedIds?.length;
 }
@@ -442,7 +452,7 @@ function handleVote(e: Event, photo: Photo, voteType: string) {
   doVote(photo.id, voteType);
 }
 
-function confirmDelete(photo: Photo) { deletingPhoto.value = photo; }
+function confirmDelete(photo: Photo) { dragDelete.reset(); deletingPhoto.value = photo; }
 
 async function deletePhoto() {
   if (!album.value || !deletingPhoto.value) return;
@@ -625,6 +635,7 @@ function openShare() {
   sharePassword.value = "";
   shareUrl.value = "";
   shareCopied.value = false;
+  dragShare.reset();
   showShare.value = true;
 }
 

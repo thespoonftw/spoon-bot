@@ -1,8 +1,8 @@
 <template>
   <div class="modal-overlay" v-if="modelValue">
-    <div class="modal">
+    <div class="modal" :style="drag.style.value">
       <button class="modal-close" @click="emit('update:modelValue', false)">✕</button>
-      <h2>Members</h2>
+      <h2 class="modal-drag-handle" @mousedown="drag.onMouseDown">Members</h2>
       <div class="members-modal-list">
         <div v-for="member in allMembers.filter(m => !deletedMemberIds.has(m.userId))" :key="member.userId" :class="['members-modal-row', { 'member-hidden': member.hidden }]">
           <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
@@ -31,9 +31,9 @@
 
   <Teleport to="body">
     <div class="modal-overlay" v-if="showMemberPicker" style="z-index:200">
-      <div class="modal">
+      <div class="modal" :style="dragPicker.style.value">
         <button class="modal-close" @click="showMemberPicker = false">✕</button>
-        <h2>Add User</h2>
+        <h2 class="modal-drag-handle" @mousedown="dragPicker.onMouseDown">Add User</h2>
         <div class="members-modal-list">
           <div v-for="u in addableUsers" :key="u.userId" class="members-modal-row tagging-row" @click="pickAndAddMember(u.userId)">
             <MemberAvatar :avatar-url="u.avatarUrl" :name="u.firstName || u.displayName" />
@@ -50,6 +50,10 @@
 import { ref, computed, watch } from "vue";
 import MemberAvatar from "./MemberAvatar.vue";
 import { authHeaders, authJsonHeaders } from "../utils/session";
+import { useDraggable } from "../utils/draggable";
+
+const drag = useDraggable();
+const dragPicker = useDraggable();
 
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface AllMember extends Member { hidden: number; rsvpStatus?: string }
@@ -75,6 +79,7 @@ const addableUsers = computed(() => {
 
 watch(() => props.modelValue, async (v) => {
   if (!v) return;
+  drag.reset();
   deletedMemberIds.value = new Set();
   addMemberName.value = "";
   addMemberError.value = "";
