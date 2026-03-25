@@ -59,7 +59,7 @@ async function save() {
     headers: authJsonHeaders(),
     body: JSON.stringify({
       name: form.value.name.trim(),
-      location: form.value.location.trim(),
+      location: form.value.location.trim() || undefined,
       startDate: form.value.startDate || undefined,
       endDate: form.value.endDate || undefined,
     }),
