@@ -37,6 +37,7 @@ export function useDraggable() {
 
   const style = computed(() => ({ transform: `translate(${x.value}px, ${y.value}px)` }));
   const reset = () => { x.value = 0; y.value = 0; };
+  const setPosition = (nx: number, ny: number) => { x.value = nx; y.value = ny; };
 
-  return { onMouseDown, style, reset };
+  return { onMouseDown, style, reset, setPosition };
 }

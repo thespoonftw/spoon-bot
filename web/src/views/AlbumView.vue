@@ -322,7 +322,13 @@ async function fetchVoteBreakdown(photo: Photo) {
 }
 
 async function openVoteModal(photo: Photo) {
-  if (!voteModalPhoto.value) dragVotes.reset();
+  if (!voteModalPhoto.value) {
+    dragVotes.reset();
+    if (window.innerWidth >= 768) {
+      const modalW = Math.min(480, window.innerWidth);
+      dragVotes.setPosition(-(window.innerWidth / 2 - modalW / 2 - 80), 0);
+    }
+  }
   voteModalPhoto.value = photo;
   voteModalData.value = await fetchVoteBreakdown(photo);
 }
@@ -348,7 +354,13 @@ async function doVote(photoId: number, voteType: string) {
 function openTagging(photo: Photo, skipToPicker = false) {
   taggingPhoto.value = photo;
   taggingSelection.value = new Set(photo.taggedIds ?? []);
-  if (!showTagging.value) dragTagging.reset();
+  if (!showTagging.value) {
+    dragTagging.reset();
+    if (window.innerWidth >= 768) {
+      const modalW = Math.min(480, window.innerWidth);
+      dragTagging.setPosition(window.innerWidth / 2 - modalW / 2 - 80, 0);
+    }
+  }
   showTagging.value = true;
   showTaggingPicker.value = skipToPicker && !photo.taggedIds?.length;
 }
