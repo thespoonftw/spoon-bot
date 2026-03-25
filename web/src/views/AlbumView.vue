@@ -62,7 +62,7 @@
               <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'up')" title="Upvote">👍</button>
               <button class="vote-btn vote-score" @click.stop="openVoteModal(photo)">{{ getVoteState(photo).score }}</button>
               <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo, 'down')" title="Downvote">👎</button>
-              <button class="vote-btn vote-group" :class="{ active: photo.taggedIds?.length }" @click.stop="openTagging(photo)" title="Tagging">
+              <button class="vote-btn vote-group" :class="{ active: photo.taggedIds?.length }" @click.stop="openTagging(photo, true)" title="Tagging">
                 <span v-if="getTaggedMembers(photo).length >= 4" style="color:#fff"><span class="tag-count">{{ getTaggedMembers(photo).length }}</span>👥</span>
                 <span v-else-if="getTaggedMembers(photo).length" class="tagging-avatars">
                   <template v-for="(m, idx) in getTaggedMembers(photo)" :key="m.userId">
@@ -345,12 +345,12 @@ async function doVote(photoId: number, voteType: string) {
   }
 }
 
-function openTagging(photo: Photo) {
+function openTagging(photo: Photo, skipToPicker = false) {
   taggingPhoto.value = photo;
   taggingSelection.value = new Set(photo.taggedIds ?? []);
   dragTagging.reset();
   showTagging.value = true;
-  showTaggingPicker.value = !photo.taggedIds?.length;
+  showTaggingPicker.value = skipToPicker && !photo.taggedIds?.length;
 }
 
 function getTaggedMembers(photo: Photo): Member[] {
@@ -600,7 +600,7 @@ function openLightbox(index: number) {
             spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, voteType, isRemovingVote(getVoteState(p).userVote, voteType));
             doVote(p.id, voteType);
           } else if (featBtn) {
-            openTagging(photos[pswp.currIndex]);
+            openTagging(photos[pswp.currIndex], true);
           } else if ((e.target as Element).closest("[data-action='score']")) {
             openVoteModal(photos[pswp.currIndex]);
           }
