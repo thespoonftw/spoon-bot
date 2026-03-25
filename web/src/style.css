@@ -244,3 +244,15 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .pswp__img--placeholder { filter: blur(8px); transform: scale(1.05); }
 .tagging-row { cursor: pointer; }
 .tagging-row:hover { background: #313244; border-radius: 6px; }
+
+.upload-drop-zone { border: 2px dashed #45475a; border-radius: 10px; padding: 32px 20px; text-align: center; cursor: pointer; color: #a6adc8; margin-bottom: 12px; transition: border-color 0.15s, background 0.15s; }
+.upload-drop-zone:hover, .upload-drag-active .upload-drop-zone { border-color: #cba6f7; background: #1e1e2e; color: #cdd6f4; }
+.upload-drop-icon { font-size: 2rem; margin-bottom: 8px; }
+.upload-item-list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; margin-bottom: 4px; }
+.upload-item { display: flex; align-items: center; gap: 10px; font-size: 0.9em; }
+.upload-item-name { flex: 1; color: #cdd6f4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.upload-item-icon { font-size: 1em; font-weight: 700; width: 16px; text-align: center; flex-shrink: 0; }
+.upload-pending { color: #585b70; }
+.upload-uploading { color: #89b4fa; }
+.upload-done { color: #a6e3a1; }
+.upload-failed { color: #f38ba8; }

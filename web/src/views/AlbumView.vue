@@ -13,14 +13,9 @@
         </div>
         <div class="upload-area">
           <button class="btn-secondary" @click="openShare" style="margin-right:8px">Share</button>
-          <button class="btn-primary" @click="triggerUpload" :disabled="uploading">
-            {{ uploading ? `Uploading ${uploadProgress}…` : 'Upload' }}
-          </button>
-          <input ref="fileInput" type="file" accept="image/*" multiple style="display:none" @change="onFilesSelected" />
+          <button class="btn-primary" @click="openUpload">Upload</button>
         </div>
       </div>
-
-      <p v-if="uploadError" class="upload-error">{{ uploadError }}</p>
 
       <div v-if="album.members.length > 0" class="members-section">
         <div class="members-header">
@@ -180,6 +175,33 @@
         </template>
       </div>
     </div>
+    <!-- Upload Modal -->
+    <div class="modal-overlay" v-if="showUpload" style="z-index:200000"
+         :class="{ 'upload-drag-active': uploadDragOver }"
+         @dragover.prevent="uploadDragOver = true" @dragleave.self="uploadDragOver = false" @drop.prevent="onUploadDrop">
+      <div class="modal">
+        <button class="modal-close" @click="closeUpload" :disabled="anyUploading">✕</button>
+        <h2>Upload Photos</h2>
+        <div class="upload-drop-zone" @click="uploadFileInput?.click()" @dragover.prevent @dragleave.prevent @drop.prevent="onUploadDrop">
+          <div class="upload-drop-icon">📷</div>
+          <div>Drop photos here or click to browse</div>
+          <input ref="uploadFileInput" type="file" accept="image/*" multiple style="display:none" @change="onFilesSelected" />
+        </div>
+        <div v-if="uploadItems.length" class="upload-item-list">
+          <div v-for="item in uploadItems" :key="item.name" class="upload-item">
+            <span :class="['upload-item-icon', 'upload-' + item.status]">
+              {{ item.status === 'done' ? '✓' : item.status === 'failed' ? '✗' : item.status === 'uploading' ? '↑' : '·' }}
+            </span>
+            <span class="upload-item-name">{{ item.name }}</span>
+          </div>
+        </div>
+        <div class="modal-actions" v-if="uploadItems.length">
+          <button class="btn-primary" @click="closeUpload" :disabled="anyUploading">
+            {{ anyUploading ? 'Uploading…' : 'Done' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </Teleport>
 
   <EditAlbumModal
@@ -221,10 +243,12 @@ const route = useRoute();
 
 const album = ref<Album | null>(null);
 const loading = ref(true);
-const fileInput = ref<HTMLInputElement | null>(null);
-const uploading = ref(false);
-const uploadProgress = ref("");
-const uploadError = ref("");
+const uploadFileInput = ref<HTMLInputElement | null>(null);
+const showUpload = ref(false);
+const uploadDragOver = ref(false);
+interface UploadItem { name: string; status: 'pending' | 'uploading' | 'done' | 'failed' }
+const uploadItems = ref<UploadItem[]>([]);
+const anyUploading = computed(() => uploadItems.value.some(i => i.status === 'pending' || i.status === 'uploading'));
 
 const deletingPhoto = ref<Photo | null>(null);
 const voteModalPhoto = ref<Photo | null>(null);
@@ -714,35 +738,36 @@ function copyShareLink() {
   setTimeout(() => { shareCopied.value = false; }, 2000);
 }
 
-function triggerUpload() {
-  uploadError.value = "";
-  fileInput.value?.click();
+function openUpload() { uploadItems.value = []; showUpload.value = true; }
+function closeUpload() { if (!anyUploading.value) showUpload.value = false; }
+
+function onUploadDrop(e: DragEvent) {
+  uploadDragOver.value = false;
+  const files = Array.from(e.dataTransfer?.files ?? []).filter(f => f.type.startsWith("image/"));
+  if (files.length) startUpload(files);
 }
 
-async function onFilesSelected(e: Event) {
+function onFilesSelected(e: Event) {
   const files = Array.from((e.target as HTMLInputElement).files ?? []);
-  if (!files.length || !album.value) return;
-  uploading.value = true;
-  uploadError.value = "";
+  (e.target as HTMLInputElement).value = "";
+  if (files.length) startUpload(files);
+}
+
+async function startUpload(files: File[]) {
+  if (!album.value) return;
+  const items: UploadItem[] = files.map(f => ({ name: f.name, status: "pending" }));
+  uploadItems.value.push(...items);
   for (let i = 0; i < files.length; i++) {
-    uploadProgress.value = `${i + 1}/${files.length}`;
+    const item = items[i];
+    item.status = "uploading";
     const fd = new FormData();
     fd.append("photo", files[i]);
     const res = await fetch(`/api/album/${album.value.channelId}/photos`, {
-      method: "POST",
-      headers: authHeaders(),
-      body: fd,
+      method: "POST", headers: authHeaders(), body: fd,
     });
-    if (res.ok) {
-      const photo: Photo = await res.json();
-      album.value.photos.push(photo);
-    } else {
-      uploadError.value = `Failed to upload ${files[i].name}`;
-    }
+    if (res.ok) { album.value.photos.push(await res.json()); item.status = "done"; }
+    else item.status = "failed";
   }
-  uploading.value = false;
-  uploadProgress.value = "";
-  (e.target as HTMLInputElement).value = "";
 }
 
 function thumbUrl(url: string): string {
