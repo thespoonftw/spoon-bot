@@ -52,15 +52,6 @@ import MemberAvatar from "./MemberAvatar.vue";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 import { useDraggable, useEscKey } from "../utils/draggable";
 
-const drag = useDraggable();
-const dragPicker = useDraggable();
-
-const isOpen = computed(() => props.modelValue);
-useEscKey(isOpen, () => {
-  if (showMemberPicker.value) showMemberPicker.value = false;
-  else emit("update:modelValue", false);
-});
-
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface AllMember extends Member { hidden: number; rsvpStatus?: string }
 
@@ -69,6 +60,14 @@ const emit = defineEmits<{
   "update:modelValue": [value: boolean];
   "members-updated": [visible: Member[], all: AllMember[]];
 }>();
+
+const drag = useDraggable();
+const dragPicker = useDraggable();
+
+useEscKey(computed(() => props.modelValue), () => {
+  if (showMemberPicker.value) showMemberPicker.value = false;
+  else emit("update:modelValue", false);
+});
 
 const allMembers = ref<AllMember[]>([]);
 const deletedMemberIds = ref(new Set<string>());
