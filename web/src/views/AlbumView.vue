@@ -593,7 +593,7 @@ function openLightbox(index: number) {
 
   // Hide full image until completely loaded — keep thumbnail visible instead
   function holdUntilLoaded(img: HTMLImageElement) {
-    if (img.complete) return;
+    if (img.complete || img.classList.contains("pswp__img--placeholder")) return;
     img.style.opacity = "0";
     img.addEventListener("load", () => { img.style.transition = "opacity 150ms"; img.style.opacity = ""; }, { once: true });
   }
