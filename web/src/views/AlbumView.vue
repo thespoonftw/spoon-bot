@@ -591,6 +591,16 @@ function openLightbox(index: number) {
     }
   });
 
+  // Hide full image until completely loaded — keep thumbnail visible instead
+  function holdUntilLoaded(img: HTMLImageElement) {
+    if (img.complete) return;
+    img.style.opacity = "0";
+    img.addEventListener("load", () => { img.style.transition = "opacity 150ms"; img.style.opacity = ""; }, { once: true });
+  }
+  (pswp as any).on("afterInit", () => {
+    const el = (pswp as any).currSlide?.content?.element;
+    if (el) holdUntilLoaded(el);
+  });
   pswp.on("close", () => {
     activePswp = null;
     window.removeEventListener("popstate", onPopState);
@@ -604,6 +614,8 @@ function openLightbox(index: number) {
     if (idx !== null) nextTick(() => openLightbox(idx));
   });
   pswp.on("change", () => {
+    const el = (pswp as any).currSlide?.content?.element;
+    if (el) holdUntilLoaded(el);
     if (showTagging.value) openTagging(photos[pswp.currIndex]);
     if (voteModalPhoto.value) openVoteModal(photos[pswp.currIndex]);
   });
