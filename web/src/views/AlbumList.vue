@@ -88,7 +88,9 @@ function stripYear(dateText: string): string {
 
 onMounted(async () => {
   const res = await fetch("/api/albums");
-  albums.value = await res.json();
+  const data: Album[] = await res.json();
+  const byName = (a: Member, b: Member) => (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName);
+  albums.value = data.map(a => ({ ...a, members: a.members.slice().sort(byName) }));
   loading.value = false;
 });
 

@@ -306,6 +306,8 @@ const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
   return [{ label: '', photos }];
 });
 
+const byName = (a: Member, b: Member) => (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName);
+
 const taggedMembers = computed(() =>
   allMembers.value.filter(m => taggingSelection.value.has(m.userId))
 );
@@ -401,8 +403,9 @@ onMounted(async () => {
   ]);
   if (albumRes.ok) {
     const data = await albumRes.json();
-    album.value = data;
-    allMembers.value = data.members ?? [];
+    const sortedMembers = (data.members ?? []).slice().sort(byName);
+    album.value = { ...data, members: sortedMembers };
+    allMembers.value = sortedMembers;
   }
   if (checkRes.ok) {
     const { userId } = await checkRes.json();
@@ -418,8 +421,8 @@ function onAlbumSaved(updated: object) {
 }
 
 function onMembersUpdated(visible: Member[], all: Member[]) {
-  if (album.value) album.value.members = visible;
-  allMembers.value = all;
+  if (album.value) album.value.members = visible.slice().sort(byName);
+  allMembers.value = all.slice().sort(byName);
 }
 
 function spawnFloat(x: number, y: number, voteType: string, grey = false) {
