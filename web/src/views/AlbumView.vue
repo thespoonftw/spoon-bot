@@ -354,8 +354,9 @@ function openTagging(photo: Photo) {
   taggingSelection.value = new Set(photo.taggedIds ?? []);
   dragTagging.reset();
   dragTaggingPicker.reset();
-  showTagging.value = true;
-  showTaggingPicker.value = !photo.taggedIds?.length;
+  const skip = !photo.taggedIds?.length;
+  showTagging.value = !skip;
+  showTaggingPicker.value = skip;
 }
 
 function getTaggedMembers(photo: Photo): Member[] {
