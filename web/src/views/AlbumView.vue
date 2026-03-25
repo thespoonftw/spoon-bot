@@ -546,6 +546,9 @@ function openLightbox(index: number) {
     paddingFn: (viewportSize: { x: number; y: number }) =>
       viewportSize.x >= 768 ? { top: 20, bottom: 70, left: 0, right: 0 } : { top: 0, bottom: 0, left: 0, right: 0 },
   });
+  // Always use msrc thumbnail as placeholder, even for pre-loaded inactive slides
+  (pswp as any).addFilter("placeholderSrc", (_: any, content: any) => content.data.msrc || false);
+
   activePswp = pswp;
   history.pushState({ pswp: true }, "");
   let closedByBack = false;
@@ -591,6 +594,16 @@ function openLightbox(index: number) {
     }
   });
 
+  // Hide full image until loaded so thumbnail placeholder stays visible
+  (pswp as any).on("contentAppend", (e: any) => {
+    const img: HTMLImageElement | undefined = e.content?.element;
+    if (!img || img.classList.contains("pswp__img--placeholder") || img.complete) return;
+    img.style.opacity = "0";
+  });
+  (pswp as any).on("loadComplete", (e: any) => {
+    const img: HTMLImageElement | undefined = e.content?.element;
+    if (img) { img.style.transition = "opacity 150ms"; img.style.opacity = ""; }
+  });
 
   pswp.on("close", () => {
     activePswp = null;
