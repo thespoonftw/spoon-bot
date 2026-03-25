@@ -122,9 +122,6 @@
           <div style="margin-top:12px">
             <button class="btn-secondary btn-small" @click="showTaggingPicker = true">+ Add User</button>
           </div>
-          <div class="modal-actions">
-            <button class="btn-primary" @click="saveTagging" :disabled="savingTagging">{{ savingTagging ? 'Saving…' : 'Save' }}</button>
-          </div>
         </template>
       </div>
     </div>
@@ -255,7 +252,6 @@ const showTagging = ref(false);
 const showTaggingPicker = ref(false);
 const taggingPhoto = ref<Photo | null>(null);
 const taggingSelection = ref(new Set<string>());
-const savingTagging = ref(false);
 
 const SORT_KEY = 'snek_sort_by';
 const sortBy = ref<'popular' | 'tagging' | 'uploader' | 'newest' | 'oldest'>(
@@ -366,6 +362,7 @@ function removeTagged(userId: string) {
   const s = new Set(taggingSelection.value);
   s.delete(userId);
   taggingSelection.value = s;
+  saveTagging();
 }
 
 function addTagged(userId: string) {
@@ -373,30 +370,29 @@ function addTagged(userId: string) {
   s.add(userId);
   taggingSelection.value = s;
   showTaggingPicker.value = false;
+  saveTagging();
 }
 
 function addEveryone() {
   taggingSelection.value = new Set(album.value?.members.map(m => m.userId) ?? []);
   showTaggingPicker.value = false;
+  saveTagging();
 }
 
 async function saveTagging() {
   if (!album.value || !taggingPhoto.value) return;
-  savingTagging.value = true;
   const userIds = [...taggingSelection.value];
   const res = await fetch(`/api/album/${album.value.channelId}/photos/${taggingPhoto.value.id}/tagged`, {
     method: "POST",
     headers: authJsonHeaders(),
     body: JSON.stringify({ userIds }),
   });
-  savingTagging.value = false;
   if (res.ok) {
     const photo = album.value.photos.find(p => p.id === taggingPhoto.value!.id);
     if (photo) {
       photo.taggedIds = userIds;
       refreshLightboxVotes?.();
     }
-    showTagging.value = false;
   }
 }
 
