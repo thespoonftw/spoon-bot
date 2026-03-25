@@ -89,8 +89,8 @@
 
   <Teleport to="body">
     <!-- Tagging Modal -->
-    <div class="modal-overlay" v-if="showTagging" style="z-index:200000">
-      <div class="modal" :style="dragTagging.style.value">
+    <div class="modal-overlay" v-if="showTagging" style="z-index:200000;pointer-events:none;background:none">
+      <div class="modal" :style="dragTagging.style.value" style="pointer-events:auto">
         <button class="modal-close" @click="showTagging = false">✕</button>
         <template v-if="showTaggingPicker">
           <h2 class="modal-drag-handle" @mousedown="dragTagging.onMouseDown">Tag User</h2>
