@@ -102,7 +102,7 @@
           <p v-if="taggedMembers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">No one tagged yet.</p>
         </div>
         <div style="margin-top:12px">
-          <button class="btn-secondary btn-small" @click="showTaggingPicker = true">+ Add User</button>
+          <button class="btn-secondary btn-small" @click="showTaggingPicker = true; showTagging = false">+ Add User</button>
         </div>
         <div class="modal-actions">
           <button class="btn-primary" @click="saveTagging" :disabled="savingTagging">{{ savingTagging ? 'Saving…' : 'Save' }}</button>
@@ -112,7 +112,7 @@
     <!-- Tagging User Picker Modal -->
     <div class="modal-overlay" v-if="showTaggingPicker" style="z-index:210000">
       <div class="modal" :style="dragTaggingPicker.style.value">
-        <button class="modal-close" @click="showTaggingPicker = false; if (!taggingSelection.size) showTagging = false">✕</button>
+        <button class="modal-close" @click="showTaggingPicker = false; showTagging = true">✕</button>
         <h2 class="modal-drag-handle" @mousedown="dragTaggingPicker.onMouseDown">Tag User</h2>
         <div class="members-modal-list">
           <div class="members-modal-row tagging-row" @click="addEveryone()">
@@ -374,11 +374,13 @@ function addTagged(userId: string) {
   s.add(userId);
   taggingSelection.value = s;
   showTaggingPicker.value = false;
+  showTagging.value = true;
 }
 
 function addEveryone() {
   taggingSelection.value = new Set(album.value?.members.map(m => m.userId) ?? []);
   showTaggingPicker.value = false;
+  showTagging.value = true;
 }
 
 async function saveTagging() {
@@ -456,7 +458,7 @@ function confirmDelete(photo: Photo) { dragDelete.reset(); deletingPhoto.value =
 
 function handleEscape(e: KeyboardEvent) {
   if (e.key !== "Escape") return;
-  if (showTaggingPicker.value) { showTaggingPicker.value = false; e.stopImmediatePropagation(); return; }
+  if (showTaggingPicker.value) { showTaggingPicker.value = false; showTagging.value = true; e.stopImmediatePropagation(); return; }
   if (showTagging.value)       { showTagging.value = false;       e.stopImmediatePropagation(); return; }
   if (voteModalPhoto.value)    { voteModalPhoto.value = null;     e.stopImmediatePropagation(); return; }
   if (deletingPhoto.value)     { deletingPhoto.value = null;      e.stopImmediatePropagation(); return; }
