@@ -325,7 +325,7 @@ async function openVoteModal(photo: Photo) {
   if (!voteModalPhoto.value) {
     dragVotes.reset();
     if (window.innerWidth >= 768) {
-      const modalW = Math.min(480, window.innerWidth);
+      const modalW = Math.min(380, window.innerWidth);
       dragVotes.setPosition(-(window.innerWidth / 2 - modalW / 2 - 80), 0);
     }
   }
@@ -357,7 +357,7 @@ function openTagging(photo: Photo, skipToPicker = false) {
   if (!showTagging.value) {
     dragTagging.reset();
     if (window.innerWidth >= 768) {
-      const modalW = Math.min(480, window.innerWidth);
+      const modalW = Math.min(380, window.innerWidth);
       dragTagging.setPosition(window.innerWidth / 2 - modalW / 2 - 80, 0);
     }
   }
