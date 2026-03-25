@@ -72,7 +72,7 @@
         </div>
         <div class="gallery-mobile">
           <div v-for="photo in section.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(allPhotosFlat.indexOf(photo))">
-            <img :src="photo.url" loading="lazy" />
+            <img :src="thumbUrl(photo.url)" loading="lazy" @load="loadFull($event, photo.url)" />
           </div>
         </div>
       </template>
@@ -782,6 +782,15 @@ async function startUpload(files: File[]) {
     if (res.ok) { album.value.photos.push(await res.json()); item.status = "done"; }
     else item.status = "failed";
   }
+}
+
+function loadFull(e: Event, fullUrl: string) {
+  const img = e.target as HTMLImageElement;
+  if (img.dataset.fullLoaded) return;
+  img.dataset.fullLoaded = "1";
+  const full = new Image();
+  full.src = fullUrl;
+  full.onload = () => { img.src = fullUrl; };
 }
 
 function thumbUrl(url: string): string {
