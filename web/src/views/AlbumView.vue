@@ -127,25 +127,24 @@
     </div>
   </Teleport>
 
-  <!-- Delete Photo Confirmation Modal -->
-  <!-- Vote Breakdown Modal -->
-  <div class="modal-overlay" v-if="voteModalPhoto" @click.self="voteModalPhoto = null" style="z-index:200000">
-    <div class="modal" :style="dragVotes.style.value">
-      <button class="modal-close" @click="voteModalPhoto = null">✕</button>
-      <h2 class="modal-drag-handle" @mousedown="dragVotes.onMouseDown">Votes</h2>
-      <div v-if="voteModalData.length === 0" style="color:#6c7086;margin-top:12px">No votes yet</div>
-      <div v-else class="vote-modal-list">
-        <div v-for="v in voteModalData" :key="v.userId" class="vote-modal-row">
-          <img v-if="v.avatarUrl" :src="v.avatarUrl" class="vote-modal-avatar" />
-          <span v-else class="vote-modal-avatar vote-modal-initial">{{ (v.firstName || v.displayName)[0] }}</span>
-          <span class="vote-modal-name">{{ v.firstName || v.displayName }}</span>
-          <span class="vote-modal-icon">{{ v.voteType === 'fav' ? '⭐' : v.voteType === 'up' ? '👍' : '👎' }}</span>
+  <Teleport to="body">
+    <!-- Vote Breakdown Modal -->
+    <div class="modal-overlay" v-if="voteModalPhoto" style="z-index:200000">
+      <div class="modal" :style="dragVotes.style.value">
+        <button class="modal-close" @click="voteModalPhoto = null">✕</button>
+        <h2 class="modal-drag-handle" @mousedown="dragVotes.onMouseDown">Votes</h2>
+        <div v-if="voteModalData.length === 0" style="color:#6c7086;margin-top:12px">No votes yet</div>
+        <div v-else class="vote-modal-list">
+          <div v-for="v in voteModalData" :key="v.userId" class="vote-modal-row">
+            <img v-if="v.avatarUrl" :src="v.avatarUrl" class="vote-modal-avatar" />
+            <span v-else class="vote-modal-avatar vote-modal-initial">{{ (v.firstName || v.displayName)[0] }}</span>
+            <span class="vote-modal-name">{{ v.firstName || v.displayName }}</span>
+            <span class="vote-modal-icon">{{ v.voteType === 'fav' ? '⭐' : v.voteType === 'up' ? '👍' : '👎' }}</span>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-
-  <Teleport to="body">
+    <!-- Delete Photo Confirmation Modal -->
     <div class="modal-overlay" v-if="deletingPhoto" style="z-index:200000">
       <div class="modal" :style="dragDelete.style.value">
         <button class="modal-close" @click="deletingPhoto = null">✕</button>
@@ -156,33 +155,32 @@
         </div>
       </div>
     </div>
-  </Teleport>
-
-  <!-- Share Album Modal -->
-  <div class="modal-overlay" v-if="showShare">
-    <div class="modal" :style="dragShare.style.value">
-      <button class="modal-close" @click="showShare = false">✕</button>
-      <h2 class="modal-drag-handle" @mousedown="dragShare.onMouseDown">Share Album</h2>
-      <template v-if="!shareUrl">
-        <div class="form-group">
-          <label>Password</label>
-          <input v-model="sharePassword" type="password" placeholder="Set a password for this link" @keyup.enter="generateShareLink" />
-        </div>
-        <div class="modal-actions">
-          <button class="btn-primary" @click="generateShareLink" :disabled="sharing || !sharePassword.trim()">
-            {{ sharing ? "Generating…" : "Generate Link" }}
-          </button>
-        </div>
-      </template>
-      <template v-else>
-        <p style="color:#a6adc8;font-size:0.85em;margin-bottom:12px">Share this link and tell them the password:</p>
-        <div style="display:flex;gap:8px">
-          <input type="text" :value="shareUrl" readonly class="share-link-input" />
-          <button class="btn-secondary btn-small" @click="copyShareLink">{{ shareCopied ? "✓ Copied" : "Copy" }}</button>
-        </div>
-      </template>
+    <!-- Share Album Modal -->
+    <div class="modal-overlay" v-if="showShare" style="z-index:200000">
+      <div class="modal" :style="dragShare.style.value">
+        <button class="modal-close" @click="showShare = false">✕</button>
+        <h2 class="modal-drag-handle" @mousedown="dragShare.onMouseDown">Share Album</h2>
+        <template v-if="!shareUrl">
+          <div class="form-group">
+            <label>Password</label>
+            <input v-model="sharePassword" type="password" placeholder="Set a password for this link" @keyup.enter="generateShareLink" />
+          </div>
+          <div class="modal-actions">
+            <button class="btn-primary" @click="generateShareLink" :disabled="sharing || !sharePassword.trim()">
+              {{ sharing ? "Generating…" : "Generate Link" }}
+            </button>
+          </div>
+        </template>
+        <template v-else>
+          <p style="color:#a6adc8;font-size:0.85em;margin-bottom:12px">Share this link and tell them the password:</p>
+          <div style="display:flex;gap:8px">
+            <input type="text" :value="shareUrl" readonly class="share-link-input" />
+            <button class="btn-secondary btn-small" @click="copyShareLink">{{ shareCopied ? "✓ Copied" : "Copy" }}</button>
+          </div>
+        </template>
+      </div>
     </div>
-  </div>
+  </Teleport>
 
   <EditAlbumModal
     :show="showEdit"
