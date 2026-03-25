@@ -541,6 +541,11 @@ function openLightbox(index: number) {
     window.removeEventListener("popstate", onPopState);
     window.removeEventListener("keydown", onKeyDown);
     if (!closedByBack) history.back();
+    showTagging.value = false;
+    showTaggingPicker.value = false;
+  });
+  pswp.on("change", () => {
+    if (showTagging.value) openTagging(photos[pswp.currIndex]);
   });
   pswp.on("uiRegister", () => {
     let topMetaEl: HTMLElement | null = null;
