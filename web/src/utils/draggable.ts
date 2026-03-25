@@ -1,4 +1,17 @@
-import { ref, computed } from "vue";
+import { ref, computed, watch, onUnmounted } from "vue";
+import type { Ref } from "vue";
+
+export function useEscKey(active: Ref<boolean>, handler: () => void) {
+  function onKeyDown(e: KeyboardEvent) {
+    if (e.key === "Escape") { e.stopImmediatePropagation(); handler(); }
+  }
+  watch(active, (v) => {
+    if (v) window.addEventListener("keydown", onKeyDown, true);
+    else window.removeEventListener("keydown", onKeyDown, true);
+  });
+  onUnmounted(() => window.removeEventListener("keydown", onKeyDown, true));
+}
+
 
 export function useDraggable() {
   const x = ref(0);

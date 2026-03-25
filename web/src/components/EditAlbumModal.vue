@@ -1,5 +1,5 @@
 <template>
-  <div class="modal-overlay" v-if="show" @keydown.esc.window="emit('close')">
+  <div class="modal-overlay" v-if="show">
     <div class="modal" :style="drag.style.value">
       <button class="modal-close" @click="emit('close')">✕</button>
       <h2 class="modal-drag-handle" @mousedown="drag.onMouseDown">Edit Album</h2>
@@ -21,10 +21,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import DateRangePicker from "./DateRangePicker.vue";
 import { authJsonHeaders } from "../utils/session";
-import { useDraggable } from "../utils/draggable";
+import { useDraggable, useEscKey } from "../utils/draggable";
 
 const drag = useDraggable();
 
@@ -32,6 +32,7 @@ interface AlbumFields { groupName: string; location?: string; startDate?: string
 
 const props = defineProps<{ show: boolean; channelId: string; album: AlbumFields }>();
 const emit = defineEmits<{ close: []; saved: [updated: object] }>();
+useEscKey(computed(() => props.show), () => emit("close"));
 
 const form = ref({ name: "", location: "", startDate: "", endDate: "" });
 const saving = ref(false);

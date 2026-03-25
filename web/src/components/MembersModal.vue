@@ -1,5 +1,5 @@
 <template>
-  <div class="modal-overlay" v-if="modelValue" @keydown.esc.window="showMemberPicker ? (showMemberPicker = false) : emit('update:modelValue', false)">
+  <div class="modal-overlay" v-if="modelValue">
     <div class="modal" :style="drag.style.value">
       <button class="modal-close" @click="emit('update:modelValue', false)">✕</button>
       <h2 class="modal-drag-handle" @mousedown="drag.onMouseDown">Members</h2>
@@ -50,10 +50,16 @@
 import { ref, computed, watch } from "vue";
 import MemberAvatar from "./MemberAvatar.vue";
 import { authHeaders, authJsonHeaders } from "../utils/session";
-import { useDraggable } from "../utils/draggable";
+import { useDraggable, useEscKey } from "../utils/draggable";
 
 const drag = useDraggable();
 const dragPicker = useDraggable();
+
+const isOpen = computed(() => props.modelValue);
+useEscKey(isOpen, () => {
+  if (showMemberPicker.value) showMemberPicker.value = false;
+  else emit("update:modelValue", false);
+});
 
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface AllMember extends Member { hidden: number; rsvpStatus?: string }
