@@ -92,39 +92,37 @@
     <div class="modal-overlay" v-if="showTagging" style="z-index:200000">
       <div class="modal" :style="dragTagging.style.value">
         <button class="modal-close" @click="showTagging = false">✕</button>
-        <h2 class="modal-drag-handle" @mousedown="dragTagging.onMouseDown">Tagging</h2>
-        <div class="members-modal-list" style="min-height:40px">
-          <div v-for="member in taggedMembers" :key="member.userId" class="members-modal-row">
-            <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
-            <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
-            <button class="btn-remove" @click="removeTagged(member.userId)">remove</button>
+        <template v-if="showTaggingPicker">
+          <h2 class="modal-drag-handle" @mousedown="dragTagging.onMouseDown" style="cursor:pointer" @click="showTaggingPicker = false">← Tag User</h2>
+          <div class="members-modal-list">
+            <div class="members-modal-row tagging-row" @click="addEveryone()">
+              <span class="member-avatar member-avatar-placeholder">★</span>
+              <span class="members-modal-name"><strong>Everyone</strong></span>
+            </div>
+            <div v-for="member in pickableMembers" :key="member.userId" class="members-modal-row tagging-row" @click="addTagged(member.userId)">
+              <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
+              <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
+            </div>
+            <p v-if="pickableMembers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">All members already tagged.</p>
           </div>
-          <p v-if="taggedMembers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">No one tagged yet.</p>
-        </div>
-        <div style="margin-top:12px">
-          <button class="btn-secondary btn-small" @click="showTaggingPicker = true; showTagging = false">+ Add User</button>
-        </div>
-        <div class="modal-actions">
-          <button class="btn-primary" @click="saveTagging" :disabled="savingTagging">{{ savingTagging ? 'Saving…' : 'Save' }}</button>
-        </div>
-      </div>
-    </div>
-    <!-- Tagging User Picker Modal -->
-    <div class="modal-overlay" v-if="showTaggingPicker" style="z-index:210000">
-      <div class="modal" :style="dragTaggingPicker.style.value">
-        <button class="modal-close" @click="showTaggingPicker = false; showTagging = true">✕</button>
-        <h2 class="modal-drag-handle" @mousedown="dragTaggingPicker.onMouseDown">Tag User</h2>
-        <div class="members-modal-list">
-          <div class="members-modal-row tagging-row" @click="addEveryone()">
-            <span class="member-avatar member-avatar-placeholder">★</span>
-            <span class="members-modal-name"><strong>Everyone</strong></span>
+        </template>
+        <template v-else>
+          <h2 class="modal-drag-handle" @mousedown="dragTagging.onMouseDown">Tagging</h2>
+          <div class="members-modal-list" style="min-height:40px">
+            <div v-for="member in taggedMembers" :key="member.userId" class="members-modal-row">
+              <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
+              <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
+              <button class="btn-remove" @click="removeTagged(member.userId)">remove</button>
+            </div>
+            <p v-if="taggedMembers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">No one tagged yet.</p>
           </div>
-          <div v-for="member in pickableMembers" :key="member.userId" class="members-modal-row tagging-row" @click="addTagged(member.userId)">
-            <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
-            <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
+          <div style="margin-top:12px">
+            <button class="btn-secondary btn-small" @click="showTaggingPicker = true">+ Add User</button>
           </div>
-          <p v-if="pickableMembers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">All members already tagged.</p>
-        </div>
+          <div class="modal-actions">
+            <button class="btn-primary" @click="saveTagging" :disabled="savingTagging">{{ savingTagging ? 'Saving…' : 'Save' }}</button>
+          </div>
+        </template>
       </div>
     </div>
   </Teleport>
@@ -213,7 +211,6 @@ import { authHeaders, authJsonHeaders } from "../utils/session";
 import { useDraggable } from "../utils/draggable";
 
 const dragTagging = useDraggable();
-const dragTaggingPicker = useDraggable();
 const dragVotes = useDraggable();
 const dragDelete = useDraggable();
 const dragShare = useDraggable();
@@ -353,10 +350,8 @@ function openTagging(photo: Photo) {
   taggingPhoto.value = photo;
   taggingSelection.value = new Set(photo.taggedIds ?? []);
   dragTagging.reset();
-  dragTaggingPicker.reset();
-  const skip = !photo.taggedIds?.length;
-  showTagging.value = !skip;
-  showTaggingPicker.value = skip;
+  showTagging.value = true;
+  showTaggingPicker.value = !photo.taggedIds?.length;
 }
 
 function getTaggedMembers(photo: Photo): Member[] {
@@ -375,13 +370,11 @@ function addTagged(userId: string) {
   s.add(userId);
   taggingSelection.value = s;
   showTaggingPicker.value = false;
-  showTagging.value = true;
 }
 
 function addEveryone() {
   taggingSelection.value = new Set(album.value?.members.map(m => m.userId) ?? []);
   showTaggingPicker.value = false;
-  showTagging.value = true;
 }
 
 async function saveTagging() {
@@ -459,7 +452,7 @@ function confirmDelete(photo: Photo) { dragDelete.reset(); deletingPhoto.value =
 
 function handleEscape(e: KeyboardEvent) {
   if (e.key !== "Escape") return;
-  if (showTaggingPicker.value) { showTaggingPicker.value = false; showTagging.value = true; e.stopImmediatePropagation(); return; }
+  if (showTaggingPicker.value) { showTaggingPicker.value = false; e.stopImmediatePropagation(); return; }
   if (showTagging.value)       { showTagging.value = false;       e.stopImmediatePropagation(); return; }
   if (voteModalPhoto.value)    { voteModalPhoto.value = null;     e.stopImmediatePropagation(); return; }
   if (deletingPhoto.value)     { deletingPhoto.value = null;      e.stopImmediatePropagation(); return; }
