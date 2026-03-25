@@ -591,16 +591,6 @@ function openLightbox(index: number) {
     }
   });
 
-  // Hide full image when appended to DOM; reveal only once fully loaded
-  (pswp as any).on("contentAppend", (e: any) => {
-    const img: HTMLImageElement | undefined = e.content?.element;
-    if (!img || img.classList.contains("pswp__img--placeholder") || img.complete) return;
-    img.style.opacity = "0";
-  });
-  (pswp as any).on("loadComplete", (e: any) => {
-    const img: HTMLImageElement | undefined = e.content?.element;
-    if (img) { img.style.transition = "opacity 150ms"; img.style.opacity = ""; }
-  });
 
   pswp.on("close", () => {
     activePswp = null;
