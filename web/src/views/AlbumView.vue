@@ -591,16 +591,17 @@ function openLightbox(index: number) {
     }
   });
 
-  // Hide full image until completely loaded — keep thumbnail visible instead
-  function holdUntilLoaded(img: HTMLImageElement) {
-    if (img.complete || img.classList.contains("pswp__img--placeholder")) return;
+  // Hide full image when appended to DOM; reveal only once fully loaded
+  (pswp as any).on("contentAppend", (e: any) => {
+    const img: HTMLImageElement | undefined = e.content?.element;
+    if (!img || img.classList.contains("pswp__img--placeholder") || img.complete) return;
     img.style.opacity = "0";
-    img.addEventListener("load", () => { img.style.transition = "opacity 150ms"; img.style.opacity = ""; }, { once: true });
-  }
-  (pswp as any).on("afterInit", () => {
-    const el = (pswp as any).currSlide?.content?.element;
-    if (el) holdUntilLoaded(el);
   });
+  (pswp as any).on("loadComplete", (e: any) => {
+    const img: HTMLImageElement | undefined = e.content?.element;
+    if (img) { img.style.transition = "opacity 150ms"; img.style.opacity = ""; }
+  });
+
   pswp.on("close", () => {
     activePswp = null;
     window.removeEventListener("popstate", onPopState);
@@ -614,8 +615,6 @@ function openLightbox(index: number) {
     if (idx !== null) nextTick(() => openLightbox(idx));
   });
   pswp.on("change", () => {
-    const el = (pswp as any).currSlide?.content?.element;
-    if (el) holdUntilLoaded(el);
     if (showTagging.value) openTagging(photos[pswp.currIndex]);
     if (voteModalPhoto.value) openVoteModal(photos[pswp.currIndex]);
   });
