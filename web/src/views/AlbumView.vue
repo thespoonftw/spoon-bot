@@ -129,8 +129,8 @@
 
   <Teleport to="body">
     <!-- Vote Breakdown Modal -->
-    <div class="modal-overlay" v-if="voteModalPhoto" style="z-index:200000">
-      <div class="modal" :style="dragVotes.style.value">
+    <div class="modal-overlay" v-if="voteModalPhoto" style="z-index:200000;pointer-events:none;background:none">
+      <div class="modal" :style="dragVotes.style.value" style="pointer-events:auto">
         <button class="modal-close" @click="voteModalPhoto = null">✕</button>
         <h2 class="modal-drag-handle" @mousedown="dragVotes.onMouseDown">Votes</h2>
         <div v-if="voteModalData.length === 0" style="color:#6c7086;margin-top:12px">No votes yet</div>
@@ -322,7 +322,7 @@ async function fetchVoteBreakdown(photo: Photo) {
 }
 
 async function openVoteModal(photo: Photo) {
-  dragVotes.reset();
+  if (!voteModalPhoto.value) dragVotes.reset();
   voteModalPhoto.value = photo;
   voteModalData.value = await fetchVoteBreakdown(photo);
 }
@@ -543,9 +543,11 @@ function openLightbox(index: number) {
     if (!closedByBack) history.back();
     showTagging.value = false;
     showTaggingPicker.value = false;
+    voteModalPhoto.value = null;
   });
   pswp.on("change", () => {
     if (showTagging.value) openTagging(photos[pswp.currIndex]);
+    if (voteModalPhoto.value) openVoteModal(photos[pswp.currIndex]);
   });
   pswp.on("uiRegister", () => {
     let topMetaEl: HTMLElement | null = null;
