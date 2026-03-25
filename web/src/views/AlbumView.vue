@@ -93,7 +93,7 @@
       <div class="modal" :style="dragTagging.style.value">
         <button class="modal-close" @click="showTagging = false">✕</button>
         <template v-if="showTaggingPicker">
-          <h2 class="modal-drag-handle" @mousedown="dragTagging.onMouseDown" style="cursor:pointer" @click="showTaggingPicker = false">← Tag User</h2>
+          <h2 class="modal-drag-handle" @mousedown="dragTagging.onMouseDown">Tag User</h2>
           <div class="members-modal-list">
             <div class="members-modal-row tagging-row" @click="addEveryone()">
               <span class="member-avatar member-avatar-placeholder">★</span>
@@ -104,6 +104,9 @@
               <span class="members-modal-name">{{ member.firstName || member.displayName }}</span>
             </div>
             <p v-if="pickableMembers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">All members already tagged.</p>
+          </div>
+          <div style="margin-top:12px">
+            <button class="btn-secondary btn-small" @click="showTaggingPicker = false">← Back</button>
           </div>
         </template>
         <template v-else>
