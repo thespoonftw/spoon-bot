@@ -198,7 +198,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import MemberAvatar from "../components/MemberAvatar.vue";
 import EditAlbumModal from "../components/EditAlbumModal.vue";
@@ -228,6 +228,8 @@ const uploadError = ref("");
 
 const deletingPhoto = ref<Photo | null>(null);
 const voteModalPhoto = ref<Photo | null>(null);
+let activePswp: any = null;
+let pendingReopenIndex: number | null = null;
 const voteModalData = ref<{ userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; voteType: string }[]>([]);
 const deleting = ref(false);
 
@@ -482,14 +484,29 @@ async function deletePhoto() {
   });
   deleting.value = false;
   if (res.ok) {
-    album.value.photos = album.value.photos.filter(p => p.id !== deletingPhoto.value!.id);
+    const deletedId = deletingPhoto.value!.id;
     deletingPhoto.value = null;
+    if (activePswp) {
+      const currIdx = activePswp.currIndex;
+      const oldPhotos = allPhotosFlat.value;
+      const deletedPos = oldPhotos.findIndex(p => p.id === deletedId);
+      album.value.photos = album.value.photos.filter(p => p.id !== deletedId);
+      const newLen = allPhotosFlat.value.length;
+      if (newLen > 0) {
+        const newIdx = deletedPos <= currIdx ? Math.max(0, currIdx - 1) : currIdx;
+        pendingReopenIndex = Math.min(newIdx, newLen - 1);
+      }
+      activePswp.close();
+    } else {
+      album.value.photos = album.value.photos.filter(p => p.id !== deletedId);
+    }
   }
 }
 
 function openLightbox(index: number) {
   if (!album.value) return;
   const photos = allPhotosFlat.value;
+  activePswp = null;
   const pswp = new PhotoSwipe({
     dataSource: photos.map(p => ({ src: p.url, width: p.width || 1200, height: p.height || 900, msrc: thumbUrl(p.url) })),
     index,
@@ -505,6 +522,7 @@ function openLightbox(index: number) {
     paddingFn: (viewportSize: { x: number; y: number }) =>
       viewportSize.x >= 768 ? { top: 20, bottom: 70, left: 0, right: 0 } : { top: 0, bottom: 0, left: 0, right: 0 },
   });
+  activePswp = pswp;
   history.pushState({ pswp: true }, "");
   let closedByBack = false;
   const onPopState = () => { closedByBack = true; pswp.close(); };
@@ -550,12 +568,16 @@ function openLightbox(index: number) {
   });
 
   pswp.on("close", () => {
+    activePswp = null;
     window.removeEventListener("popstate", onPopState);
     window.removeEventListener("keydown", onKeyDown);
     if (!closedByBack) history.back();
     showTagging.value = false;
     showTaggingPicker.value = false;
     voteModalPhoto.value = null;
+    const idx = pendingReopenIndex;
+    pendingReopenIndex = null;
+    if (idx !== null) nextTick(() => openLightbox(idx));
   });
   pswp.on("change", () => {
     if (showTagging.value) openTagging(photos[pswp.currIndex]);
