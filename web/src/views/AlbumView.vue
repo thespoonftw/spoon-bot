@@ -348,7 +348,7 @@ async function doVote(photoId: number, voteType: string) {
 function openTagging(photo: Photo, skipToPicker = false) {
   taggingPhoto.value = photo;
   taggingSelection.value = new Set(photo.taggedIds ?? []);
-  dragTagging.reset();
+  if (!showTagging.value) dragTagging.reset();
   showTagging.value = true;
   showTaggingPicker.value = skipToPicker && !photo.taggedIds?.length;
 }
