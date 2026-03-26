@@ -10,18 +10,23 @@
     <template v-for="group in albumsByYear" :key="group.year">
       <h2 class="year-header">{{ group.year }}</h2>
       <router-link v-for="album in group.items" :key="album.channelId" :to="`/album/${album.channelId}`" class="card">
-        <h2>{{ album.groupName }}</h2>
-        <p v-if="album.startDate" class="date">{{ formatAlbumDate(album.startDate, album.endDate) }}</p>
-        <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
-        <div class="card-footer">
-          <span class="meta">📷 {{ album.photos.length }}</span>
-          <span v-if="album.members.length > 0" class="meta">👥 {{ album.members.length }}</span>
-        </div>
-        <div v-if="album.members.length > 0" class="card-members">
-          <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
-            <img v-if="member.avatarUrl" :src="member.avatarUrl" />
-            <span v-else>{{ (member.firstName || member.displayName)[0] }}</span>
+        <div class="card-left">
+          <h2>{{ album.groupName }}</h2>
+          <p v-if="album.startDate" class="date">{{ formatAlbumDate(album.startDate, album.endDate) }}</p>
+          <div class="card-meta-row">
+            <span class="meta">📷 {{ album.photos.length }}</span>
+            <span v-if="album.members.length > 0" class="meta">👥 {{ album.members.length }}</span>
+            <span v-if="album.location" class="meta">📍 {{ album.location }}</span>
           </div>
+          <div v-if="album.members.length > 0" class="card-members">
+            <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
+              <img v-if="member.avatarUrl" :src="member.avatarUrl" />
+              <span v-else>{{ (member.firstName || member.displayName)[0] }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-right" v-if="topPhoto(album)">
+          <img :src="thumbUrl(topPhoto(album)!.url)" @error="($event.target as HTMLImageElement).src = topPhoto(album)!.url" />
         </div>
       </router-link>
     </template>
@@ -57,7 +62,8 @@ import { authJsonHeaders } from "../utils/session";
 import DateRangePicker from "../components/DateRangePicker.vue";
 
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
-interface Album { channelId: string; groupName: string; location?: string; startDate?: string; endDate?: string; createdAt: string; photos: { id: number }[]; members: Member[] }
+interface Photo { id: number; url: string; score?: number }
+interface Album { channelId: string; groupName: string; location?: string; startDate?: string; endDate?: string; createdAt: string; photos: Photo[]; members: Member[] }
 
 const albums = ref<Album[]>([]);
 const loading = ref(true);
@@ -79,6 +85,13 @@ const albumsByYear = computed(() => {
     .sort(([a], [b]) => b.localeCompare(a))
     .map(([year, items]) => ({ year, items: items.sort((a, b) => (b.startDate ?? b.createdAt).localeCompare(a.startDate ?? a.createdAt)) }));
 });
+
+function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumbnails/"); }
+
+function topPhoto(album: Album): Photo | null {
+  if (!album.photos.length) return null;
+  return [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
+}
 
 function formatAlbumDate(startDate: string, endDate?: string): string {
   const parse = (s: string) => {
