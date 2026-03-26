@@ -625,7 +625,7 @@ function openLightbox(index: number) {
     let topMetaEl: HTMLElement | null = null;
     const buildMetaHtml = (p: Photo) => {
       const dateHtml = p?.takenAt ? `<span class="pswp-caption-date">${formatTime(p.takenAt)}</span>` : "";
-      const uploaderMember = p?.uploadedById ? album.value?.members.find(m => m.userId === p.uploadedById) : null;
+      const uploaderMember = p?.uploadedById ? userMap.value.get(p.uploadedById) : null;
       const avatarHtml = uploaderMember?.avatarUrl
         ? `<img src="${uploaderMember.avatarUrl}" style="width:1.4em;height:1.4em;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:5px" />`
         : "";

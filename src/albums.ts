@@ -141,7 +141,7 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
       try { await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(path.join(thumbDir, name)); } catch {}
 
       const photoUrl = `/uploads/${channelId}/${name}`;
-      dbAddUploadedPhoto(channelId, photoUrl, name, author.id, displayName, width, height, takenAt);
+      dbAddUploadedPhoto(channelId, photoUrl, name, author.id, width, height, takenAt);
       anySuccess = true;
     } catch (e) { console.error("Failed to download/process reaction attachment:", e); }
   }
@@ -217,7 +217,7 @@ async function processUpload(pending: PendingUpload): Promise<number> {
         }
       } catch {}
       try { await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(path.join(thumbDir, name)); } catch {}
-      dbAddUploadedPhoto(channelId, `/uploads/${channelId}/${name}`, name, authorId, authorName, width, height, takenAt);
+      dbAddUploadedPhoto(channelId, `/uploads/${channelId}/${name}`, name, authorId, width, height, takenAt);
       count++;
     } catch (e) { console.error("Failed to upload photo:", e); }
   }

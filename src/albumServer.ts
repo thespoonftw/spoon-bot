@@ -191,7 +191,7 @@ export function startWebServer(): void {
             await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(thumbPath);
           } catch (e) { console.error("Thumbnail generation failed:", e); }
           const photoUrl = `/uploads/${channelId}/${name}`;
-          const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, uploader.displayName, width, height, takenAt);
+          const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, width, height, takenAt);
           sendJson(res, 201, photo);
         });
         writeStream.on("error", () => {

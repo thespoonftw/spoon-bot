@@ -41,7 +41,6 @@ export function initDb() {
       url               TEXT NOT NULL,
       filename          TEXT,
       uploaded_by_id    TEXT,
-      uploaded_by_name  TEXT,
       uploaded_at       TEXT NOT NULL,
       taken_at          TEXT,
       width             INTEGER,
@@ -72,7 +71,7 @@ export function initDb() {
     "ALTER TABLE albums ADD COLUMN end_date TEXT",
     "ALTER TABLE photos ADD COLUMN filename TEXT",
     "ALTER TABLE photos ADD COLUMN uploaded_by_id TEXT",
-    "ALTER TABLE photos ADD COLUMN uploaded_by_name TEXT",
+    "ALTER TABLE photos DROP COLUMN uploaded_by_name",
     "ALTER TABLE users ADD COLUMN level INTEGER NOT NULL DEFAULT 1",
     "ALTER TABLE users ADD COLUMN first_name TEXT",
     "ALTER TABLE album_members ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0",
@@ -158,7 +157,7 @@ export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
     const rows = db.prepare(`
       SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
         p.uploaded_by_id AS uploadedById,
-        COALESCE(u.first_name, p.uploaded_by_name) AS uploadedByName,
+        COALESCE(u.first_name, u.display_name) AS uploadedByName,
         p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height,
         COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
         (SELECT vote_type FROM photo_votes WHERE photo_id = p.id AND user_id = ?) AS userVote,
@@ -171,7 +170,7 @@ export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
   const rows = db.prepare(`
     SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
       p.uploaded_by_id AS uploadedById,
-      COALESCE(u.first_name, p.uploaded_by_name) AS uploadedByName,
+      COALESCE(u.first_name, u.display_name) AS uploadedByName,
       p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height,
       COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
       NULL AS userVote,
@@ -303,12 +302,12 @@ export function dbGetAllAlbumMembers(channelId: string): AlbumMemberRow[] {
   `).all(channelId) as AlbumMemberRow[];
 }
 
-export function dbAddUploadedPhoto(channelId: string, url: string, filename: string, uploadedById: string, uploadedByName: string, width: number, height: number, takenAt?: string): PhotoRow {
+export function dbAddUploadedPhoto(channelId: string, url: string, filename: string, uploadedById: string, width: number, height: number, takenAt?: string): PhotoRow {
   const uploadedAt = new Date().toISOString();
   const result = db.prepare(
-    "INSERT INTO photos (channel_id, url, filename, uploaded_by_id, uploaded_by_name, uploaded_at, taken_at, width, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  ).run(channelId, url, filename, uploadedById, uploadedByName, uploadedAt, takenAt ?? null, width, height);
-  return { id: result.lastInsertRowid as number, channelId, url, filename, uploadedById, uploadedByName, uploadedAt, takenAt, width, height };
+    "INSERT INTO photos (channel_id, url, filename, uploaded_by_id, uploaded_at, taken_at, width, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run(channelId, url, filename, uploadedById, uploadedAt, takenAt ?? null, width, height);
+  return { id: result.lastInsertRowid as number, channelId, url, filename, uploadedById, uploadedAt, takenAt, width, height };
 }
 
 export function dbGetPhotoCount(): number {
