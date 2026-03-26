@@ -11,13 +11,15 @@
       <h2 class="year-header">{{ group.year }}</h2>
       <router-link v-for="album in group.items" :key="album.channelId" :to="`/album/${album.channelId}`" class="card">
         <div class="card-left">
-          <div class="card-left-title"><h2>{{ album.groupName }}</h2></div>
-          <div class="card-left-details">
+          <div class="card-left-title">
+            <h2>{{ album.groupName }}</h2>
             <p v-if="album.startDate" class="date">{{ formatAlbumDate(album.startDate, album.endDate) }}</p>
+          </div>
+          <div class="card-left-details">
+            <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
             <div class="card-meta-row">
               <span class="meta">📷 {{ album.photos.length }}</span>
               <span v-if="album.members.length > 0" class="meta">👥 {{ album.members.length }}</span>
-              <span v-if="album.location" class="meta">📍 {{ album.location }}</span>
             </div>
           </div>
           <div v-if="album.members.length > 0" class="card-members">
