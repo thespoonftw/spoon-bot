@@ -123,7 +123,7 @@ function formatDateDisplay(startDate: string, endDate?: string | null): string {
   const s = parse(startDate);
   if (!endDate) return `${s.day}${s.suffix} ${s.month} ${s.year}`;
   const e = parse(endDate);
-  if (s.monthIdx === e.monthIdx && s.year === e.year) return `${s.day}${s.suffix}–${e.day}${e.suffix} ${s.month} ${s.year}`;
+  if (s.monthIdx === e.monthIdx && s.year === e.year) return `${s.day}${s.suffix} ${s.month} – ${e.day}${e.suffix} ${e.month} ${s.year}`;
   if (s.year === e.year) return `${s.day}${s.suffix} ${s.month} – ${e.day}${e.suffix} ${e.month} ${s.year}`;
   return `${s.day}${s.suffix} ${s.month} ${s.year} – ${e.day}${e.suffix} ${e.month} ${e.year}`;
 }
