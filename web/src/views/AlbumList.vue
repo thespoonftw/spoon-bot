@@ -77,7 +77,7 @@ const albumsByYear = computed(() => {
   }
   return [...groups.entries()]
     .sort(([a], [b]) => b.localeCompare(a))
-    .map(([year, items]) => ({ year, items }));
+    .map(([year, items]) => ({ year, items: items.sort((a, b) => (b.startDate ?? b.createdAt).localeCompare(a.startDate ?? a.createdAt)) }));
 });
 
 function formatAlbumDate(startDate: string, endDate?: string): string {
