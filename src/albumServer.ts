@@ -14,7 +14,7 @@ import type { Client, Guild } from "discord.js";
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbHasAlbum, dbUpdateAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes } from "./db";
+import { dbHasAlbum, dbUpdateAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbListTables, dbTablePage } from "./db";
 
 const PHOTO_STORAGE_PATH = process.env.PHOTO_STORAGE_PATH ?? path.join(DATA_DIR, "photos");
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
@@ -55,6 +55,25 @@ export function startWebServer(): void {
       } catch (e) {
         sendJson(res, 500, { error: "Failed" });
       }
+      return;
+    }
+
+    if (url === "/api/db/tables" && method === "GET") {
+      if (!isValidSession(getTokenFromRequest(req))) { send401(res); return; }
+      sendJson(res, 200, { tables: dbListTables() });
+      return;
+    }
+
+    const dbTableMatch = url.match(/^\/api\/db\/table\/([^/?]+)(\?.*)?$/);
+    if (dbTableMatch && method === "GET") {
+      if (!isValidSession(getTokenFromRequest(req))) { send401(res); return; }
+      const table = decodeURIComponent(dbTableMatch[1]);
+      const params = new URLSearchParams(url.includes("?") ? url.slice(url.indexOf("?") + 1) : "");
+      const page = Math.max(0, parseInt(params.get("page") ?? "0") || 0);
+      const pageSize = 200;
+      try {
+        sendJson(res, 200, { ...dbTablePage(table, page, pageSize), page, pageSize });
+      } catch { sendJson(res, 400, { error: "Unknown table" }); }
       return;
     }
 

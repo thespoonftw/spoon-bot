@@ -255,3 +255,20 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .upload-uploading { color: #89b4fa; }
 .upload-done { color: #a6e3a1; }
 .upload-failed { color: #f38ba8; }
+
+.db-layout { display: flex; gap: 16px; align-items: flex-start; min-height: 400px; }
+.db-sidebar { display: flex; flex-direction: column; gap: 4px; min-width: 160px; flex-shrink: 0; }
+.db-table-btn { background: #313244; border: none; border-radius: 8px; padding: 8px 14px; color: #cdd6f4; cursor: pointer; text-align: left; font-size: 0.9em; }
+.db-table-btn:hover { background: #45475a; }
+.db-table-btn.active { background: #cba6f7; color: #1e1e2e; font-weight: 600; }
+.db-main { flex: 1; min-width: 0; }
+.db-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.db-table-name { font-weight: 700; color: #cba6f7; }
+.db-count { color: #a6adc8; font-size: 0.85em; }
+.db-pagination { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 0.85em; color: #a6adc8; }
+.db-table-wrap { overflow-x: auto; }
+.db-table { border-collapse: collapse; font-size: 0.82em; width: 100%; }
+.db-table th { background: #313244; color: #cba6f7; padding: 6px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid #45475a; }
+.db-table td { padding: 5px 10px; border-bottom: 1px solid #313244; color: #cdd6f4; white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
+.db-table tr:last-child td { border-bottom: none; }
+.db-table tbody tr:hover td { background: #313244; }

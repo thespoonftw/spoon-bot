@@ -354,6 +354,19 @@ export function dbGetPhotoVotes(photoId: number): { userId: string; displayName:
   `).all(photoId) as { userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; voteType: string }[];
 }
 
+export function dbListTables(): string[] {
+  return (db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as { name: string }[]).map(r => r.name);
+}
+
+export function dbTablePage(table: string, page: number, pageSize: number): { columns: string[]; rows: unknown[][]; total: number } {
+  const allowed = dbListTables();
+  if (!allowed.includes(table)) throw new Error(`Unknown table: ${table}`);
+  const total = (db.prepare(`SELECT COUNT(*) AS n FROM "${table}"`).get() as { n: number }).n;
+  const rows = db.prepare(`SELECT * FROM "${table}" LIMIT ? OFFSET ?`).raw().all(pageSize, page * pageSize) as unknown[][];
+  const columns = db.prepare(`SELECT * FROM "${table}" LIMIT 0`).columns().map(c => c.name);
+  return { columns, rows, total };
+}
+
 export function dbVotePhoto(photoId: number, userId: string, voteType: string): { score: number; userVote: string | null } {
   const existing = db.prepare("SELECT vote_type FROM photo_votes WHERE photo_id = ? AND user_id = ?").get(photoId, userId) as { vote_type: string } | undefined;
   if (existing?.vote_type === voteType) {

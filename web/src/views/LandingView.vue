@@ -26,6 +26,11 @@
         <h2>Status</h2>
         <p>Storage and library stats</p>
       </router-link>
+      <router-link to="/database" class="feature-card">
+        <span class="feature-icon">🗄️</span>
+        <h2>Database</h2>
+        <p>Browse database tables</p>
+      </router-link>
     </div>
   </div>
 </template>
