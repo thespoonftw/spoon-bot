@@ -70,7 +70,7 @@ export function startWebServer(): void {
       const table = decodeURIComponent(dbTableMatch[1]);
       const params = new URLSearchParams(url.includes("?") ? url.slice(url.indexOf("?") + 1) : "");
       const page = Math.max(0, parseInt(params.get("page") ?? "0") || 0);
-      const pageSize = 200;
+      const pageSize = 50;
       try {
         sendJson(res, 200, { ...dbTablePage(table, page, pageSize), page, pageSize });
       } catch { sendJson(res, 400, { error: "Unknown table" }); }

@@ -30,15 +30,17 @@
           <table v-else class="db-table">
             <thead>
               <tr>
+                <th style="color:#585b70">#</th>
                 <th v-for="col in columns" :key="col">{{ col }}</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="(row, i) in rows" :key="i">
+                <td style="color:#585b70;user-select:none">{{ page * PAGE_SIZE + i + 1 }}</td>
                 <td v-for="(cell, j) in row" :key="j">{{ cell ?? 'NULL' }}</td>
               </tr>
               <tr v-if="!rows.length">
-                <td :colspan="columns.length" style="text-align:center;color:#585b70">No rows</td>
+                <td :colspan="columns.length + 1" style="text-align:center;color:#585b70">No rows</td>
               </tr>
             </tbody>
           </table>
@@ -62,7 +64,7 @@ const rows = ref<unknown[][]>([]);
 const total = ref(0);
 const page = ref(0);
 const loading = ref(false);
-const PAGE_SIZE = 200;
+const PAGE_SIZE = 50;
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)));
 
