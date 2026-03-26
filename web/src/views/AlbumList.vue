@@ -15,11 +15,11 @@
         <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
         <div class="card-footer">
           <div v-if="album.members.length > 0" class="card-members">
+            <span class="meta" style="margin-right:4px">{{ album.members.length }} 👥</span>
             <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
               <img v-if="member.avatarUrl" :src="member.avatarUrl" />
               <span v-else>{{ (member.firstName || member.displayName)[0] }}</span>
             </div>
-            <span class="meta" style="margin-left:4px">{{ album.members.length }} 👥</span>
           </div>
           <span v-else></span>
           <span class="meta">{{ album.photos.length }} photo(s)</span>
