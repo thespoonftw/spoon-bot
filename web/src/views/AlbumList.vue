@@ -11,7 +11,7 @@
       <h2 class="year-header">{{ group.year }}</h2>
       <router-link v-for="album in group.items" :key="album.channelId" :to="`/album/${album.channelId}`" class="card">
         <h2>{{ album.groupName }}</h2>
-        <p v-if="album.dateText" class="date">{{ stripYear(album.dateText) }}</p>
+        <p v-if="album.startDate" class="date">{{ formatAlbumDate(album.startDate, album.endDate) }}</p>
         <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
         <div class="card-footer">
           <span class="meta">{{ album.photos.length }} photo(s)</span>
@@ -57,7 +57,7 @@ import { authJsonHeaders } from "../utils/session";
 import DateRangePicker from "../components/DateRangePicker.vue";
 
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
-interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; createdAt: string; photos: { id: number }[]; members: Member[] }
+interface Album { channelId: string; groupName: string; location?: string; startDate?: string; endDate?: string; createdAt: string; photos: { id: number }[]; members: Member[] }
 
 const albums = ref<Album[]>([]);
 const loading = ref(true);
@@ -71,9 +71,7 @@ const form = ref({ name: "", location: "", startDate: "", endDate: "" });
 const albumsByYear = computed(() => {
   const groups = new Map<string, Album[]>();
   for (const album of albums.value) {
-    const year = album.startDate?.slice(0, 4)
-      ?? /(\d{4})/.exec(album.dateText ?? "")?.[1]
-      ?? album.createdAt.slice(0, 4);
+    const year = album.startDate?.slice(0, 4) ?? album.createdAt.slice(0, 4);
     if (!groups.has(year)) groups.set(year, []);
     groups.get(year)!.push(album);
   }
@@ -82,11 +80,21 @@ const albumsByYear = computed(() => {
     .map(([year, items]) => ({ year, items }));
 });
 
-function stripYear(dateText: string): string {
-  // Cross-year range ("20th Dec 2024 – 2nd Jan 2025"): strip only the start year
-  if (/ \d{4} –/.test(dateText)) return dateText.replace(/ \d{4} (–)/, " $1");
-  // Same year: strip trailing year entirely
-  return dateText.replace(/ \d{4}$/, "");
+function formatAlbumDate(startDate: string, endDate?: string): string {
+  const parse = (s: string) => {
+    const d = new Date(s + "T00:00:00Z");
+    const day = d.getUTCDate();
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const month = months[d.getUTCMonth()];
+    const year = d.getUTCFullYear();
+    const suffix = [1, 21, 31].includes(day) ? "st" : [2, 22].includes(day) ? "nd" : [3, 23].includes(day) ? "rd" : "th";
+    return { day, suffix, month, year };
+  };
+  const s = parse(startDate);
+  if (!endDate) return `${s.day}${s.suffix} ${s.month}`;
+  const e = parse(endDate);
+  if (s.year === e.year) return `${s.day}${s.suffix} ${s.month} – ${e.day}${e.suffix} ${e.month}`;
+  return `${s.day}${s.suffix} ${s.month} – ${e.day}${e.suffix} ${e.month} ${e.year}`;
 }
 
 onMounted(async () => {
