@@ -31,7 +31,9 @@
         </div>
         <div class="card-right" v-if="topPhotos(album).length">
           <div class="card-thumbs">
-            <img v-for="photo in topPhotos(album)" :key="photo.id" :src="thumbUrl(photo.url)" @error="($event.target as HTMLImageElement).src = photo.url" />
+            <div v-for="(row, ri) in thumbRows(album)" :key="ri" class="thumb-row" :class="{ 'thumb-row-offset': ri % 2 === 1 }">
+              <img v-for="photo in row" :key="photo.id" :src="thumbUrl(photo.url)" @error="($event.target as HTMLImageElement).src = photo.url" />
+            </div>
           </div>
         </div>
       </router-link>
@@ -97,6 +99,14 @@ function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumb
 function topPhotos(album: Album): Photo[] {
   const count = Math.floor(Math.sqrt(album.photos.length));
   return [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
+}
+
+function thumbRows(album: Album): Photo[][] {
+  const photos = topPhotos(album);
+  const perRow = Math.ceil(Math.sqrt(photos.length)) || 1;
+  const rows: Photo[][] = [];
+  for (let i = 0; i < photos.length; i += perRow) rows.push(photos.slice(i, i + perRow));
+  return rows;
 }
 
 function formatAlbumDate(startDate: string, endDate?: string): string {
