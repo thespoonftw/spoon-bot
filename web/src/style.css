@@ -23,8 +23,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .card { display: flex; flex-direction: row; background: #313244; border-radius: 10px; overflow: hidden; margin-bottom: 16px; text-decoration: none; color: inherit; }
 .card:hover { background: #45475a; }
 .card-left { flex: 1; padding: 20px; min-width: 0; }
-.card-right { display: flex; align-items: center; justify-content: center; padding: 12px; flex-shrink: 0; }
-.card-thumbs { display: flex; align-items: center; gap: 6px; }
+.card-right { display: flex; align-items: center; justify-content: center; padding: 12px; flex-shrink: 0; max-width: 60%; }
+.card-thumbs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
 .card-thumbs img { max-width: 100px; max-height: 100px; width: auto; height: auto; border-radius: 4px; display: block; }
 .share-link-input { flex: 1; background: #313244; border: 1px solid #45475a; border-radius: 8px; padding: 8px 10px; color: #cdd6f4; font-size: 0.85rem; outline: none; }
 .card-meta-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
