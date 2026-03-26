@@ -23,7 +23,6 @@ export function initDb() {
     CREATE TABLE IF NOT EXISTS albums (
       channel_id  TEXT PRIMARY KEY,
       group_name  TEXT NOT NULL,
-      date_text   TEXT,
       location    TEXT,
       start_date  TEXT,
       end_date    TEXT,
@@ -78,6 +77,7 @@ export function initDb() {
     "ALTER TABLE photos ADD COLUMN taken_at TEXT",
     "ALTER TABLE photos ADD COLUMN width INTEGER",
     "ALTER TABLE photos ADD COLUMN height INTEGER",
+    "ALTER TABLE albums DROP COLUMN date_text",
     "ALTER TABLE photos DROP COLUMN lat",
     "ALTER TABLE photos DROP COLUMN lon",
     "DROP TABLE IF EXISTS photo_featured",
@@ -129,9 +129,14 @@ function formatDateDisplay(startDate: string, endDate?: string | null): string {
 }
 
 export type AlbumRow = {
-  channelId: string; groupName: string; dateText?: string;
+  channelId: string; groupName: string;
   location?: string; startDate?: string; endDate?: string; createdAt: string;
+  readonly dateText?: string;
 };
+
+function toAlbumRow(raw: Omit<AlbumRow, "dateText"> & { startDate?: string; endDate?: string }): AlbumRow {
+  return { ...raw, dateText: raw.startDate ? formatDateDisplay(raw.startDate, raw.endDate) : undefined };
+}
 export type PhotoRow = {
   id: number; channelId: string; url: string;
   filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string;
@@ -145,9 +150,10 @@ export function dbHasAlbum(channelId: string): boolean {
 }
 
 export function dbGetAlbum(channelId: string): AlbumRow | undefined {
-  return db.prepare(
-    "SELECT channel_id AS channelId, group_name AS groupName, date_text AS dateText, location, start_date AS startDate, end_date AS endDate, created_at AS createdAt FROM albums WHERE channel_id = ?"
-  ).get(channelId) as AlbumRow | undefined;
+  const raw = db.prepare(
+    "SELECT channel_id AS channelId, group_name AS groupName, location, start_date AS startDate, end_date AS endDate, created_at AS createdAt FROM albums WHERE channel_id = ?"
+  ).get(channelId) as Omit<AlbumRow, "dateText"> | undefined;
+  return raw ? toAlbumRow(raw) : undefined;
 }
 
 export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
@@ -188,35 +194,33 @@ export function dbGetAlbumWithPhotos(channelId: string, userId?: string): AlbumW
 }
 
 export function dbGetAllAlbumsWithPhotos(): AlbumWithPhotos[] {
-  const albums = db.prepare(
-    "SELECT channel_id AS channelId, group_name AS groupName, date_text AS dateText, location, start_date AS startDate, end_date AS endDate, created_at AS createdAt FROM albums ORDER BY created_at DESC"
-  ).all() as AlbumRow[];
+  const albums = (db.prepare(
+    "SELECT channel_id AS channelId, group_name AS groupName, location, start_date AS startDate, end_date AS endDate, created_at AS createdAt FROM albums ORDER BY created_at DESC"
+  ).all() as Omit<AlbumRow, "dateText">[]).map(toAlbumRow);
   return albums.map(a => ({ ...a, photos: dbGetPhotos(a.channelId), members: dbGetAlbumMembers(a.channelId) }));
 }
 
 export function dbInsertAlbum(album: AlbumRow) {
-  db.prepare("INSERT OR REPLACE INTO albums (channel_id, group_name, date_text, location, start_date, end_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .run(album.channelId, album.groupName, album.dateText ?? null, album.location ?? null, album.startDate ?? null, album.endDate ?? null, album.createdAt);
+  db.prepare("INSERT OR REPLACE INTO albums (channel_id, group_name, location, start_date, end_date, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .run(album.channelId, album.groupName, album.location ?? null, album.startDate ?? null, album.endDate ?? null, album.createdAt);
 }
 
 export function dbCreateAlbum(name: string, location: string, startDate: string, endDate?: string): AlbumRow {
   const channelId = "web_" + crypto.randomBytes(8).toString("hex");
-  const dateText = formatDateDisplay(startDate, endDate);
-  const album: AlbumRow = { channelId, groupName: name, dateText, location, startDate, endDate, createdAt: new Date().toISOString() };
-  db.prepare("INSERT INTO albums (channel_id, group_name, date_text, location, start_date, end_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .run(channelId, name, dateText, location, startDate, endDate ?? null, album.createdAt);
-  return album;
+  const createdAt = new Date().toISOString();
+  db.prepare("INSERT INTO albums (channel_id, group_name, location, start_date, end_date, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .run(channelId, name, location, startDate, endDate ?? null, createdAt);
+  return toAlbumRow({ channelId, groupName: name, location, startDate, endDate, createdAt });
 }
 
-export function dbSyncAlbumFromEvent(channelId: string, eventName: string, location: string, dateText?: string) {
-  db.prepare("UPDATE albums SET group_name=?, location=?, date_text=? WHERE channel_id=?")
-    .run(eventName, location, dateText ?? null, channelId);
+export function dbSyncAlbumFromEvent(channelId: string, eventName: string, location: string) {
+  db.prepare("UPDATE albums SET group_name=?, location=? WHERE channel_id=?")
+    .run(eventName, location, channelId);
 }
 
 export function dbUpdateAlbum(channelId: string, name: string, location: string, startDate?: string, endDate?: string): AlbumRow | undefined {
-  const dateText = startDate ? formatDateDisplay(startDate, endDate) : undefined;
-  db.prepare("UPDATE albums SET group_name=?, location=?, start_date=?, end_date=?, date_text=? WHERE channel_id=?")
-    .run(name, location, startDate ?? null, endDate ?? null, dateText ?? null, channelId);
+  db.prepare("UPDATE albums SET group_name=?, location=?, start_date=?, end_date=? WHERE channel_id=?")
+    .run(name, location, startDate ?? null, endDate ?? null, channelId);
   return dbGetAlbum(channelId);
 }
 

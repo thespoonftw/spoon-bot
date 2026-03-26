@@ -128,7 +128,6 @@ export function startWebServer(): void {
             if (state) {
               state.eventName = name;
               state.location = location;
-              if (updated?.dateText) state.dateText = updated.dateText;
               persistState();
               const guild = albumDiscordClient.guilds.cache.get(process.env.GUILD_ID ?? "");
               if (guild && updateEventMessagesFn) updateEventMessagesFn(guild, channelId).catch(e => console.error("Failed to sync album edit to Discord:", e));

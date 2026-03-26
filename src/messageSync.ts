@@ -35,7 +35,7 @@ export async function updateInnerMessage(guild: Guild, channelId: string) {
 export async function updateEventMessages(guild: Guild, channelId: string) {
   const state = eventStates.get(channelId);
   if (!state) { console.error(`updateEventMessages: no state for ${channelId}`); return; }
-  if (dbHasAlbum(channelId)) dbSyncAlbumFromEvent(channelId, state.eventName, state.location, state.dateText);
+  if (dbHasAlbum(channelId)) dbSyncAlbumFromEvent(channelId, state.eventName, state.location);
   const iconUrl = state.imageUrl || guild.iconURL();
 
   const announcementChannel = guild.channels.cache.get(config.eventChannelId);

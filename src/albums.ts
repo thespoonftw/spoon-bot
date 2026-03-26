@@ -32,9 +32,8 @@ export function getAlbumUrl(channelId: string): string | null {
 export async function startAlbumForChannel(channelId: string, guild: Guild, albumNameOverride?: string): Promise<string> {
   const eventState = eventStates.get(channelId);
   const albumName = albumNameOverride ?? eventState?.eventName ?? channelId;
-  const dateText = eventState?.dateText;
   const albumUrl = `${getBaseUrl()}/album/${channelId}`;
-  dbInsertAlbum({ channelId, groupName: albumName, dateText, location: eventState?.location, createdAt: new Date().toISOString() });
+  dbInsertAlbum({ channelId, groupName: albumName, location: eventState?.location, createdAt: new Date().toISOString() });
   try {
     await guild.members.fetch();
     const ch = guild.channels.cache.get(channelId);
