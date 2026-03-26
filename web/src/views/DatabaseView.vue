@@ -5,6 +5,7 @@
 
     <div class="db-layout">
       <div class="db-sidebar">
+        <p class="meta" style="margin:0 0 6px">Select table</p>
         <p v-if="!tables.length" class="empty">Loading…</p>
         <button
           v-for="t in tables" :key="t"
