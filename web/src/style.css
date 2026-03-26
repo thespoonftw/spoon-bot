@@ -114,9 +114,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .card-left-details .card-meta-row { justify-content: flex-end; }
   .card-left-details { flex: 1; min-width: 0; }
   .card-left { width: 100%; }
-  .card-right { flex: none; width: 100%; justify-content: flex-start; padding: 0; }
-  .card-right .card-thumbs { width: 100%; }
-  .card-right .card-thumbs img { flex: 1; min-width: 0; max-width: none; height: 120px; object-fit: cover; border-radius: 0; }
+  .card-right { flex: none; width: 100%; justify-content: center; }
   .card-members { display: none; }
 }
 
