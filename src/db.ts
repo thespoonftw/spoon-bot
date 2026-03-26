@@ -83,6 +83,7 @@ export function initDb() {
     "ALTER TABLE photos ADD COLUMN height INTEGER",
     "ALTER TABLE photos ADD COLUMN lat REAL",
     "ALTER TABLE photos ADD COLUMN lon REAL",
+    "DROP TABLE IF EXISTS photo_featured",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
