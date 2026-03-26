@@ -95,7 +95,8 @@ const albumsByYear = computed(() => {
 function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumbnails/"); }
 
 function topPhotos(album: Album): Photo[] {
-  return [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, 5);
+  const count = Math.floor(Math.sqrt(album.photos.length));
+  return [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
 }
 
 function formatAlbumDate(startDate: string, endDate?: string): string {
