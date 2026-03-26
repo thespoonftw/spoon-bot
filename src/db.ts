@@ -45,9 +45,7 @@ export function initDb() {
       uploaded_at       TEXT NOT NULL,
       taken_at          TEXT,
       width             INTEGER,
-      height            INTEGER,
-      lat               REAL,
-      lon               REAL
+      height            INTEGER
     );
     CREATE TABLE IF NOT EXISTS album_shares (
       token         TEXT PRIMARY KEY,
@@ -81,8 +79,8 @@ export function initDb() {
     "ALTER TABLE photos ADD COLUMN taken_at TEXT",
     "ALTER TABLE photos ADD COLUMN width INTEGER",
     "ALTER TABLE photos ADD COLUMN height INTEGER",
-    "ALTER TABLE photos ADD COLUMN lat REAL",
-    "ALTER TABLE photos ADD COLUMN lon REAL",
+    "ALTER TABLE photos DROP COLUMN lat",
+    "ALTER TABLE photos DROP COLUMN lon",
     "DROP TABLE IF EXISTS photo_featured",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
@@ -174,7 +172,7 @@ export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
     SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
       p.uploaded_by_id AS uploadedById,
       COALESCE(u.first_name, p.uploaded_by_name) AS uploadedByName,
-      p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.lat, p.lon,
+      p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height,
       COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
       NULL AS userVote,
       (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
