@@ -22,7 +22,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .year-header:first-of-type { margin-top: 0; }
 .card { display: flex; flex-direction: row; background: #313244; border-radius: 10px; overflow: hidden; margin-bottom: 16px; text-decoration: none; color: inherit; }
 .card:hover { background: #45475a; }
-.card-left { width: 500px; flex-shrink: 0; padding: 20px; min-width: 0; }
+.card-left { width: 400px; flex-shrink: 0; padding: 20px; min-width: 0; }
 .card-right { display: flex; align-items: center; justify-content: center; padding: 12px; flex: 1; }
 .card-thumbs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
 .card-thumbs img { max-width: 100px; max-height: 100px; width: auto; height: auto; border-radius: 4px; display: block; }
