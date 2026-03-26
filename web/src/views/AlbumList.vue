@@ -25,8 +25,10 @@
             </div>
           </div>
         </div>
-        <div class="card-right" v-if="topPhoto(album)">
-          <img :src="thumbUrl(topPhoto(album)!.url)" @error="($event.target as HTMLImageElement).src = topPhoto(album)!.url" />
+        <div class="card-right" v-if="topPhotos(album).length">
+          <div class="card-thumbs">
+            <img v-for="photo in topPhotos(album)" :key="photo.id" :src="thumbUrl(photo.url)" @error="($event.target as HTMLImageElement).src = photo.url" />
+          </div>
         </div>
       </router-link>
     </template>
@@ -88,9 +90,8 @@ const albumsByYear = computed(() => {
 
 function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumbnails/"); }
 
-function topPhoto(album: Album): Photo | null {
-  if (!album.photos.length) return null;
-  return [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
+function topPhotos(album: Album): Photo[] {
+  return [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, 5);
 }
 
 function formatAlbumDate(startDate: string, endDate?: string): string {
