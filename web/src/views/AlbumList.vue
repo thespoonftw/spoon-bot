@@ -83,6 +83,9 @@ const albumsByYear = computed(() => {
 });
 
 function stripYear(dateText: string): string {
+  // Cross-year range ("20th Dec 2024 – 2nd Jan 2025"): strip only the start year
+  if (/ \d{4} –/.test(dateText)) return dateText.replace(/ \d{4} (–)/, " $1");
+  // Same year: strip trailing year entirely
   return dateText.replace(/ \d{4}$/, "");
 }
 
