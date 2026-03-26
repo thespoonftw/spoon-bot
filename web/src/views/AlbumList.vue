@@ -14,7 +14,6 @@
         <p v-if="album.startDate" class="date">{{ formatAlbumDate(album.startDate, album.endDate) }}</p>
         <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
         <div class="card-footer">
-          <span class="meta">{{ album.photos.length }} photo(s)</span>
           <div v-if="album.members.length > 0" class="card-members">
             <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
               <img v-if="member.avatarUrl" :src="member.avatarUrl" />
@@ -22,6 +21,8 @@
             </div>
             <span class="meta" style="margin-left:4px">{{ album.members.length }} 👥</span>
           </div>
+          <span v-else></span>
+          <span class="meta">{{ album.photos.length }} photo(s)</span>
         </div>
       </router-link>
     </template>
