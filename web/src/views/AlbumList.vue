@@ -97,20 +97,22 @@ function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumb
 interface CollageItem { photo: Photo; size: number; cssLeft: number; cssTop: number; }
 
 function buildCollage(album: Album): CollageItem[] {
-  const sorted = [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  const count = Math.floor(Math.sqrt(album.photos.length));
+  const sorted = [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
   if (!sorted.length) return [];
   const H = 140;
   const raw: Array<{ photo: Photo; size: number; x: number; y: number }> = [];
   raw.push({ photo: sorted[0], size: H, x: 0, y: 0 });
-  let idx = 1, rightX = H, leftX = 0, size = H / 2, perSide = 1;
+  let idx = 1, rightX = H, leftX = 0, size = H * 0.75;
   while (idx < sorted.length && size >= 10) {
+    const perSide = Math.max(1, Math.floor(H / size));
     const startY = (H - perSide * size) / 2;
     leftX -= size;
     for (let k = 0; k < perSide && idx < sorted.length; k++, idx++)
       raw.push({ photo: sorted[idx], size, x: rightX, y: startY + k * size });
     for (let k = 0; k < perSide && idx < sorted.length; k++, idx++)
       raw.push({ photo: sorted[idx], size, x: leftX, y: startY + k * size });
-    rightX += size; size /= 2; perSide *= 2;
+    rightX += size; size *= 0.75;
   }
   const offset = leftX < 0 ? -leftX : 0;
   return raw.map(r => ({ photo: r.photo, size: r.size, cssLeft: r.x + offset, cssTop: r.y }));
