@@ -24,12 +24,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .card:hover { background: #45475a; }
 .card-left { width: 400px; flex-shrink: 0; padding: 20px; min-width: 0; }
 .card-right { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px; flex: 1; }
-.card-hero-thumb { width: 140px; height: 140px; object-fit: cover; border-radius: 8px; box-shadow: 2px 2px 8px rgba(0,0,0,0.5); flex-shrink: 0; position: relative; z-index: 1; }
-.card-thumbs { display: flex; flex-direction: column; align-items: flex-start; margin-left: -18px; }
-.thumb-row { display: flex; margin-bottom: -18px; }
-.thumb-row:last-child { margin-bottom: 0; }
-.thumb-row-offset { padding-left: 40px; }
-.thumb-row img { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; margin-right: 6px; box-shadow: 2px 2px 8px rgba(0,0,0,0.5); position: relative; display: block; }
+.card-collage { overflow: visible; }
 .share-link-input { flex: 1; background: #313244; border: 1px solid #45475a; border-radius: 8px; padding: 8px 10px; color: #cdd6f4; font-size: 0.85rem; outline: none; }
 .card-meta-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .card-left-details { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }

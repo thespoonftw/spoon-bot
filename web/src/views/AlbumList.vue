@@ -27,12 +27,11 @@
             </div>
           </div>
         </div>
-        <div class="card-right" v-if="topPhotos(album).length">
-          <img class="card-hero-thumb" :src="thumbUrl(topPhotos(album)[0].url)" @error="($event.target as HTMLImageElement).src = topPhotos(album)[0].url" />
-          <div class="card-thumbs" v-if="topPhotos(album).length > 1">
-            <div v-for="(row, ri) in thumbRows(album)" :key="ri" class="thumb-row" :class="{ 'thumb-row-offset': ri % 2 === 1 }">
-              <img v-for="photo in row" :key="photo.id" :src="thumbUrl(photo.url)" @error="($event.target as HTMLImageElement).src = photo.url" />
-            </div>
+        <div class="card-right" v-if="buildCollage(album).length">
+          <div class="card-collage" :style="{ width: collageWidth(album), height: '140px', position: 'relative', flexShrink: '0' }">
+            <img v-for="item in buildCollage(album)" :key="item.photo.id"
+              :src="thumbUrl(item.photo.url)" @error="($event.target as HTMLImageElement).src = item.photo.url"
+              :style="{ position: 'absolute', left: item.cssLeft + 'px', top: item.cssTop + 'px', width: item.size + 'px', height: item.size + 'px', objectFit: 'cover', borderRadius: '4px', boxShadow: '1px 1px 6px rgba(0,0,0,0.6)' }" />
           </div>
         </div>
       </router-link>
@@ -95,17 +94,31 @@ const albumsByYear = computed(() => {
 
 function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumbnails/"); }
 
-function topPhotos(album: Album): Photo[] {
-  const count = Math.floor(Math.sqrt(album.photos.length));
-  return [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
+interface CollageItem { photo: Photo; size: number; cssLeft: number; cssTop: number; }
+
+function buildCollage(album: Album): CollageItem[] {
+  const sorted = [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  if (!sorted.length) return [];
+  const H = 140;
+  const raw: Array<{ photo: Photo; size: number; x: number; y: number }> = [];
+  raw.push({ photo: sorted[0], size: H, x: 0, y: 0 });
+  let idx = 1, rightX = H, leftX = 0, size = H / 2, perSide = 1;
+  while (idx < sorted.length && size >= 10) {
+    const startY = (H - perSide * size) / 2;
+    leftX -= size;
+    for (let k = 0; k < perSide && idx < sorted.length; k++, idx++)
+      raw.push({ photo: sorted[idx], size, x: rightX, y: startY + k * size });
+    for (let k = 0; k < perSide && idx < sorted.length; k++, idx++)
+      raw.push({ photo: sorted[idx], size, x: leftX, y: startY + k * size });
+    rightX += size; size /= 2; perSide *= 2;
+  }
+  const offset = leftX < 0 ? -leftX : 0;
+  return raw.map(r => ({ photo: r.photo, size: r.size, cssLeft: r.x + offset, cssTop: r.y }));
 }
 
-function thumbRows(album: Album): Photo[][] {
-  const photos = topPhotos(album).slice(1);
-  const perRow = Math.ceil(Math.sqrt(photos.length)) || 1;
-  const rows: Photo[][] = [];
-  for (let i = 0; i < photos.length; i += perRow) rows.push(photos.slice(i, i + perRow));
-  return rows;
+function collageWidth(album: Album): string {
+  const items = buildCollage(album);
+  return (items.length ? Math.max(...items.map(i => i.cssLeft + i.size)) : 0) + 'px';
 }
 
 function formatAlbumDate(startDate: string, endDate?: string): string {
