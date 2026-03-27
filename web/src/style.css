@@ -32,8 +32,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .share-link-input { flex: 1; background: #313244; border: 1px solid #45475a; border-radius: 8px; padding: 8px 10px; color: #cdd6f4; font-size: 0.85rem; outline: none; }
 .card-meta-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .card-left-details { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
-.card-members { display: flex; align-items: center; gap: 4px; margin-top: 12px; flex-wrap: nowrap; overflow: hidden; }
-.card-member-avatar { width: 28px; height: 28px; border-radius: 50%; overflow: hidden; border: 2px solid #1e1e2e; margin-left: -6px; background: #45475a; display: flex; align-items: center; justify-content: center; font-size: 0.75em; color: #cdd6f4; font-weight: 600; flex-shrink: 0; }
+.card-members { display: flex; align-items: center; margin-top: 12px; flex-wrap: nowrap; }
+.card-member-avatar { width: 28px; height: 28px; border-radius: 50%; overflow: hidden; border: 2px solid #1e1e2e; margin-left: -10px; background: #45475a; display: flex; align-items: center; justify-content: center; font-size: 0.75em; color: #cdd6f4; font-weight: 600; flex-shrink: 0; }
 .card-member-avatar:first-child { margin-left: 0; }
 .card-member-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .card-member-overflow { font-size: 0.8em; color: #6c7086; }
