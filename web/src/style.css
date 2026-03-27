@@ -112,8 +112,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .gallery-mobile { margin: 20px -16px 0; }
   .card { flex-direction: column; }
   .card-left { display: flex; flex-direction: row; gap: 12px; }
-  .card-left-title { flex: 1 1 auto; min-width: 0; overflow: hidden; }
-  .card-left-details { flex: 1 1 auto; min-width: 0; overflow: hidden; text-align: right; }
+  .card-left-title { flex: 1 1 auto; min-width: 0; overflow: hidden; max-width: 50%; }
+  .card-left-details { flex: 1 1 auto; min-width: 0; overflow: hidden; max-width: 50%; text-align: right; }
   .card-left-details .card-meta-row { justify-content: flex-end; }
   .card-left { width: 100%; }
   .card-right { flex: none; width: 100%; justify-content: center; }
