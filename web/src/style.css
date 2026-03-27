@@ -113,7 +113,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .card { flex-direction: column; }
   .card-left { display: flex; flex-direction: row; gap: 12px; }
   .card-left-title { flex: 1; min-width: 0; }
-  .card-left-details { flex: 0 0 auto; flex-direction: column; gap: 8px; margin-top: 0; }
+  .card-left-details { flex: 0 0 auto; flex-direction: column; gap: 8px; margin-top: 0; text-align: right; }
   .card-left-details .meta { font-size: 1em; }
   .card-left { width: 100%; }
   .card-right { flex: none; width: 100%; justify-content: center; }
