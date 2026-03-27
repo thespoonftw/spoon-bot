@@ -104,10 +104,11 @@ function buildCollage(album: Album): CollageItem[] {
   const raw: Array<{ photo: Photo; size: number; x: number; y: number; z: number }> = [];
   raw.push({ photo: sorted[0], size: H, x: 0, y: 0, z: 100 });
   let idx = 1, z = 90, perSide = 1;
-  let displaySize = H * 0.6, virtualSize = H * 0.5, prevVirtual = H;
+  let displaySize = H * 0.7, prevDisplay = H;
   let rightCX = H / 2, leftCX = H / 2;
+  const OVERLAP = 5;
   while (idx < sorted.length && displaySize >= 8) {
-    const gap = (prevVirtual + virtualSize) / 2;
+    const gap = (prevDisplay + displaySize) / 2 - OVERLAP;
     const startY = (H - perSide * displaySize) / 2;
     rightCX += gap;
     for (let k = 0; k < perSide && idx < sorted.length; k++, idx++)
@@ -115,7 +116,7 @@ function buildCollage(album: Album): CollageItem[] {
     leftCX -= gap;
     for (let k = 0; k < perSide && idx < sorted.length; k++, idx++)
       raw.push({ photo: sorted[idx], size: displaySize, x: leftCX - displaySize / 2, y: startY + k * displaySize, z });
-    prevVirtual = virtualSize; displaySize *= 0.6; virtualSize *= 0.5; perSide *= 2; z -= 10;
+    prevDisplay = displaySize; displaySize *= 0.7; perSide *= 2; z -= 10;
   }
   // Center the bounding box around the hero
   const minX = Math.min(...raw.map(r => r.x));
