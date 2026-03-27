@@ -28,7 +28,8 @@
           </div>
         </div>
         <div class="card-right" v-if="topPhotos(album).length">
-          <div class="card-thumbs">
+          <img class="card-hero-thumb" :src="thumbUrl(topPhotos(album)[0].url)" @error="($event.target as HTMLImageElement).src = topPhotos(album)[0].url" />
+          <div class="card-thumbs" v-if="topPhotos(album).length > 1">
             <div v-for="(row, ri) in thumbRows(album)" :key="ri" class="thumb-row" :class="{ 'thumb-row-offset': ri % 2 === 1 }">
               <img v-for="photo in row" :key="photo.id" :src="thumbUrl(photo.url)" @error="($event.target as HTMLImageElement).src = photo.url" />
             </div>
@@ -100,7 +101,7 @@ function topPhotos(album: Album): Photo[] {
 }
 
 function thumbRows(album: Album): Photo[][] {
-  const photos = topPhotos(album);
+  const photos = topPhotos(album).slice(1);
   const perRow = Math.ceil(Math.sqrt(photos.length)) || 1;
   const rows: Photo[][] = [];
   for (let i = 0; i < photos.length; i += perRow) rows.push(photos.slice(i, i + perRow));
