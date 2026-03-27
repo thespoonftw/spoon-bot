@@ -31,7 +31,7 @@
           <div class="card-collage" :style="{ width: collageWidth(album), height: '140px', position: 'relative', flexShrink: '0' }">
             <img v-for="item in buildCollage(album)" :key="item.photo.id"
               :src="thumbUrl(item.photo.url)" @error="($event.target as HTMLImageElement).src = item.photo.url"
-              :style="{ position: 'absolute', left: item.cssLeft + 'px', top: item.cssTop + 'px', width: item.size + 'px', height: item.size + 'px', objectFit: 'cover', borderRadius: '4px', boxShadow: '1px 1px 6px rgba(0,0,0,0.6)' }" />
+              :style="{ position: 'absolute', left: item.cssLeft + 'px', top: item.cssTop + 'px', width: item.size + 'px', height: item.size + 'px', objectFit: 'cover', borderRadius: '4px', boxShadow: '1px 1px 6px rgba(0,0,0,0.6)', zIndex: item.zIndex }" />
           </div>
         </div>
       </router-link>
@@ -94,28 +94,34 @@ const albumsByYear = computed(() => {
 
 function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumbnails/"); }
 
-interface CollageItem { photo: Photo; size: number; cssLeft: number; cssTop: number; }
+interface CollageItem { photo: Photo; size: number; cssLeft: number; cssTop: number; zIndex: number; }
 
 function buildCollage(album: Album): CollageItem[] {
   const count = Math.floor(Math.sqrt(album.photos.length));
   const sorted = [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
   if (!sorted.length) return [];
   const H = 140;
-  const raw: Array<{ photo: Photo; size: number; x: number; y: number }> = [];
-  raw.push({ photo: sorted[0], size: H, x: 0, y: 0 });
-  let idx = 1, rightX = H, leftX = 0, size = H * 0.75;
-  while (idx < sorted.length && size >= 10) {
-    const perSide = Math.max(1, Math.floor(H / size));
-    const startY = (H - perSide * size) / 2;
-    leftX -= size;
-    for (let k = 0; k < perSide && idx < sorted.length; k++, idx++)
-      raw.push({ photo: sorted[idx], size, x: rightX, y: startY + k * size });
-    for (let k = 0; k < perSide && idx < sorted.length; k++, idx++)
-      raw.push({ photo: sorted[idx], size, x: leftX, y: startY + k * size });
-    rightX += size; size *= 0.75;
+  const raw: Array<{ photo: Photo; size: number; x: number; y: number; z: number }> = [];
+  // Center photo
+  raw.push({ photo: sorted[0], size: H, x: 0, y: 0, z: 100 });
+  let idx = 1, z = 90;
+  let displaySize = H * 0.6, virtualSize = H * 0.5, prevVirtual = H;
+  let rightCX = H / 2, leftCX = H / 2;
+  while (idx < sorted.length && displaySize >= 8) {
+    const gap = (prevVirtual + virtualSize) / 2;
+    const y = (H - displaySize) / 2;
+    if (idx < sorted.length) {
+      rightCX += gap;
+      raw.push({ photo: sorted[idx++], size: displaySize, x: rightCX - displaySize / 2, y, z });
+    }
+    if (idx < sorted.length) {
+      leftCX -= gap;
+      raw.push({ photo: sorted[idx++], size: displaySize, x: leftCX - displaySize / 2, y, z });
+    }
+    prevVirtual = virtualSize; displaySize *= 0.6; virtualSize *= 0.5; z -= 10;
   }
-  const offset = leftX < 0 ? -leftX : 0;
-  return raw.map(r => ({ photo: r.photo, size: r.size, cssLeft: r.x + offset, cssTop: r.y }));
+  const offset = Math.max(0, -Math.min(...raw.map(r => r.x)));
+  return raw.map(r => ({ photo: r.photo, size: r.size, cssLeft: r.x + offset, cssTop: r.y, zIndex: r.z }));
 }
 
 function collageWidth(album: Album): string {
