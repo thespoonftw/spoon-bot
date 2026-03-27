@@ -102,26 +102,27 @@ function buildCollage(album: Album): CollageItem[] {
   if (!sorted.length) return [];
   const H = 140;
   const raw: Array<{ photo: Photo; size: number; x: number; y: number; z: number }> = [];
-  // Center photo
   raw.push({ photo: sorted[0], size: H, x: 0, y: 0, z: 100 });
-  let idx = 1, z = 90;
+  let idx = 1, z = 90, perSide = 1;
   let displaySize = H * 0.6, virtualSize = H * 0.5, prevVirtual = H;
   let rightCX = H / 2, leftCX = H / 2;
   while (idx < sorted.length && displaySize >= 8) {
     const gap = (prevVirtual + virtualSize) / 2;
-    const y = (H - displaySize) / 2;
-    if (idx < sorted.length) {
-      rightCX += gap;
-      raw.push({ photo: sorted[idx++], size: displaySize, x: rightCX - displaySize / 2, y, z });
-    }
-    if (idx < sorted.length) {
-      leftCX -= gap;
-      raw.push({ photo: sorted[idx++], size: displaySize, x: leftCX - displaySize / 2, y, z });
-    }
-    prevVirtual = virtualSize; displaySize *= 0.6; virtualSize *= 0.5; z -= 10;
+    const startY = (H - perSide * displaySize) / 2;
+    rightCX += gap;
+    for (let k = 0; k < perSide && idx < sorted.length; k++, idx++)
+      raw.push({ photo: sorted[idx], size: displaySize, x: rightCX - displaySize / 2, y: startY + k * displaySize, z });
+    leftCX -= gap;
+    for (let k = 0; k < perSide && idx < sorted.length; k++, idx++)
+      raw.push({ photo: sorted[idx], size: displaySize, x: leftCX - displaySize / 2, y: startY + k * displaySize, z });
+    prevVirtual = virtualSize; displaySize *= 0.6; virtualSize *= 0.5; perSide *= 2; z -= 10;
   }
-  const offset = Math.max(0, -Math.min(...raw.map(r => r.x)));
-  return raw.map(r => ({ photo: r.photo, size: r.size, cssLeft: r.x + offset, cssTop: r.y, zIndex: r.z }));
+  // Center the bounding box around the hero
+  const minX = Math.min(...raw.map(r => r.x));
+  const maxX = Math.max(...raw.map(r => r.x + r.size));
+  const shift = H / 2 - (minX + maxX) / 2;
+  const finalOffset = Math.max(0, -(minX + shift));
+  return raw.map(r => ({ photo: r.photo, size: r.size, cssLeft: r.x + shift + finalOffset, cssTop: r.y, zIndex: r.z }));
 }
 
 function collageWidth(album: Album): string {
