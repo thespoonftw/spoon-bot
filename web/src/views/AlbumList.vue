@@ -14,13 +14,11 @@
           <div class="card-left-title">
             <h2>{{ album.groupName }}</h2>
             <p v-if="album.startDate" class="date">{{ formatAlbumDate(album.startDate, album.endDate) }}</p>
+            <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
           </div>
           <div class="card-left-details">
-            <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
-            <div class="card-meta-row">
-              <span class="meta">📷 {{ album.photos.length }}</span>
-              <span v-if="album.members.length > 0" class="meta">👥 {{ album.members.length }}</span>
-            </div>
+            <p class="meta">📷 {{ album.photos.length }}</p>
+            <p v-if="album.members.length > 0" class="meta">👥 {{ album.members.length }}</p>
           </div>
           <div v-if="album.members.length > 0" class="card-members">
             <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">

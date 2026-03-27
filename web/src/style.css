@@ -112,11 +112,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .gallery-mobile { margin: 20px -16px 0; }
   .card { flex-direction: column; }
   .card-left { display: flex; flex-direction: row; gap: 12px; }
-  .card-left-title { flex: 1 1 0; min-width: 0; }
-  .card-left-title h2 { font-size: calc(1.5rem - 2px); }
-  .card-left-title .date { font-size: calc(1rem - 2px); }
-  .card-left-details { flex: 1 1 0; min-width: 0; text-align: right; }
-  .card-left-details .card-meta-row { justify-content: flex-end; }
+  .card-left-title { flex: 1; min-width: 0; }
+  .card-left-details { flex: 0 0 auto; }
   .card-left { width: 100%; }
   .card-right { flex: none; width: 100%; justify-content: center; }
   .card-members { display: none; }
