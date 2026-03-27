@@ -27,9 +27,9 @@
             </div>
           </div>
         </div>
-        <div class="card-right" v-if="buildCollage(album).length">
-          <div class="card-collage" :style="{ width: collageWidth(album), height: '140px', position: 'relative', flexShrink: '0' }">
-            <img v-for="item in buildCollage(album)" :key="item.photo.id"
+        <div class="card-right" v-if="buildCollage(album, heroSize).length">
+          <div class="card-collage" :style="{ width: collageWidth(album, heroSize), height: heroSize + 'px', position: 'relative', flexShrink: '0' }">
+            <img v-for="item in buildCollage(album, heroSize)" :key="item.photo.id"
               :src="thumbUrl(item.photo.url)" @error="($event.target as HTMLImageElement).src = item.photo.url"
               :style="{ position: 'absolute', left: item.cssLeft + 'px', top: item.cssTop + 'px', width: item.size + 'px', height: item.size + 'px', objectFit: 'cover', borderRadius: '4px', boxShadow: '1px 1px 6px rgba(0,0,0,0.6)', zIndex: item.zIndex }" />
           </div>
@@ -62,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useCurrentUser } from "../composables/useCurrentUser";
 import { authJsonHeaders } from "../utils/session";
 import DateRangePicker from "../components/DateRangePicker.vue";
@@ -96,11 +96,10 @@ function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumb
 
 interface CollageItem { photo: Photo; size: number; cssLeft: number; cssTop: number; zIndex: number; }
 
-function buildCollage(album: Album): CollageItem[] {
+function buildCollage(album: Album, H = 160): CollageItem[] {
   const count = Math.floor(Math.sqrt(album.photos.length));
   const sorted = [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
   if (!sorted.length) return [];
-  const H = 140;
   const raw: Array<{ photo: Photo; size: number; x: number; y: number; z: number }> = [];
   raw.push({ photo: sorted[0], size: H, x: 0, y: 0, z: 100 });
   let idx = 1, z = 90, perSide = 1;
@@ -126,8 +125,8 @@ function buildCollage(album: Album): CollageItem[] {
   return raw.map(r => ({ photo: r.photo, size: r.size, cssLeft: r.x + shift + finalOffset, cssTop: r.y, zIndex: r.z }));
 }
 
-function collageWidth(album: Album): string {
-  const items = buildCollage(album);
+function collageWidth(album: Album, H: number): string {
+  const items = buildCollage(album, H);
   return (items.length ? Math.max(...items.map(i => i.cssLeft + i.size)) : 0) + 'px';
 }
 
@@ -148,13 +147,18 @@ function formatAlbumDate(startDate: string, endDate?: string): string {
   return `${s.day}${s.suffix} ${s.month} – ${e.day}${e.suffix} ${e.month} ${e.year}`;
 }
 
+const heroSize = ref(window.innerWidth < 768 ? 120 : 160);
+const onResize = () => { heroSize.value = window.innerWidth < 768 ? 120 : 160; };
+
 onMounted(async () => {
+  window.addEventListener("resize", onResize);
   const res = await fetch("/api/albums");
   const data: Album[] = await res.json();
   const byName = (a: Member, b: Member) => (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName);
   albums.value = data.map(a => ({ ...a, members: a.members.slice().sort(byName) }));
   loading.value = false;
 });
+onUnmounted(() => window.removeEventListener("resize", onResize));
 
 function closeModal() {
   showModal.value = false;
