@@ -113,8 +113,17 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   // size-4 #1: tucked in corner touching size-3 on its right, size-2 on its top
   const cx6 = cx4 + (s3 + s4) / 2 - OV;
   const cy6 = dy - s2 / 2 + OV - s4 / 2;
-  // size-4 #2: directly right of size-4 #1, same height (also touches size-2 top)
-  const cx8 = cx6 + s4 - OV;
+  // size-4 #2: in corner touching size-4 #1 and size-2, via circle intersection
+  function corner(ax: number, ay: number, ra: number, bx: number, by: number, rb: number): [number, number] {
+    const ddx = bx - ax, ddy = by - ay, d = Math.sqrt(ddx * ddx + ddy * ddy);
+    const a = (ra * ra - rb * rb + d * d) / (2 * d);
+    const h = Math.sqrt(Math.max(0, ra * ra - a * a));
+    const mx = ax + a * ddx / d, my = ay + a * ddy / d;
+    const p1: [number, number] = [mx - h * ddy / d, my + h * ddx / d];
+    const p2: [number, number] = [mx + h * ddy / d, my - h * ddx / d];
+    return p1[0] > p2[0] ? p1 : p2;
+  }
+  const [cx8, cy8] = corner(cx6, cy6, s4 - OV, gapR, dy, (s2 + s4) / 2 - OV);
 
   type R = { photo: Photo; size: number; cx: number; cy: number; z: number };
   const raw: R[] = [];
@@ -125,8 +134,8 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   if (count >= 5) raw.push({ photo: sorted[4], size: s3, cx: -cx4,  cy: -cy4, z: 80 });
   if (count >= 6) raw.push({ photo: sorted[5], size: s4, cx:  cx6,  cy:  cy6, z: 70 });
   if (count >= 7) raw.push({ photo: sorted[6], size: s4, cx: -cx6,  cy: -cy6, z: 70 });
-  if (count >= 8) raw.push({ photo: sorted[7], size: s4, cx:  cx8,  cy:  cy6, z: 70 });
-  if (count >= 9) raw.push({ photo: sorted[8], size: s4, cx: -cx8,  cy: -cy6, z: 70 });
+  if (count >= 8) raw.push({ photo: sorted[7], size: s4, cx:  cx8,  cy:  cy8, z: 70 });
+  if (count >= 9) raw.push({ photo: sorted[8], size: s4, cx: -cx8,  cy: -cy8, z: 70 });
 
   const minX = Math.min(...raw.map(p => p.cx - p.size / 2));
   const maxX = Math.max(...raw.map(p => p.cx + p.size / 2));
