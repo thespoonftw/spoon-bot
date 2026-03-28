@@ -110,9 +110,9 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   const dy = (s3 - OV) / 2;
   // size-3 y: sits above the shifted size-2 with OV overlap
   const cy4 = dy - s2 / 2 + OV - s3 / 2;  // = (OV - s2) / 2, negative = above center
-  // size-4 placed outward from size-2, at the same height as size-2
-  const cx6 = gapR + (s2 + s4) / 2 - OV;
-  const cy6 = dy;
+  // size-4 tucked in corner: touching size-3 on its right, touching size-2 on its top
+  const cx6 = cx4 + (s3 + s4) / 2 - OV;
+  const cy6 = dy - s2 / 2 + OV - s4 / 2;
 
   type R = { photo: Photo; size: number; cx: number; cy: number; z: number };
   const raw: R[] = [];
@@ -122,7 +122,7 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   if (count >= 4) raw.push({ photo: sorted[3], size: s3, cx:  cx4,  cy:  cy4, z: 80 });
   if (count >= 5) raw.push({ photo: sorted[4], size: s3, cx: -cx4,  cy: -cy4, z: 80 });
   if (count >= 6) raw.push({ photo: sorted[5], size: s4, cx:  cx6,  cy:  cy6, z: 70 });
-  if (count >= 7) raw.push({ photo: sorted[6], size: s4, cx: -cx6,  cy: -dy,  z: 70 });
+  if (count >= 7) raw.push({ photo: sorted[6], size: s4, cx: -cx6,  cy: -cy6, z: 70 });
 
   const minX = Math.min(...raw.map(p => p.cx - p.size / 2));
   const maxX = Math.max(...raw.map(p => p.cx + p.size / 2));
