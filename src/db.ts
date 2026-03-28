@@ -307,12 +307,12 @@ export function dbGetAllAlbumMembers(channelId: string): AlbumMemberRow[] {
   `).all(channelId) as AlbumMemberRow[];
 }
 
-export function dbAddUploadedPhoto(channelId: string, url: string, filename: string, uploadedById: string, width: number, height: number, takenAt?: string): PhotoRow {
+export function dbAddUploadedPhoto(channelId: string, url: string, filename: string, uploadedById: string, width: number, height: number, takenAt?: string, caption?: string): PhotoRow {
   const uploadedAt = new Date().toISOString();
   const result = db.prepare(
-    "INSERT INTO photos (channel_id, url, filename, uploaded_by_id, uploaded_at, taken_at, width, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-  ).run(channelId, url, filename, uploadedById, uploadedAt, takenAt ?? null, width, height);
-  return { id: result.lastInsertRowid as number, channelId, url, filename, uploadedById, uploadedAt, takenAt, width, height };
+    "INSERT INTO photos (channel_id, url, filename, uploaded_by_id, uploaded_at, taken_at, width, height, caption) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run(channelId, url, filename, uploadedById, uploadedAt, takenAt ?? null, width, height, caption ?? null);
+  return { id: result.lastInsertRowid as number, channelId, url, filename, uploadedById, uploadedAt, takenAt, width, height, caption };
 }
 
 export function dbGetPhotoCount(): number {

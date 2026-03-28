@@ -156,6 +156,7 @@ interface PendingUpload {
   authorId: string;
   authorName: string;
   avatarUrl?: string;
+  caption?: string;
   originalMessage: Message;
 }
 const pendingUploads = new Map<string, PendingUpload>();
@@ -170,12 +171,14 @@ export async function handleAlbumMessageCreate(message: Message): Promise<void> 
   const member = message.guild?.members.cache.get(message.author.id);
   const displayName = member?.displayName ?? message.author.displayName ?? message.author.username;
 
+  const caption = imageAttachments.length === 1 && message.content.trim() ? message.content.trim() : undefined;
   pendingUploads.set(pendingId, {
     channelId: message.channelId,
     attachments: imageAttachments.map(a => ({ url: a.url, name: a.name || "photo.jpg" })),
     authorId: message.author.id,
     authorName: displayName,
     avatarUrl: message.author.avatarURL() ?? undefined,
+    caption,
     originalMessage: message,
   });
   setTimeout(() => pendingUploads.delete(pendingId), 10 * 60 * 1000);
@@ -188,7 +191,7 @@ export async function handleAlbumMessageCreate(message: Message): Promise<void> 
 }
 
 async function processUpload(pending: PendingUpload): Promise<number> {
-  const { channelId, attachments, authorId, authorName, avatarUrl } = pending;
+  const { channelId, attachments, authorId, authorName, avatarUrl, caption } = pending;
   dbUpsertUser(authorId, authorName, avatarUrl);
   const albumDir = path.join(PHOTO_STORAGE_PATH, channelId);
   fs.mkdirSync(albumDir, { recursive: true });
@@ -216,7 +219,7 @@ async function processUpload(pending: PendingUpload): Promise<number> {
         }
       } catch {}
       try { await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(path.join(thumbDir, name)); } catch {}
-      dbAddUploadedPhoto(channelId, `/uploads/${channelId}/${name}`, name, authorId, width, height, takenAt);
+      dbAddUploadedPhoto(channelId, `/uploads/${channelId}/${name}`, name, authorId, width, height, takenAt, attachments.length === 1 ? caption : undefined);
       count++;
     } catch (e) { console.error("Failed to upload photo:", e); }
   }
