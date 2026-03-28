@@ -28,7 +28,7 @@
           </div>
         </div>
         <div class="card-right" v-if="buildCollage(album, heroSize).length">
-          <div class="card-collage" :style="{ width: collageWidth(album, heroSize), height: heroSize + 'px', position: 'relative', flexShrink: '0' }">
+          <div class="card-collage" :style="{ width: collageWidth(album, heroSize), height: collageHeight(album, heroSize), position: 'relative', flexShrink: '0' }">
             <img v-for="item in buildCollage(album, heroSize)" :key="item.photo.id"
               :src="thumbUrl(item.photo.url)" @error="($event.target as HTMLImageElement).src = item.photo.url"
               :style="{ position: 'absolute', left: item.cssLeft + 'px', top: item.cssTop + 'px', width: item.size + 'px', height: item.size + 'px', objectFit: 'cover', borderRadius: '4px', boxShadow: '1px 1px 6px rgba(0,0,0,0.6)', zIndex: item.zIndex }" />
@@ -100,34 +100,39 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   const count = Math.floor(Math.sqrt(album.photos.length));
   const sorted = [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
   if (!sorted.length) return [];
-  const raw: Array<{ photo: Photo; size: number; x: number; y: number; z: number }> = [];
-  raw.push({ photo: sorted[0], size: H, x: 0, y: 0, z: 100 });
-  let idx = 1, z = 90, perSide = 1;
-  let displaySize = H * 0.7, prevDisplay = H;
-  let rightCX = H / 2, leftCX = H / 2;
   const OVERLAP = 5;
+  // cx/cy are center coords relative to hero center; oval is 2:1 (y scaled by 0.5)
+  const raw: Array<{ photo: Photo; size: number; cx: number; cy: number; z: number }> = [];
+  raw.push({ photo: sorted[0], size: H, cx: 0, cy: 0, z: 100 });
+  let idx = 1, z = 90, nInRing = 2;
+  let displaySize = H * 0.7, prevDisplay = H, r = 0;
   while (idx < sorted.length && displaySize >= 8) {
-    const gap = (prevDisplay + displaySize) / 2 - OVERLAP;
-    const startY = (H - perSide * displaySize) / 2;
-    rightCX += gap;
-    for (let k = 0; k < perSide && idx < sorted.length; k++, idx++)
-      raw.push({ photo: sorted[idx], size: displaySize, x: rightCX - displaySize / 2, y: startY + k * displaySize, z });
-    leftCX -= gap;
-    for (let k = 0; k < perSide && idx < sorted.length; k++, idx++)
-      raw.push({ photo: sorted[idx], size: displaySize, x: leftCX - displaySize / 2, y: startY + k * displaySize, z });
-    prevDisplay = displaySize; displaySize *= 0.7; perSide *= 2; z -= 10;
+    r += (prevDisplay + displaySize) / 2 - OVERLAP;
+    const nPlaced = Math.min(nInRing, sorted.length - idx);
+    for (let i = 0; i < nPlaced; i++, idx++) {
+      const angle = (i / nInRing) * 2 * Math.PI;
+      raw.push({ photo: sorted[idx], size: displaySize, cx: r * Math.cos(angle), cy: r * Math.sin(angle) / 2, z });
+    }
+    prevDisplay = displaySize; displaySize *= 0.7; nInRing *= 2; z -= 10;
   }
-  // Center the bounding box around the hero
-  const minX = Math.min(...raw.map(r => r.x));
-  const maxX = Math.max(...raw.map(r => r.x + r.size));
-  const shift = H / 2 - (minX + maxX) / 2;
-  const finalOffset = Math.max(0, -(minX + shift));
-  return raw.map(r => ({ photo: r.photo, size: r.size, cssLeft: r.x + shift + finalOffset, cssTop: r.y, zIndex: r.z }));
+  const minX = Math.min(...raw.map(p => p.cx - p.size / 2));
+  const minY = Math.min(...raw.map(p => p.cy - p.size / 2));
+  const maxX = Math.max(...raw.map(p => p.cx + p.size / 2));
+  // Center hero horizontally in bounding box
+  const shift = -(minX + maxX) / 2;
+  const offX = Math.max(0, -(minX + shift));
+  const offY = Math.max(0, -minY);
+  return raw.map(p => ({ photo: p.photo, size: p.size, cssLeft: p.cx - p.size / 2 + shift + offX, cssTop: p.cy - p.size / 2 + offY, zIndex: p.z }));
 }
 
 function collageWidth(album: Album, H: number): string {
   const items = buildCollage(album, H);
   return (items.length ? Math.max(...items.map(i => i.cssLeft + i.size)) : 0) + 'px';
+}
+
+function collageHeight(album: Album, H: number): string {
+  const items = buildCollage(album, H);
+  return (items.length ? Math.max(...items.map(i => i.cssTop + i.size)) : H) + 'px';
 }
 
 function formatAlbumDate(startDate: string, endDate?: string): string {
