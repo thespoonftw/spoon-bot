@@ -97,7 +97,7 @@ function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumb
 interface CollageItem { photo: Photo; size: number; cssLeft: number; cssTop: number; zIndex: number; }
 
 function buildCollage(album: Album, H = 160): CollageItem[] {
-  const count = Math.min(Math.floor(Math.sqrt(album.photos.length)), 7);
+  const count = Math.min(Math.floor(Math.sqrt(album.photos.length)), 9);
   const sorted = [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
   if (!sorted.length) return [];
 
@@ -110,9 +110,11 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   const dy = (s3 - OV) / 2;
   // size-3 y: sits above the shifted size-2 with OV overlap
   const cy4 = dy - s2 / 2 + OV - s3 / 2;  // = (OV - s2) / 2, negative = above center
-  // size-4 tucked in corner: touching size-3 on its right, touching size-2 on its top
+  // size-4 #1: tucked in corner touching size-3 on its right, size-2 on its top
   const cx6 = cx4 + (s3 + s4) / 2 - OV;
   const cy6 = dy - s2 / 2 + OV - s4 / 2;
+  // size-4 #2: directly right of size-4 #1, same height (also touches size-2 top)
+  const cx8 = cx6 + s4 - OV;
 
   type R = { photo: Photo; size: number; cx: number; cy: number; z: number };
   const raw: R[] = [];
@@ -123,6 +125,8 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   if (count >= 5) raw.push({ photo: sorted[4], size: s3, cx: -cx4,  cy: -cy4, z: 80 });
   if (count >= 6) raw.push({ photo: sorted[5], size: s4, cx:  cx6,  cy:  cy6, z: 70 });
   if (count >= 7) raw.push({ photo: sorted[6], size: s4, cx: -cx6,  cy: -cy6, z: 70 });
+  if (count >= 8) raw.push({ photo: sorted[7], size: s4, cx:  cx8,  cy:  cy6, z: 70 });
+  if (count >= 9) raw.push({ photo: sorted[8], size: s4, cx: -cx8,  cy: -cy6, z: 70 });
 
   const minX = Math.min(...raw.map(p => p.cx - p.size / 2));
   const maxX = Math.max(...raw.map(p => p.cx + p.size / 2));
