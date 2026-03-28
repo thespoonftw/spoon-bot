@@ -156,6 +156,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .pswp__bottom-bar { flex-wrap: nowrap; }
   .pswp-votes { width: auto; order: 2; min-width: 330px; }
   .pswp-meta-right { order: 3; }
+  .pswp__bottom-bar .pswp-caption-display { display: none; }
+  .pswp__top-meta .pswp-caption-display { display: block; width: 100%; text-align: center; margin-top: 4px; }
 }
 .user-card:hover:not(:disabled) { background: #45475a; }
 .user-card:disabled { opacity: 0.6; cursor: default; }
