@@ -14,7 +14,7 @@ import type { Client, Guild } from "discord.js";
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbHasAlbum, dbUpdateAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbListTables, dbTablePage } from "./db";
+import { dbHasAlbum, dbUpdateAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbSetPhotoCaption, dbListTables, dbTablePage } from "./db";
 
 const PHOTO_STORAGE_PATH = process.env.PHOTO_STORAGE_PATH ?? path.join(DATA_DIR, "photos");
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
@@ -216,6 +216,23 @@ export function startWebServer(): void {
         try {
           const { userIds } = JSON.parse(body);
           dbSetPhotoTagged(photoId, Array.isArray(userIds) ? userIds : []);
+          sendJson(res, 200, { ok: true });
+        } catch { sendJson(res, 500, { error: "Failed" }); }
+      });
+      return;
+    }
+
+    // PATCH /api/album/:channelId/photos/:photoId/caption — set caption
+    if (url.match(/^\/api\/album\/[^/]+\/photos\/\d+\/caption$/) && method === "PATCH") {
+      const photoId = parseInt(url.split("/")[5]);
+      const token = getTokenFromRequest(req);
+      if (!isValidSession(token)) { send401(res); return; }
+      let body = "";
+      req.on("data", chunk => body += chunk);
+      req.on("end", () => {
+        try {
+          const { caption } = JSON.parse(body);
+          dbSetPhotoCaption(photoId, caption ?? "");
           sendJson(res, 200, { ok: true });
         } catch { sendJson(res, 500, { error: "Failed" }); }
       });

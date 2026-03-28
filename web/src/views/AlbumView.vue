@@ -175,6 +175,19 @@
         </template>
       </div>
     </div>
+    <!-- Caption Modal -->
+    <div class="modal-overlay" v-if="showCaption" style="z-index:200000">
+      <div class="modal" :style="dragCaption.style.value">
+        <button class="modal-close" @click="showCaption = false">✕</button>
+        <h2 class="modal-drag-handle" @mousedown="dragCaption.onMouseDown">Edit Caption</h2>
+        <div class="form-group">
+          <textarea v-model="captionText" rows="3" placeholder="Add a caption…" style="width:100%;resize:vertical" @keydown.enter.ctrl="saveCaption" />
+        </div>
+        <div class="modal-actions">
+          <button class="btn-primary" @click="saveCaption" :disabled="captionSaving">{{ captionSaving ? 'Saving…' : 'Save' }}</button>
+        </div>
+      </div>
+    </div>
     <!-- Upload Modal -->
     <div class="modal-overlay" v-if="showUpload" style="z-index:200000"
          :class="{ 'upload-drag-active': uploadDragOver }"
@@ -234,8 +247,9 @@ const dragTagging = useDraggable();
 const dragVotes = useDraggable();
 const dragDelete = useDraggable();
 const dragShare = useDraggable();
+const dragCaption = useDraggable();
 
-interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; score?: number; userVote?: string | null; taggedIds?: string[] }
+interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; caption?: string; score?: number; userVote?: string | null; taggedIds?: string[] }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string; rsvpStatus?: string }
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; endDate?: string; photos: Photo[]; members: Member[] }
 
@@ -265,6 +279,11 @@ const shareCopied = ref(false);
 
 const showEdit = ref(false);
 const showEditMembers = ref(false);
+
+const showCaption = ref(false);
+const captionPhoto = ref<Photo | null>(null);
+const captionText = ref("");
+const captionSaving = ref(false);
 
 // allMembers is populated by MembersModal when it opens; used for getTaggedMembers
 const allMembers = ref<Member[]>([]);
@@ -486,6 +505,29 @@ function handleVote(e: Event, photo: Photo, voteType: string) {
   doVote(photo.id, voteType);
 }
 
+function openCaption(photo: Photo) {
+  captionPhoto.value = photo;
+  captionText.value = photo.caption ?? "";
+  dragCaption.reset();
+  showCaption.value = true;
+}
+
+async function saveCaption() {
+  if (!album.value || !captionPhoto.value) return;
+  captionSaving.value = true;
+  const res = await fetch(`/api/album/${album.value.channelId}/photos/${captionPhoto.value.id}/caption`, {
+    method: "PATCH",
+    headers: authJsonHeaders(),
+    body: JSON.stringify({ caption: captionText.value }),
+  });
+  captionSaving.value = false;
+  if (res.ok) {
+    captionPhoto.value.caption = captionText.value || undefined;
+    refreshLightboxVotes?.();
+    showCaption.value = false;
+  }
+}
+
 function confirmDelete(photo: Photo) { dragDelete.reset(); deletingPhoto.value = photo; }
 
 function handleEscape(e: KeyboardEvent) {
@@ -495,6 +537,7 @@ function handleEscape(e: KeyboardEvent) {
   if (voteModalPhoto.value)    { voteModalPhoto.value = null;     e.stopImmediatePropagation(); return; }
   if (deletingPhoto.value)     { deletingPhoto.value = null;      e.stopImmediatePropagation(); return; }
   if (showShare.value)         { showShare.value = false;         e.stopImmediatePropagation(); return; }
+  if (showCaption.value)       { showCaption.value = false;       e.stopImmediatePropagation(); return; }
 }
 onMounted(() => window.addEventListener("keydown", handleEscape, true));
 onUnmounted(() => window.removeEventListener("keydown", handleEscape, true));
@@ -613,6 +656,7 @@ function openLightbox(index: number) {
     showTagging.value = false;
     showTaggingPicker.value = false;
     voteModalPhoto.value = null;
+    showCaption.value = false;
     const idx = pendingReopenIndex;
     pendingReopenIndex = null;
     if (idx !== null) nextTick(() => openLightbox(idx));
@@ -646,6 +690,16 @@ function openLightbox(index: number) {
         };
         pswp.on("change", update);
         update();
+      },
+    });
+    pswp.ui!.registerElement({
+      name: "caption-button",
+      order: 8,
+      isButton: true,
+      html: "💬",
+      appendTo: "bar",
+      onClick: () => {
+        openCaption(photos[pswp.currIndex]);
       },
     });
     pswp.ui!.registerElement({
@@ -694,9 +748,11 @@ function openLightbox(index: number) {
               ).join("")}</span>`
             : "👥";
           const { dateHtml, uploaderHtml } = buildMetaHtml(p);
+          const captionHtml = p.caption ? `<div class="pswp-caption-display">${p.caption.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>` : "";
           el.innerHTML = `
             <div class="pswp-meta-left">${dateHtml}</div>
             <div class="pswp-meta-right">${uploaderHtml}</div>
+            ${captionHtml}
             <div class="pswp-votes">
               <button data-vote="fav" class="pswp-vote-btn${userVote === "fav" ? " active-fav" : ""}">⭐</button>
               <button data-vote="up" class="pswp-vote-btn${upActive ? " active-up" : ""}">👍</button>

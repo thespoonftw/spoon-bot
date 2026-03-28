@@ -77,6 +77,7 @@ export function initDb() {
     "ALTER TABLE photos ADD COLUMN taken_at TEXT",
     "ALTER TABLE photos ADD COLUMN width INTEGER",
     "ALTER TABLE photos ADD COLUMN height INTEGER",
+    "ALTER TABLE photos ADD COLUMN caption TEXT",
     "ALTER TABLE albums DROP COLUMN date_text",
     "ALTER TABLE photos DROP COLUMN lat",
     "ALTER TABLE photos DROP COLUMN lon",
@@ -140,7 +141,7 @@ function toAlbumRow(raw: Omit<AlbumRow, "dateText"> & { startDate?: string; endD
 export type PhotoRow = {
   id: number; channelId: string; url: string;
   filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string;
-  takenAt?: string; width?: number; height?: number;
+  takenAt?: string; width?: number; height?: number; caption?: string;
   score?: number; userVote?: string | null; taggedIds?: string[];
 };
 export type AlbumWithPhotos = AlbumRow & { photos: PhotoRow[]; members: UserRow[] };
@@ -164,7 +165,7 @@ export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
       SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
         p.uploaded_by_id AS uploadedById,
         COALESCE(u.first_name, u.display_name) AS uploadedByName,
-        p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height,
+        p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption,
         COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
         (SELECT vote_type FROM photo_votes WHERE photo_id = p.id AND user_id = ?) AS userVote,
         (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
@@ -177,7 +178,7 @@ export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
     SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
       p.uploaded_by_id AS uploadedById,
       COALESCE(u.first_name, u.display_name) AS uploadedByName,
-      p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height,
+      p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption,
       COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
       NULL AS userVote,
       (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
@@ -367,6 +368,10 @@ export function dbTablePage(table: string, page: number, pageSize: number): { co
   const rows = db.prepare(`SELECT * FROM "${table}" LIMIT ? OFFSET ?`).raw().all(pageSize, page * pageSize) as unknown[][];
   const columns = db.prepare(`SELECT * FROM "${table}" LIMIT 0`).columns().map(c => c.name);
   return { columns, rows, total };
+}
+
+export function dbSetPhotoCaption(photoId: number, caption: string): void {
+  db.prepare("UPDATE photos SET caption = ? WHERE id = ?").run(caption || null, photoId);
 }
 
 export function dbVotePhoto(photoId: number, userId: string, voteType: string): { score: number; userVote: string | null } {
