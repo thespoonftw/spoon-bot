@@ -78,6 +78,7 @@ export function initDb() {
     "ALTER TABLE photos ADD COLUMN width INTEGER",
     "ALTER TABLE photos ADD COLUMN height INTEGER",
     "ALTER TABLE photos ADD COLUMN caption TEXT",
+    "ALTER TABLE photos ADD COLUMN discord_message_id TEXT",
     "ALTER TABLE albums DROP COLUMN date_text",
     "ALTER TABLE photos DROP COLUMN lat",
     "ALTER TABLE photos DROP COLUMN lon",
@@ -307,12 +308,16 @@ export function dbGetAllAlbumMembers(channelId: string): AlbumMemberRow[] {
   `).all(channelId) as AlbumMemberRow[];
 }
 
-export function dbAddUploadedPhoto(channelId: string, url: string, filename: string, uploadedById: string, width: number, height: number, takenAt?: string, caption?: string): PhotoRow {
+export function dbAddUploadedPhoto(channelId: string, url: string, filename: string, uploadedById: string, width: number, height: number, takenAt?: string, caption?: string, discordMessageId?: string): PhotoRow {
   const uploadedAt = new Date().toISOString();
   const result = db.prepare(
-    "INSERT INTO photos (channel_id, url, filename, uploaded_by_id, uploaded_at, taken_at, width, height, caption) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  ).run(channelId, url, filename, uploadedById, uploadedAt, takenAt ?? null, width, height, caption ?? null);
+    "INSERT INTO photos (channel_id, url, filename, uploaded_by_id, uploaded_at, taken_at, width, height, caption, discord_message_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run(channelId, url, filename, uploadedById, uploadedAt, takenAt ?? null, width, height, caption ?? null, discordMessageId ?? null);
   return { id: result.lastInsertRowid as number, channelId, url, filename, uploadedById, uploadedAt, takenAt, width, height, caption };
+}
+
+export function dbGetPhotosByDiscordMessageId(messageId: string): { id: number }[] {
+  return db.prepare("SELECT id FROM photos WHERE discord_message_id = ?").all(messageId) as { id: number }[];
 }
 
 export function dbGetPhotoCount(): number {

@@ -8,7 +8,7 @@ const sharp = require("sharp") as (input: string) => { resize(w: number, h: numb
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const exifr = require("exifr") as { parse(file: string, opts: unknown): Promise<Record<string, unknown> | null> };
 import { eventStates, DATA_DIR } from "./state";
-import { initDb, dbHasAlbum, dbInsertAlbum, dbAddUploadedPhoto, dbUpsertUser, dbAddAlbumMember, dbDeleteAlbum } from "./db";
+import { initDb, dbHasAlbum, dbInsertAlbum, dbAddUploadedPhoto, dbUpsertUser, dbAddAlbumMember, dbDeleteAlbum, dbGetPhotosByDiscordMessageId, dbVotePhoto } from "./db";
 import type { Guild } from "discord.js";
 
 const PHOTO_STORAGE_PATH = process.env.PHOTO_STORAGE_PATH ?? path.join(DATA_DIR, "photos");
@@ -91,9 +91,22 @@ async function downloadFile(url: string, destPath: string): Promise<void> {
 }
 
 export async function handleAlbumReaction(reaction: MessageReaction, user: User): Promise<void> {
-  if (!ALBUM_REACTION_EMOJIS.includes(reaction.emoji.name ?? "")) return;
   const channelId = reaction.message.channelId;
   if (!dbHasAlbum(channelId)) return;
+
+  // Any reaction on a single-image message → 👍 upvote for that photo
+  if (!ALBUM_REACTION_EMOJIS.includes(reaction.emoji.name ?? "")) {
+    const message = reaction.message.partial ? await reaction.message.fetch() : reaction.message;
+    const imageAttachments = [...message.attachments.values()].filter(a => a.contentType?.startsWith("image/"));
+    if (imageAttachments.length === 1) {
+      const photos = dbGetPhotosByDiscordMessageId(message.id);
+      if (photos.length === 1) {
+        dbUpsertUser(user.id, user.displayName ?? user.username, user.avatarURL() ?? undefined);
+        dbVotePhoto(photos[0].id, user.id, "up");
+      }
+    }
+    return;
+  }
 
   // Fetch full message if partial
   const message = reaction.message.partial ? await reaction.message.fetch() : reaction.message;
@@ -157,6 +170,7 @@ interface PendingUpload {
   authorName: string;
   avatarUrl?: string;
   caption?: string;
+  messageId: string;
   originalMessage: Message;
 }
 const pendingUploads = new Map<string, PendingUpload>();
@@ -179,6 +193,7 @@ export async function handleAlbumMessageCreate(message: Message): Promise<void> 
     authorName: displayName,
     avatarUrl: message.author.avatarURL() ?? undefined,
     caption,
+    messageId: message.id,
     originalMessage: message,
   });
   setTimeout(() => pendingUploads.delete(pendingId), 10 * 60 * 1000);
@@ -191,7 +206,7 @@ export async function handleAlbumMessageCreate(message: Message): Promise<void> 
 }
 
 async function processUpload(pending: PendingUpload): Promise<number> {
-  const { channelId, attachments, authorId, authorName, avatarUrl, caption } = pending;
+  const { channelId, attachments, authorId, authorName, avatarUrl, caption, messageId } = pending;
   dbUpsertUser(authorId, authorName, avatarUrl);
   const albumDir = path.join(PHOTO_STORAGE_PATH, channelId);
   fs.mkdirSync(albumDir, { recursive: true });
@@ -219,7 +234,7 @@ async function processUpload(pending: PendingUpload): Promise<number> {
         }
       } catch {}
       try { await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(path.join(thumbDir, name)); } catch {}
-      dbAddUploadedPhoto(channelId, `/uploads/${channelId}/${name}`, name, authorId, width, height, takenAt, attachments.length === 1 ? caption : undefined);
+      dbAddUploadedPhoto(channelId, `/uploads/${channelId}/${name}`, name, authorId, width, height, takenAt, attachments.length === 1 ? caption : undefined, messageId);
       count++;
     } catch (e) { console.error("Failed to upload photo:", e); }
   }
