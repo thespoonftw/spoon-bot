@@ -126,8 +126,7 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   const [cx8, cy8] = corner(cx6, cy6, s4 - OV, gapR, dy, (s2 + s4) / 2 - 2);
   // size-5: directly above size-4 #2 on each side, touching with OV overlap
   const s5 = H * 0.2401;
-  const cy10 = cy8 - (s4 + s5) / 2 + OV;   // above photo 8 (right)
-  const cy11 = -cy8 - (s4 + s5) / 2 + OV;  // above photo 9 (left)
+  const cy10 = cy8 - (s4 + s5) / 2 + OV;  // above photo 8 (right), below photo 9 (left) via -cy10
 
   type R = { photo: Photo; size: number; cx: number; cy: number; z: number };
   const raw: R[] = [];
@@ -141,7 +140,7 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   if (count >= 8)  raw.push({ photo: sorted[7],  size: s4, cx:  cx8,  cy:  cy8,  z: 60 });
   if (count >= 9)  raw.push({ photo: sorted[8],  size: s4, cx: -cx8,  cy: -cy8,  z: 60 });
   if (count >= 10) raw.push({ photo: sorted[9],  size: s5, cx:  cx8,  cy:  cy10, z: 50 });
-  if (count >= 11) raw.push({ photo: sorted[10], size: s5, cx: -cx8,  cy:  cy11, z: 50 });
+  if (count >= 11) raw.push({ photo: sorted[10], size: s5, cx: -cx8,  cy: -cy10, z: 50 });
 
   const minX = Math.min(...raw.map(p => p.cx - p.size / 2));
   const maxX = Math.max(...raw.map(p => p.cx + p.size / 2));
