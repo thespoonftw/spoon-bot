@@ -97,7 +97,7 @@ function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumb
 interface CollageItem { photo: Photo; size: number; cssLeft: number; cssTop: number; zIndex: number; }
 
 function buildCollage(album: Album, H = 160): CollageItem[] {
-  const count = Math.min(Math.floor(Math.sqrt(album.photos.length)), 9);
+  const count = Math.min(Math.floor(Math.sqrt(album.photos.length)), 11);
   const sorted = [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
   if (!sorted.length) return [];
 
@@ -123,19 +123,24 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
     const p2: [number, number] = [mx + h * ddy / d, my - h * ddx / d];
     return p1[0] > p2[0] ? p1 : p2;
   }
-  const [cx8, cy8] = corner(cx6, cy6, s4 - OV, gapR, dy, (s2 + s4) / 2 - OV);
+  const [cx8, cy8] = corner(cx6, cy6, s4 - OV, gapR, dy, (s2 + s4) / 2 - 2);
+  // size-5: directly above size-4 #2, touching with OV overlap
+  const s5 = H * 0.2401;
+  const cy10 = cy8 - (s4 + s5) / 2 + OV;
 
   type R = { photo: Photo; size: number; cx: number; cy: number; z: number };
   const raw: R[] = [];
   raw.push({ photo: sorted[0], size: H,  cx: 0,    cy: 0,    z: 100 });
-  if (count >= 2) raw.push({ photo: sorted[1], size: s2, cx:  gapR, cy: count >= 4 ?  dy : 0, z: 90 });
-  if (count >= 3) raw.push({ photo: sorted[2], size: s2, cx: -gapR, cy: count >= 5 ? -dy : 0, z: 90 });
-  if (count >= 4) raw.push({ photo: sorted[3], size: s3, cx:  cx4,  cy:  cy4, z: 80 });
-  if (count >= 5) raw.push({ photo: sorted[4], size: s3, cx: -cx4,  cy: -cy4, z: 80 });
-  if (count >= 6) raw.push({ photo: sorted[5], size: s4, cx:  cx6,  cy:  cy6, z: 70 });
-  if (count >= 7) raw.push({ photo: sorted[6], size: s4, cx: -cx6,  cy: -cy6, z: 70 });
-  if (count >= 8) raw.push({ photo: sorted[7], size: s4, cx:  cx8,  cy:  cy8, z: 70 });
-  if (count >= 9) raw.push({ photo: sorted[8], size: s4, cx: -cx8,  cy: -cy8, z: 70 });
+  if (count >= 2)  raw.push({ photo: sorted[1],  size: s2, cx:  gapR, cy: count >= 4 ?  dy : 0, z: 90 });
+  if (count >= 3)  raw.push({ photo: sorted[2],  size: s2, cx: -gapR, cy: count >= 5 ? -dy : 0, z: 90 });
+  if (count >= 4)  raw.push({ photo: sorted[3],  size: s3, cx:  cx4,  cy:  cy4,  z: 80 });
+  if (count >= 5)  raw.push({ photo: sorted[4],  size: s3, cx: -cx4,  cy: -cy4,  z: 80 });
+  if (count >= 6)  raw.push({ photo: sorted[5],  size: s4, cx:  cx6,  cy:  cy6,  z: 70 });
+  if (count >= 7)  raw.push({ photo: sorted[6],  size: s4, cx: -cx6,  cy: -cy6,  z: 70 });
+  if (count >= 8)  raw.push({ photo: sorted[7],  size: s4, cx:  cx8,  cy:  cy8,  z: 60 });
+  if (count >= 9)  raw.push({ photo: sorted[8],  size: s4, cx: -cx8,  cy: -cy8,  z: 60 });
+  if (count >= 10) raw.push({ photo: sorted[9],  size: s5, cx:  cx8,  cy:  cy10, z: 50 });
+  if (count >= 11) raw.push({ photo: sorted[10], size: s5, cx: -cx8,  cy: -cy10, z: 50 });
 
   const minX = Math.min(...raw.map(p => p.cx - p.size / 2));
   const maxX = Math.max(...raw.map(p => p.cx + p.size / 2));
