@@ -181,7 +181,7 @@
         <button class="modal-close" @click="showCaption = false">✕</button>
         <h2 class="modal-drag-handle" @mousedown="dragCaption.onMouseDown">Edit Caption</h2>
         <div class="form-group">
-          <textarea v-model="captionText" rows="3" placeholder="Add a caption…" style="width:100%;resize:vertical" @keydown.enter.ctrl="saveCaption" />
+          <textarea v-model="captionText" rows="3" placeholder="Add a caption…" style="width:100%;resize:vertical" @keydown.stop @keydown.ctrl.enter.stop="saveCaption" />
         </div>
         <div class="modal-actions">
           <button class="btn-primary" @click="saveCaption" :disabled="captionSaving">{{ captionSaving ? 'Saving…' : 'Save' }}</button>
