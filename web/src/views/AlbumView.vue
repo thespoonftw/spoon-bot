@@ -175,19 +175,6 @@
         </template>
       </div>
     </div>
-    <!-- Caption Modal -->
-    <div class="modal-overlay" v-if="showCaption" style="z-index:200000;pointer-events:none;background:none">
-      <div class="modal" :style="dragCaption.style.value" style="pointer-events:auto" @pointerdown.stop @mousedown.stop @touchstart.stop>
-        <button class="modal-close" @click="showCaption = false">✕</button>
-        <h2 class="modal-drag-handle" @mousedown.stop="dragCaption.onMouseDown">Edit Caption</h2>
-        <div class="form-group">
-          <textarea ref="captionTextarea" v-model="captionText" rows="3" placeholder="Add a caption…" style="width:100%;resize:vertical" @keydown.stop @keydown.ctrl.enter.stop="saveCaption" />
-        </div>
-        <div class="modal-actions">
-          <button class="btn-primary" @click="saveCaption" :disabled="captionSaving">{{ captionSaving ? 'Saving…' : 'Save' }}</button>
-        </div>
-      </div>
-    </div>
     <!-- Upload Modal -->
     <div class="modal-overlay" v-if="showUpload" style="z-index:200000"
          :class="{ 'upload-drag-active': uploadDragOver }"
@@ -247,7 +234,6 @@ const dragTagging = useDraggable();
 const dragVotes = useDraggable();
 const dragDelete = useDraggable();
 const dragShare = useDraggable();
-const dragCaption = useDraggable();
 
 interface Photo { id: number; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; caption?: string; score?: number; userVote?: string | null; taggedIds?: string[] }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string; rsvpStatus?: string }
@@ -280,11 +266,6 @@ const shareCopied = ref(false);
 const showEdit = ref(false);
 const showEditMembers = ref(false);
 
-const showCaption = ref(false);
-const captionPhoto = ref<Photo | null>(null);
-const captionText = ref("");
-const captionSaving = ref(false);
-const captionTextarea = ref<HTMLTextAreaElement | null>(null);
 
 // allMembers is populated by MembersModal when it opens; used for getTaggedMembers
 const allMembers = ref<Member[]>([]);
@@ -506,29 +487,6 @@ function handleVote(e: Event, photo: Photo, voteType: string) {
   doVote(photo.id, voteType);
 }
 
-function openCaption(photo: Photo) {
-  captionPhoto.value = photo;
-  captionText.value = photo.caption ?? "";
-  dragCaption.reset();
-  showCaption.value = true;
-  nextTick(() => captionTextarea.value?.focus());
-}
-
-async function saveCaption() {
-  if (!album.value || !captionPhoto.value) return;
-  captionSaving.value = true;
-  const res = await fetch(`/api/album/${album.value.channelId}/photos/${captionPhoto.value.id}/caption`, {
-    method: "PATCH",
-    headers: authJsonHeaders(),
-    body: JSON.stringify({ caption: captionText.value }),
-  });
-  captionSaving.value = false;
-  if (res.ok) {
-    captionPhoto.value.caption = captionText.value || undefined;
-    refreshLightboxVotes?.();
-    showCaption.value = false;
-  }
-}
 
 function confirmDelete(photo: Photo) { dragDelete.reset(); deletingPhoto.value = photo; }
 
@@ -539,7 +497,6 @@ function handleEscape(e: KeyboardEvent) {
   if (voteModalPhoto.value)    { voteModalPhoto.value = null;     e.stopImmediatePropagation(); return; }
   if (deletingPhoto.value)     { deletingPhoto.value = null;      e.stopImmediatePropagation(); return; }
   if (showShare.value)         { showShare.value = false;         e.stopImmediatePropagation(); return; }
-  if (showCaption.value)       { showCaption.value = false;       e.stopImmediatePropagation(); return; }
 }
 onMounted(() => window.addEventListener("keydown", handleEscape, true));
 onUnmounted(() => window.removeEventListener("keydown", handleEscape, true));
@@ -602,7 +559,6 @@ function openLightbox(index: number) {
 
   // Keyboard up/down to vote (up → fav → neutral cycle, down = downvote)
   const onKeyDown = (e: KeyboardEvent) => {
-    if (showCaption.value) return;
     const p = photos[pswp.currIndex];
     if (e.key === "ArrowUp") {
       e.preventDefault();
@@ -659,7 +615,6 @@ function openLightbox(index: number) {
     showTagging.value = false;
     showTaggingPicker.value = false;
     voteModalPhoto.value = null;
-    showCaption.value = false;
     const idx = pendingReopenIndex;
     pendingReopenIndex = null;
     if (idx !== null) nextTick(() => openLightbox(idx));
@@ -695,15 +650,66 @@ function openLightbox(index: number) {
         update();
       },
     });
+    // Caption editor — lives inside pswp DOM so focus trap allows keyboard input
+    let captionEditorEl: HTMLElement | null = null;
+    let captionInputEl: HTMLTextAreaElement | null = null;
+    const showCaptionEditor = () => {
+      if (!captionEditorEl || !captionInputEl) return;
+      captionInputEl.value = photos[pswp.currIndex].caption ?? "";
+      captionEditorEl.style.display = "flex";
+      captionInputEl.focus();
+    };
+    const hideCaptionEditor = () => { if (captionEditorEl) captionEditorEl.style.display = "none"; };
+    pswp.ui!.registerElement({
+      name: "caption-editor",
+      order: 10,
+      isButton: false,
+      appendTo: "root",
+      onInit: (el) => {
+        captionEditorEl = el;
+        el.style.cssText = "display:none;position:absolute;bottom:70px;left:50%;transform:translateX(-50%);width:min(420px,90vw);background:#181825;border-radius:10px;padding:16px;flex-direction:column;gap:10px;z-index:10;box-shadow:0 4px 24px rgba(0,0,0,0.7)";
+        const ta = document.createElement("textarea");
+        ta.placeholder = "Add a caption…";
+        ta.rows = 3;
+        ta.style.cssText = "width:100%;background:#313244;color:#cdd6f4;border:none;border-radius:6px;padding:8px;font-size:0.95em;resize:vertical;font-family:inherit";
+        ta.addEventListener("keydown", (e) => {
+          e.stopPropagation();
+          if (e.key === "Escape") { e.preventDefault(); hideCaptionEditor(); }
+        });
+        captionInputEl = ta;
+        const actions = document.createElement("div");
+        actions.style.cssText = "display:flex;gap:8px;justify-content:flex-end";
+        const saveBtn = document.createElement("button");
+        saveBtn.textContent = "Save";
+        saveBtn.style.cssText = "background:#cba6f7;color:#1e1e2e;border:none;border-radius:6px;padding:6px 16px;cursor:pointer;font-weight:600";
+        saveBtn.addEventListener("click", async () => {
+          if (!album.value) return;
+          const photo = photos[pswp.currIndex];
+          const caption = ta.value;
+          saveBtn.textContent = "Saving…";
+          saveBtn.disabled = true;
+          const res = await fetch(`/api/album/${album.value.channelId}/photos/${photo.id}/caption`, {
+            method: "PATCH", headers: authJsonHeaders(), body: JSON.stringify({ caption }),
+          });
+          saveBtn.textContent = "Save";
+          saveBtn.disabled = false;
+          if (res.ok) { photo.caption = caption || undefined; refreshLightboxVotes?.(); hideCaptionEditor(); }
+        });
+        const cancelBtn = document.createElement("button");
+        cancelBtn.textContent = "Cancel";
+        cancelBtn.style.cssText = "background:#45475a;color:#cdd6f4;border:none;border-radius:6px;padding:6px 16px;cursor:pointer";
+        cancelBtn.addEventListener("click", hideCaptionEditor);
+        actions.append(saveBtn, cancelBtn);
+        el.append(ta, actions);
+      },
+    });
     pswp.ui!.registerElement({
       name: "caption-button",
       order: 8,
       isButton: true,
       html: "💬",
       appendTo: "bar",
-      onClick: () => {
-        openCaption(photos[pswp.currIndex]);
-      },
+      onClick: () => { showCaptionEditor(); },
     });
     pswp.ui!.registerElement({
       name: "delete-button",
