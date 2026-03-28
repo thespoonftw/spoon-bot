@@ -153,7 +153,24 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
       try { await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(path.join(thumbDir, name)); } catch {}
 
       const photoUrl = `/uploads/${channelId}/${name}`;
-      dbAddUploadedPhoto(channelId, photoUrl, name, author.id, width, height, takenAt);
+      const caption = imageAttachments.length === 1 && message.content.trim() ? message.content.trim() : undefined;
+      const photo = dbAddUploadedPhoto(channelId, photoUrl, name, author.id, width, height, takenAt, caption, message.id);
+
+      // If single image, backfill any existing non-album reactions as upvotes
+      if (imageAttachments.length === 1) {
+        for (const [, msgReaction] of message.reactions.cache) {
+          if (ALBUM_REACTION_EMOJIS.includes(msgReaction.emoji.name ?? "")) continue;
+          try {
+            const reactors = await msgReaction.users.fetch();
+            for (const [, reactUser] of reactors) {
+              if (reactUser.bot) continue;
+              dbUpsertUser(reactUser.id, reactUser.displayName ?? reactUser.username, reactUser.avatarURL() ?? undefined);
+              dbVotePhoto(photo.id, reactUser.id, "up");
+            }
+          } catch (e) { console.error("Failed to backfill reaction votes:", e); }
+        }
+      }
+
       anySuccess = true;
     } catch (e) { console.error("Failed to download/process reaction attachment:", e); }
   }
