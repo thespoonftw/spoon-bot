@@ -546,7 +546,7 @@ function openLightbox(index: number) {
     bgClickAction: "none",
     loop: false,
     paddingFn: (viewportSize: { x: number; y: number }) =>
-      viewportSize.x >= 768 ? { top: 100, bottom: 70, left: 0, right: 0 } : { top: 0, bottom: 0, left: 0, right: 0 },
+      viewportSize.x >= 768 ? { top: 50, bottom: 70, left: 0, right: 0 } : { top: 0, bottom: 0, left: 0, right: 0 },
   });
   // Always use msrc thumbnail as placeholder, even for pre-loaded inactive slides
   (pswp as any).addFilter("placeholderSrc", (_: any, content: any) => content.data.msrc || false);
@@ -789,7 +789,7 @@ function openLightbox(index: number) {
             if (caption) {
               if (window.innerWidth >= 768) {
                 captionDisplayEl.style.bottom = "auto";
-                captionDisplayEl.style.top = "72px";
+                captionDisplayEl.style.top = "14px";
               } else {
                 captionDisplayEl.style.bottom = "72px";
                 captionDisplayEl.style.top = "auto";
