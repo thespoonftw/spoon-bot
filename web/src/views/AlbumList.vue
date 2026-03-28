@@ -97,28 +97,30 @@ function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumb
 interface CollageItem { photo: Photo; size: number; cssLeft: number; cssTop: number; zIndex: number; }
 
 function buildCollage(album: Album, H = 160): CollageItem[] {
-  const count = Math.floor(Math.sqrt(album.photos.length));
+  const count = Math.min(Math.floor(Math.sqrt(album.photos.length)), 5);
   const sorted = [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
   if (!sorted.length) return [];
-  const OVERLAP = 5;
-  // cx/cy are center coords relative to hero center; oval is 2:1 (y scaled by 0.5)
-  const raw: Array<{ photo: Photo; size: number; cx: number; cy: number; z: number }> = [];
-  raw.push({ photo: sorted[0], size: H, cx: 0, cy: 0, z: 100 });
-  let idx = 1, z = 90, nInRing = 2;
-  let displaySize = H * 0.7, prevDisplay = H, r = 0;
-  while (idx < sorted.length && displaySize >= 8) {
-    r += (prevDisplay + displaySize) / 2 - OVERLAP;
-    const nPlaced = Math.min(nInRing, sorted.length - idx);
-    for (let i = 0; i < nPlaced; i++, idx++) {
-      const angle = (i / nInRing) * 2 * Math.PI;
-      raw.push({ photo: sorted[idx], size: displaySize, cx: r * Math.cos(angle), cy: r * Math.sin(angle) / 2, z });
-    }
-    prevDisplay = displaySize; displaySize *= 0.7; nInRing *= 2; z -= 10;
-  }
+
+  const s2 = H * 0.7, s3 = H * 0.49;
+  const OV = 5;
+  // horizontal center-to-center from hero to size-2 column
+  const gapR = (H + s2) / 2 - OV;
+  // vertical offset applied to size-2 when size-3 shares its column
+  const dy = (s3 - OV) / 2;
+  // size-3 center y when stacked above a size-2 that is shifted down by dy
+  const y3 = dy - s2 / 2 + OV - s3 / 2;
+
+  type R = { photo: Photo; size: number; cx: number; cy: number; z: number };
+  const raw: R[] = [];
+  raw.push({ photo: sorted[0], size: H,  cx: 0,     cy: 0,   z: 100 });
+  if (count >= 2) raw.push({ photo: sorted[1], size: s2, cx:  gapR, cy: count >= 4 ?  dy : 0, z: 90 });
+  if (count >= 3) raw.push({ photo: sorted[2], size: s2, cx: -gapR, cy: count >= 5 ? -dy : 0, z: 90 });
+  if (count >= 4) raw.push({ photo: sorted[3], size: s3, cx:  gapR, cy: y3,  z: 80 });
+  if (count >= 5) raw.push({ photo: sorted[4], size: s3, cx: -gapR, cy: -y3, z: 80 });
+
   const minX = Math.min(...raw.map(p => p.cx - p.size / 2));
-  const minY = Math.min(...raw.map(p => p.cy - p.size / 2));
   const maxX = Math.max(...raw.map(p => p.cx + p.size / 2));
-  // Center hero horizontally in bounding box
+  const minY = Math.min(...raw.map(p => p.cy - p.size / 2));
   const shift = -(minX + maxX) / 2;
   const offX = Math.max(0, -(minX + shift));
   const offY = Math.max(0, -minY);
