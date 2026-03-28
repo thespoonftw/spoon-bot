@@ -625,6 +625,7 @@ function openLightbox(index: number) {
   });
   pswp.on("uiRegister", () => {
     let topMetaEl: HTMLElement | null = null;
+    let captionDisplayEl: HTMLElement | null = null;
     const buildMetaHtml = (p: Photo) => {
       const dateHtml = p?.takenAt ? `<span class="pswp-caption-date">${formatTime(p.takenAt)}</span>` : "";
       const uploaderMember = p?.uploadedById ? album.value?.members.find(m => m.userId === p.uploadedById) : null;
@@ -648,6 +649,17 @@ function openLightbox(index: number) {
         };
         pswp.on("change", update);
         update();
+      },
+    });
+    // Dedicated caption display — absolute positioned to avoid flex layout issues
+    pswp.ui!.registerElement({
+      name: "caption-display",
+      order: 7,
+      isButton: false,
+      appendTo: "root",
+      onInit: (el) => {
+        captionDisplayEl = el;
+        el.style.cssText = "position:absolute;left:0;right:0;text-align:center;color:rgba(255,255,255,0.9);font-size:0.9em;text-shadow:0 1px 3px rgba(0,0,0,0.6);pointer-events:none;padding:0 20px;display:none";
       },
     });
     // Caption editor — lives inside pswp DOM so focus trap allows keyboard input
@@ -757,11 +769,9 @@ function openLightbox(index: number) {
               ).join("")}</span>`
             : "👥";
           const { dateHtml, uploaderHtml } = buildMetaHtml(p);
-          const captionHtml = p.caption ? `<div class="pswp-caption-display">${p.caption.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>` : "";
           el.innerHTML = `
             <div class="pswp-meta-left">${dateHtml}</div>
             <div class="pswp-meta-right">${uploaderHtml}</div>
-            ${captionHtml}
             <div class="pswp-votes">
               <button data-vote="fav" class="pswp-vote-btn${userVote === "fav" ? " active-fav" : ""}">⭐</button>
               <button data-vote="up" class="pswp-vote-btn${upActive ? " active-up" : ""}">👍</button>
@@ -770,7 +780,22 @@ function openLightbox(index: number) {
               <button data-action="tagged" class="pswp-vote-btn${taggedMs.length ? " active-fav" : ""}">${taggedBtnContent}</button>
             </div>
           `;
-          if (topMetaEl) topMetaEl.innerHTML = `<div class="pswp-meta-left">${dateHtml}</div><div class="pswp-meta-right">${uploaderHtml}</div>${captionHtml}`;
+          if (topMetaEl) topMetaEl.innerHTML = `<div class="pswp-meta-left">${dateHtml}</div><div class="pswp-meta-right">${uploaderHtml}</div>`;
+          if (captionDisplayEl) {
+            const caption = p.caption || "";
+            captionDisplayEl.textContent = caption;
+            captionDisplayEl.style.display = caption ? "block" : "none";
+            // Position: above votebar on mobile (bottom ~70px), below top-meta on desktop
+            if (caption) {
+              if (window.innerWidth >= 768) {
+                captionDisplayEl.style.bottom = "auto";
+                captionDisplayEl.style.top = "130px";
+              } else {
+                captionDisplayEl.style.bottom = "72px";
+                captionDisplayEl.style.top = "auto";
+              }
+            }
+          }
         };
         refreshLightboxVotes = update;
         pswp.on("change", update);

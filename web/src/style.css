@@ -71,8 +71,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 }
 .pswp-meta-left { flex: 1; display: flex; flex-direction: column; gap: 2px; order: 1; }
 .pswp-meta-right { flex: 1; text-align: right; order: 2; }
-.pswp-votes { width: 100%; display: flex; align-items: center; order: 4; pointer-events: auto; }
-.pswp-caption-display { width: 100%; order: 3; color: rgba(255,255,255,0.9); font-size: 0.9em; padding: 4px 0 2px; text-align: center; }
+.pswp-votes { width: 100%; display: flex; align-items: center; order: 3; pointer-events: auto; }
 .pswp-caption-date { color: rgba(255,255,255,0.85); font-size: 0.9em; }
 .pswp-caption-uploader { color: rgba(255,255,255,0.85); font-size: 0.9em; }
 .pswp-upload-date { color: rgba(255,255,255,0.85); font-size: 0.9em; display: none; }
@@ -156,8 +155,6 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .pswp__bottom-bar { flex-wrap: nowrap; }
   .pswp-votes { width: auto; order: 2; min-width: 330px; }
   .pswp-meta-right { order: 3; }
-  .pswp__bottom-bar .pswp-caption-display { display: none; }
-  .pswp__top-meta .pswp-caption-display { display: block; width: 100%; text-align: center; margin-top: 4px; }
 }
 .user-card:hover:not(:disabled) { background: #45475a; }
 .user-card:disabled { opacity: 0.6; cursor: default; }
