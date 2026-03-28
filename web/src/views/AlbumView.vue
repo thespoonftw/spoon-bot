@@ -176,10 +176,10 @@
       </div>
     </div>
     <!-- Caption Modal -->
-    <div class="modal-overlay" v-if="showCaption" style="z-index:200000">
-      <div class="modal" :style="dragCaption.style.value">
+    <div class="modal-overlay" v-if="showCaption" style="z-index:200000;pointer-events:none;background:none">
+      <div class="modal" :style="dragCaption.style.value" style="pointer-events:auto" @pointerdown.stop @mousedown.stop @touchstart.stop>
         <button class="modal-close" @click="showCaption = false">✕</button>
-        <h2 class="modal-drag-handle" @mousedown="dragCaption.onMouseDown">Edit Caption</h2>
+        <h2 class="modal-drag-handle" @mousedown.stop="dragCaption.onMouseDown">Edit Caption</h2>
         <div class="form-group">
           <textarea ref="captionTextarea" v-model="captionText" rows="3" placeholder="Add a caption…" style="width:100%;resize:vertical" @keydown.stop @keydown.ctrl.enter.stop="saveCaption" />
         </div>
