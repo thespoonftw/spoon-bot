@@ -181,7 +181,7 @@
         <button class="modal-close" @click="showCaption = false">✕</button>
         <h2 class="modal-drag-handle" @mousedown="dragCaption.onMouseDown">Edit Caption</h2>
         <div class="form-group">
-          <textarea v-model="captionText" rows="3" placeholder="Add a caption…" style="width:100%;resize:vertical" @keydown.stop @keydown.ctrl.enter.stop="saveCaption" />
+          <textarea ref="captionTextarea" v-model="captionText" rows="3" placeholder="Add a caption…" style="width:100%;resize:vertical" @keydown.stop @keydown.ctrl.enter.stop="saveCaption" />
         </div>
         <div class="modal-actions">
           <button class="btn-primary" @click="saveCaption" :disabled="captionSaving">{{ captionSaving ? 'Saving…' : 'Save' }}</button>
@@ -284,6 +284,7 @@ const showCaption = ref(false);
 const captionPhoto = ref<Photo | null>(null);
 const captionText = ref("");
 const captionSaving = ref(false);
+const captionTextarea = ref<HTMLTextAreaElement | null>(null);
 
 // allMembers is populated by MembersModal when it opens; used for getTaggedMembers
 const allMembers = ref<Member[]>([]);
@@ -510,6 +511,7 @@ function openCaption(photo: Photo) {
   captionText.value = photo.caption ?? "";
   dragCaption.reset();
   showCaption.value = true;
+  nextTick(() => captionTextarea.value?.focus());
 }
 
 async function saveCaption() {
@@ -600,6 +602,7 @@ function openLightbox(index: number) {
 
   // Keyboard up/down to vote (up → fav → neutral cycle, down = downvote)
   const onKeyDown = (e: KeyboardEvent) => {
+    if (showCaption.value) return;
     const p = photos[pswp.currIndex];
     if (e.key === "ArrowUp") {
       e.preventDefault();
