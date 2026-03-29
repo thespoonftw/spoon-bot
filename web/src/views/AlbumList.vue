@@ -132,9 +132,9 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   // size-6: in corner touching both size-4 photos (6 and 8), via circle intersection
   const s6 = H * 0.16807;
   const [cx12, cy12] = corner(cx6, cy6, (s4 + s6) / 2 - OV, cx8, cy8, (s4 + s6) / 2 - OV);
-  // photo 14: directly touching the left of the top size-2 (photo 3), above the size-6 photo 13
+  // photo 14: directly touching the left of the top size-2 (photo 3), slightly above centre
   const cx14 = -gapR - (s2 + s6) / 2 + OV;
-  const cy14 = -cy12 - s6 + OV;
+  const cy14 = -dy - s6 * 0.5;
 
   type R = { photo: Photo; size: number; cx: number; cy: number; z: number; debug?: boolean };
   const raw: R[] = [];
