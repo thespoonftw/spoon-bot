@@ -97,7 +97,7 @@ function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumb
 interface CollageItem { photo: Photo; size: number; cssLeft: number; cssTop: number; zIndex: number; }
 
 function buildCollage(album: Album, H = 160): CollageItem[] {
-  const count = Math.min(Math.floor(Math.sqrt(album.photos.length)), 13);
+  const count = Math.min(Math.floor(Math.sqrt(album.photos.length)), 14);
   const eligible = album.photos.filter(p => (p.score ?? 0) >= 1);
   for (let i = eligible.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [eligible[i], eligible[j]] = [eligible[j], eligible[i]]; }
   const sorted = eligible.sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
@@ -132,6 +132,8 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   // size-6: in corner touching both size-4 photos (6 and 8), via circle intersection
   const s6 = H * 0.16807;
   const [cx12, cy12] = corner(cx6, cy6, (s4 + s6) / 2 - OV, cx8, cy8, (s4 + s6) / 2 - OV);
+  // photo 14: top-left corner touching size-2 (photo 3) and size-5 (photo 11)
+  const [cx14, cy14] = corner(-gapR, -dy, (s2 + s6) / 2 - OV, -cx8, -cy10, (s5 + s6) / 2 - OV);
 
   type R = { photo: Photo; size: number; cx: number; cy: number; z: number };
   const raw: R[] = [];
@@ -148,6 +150,7 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   if (count >= 11) raw.push({ photo: sorted[10], size: s5, cx: -cx8,  cy: -cy10, z: 50 });
   if (count >= 12) raw.push({ photo: sorted[11], size: s6, cx:  cx12, cy:  cy12, z: 40 });
   if (count >= 13) raw.push({ photo: sorted[12], size: s6, cx: -cx12, cy: -cy12, z: 40 });
+  if (count >= 14) raw.push({ photo: sorted[13], size: s6, cx:  cx14, cy:  cy14, z: 30 });
 
   const minX = Math.min(...raw.map(p => p.cx - p.size / 2));
   const maxX = Math.max(...raw.map(p => p.cx + p.size / 2));
