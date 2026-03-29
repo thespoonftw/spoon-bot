@@ -98,7 +98,9 @@ interface CollageItem { photo: Photo; size: number; cssLeft: number; cssTop: num
 
 function buildCollage(album: Album, H = 160): CollageItem[] {
   const count = Math.min(Math.floor(Math.sqrt(album.photos.length)), 13);
-  const sorted = [...album.photos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
+  const eligible = album.photos.filter(p => (p.score ?? 0) >= 1);
+  for (let i = eligible.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [eligible[i], eligible[j]] = [eligible[j], eligible[i]]; }
+  const sorted = eligible.sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
   if (!sorted.length) return [];
 
   const s2 = H * 0.7, s3 = H * 0.49, s4 = H * 0.343;
