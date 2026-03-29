@@ -31,7 +31,7 @@
           <div class="card-collage" :style="{ width: collageWidth(album, heroSize), height: collageHeight(album, heroSize), position: 'relative', flexShrink: '0' }">
             <img v-for="item in buildCollage(album, heroSize)" :key="item.photo.id"
               :src="thumbUrl(item.photo.url)" @error="($event.target as HTMLImageElement).src = item.photo.url"
-              :style="{ position: 'absolute', left: item.cssLeft + 'px', top: item.cssTop + 'px', width: item.size + 'px', height: item.size + 'px', objectFit: 'cover', borderRadius: '4px', boxShadow: '1px 1px 6px rgba(0,0,0,0.6)', zIndex: item.zIndex }" />
+              :style="{ position: 'absolute', left: item.cssLeft + 'px', top: item.cssTop + 'px', width: item.size + 'px', height: item.size + 'px', objectFit: 'cover', borderRadius: '4px', boxShadow: '1px 1px 6px rgba(0,0,0,0.6)', zIndex: item.zIndex, border: item.debug ? '3px solid red' : undefined }" />
           </div>
         </div>
       </router-link>
@@ -94,7 +94,7 @@ const albumsByYear = computed(() => {
 
 function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumbnails/"); }
 
-interface CollageItem { photo: Photo; size: number; cssLeft: number; cssTop: number; zIndex: number; }
+interface CollageItem { photo: Photo; size: number; cssLeft: number; cssTop: number; zIndex: number; debug?: boolean; }
 
 function buildCollage(album: Album, H = 160): CollageItem[] {
   const count = Math.min(Math.floor(Math.sqrt(album.photos.length)), 14);
@@ -136,7 +136,7 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   const cx14 = -gapR - (s2 + s6) / 2 + OV;
   const cy14 = -dy;
 
-  type R = { photo: Photo; size: number; cx: number; cy: number; z: number };
+  type R = { photo: Photo; size: number; cx: number; cy: number; z: number; debug?: boolean };
   const raw: R[] = [];
   raw.push({ photo: sorted[0], size: H,  cx: 0,    cy: 0,    z: 100 });
   if (count >= 2)  raw.push({ photo: sorted[1],  size: s2, cx:  gapR, cy: count >= 4 ?  dy : 0, z: 90 });
@@ -151,7 +151,7 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   if (count >= 11) raw.push({ photo: sorted[10], size: s5, cx: -cx8,  cy: -cy10, z: 50 });
   if (count >= 12) raw.push({ photo: sorted[11], size: s6, cx:  cx12, cy:  cy12, z: 40 });
   if (count >= 13) raw.push({ photo: sorted[12], size: s6, cx: -cx12, cy: -cy12, z: 40 });
-  if (count >= 14) raw.push({ photo: sorted[13], size: s6, cx:  cx14, cy:  cy14, z: 30 });
+  if (count >= 14) raw.push({ photo: sorted[13], size: s6, cx:  cx14, cy:  cy14, z: 1000, debug: true });
 
   const minX = Math.min(...raw.map(p => p.cx - p.size / 2));
   const maxX = Math.max(...raw.map(p => p.cx + p.size / 2));
@@ -159,7 +159,7 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   const shift = -(minX + maxX) / 2;
   const offX = Math.max(0, -(minX + shift));
   const offY = Math.max(0, -minY);
-  return raw.map(p => ({ photo: p.photo, size: p.size, cssLeft: p.cx - p.size / 2 + shift + offX, cssTop: p.cy - p.size / 2 + offY, zIndex: p.z }));
+  return raw.map(p => ({ photo: p.photo, size: p.size, cssLeft: p.cx - p.size / 2 + shift + offX, cssTop: p.cy - p.size / 2 + offY, zIndex: p.z, debug: p.debug }));
 }
 
 function collageWidth(album: Album, H: number): string {
