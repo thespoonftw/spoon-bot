@@ -116,14 +116,14 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   const cx6 = cx4 + (s3 + s4) / 2 - OV;
   const cy6 = dy - s2 / 2 + OV - s4 / 2;
   // size-4 #2: in corner touching size-4 #1 and size-2, via circle intersection
-  function corner(ax: number, ay: number, ra: number, bx: number, by: number, rb: number): [number, number] {
+  function corner(ax: number, ay: number, ra: number, bx: number, by: number, rb: number, leftmost = false): [number, number] {
     const ddx = bx - ax, ddy = by - ay, d = Math.sqrt(ddx * ddx + ddy * ddy);
     const a = (ra * ra - rb * rb + d * d) / (2 * d);
     const h = Math.sqrt(Math.max(0, ra * ra - a * a));
     const mx = ax + a * ddx / d, my = ay + a * ddy / d;
     const p1: [number, number] = [mx - h * ddy / d, my + h * ddx / d];
     const p2: [number, number] = [mx + h * ddy / d, my - h * ddx / d];
-    return p1[0] > p2[0] ? p1 : p2;
+    return leftmost ? (p1[0] < p2[0] ? p1 : p2) : (p1[0] > p2[0] ? p1 : p2);
   }
   const [cx8, cy8] = corner(cx6, cy6, s4 - OV, gapR, dy, (s2 + s4) / 2 - 2);
   // size-5: directly below/above size-4 #2
@@ -132,10 +132,8 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   // size-6: in corner touching both size-4 photos (6 and 8), via circle intersection
   const s6 = H * 0.16807;
   const [cx12, cy12] = corner(cx6, cy6, (s4 + s6) / 2 - OV, cx8, cy8, (s4 + s6) / 2 - OV);
-  // photo 14: top-left corner touching size-2 (photo 3) and size-5 (photo 11)
-  // mirror x-coords so corner() picks the leftmost intersection, then negate back
-  const [negCx14, cy14] = corner(gapR, -dy, (s2 + s6) / 2 - OV, cx8, -cy10, (s5 + s6) / 2 - OV);
-  const cx14 = -negCx14;
+  // photo 14: top-left corner touching size-2 (photo 3) and size-5 (photo 11), leftmost intersection
+  const [cx14, cy14] = corner(-gapR, -dy, (s2 + s6) / 2 - OV, -cx8, -cy10, (s5 + s6) / 2 - OV, true);
 
   type R = { photo: Photo; size: number; cx: number; cy: number; z: number };
   const raw: R[] = [];
