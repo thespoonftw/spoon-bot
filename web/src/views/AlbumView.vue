@@ -182,7 +182,7 @@
       <div class="modal">
         <button class="modal-close" @click="closeUpload" :disabled="anyUploading">✕</button>
         <h2>Upload Photos</h2>
-        <div class="upload-drop-zone" @click="uploadFileInput?.click()" @dragover.prevent @dragleave.prevent @drop.prevent="onUploadDrop">
+        <div class="upload-drop-zone" @click="uploadFileInput?.click()" @dragover.prevent @dragleave.prevent @drop.stop.prevent="onUploadDrop">
           <div class="upload-drop-icon">📷</div>
           <div>Drop photos here or click to browse</div>
           <input ref="uploadFileInput" type="file" accept="image/*" multiple style="display:none" @change="onFilesSelected" />
@@ -854,10 +854,10 @@ function onFilesSelected(e: Event) {
 
 async function startUpload(files: File[]) {
   if (!album.value) return;
-  const items: UploadItem[] = files.map(f => ({ name: f.name, status: "pending" }));
-  uploadItems.value.push(...items);
+  const startIdx = uploadItems.value.length;
+  uploadItems.value.push(...files.map(f => ({ name: f.name, status: "pending" as const })));
   for (let i = 0; i < files.length; i++) {
-    const item = items[i];
+    const item = uploadItems.value[startIdx + i];
     item.status = "uploading";
     const fd = new FormData();
     fd.append("photo", files[i]);
