@@ -133,7 +133,9 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   const s6 = H * 0.16807;
   const [cx12, cy12] = corner(cx6, cy6, (s4 + s6) / 2 - OV, cx8, cy8, (s4 + s6) / 2 - OV);
   // photo 14: top-left corner touching size-2 (photo 3) and size-5 (photo 11)
-  const [cx14, cy14] = corner(-gapR, -dy, (s2 + s6) / 2 - OV, -cx8, -cy10, (s5 + s6) / 2 - OV);
+  // mirror x-coords so corner() picks the leftmost intersection, then negate back
+  const [negCx14, cy14] = corner(gapR, -dy, (s2 + s6) / 2 - OV, cx8, -cy10, (s5 + s6) / 2 - OV);
+  const cx14 = -negCx14;
 
   type R = { photo: Photo; size: number; cx: number; cy: number; z: number };
   const raw: R[] = [];
