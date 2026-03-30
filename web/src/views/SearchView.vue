@@ -24,9 +24,9 @@
       <div class="search-filters-row">
         <span class="search-filter-label">Sort By:</span>
         <select v-model="sort" @change="resetAndFetch">
+          <option value="top">Highest rated</option>
           <option value="newest">Newest first</option>
           <option value="oldest">Oldest first</option>
-          <option value="top">Highest rated</option>
         </select>
       </div>
     </div>
@@ -66,7 +66,7 @@ const filterMode = ref<"all" | "uploadedBy" | "taggedIn">(
 );
 const filterUserId = ref(sessionStorage.getItem(SEARCH_USER_KEY) ?? "");
 const sort = ref<"newest" | "oldest" | "top">(
-  (sessionStorage.getItem(SEARCH_SORT_KEY) as any) ?? "newest"
+  (sessionStorage.getItem(SEARCH_SORT_KEY) as any) ?? "top"
 );
 const page = ref(0);
 const pageSize = 100;
