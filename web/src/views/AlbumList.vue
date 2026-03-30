@@ -97,7 +97,7 @@ function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumb
 interface CollageItem { photo: Photo; size: number; cssLeft: number; cssTop: number; zIndex: number; }
 
 function buildCollage(album: Album, H = 160): CollageItem[] {
-  const count = Math.min(Math.floor(Math.sqrt(album.photos.length)), 14);
+  const count = Math.min(Math.floor(Math.sqrt(album.photos.length)), 15);
   const eligible = album.photos.filter(p => (p.score ?? 0) >= 1);
   for (let i = eligible.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [eligible[i], eligible[j]] = [eligible[j], eligible[i]]; }
   const sorted = eligible.sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
@@ -135,6 +135,9 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   // photo 14: to the left of size-2 (photo 3), above size-5 (photo 11)
   const cx14 = -gapR - (s2 + s6) / 2 + OV;
   const cy14 = -cy10 - (s5 + s6) / 2 + OV;
+  // photo 15: mirror of photo 14 (right side, below size-5 photo 10)
+  const cx15 = -cx14;
+  const cy15 = -cy14;
 
   type R = { photo: Photo; size: number; cx: number; cy: number; z: number };
   const raw: R[] = [];
@@ -152,6 +155,7 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   if (count >= 12) raw.push({ photo: sorted[11], size: s6, cx:  cx12, cy:  cy12, z: 40 });
   if (count >= 13) raw.push({ photo: sorted[12], size: s6, cx: -cx12, cy: -cy12, z: 40 });
   if (count >= 14) raw.push({ photo: sorted[13], size: s6, cx:  cx14, cy:  cy14, z: 30 });
+  if (count >= 15) raw.push({ photo: sorted[14], size: s6, cx:  cx15, cy:  cy15, z: 30 });
 
   const minX = Math.min(...raw.map(p => p.cx - p.size / 2));
   const maxX = Math.max(...raw.map(p => p.cx + p.size / 2));
