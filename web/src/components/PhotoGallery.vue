@@ -108,6 +108,7 @@ import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 import { useDraggable } from "../utils/draggable";
+import { formatAlbumDate } from "../utils/formatDate";
 
 interface Photo {
   id: number;
@@ -423,7 +424,7 @@ function openLightbox(index: number) {
       const album = props.albumMap?.[p.channelId];
       const locationHtml = album?.location ? `<span class="pswp-location">📍 ${album.location}</span>` : "";
       let dateStr = p?.takenAt ? formatTime(p.takenAt) : "";
-      if (!dateStr && album?.startDate) dateStr = formatAlbumDateRange(album.startDate, album.endDate);
+      if (!dateStr && album?.startDate) dateStr = formatAlbumDate(album.startDate, album.endDate);
       const dateHtml = (locationHtml || dateStr)
         ? `${locationHtml}${dateStr ? `<span class="pswp-caption-date">${dateStr}</span>` : ""}`
         : "";
@@ -614,14 +615,6 @@ function thumbUrl(url: string): string {
   return url.replace("/uploads/", "/thumbnails/");
 }
 
-function formatAlbumDateRange(startDate: string, endDate?: string): string {
-  const parse = (s: string) => {
-    const d = new Date(s + "T00:00:00Z");
-    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
-  };
-  return endDate ? `${parse(startDate)} – ${parse(endDate)}` : parse(startDate);
-}
 
 function formatTime(iso: string): string {
   const d = new Date(iso);

@@ -66,6 +66,7 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useCurrentUser } from "../composables/useCurrentUser";
 import { authJsonHeaders } from "../utils/session";
 import DateRangePicker from "../components/DateRangePicker.vue";
+import { formatAlbumDate } from "../utils/formatDate";
 
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Photo { id: number; url: string; score?: number }
@@ -176,22 +177,6 @@ function collageHeight(album: Album, H: number): string {
   return (items.length ? Math.max(...items.map(i => i.cssTop + i.size)) : H) + 'px';
 }
 
-function formatAlbumDate(startDate: string, endDate?: string): string {
-  const parse = (s: string) => {
-    const d = new Date(s + "T00:00:00Z");
-    const day = d.getUTCDate();
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const month = months[d.getUTCMonth()];
-    const year = d.getUTCFullYear();
-    const suffix = [1, 21, 31].includes(day) ? "st" : [2, 22].includes(day) ? "nd" : [3, 23].includes(day) ? "rd" : "th";
-    return { day, suffix, month, year };
-  };
-  const s = parse(startDate);
-  if (!endDate) return `${s.day}${s.suffix} ${s.month}`;
-  const e = parse(endDate);
-  if (s.year === e.year) return `${s.day}${s.suffix} ${s.month} – ${e.day}${e.suffix} ${e.month}`;
-  return `${s.day}${s.suffix} ${s.month} – ${e.day}${e.suffix} ${e.month} ${e.year}`;
-}
 
 const heroSize = ref(window.innerWidth < 768 ? 120 : 160);
 const onResize = () => { heroSize.value = window.innerWidth < 768 ? 120 : 160; };
