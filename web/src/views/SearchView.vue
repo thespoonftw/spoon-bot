@@ -9,10 +9,9 @@
         <select v-model="filterMode" @change="onFilterModeChange">
           <option value="all">All Photos</option>
           <option value="uploadedBy">Uploaded By</option>
-          <option value="taggedIn">Tagged In</option>
+          <option value="taggedIn">Tagging</option>
         </select>
         <select v-if="filterMode !== 'all'" v-model="filterUserId" @change="resetAndFetch">
-          <option value="">Any person</option>
           <option v-for="u in users" :key="u.userId" :value="u.userId">{{ u.firstName || u.displayName }}</option>
         </select>
         <span class="search-count" v-if="total !== null">{{ total }} result{{ total === 1 ? '' : 's' }}</span>
@@ -61,6 +60,7 @@ const users = ref<User[]>([]);
 const photos = ref<Photo[]>([]);
 const total = ref<number | null>(null);
 const loading = ref(false);
+const currentUserId = ref("");
 const filterMode = ref<"all" | "uploadedBy" | "taggedIn">(
   (sessionStorage.getItem(SEARCH_MODE_KEY) as any) ?? "all"
 );
@@ -90,7 +90,7 @@ async function fetchPhotos() {
 }
 
 function onFilterModeChange() {
-  filterUserId.value = "";
+  filterUserId.value = filterMode.value !== "all" ? currentUserId.value : "";
   resetAndFetch();
 }
 
@@ -98,8 +98,18 @@ function resetAndFetch() { page.value = 0; fetchPhotos(); }
 function changePage(p: number) { page.value = p; fetchPhotos(); window.scrollTo(0, 0); }
 
 onMounted(async () => {
-  const res = await fetch("/api/site-users", { headers: authHeaders() });
-  if (res.ok) users.value = await res.json();
+  const [usersRes, authRes] = await Promise.all([
+    fetch("/api/site-users", { headers: authHeaders() }),
+    fetch("/api/auth/check", { headers: authHeaders() }),
+  ]);
+  if (usersRes.ok) users.value = await usersRes.json();
+  if (authRes.ok) {
+    const { userId } = await authRes.json();
+    currentUserId.value = userId ?? "";
+    if (filterMode.value !== "all" && !filterUserId.value) {
+      filterUserId.value = currentUserId.value;
+    }
+  }
   fetchPhotos();
 });
 </script>
