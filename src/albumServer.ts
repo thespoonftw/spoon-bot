@@ -14,7 +14,7 @@ import type { Client, Guild } from "discord.js";
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbHasAlbum, dbUpdateAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbSetPhotoCaption, dbListTables, dbTablePage } from "./db";
+import { dbHasAlbum, dbUpdateAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbSetPhotoCaption, dbListTables, dbTablePage, dbSearchPhotos } from "./db";
 
 const PHOTO_STORAGE_PATH = process.env.PHOTO_STORAGE_PATH ?? path.join(DATA_DIR, "photos");
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
@@ -74,6 +74,17 @@ export function startWebServer(): void {
       try {
         sendJson(res, 200, { ...dbTablePage(table, page, pageSize), page, pageSize });
       } catch { sendJson(res, 400, { error: "Unknown table" }); }
+      return;
+    }
+
+    if (url.startsWith("/api/photos/search") && method === "GET") {
+      if (!isValidSession(getTokenFromRequest(req))) { send401(res); return; }
+      const params = new URLSearchParams(req.url?.includes("?") ? req.url.slice(req.url.indexOf("?") + 1) : "");
+      const uploadedById = params.get("uploadedById") || undefined;
+      const taggedUserId = params.get("taggedUserId") || undefined;
+      const sort = (params.get("sort") ?? "newest") as "newest" | "oldest" | "top";
+      const page = Math.max(0, parseInt(params.get("page") ?? "0") || 0);
+      sendJson(res, 200, dbSearchPhotos({ uploadedById, taggedUserId, sort, page, pageSize: 100 }));
       return;
     }
 

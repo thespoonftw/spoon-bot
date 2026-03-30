@@ -12,9 +12,14 @@
 
     <div class="landing-grid">
       <router-link to="/albums" class="feature-card">
-        <span class="feature-icon">📸</span>
+        <span class="feature-icon">🖼</span>
         <h2>Albums</h2>
         <p>Browse and upload photo albums</p>
+      </router-link>
+      <router-link to="/search" class="feature-card">
+        <span class="feature-icon">🔍</span>
+        <h2>Search</h2>
+        <p>Search and filter all photos</p>
       </router-link>
       <router-link to="/users" class="feature-card">
         <span class="feature-icon">👥</span>
@@ -22,7 +27,7 @@
         <p>See who's in the community</p>
       </router-link>
       <router-link to="/status" class="feature-card">
-        <span class="feature-icon">💾</span>
+        <span class="feature-icon">📊</span>
         <h2>Status</h2>
         <p>Storage and library stats</p>
       </router-link>

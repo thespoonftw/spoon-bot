@@ -8,6 +8,7 @@ import UsersView from "./views/UsersView.vue";
 import ShareView from "./views/ShareView.vue";
 import StatusView from "./views/StatusView.vue";
 import DatabaseView from "./views/DatabaseView.vue";
+import SearchView from "./views/SearchView.vue";
 import LoginView from "./views/LoginView.vue";
 import MagicLinkSent from "./views/MagicLinkSent.vue";
 import AuthVerify from "./views/AuthVerify.vue";
@@ -23,6 +24,7 @@ const router = createRouter({
     { path: "/", component: LandingView },
     { path: "/albums", component: AlbumList },
     { path: "/album/:channelId", component: AlbumView },
+    { path: "/search", component: SearchView },
     { path: "/users", component: UsersView },
     { path: "/status", component: StatusView },
     { path: "/database", component: DatabaseView },

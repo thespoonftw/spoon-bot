@@ -379,6 +379,33 @@ export function dbSetPhotoCaption(photoId: number, caption: string): void {
   db.prepare("UPDATE photos SET caption = ? WHERE id = ?").run(caption || null, photoId);
 }
 
+export function dbSearchPhotos(opts: {
+  uploadedById?: string; taggedUserId?: string;
+  sort: "newest" | "oldest" | "top"; page: number; pageSize: number;
+}): { photos: PhotoRow[]; total: number } {
+  const { uploadedById, taggedUserId, sort, page, pageSize } = opts;
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (uploadedById) { where.push("p.uploaded_by_id = ?"); params.push(uploadedById); }
+  if (taggedUserId) { where.push("EXISTS (SELECT 1 FROM photo_tagged pt WHERE pt.photo_id = p.id AND pt.user_id = ?)"); params.push(taggedUserId); }
+  const whereClause = where.length ? "WHERE " + where.join(" AND ") : "";
+  const orderClause = sort === "oldest" ? "ORDER BY p.id ASC" : sort === "top" ? "ORDER BY score DESC, p.id DESC" : "ORDER BY p.id DESC";
+  const total = (db.prepare(`SELECT COUNT(*) AS n FROM photos p ${whereClause}`).get(...params) as { n: number }).n;
+  type RawRow = PhotoRow & { taggedIds: string | null };
+  const rows = db.prepare(`
+    SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
+      p.uploaded_by_id AS uploadedById,
+      COALESCE(u.first_name, u.display_name) AS uploadedByName,
+      p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption,
+      COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
+      (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
+    FROM photos p LEFT JOIN users u ON u.user_id = p.uploaded_by_id
+    ${whereClause} ${orderClause} LIMIT ? OFFSET ?
+  `).all(...params, pageSize, page * pageSize) as RawRow[];
+  const photos = rows.map(r => ({ ...r, taggedIds: r.taggedIds ? r.taggedIds.split(",") : [] }));
+  return { photos, total };
+}
+
 export function dbVotePhoto(photoId: number, userId: string, voteType: string): { score: number; userVote: string | null } {
   const existing = db.prepare("SELECT vote_type FROM photo_votes WHERE photo_id = ? AND user_id = ?").get(photoId, userId) as { vote_type: string } | undefined;
   if (existing?.vote_type === voteType) {
