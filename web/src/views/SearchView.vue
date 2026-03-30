@@ -23,17 +23,7 @@
     <div v-if="loading" class="empty">Loading…</div>
     <div v-else-if="!photos.length" class="empty">No photos found.</div>
 
-    <div v-else class="gallery">
-      <div v-for="photo in photos" :key="photo.id" class="photo-item" @click="goToAlbum(photo)">
-        <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
-        <div class="photo-votes" @click.stop>
-          <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="doVote(photo, 'fav')" title="Favourite">⭐</button>
-          <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="doVote(photo, 'up')" title="Upvote">👍</button>
-          <button class="vote-btn vote-score">{{ getVoteState(photo).score }}</button>
-          <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="doVote(photo, 'down')" title="Downvote">👎</button>
-        </div>
-      </div>
-    </div>
+    <PhotoGallery v-else :sections="[{ label: '', photos }]" :members="users" />
 
     <div class="search-pagination" v-if="total !== null && total > pageSize">
       <button :disabled="page === 0" @click="changePage(page - 1)">← Prev</button>
@@ -45,13 +35,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { useRouter } from "vue-router";
-import { authHeaders, authJsonHeaders } from "../utils/session";
+import { authHeaders } from "../utils/session";
+import PhotoGallery from "../components/PhotoGallery.vue";
 
-interface User { userId: string; displayName: string; firstName?: string }
+interface User { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Photo { id: number; channelId: string; url: string; score?: number; userVote?: string | null }
 
-const router = useRouter();
 const users = ref<User[]>([]);
 const photos = ref<Photo[]>([]);
 const total = ref<number | null>(null);
@@ -61,25 +50,7 @@ const taggedUserId = ref("");
 const sort = ref<"newest" | "oldest" | "top">("newest");
 const page = ref(0);
 const pageSize = 100;
-const votes = ref<Record<number, { score: number; userVote: string | null }>>({});
-
 const totalPages = computed(() => Math.ceil((total.value ?? 0) / pageSize));
-
-function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumbnails/"); }
-function goToAlbum(photo: Photo) { router.push(`/album/${photo.channelId}`); }
-function getVoteState(photo: Photo) {
-  return votes.value[photo.id] ?? { score: photo.score ?? 0, userVote: photo.userVote ?? null };
-}
-
-async function doVote(photo: Photo, voteType: string) {
-  const res = await fetch(`/api/album/${photo.channelId}/photos/${photo.id}/vote`, {
-    method: "POST", headers: authJsonHeaders(), body: JSON.stringify({ voteType }),
-  });
-  if (res.ok) {
-    const { score, userVote } = await res.json();
-    votes.value = { ...votes.value, [photo.id]: { score, userVote } };
-  }
-}
 
 async function fetchPhotos() {
   loading.value = true;
@@ -91,7 +62,6 @@ async function fetchPhotos() {
     const data = await res.json();
     photos.value = data.photos;
     total.value = data.total;
-    votes.value = {};
   }
   loading.value = false;
 }
