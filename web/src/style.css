@@ -79,8 +79,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 @media (min-width: 768px) { .pswp-upload-date { display: block; } }
 
 .sort-bar { display: flex; align-items: center; gap: 10px; margin-top: 20px; }
-.sort-label { color: #a6adc8; font-size: 0.9em; white-space: nowrap; }
-.sort-select { background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 6px; padding: 5px 10px; font-size: 0.9em; cursor: pointer; outline: none; }
+.sort-label { color: #a6adc8; font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
+.sort-select { background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 8px; padding: 7px 12px; font-size: 0.9rem; cursor: pointer; outline: none; }
 .sort-select:hover { border-color: #89b4fa; }
 .gallery-section-header { color: #a6adc8; font-size: 0.95em; font-weight: 600; margin: 20px 0 0; letter-spacing: 0.04em; text-transform: uppercase; }
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, 220px); justify-content: center; gap: 12px; margin-top: 12px; }

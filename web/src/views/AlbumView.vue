@@ -31,7 +31,7 @@
 
       <p v-if="album.photos.length === 0" class="empty" style="margin-top:24px">No photos yet.</p>
       <div v-else class="sort-bar">
-        <label class="sort-label">Sort by</label>
+        <label class="sort-label">Sort By:</label>
         <select v-model="sortBy" class="sort-select">
           <option value="popular">Most Popular</option>
           <option value="tagging">Tagging</option>
