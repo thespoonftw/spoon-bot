@@ -84,7 +84,7 @@ export function startWebServer(): void {
       const params = new URLSearchParams(req.url?.includes("?") ? req.url.slice(req.url.indexOf("?") + 1) : "");
       const uploadedById = params.get("uploadedById") || undefined;
       const taggedUserId = params.get("taggedUserId") || undefined;
-      const sort = (params.get("sort") ?? "newest") as "newest" | "oldest" | "top";
+      const sort = (params.get("sort") ?? "top") as "newest" | "oldest" | "top" | "newest_taken" | "oldest_taken";
       const page = Math.max(0, parseInt(params.get("page") ?? "0") || 0);
       sendJson(res, 200, dbSearchPhotos({ uploadedById, taggedUserId, sort, page, pageSize: 100, userId: sessionUser?.userId }));
       return;

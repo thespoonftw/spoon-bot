@@ -72,6 +72,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .pswp-meta-left { flex: 1; display: flex; flex-direction: column; gap: 2px; order: 1; }
 .pswp-meta-right { flex: 1; text-align: right; order: 2; }
 .pswp-votes { width: 100%; display: flex; align-items: center; order: 3; pointer-events: auto; }
+.pswp-location { color: rgba(255,255,255,0.7); font-size: 0.85em; }
 .pswp-caption-date { color: rgba(255,255,255,0.85); font-size: 0.9em; }
 .pswp-caption-uploader { color: rgba(255,255,255,0.85); font-size: 0.9em; }
 .pswp-upload-date { color: rgba(255,255,255,0.85); font-size: 0.9em; display: none; }

@@ -381,7 +381,7 @@ export function dbSetPhotoCaption(photoId: number, caption: string): void {
 
 export function dbSearchPhotos(opts: {
   uploadedById?: string; taggedUserId?: string;
-  sort: "newest" | "oldest" | "top"; page: number; pageSize: number; userId?: string;
+  sort: "newest" | "oldest" | "top" | "newest_taken" | "oldest_taken"; page: number; pageSize: number; userId?: string;
 }): { photos: PhotoRow[]; total: number } {
   const { uploadedById, taggedUserId, sort, page, pageSize, userId } = opts;
   const where: string[] = [];
@@ -389,7 +389,11 @@ export function dbSearchPhotos(opts: {
   if (uploadedById) { where.push("p.uploaded_by_id = ?"); params.push(uploadedById); }
   if (taggedUserId) { where.push("EXISTS (SELECT 1 FROM photo_tagged pt WHERE pt.photo_id = p.id AND pt.user_id = ?)"); params.push(taggedUserId); }
   const whereClause = where.length ? "WHERE " + where.join(" AND ") : "";
-  const orderClause = sort === "oldest" ? "ORDER BY p.id ASC" : sort === "top" ? "ORDER BY score DESC, p.id DESC" : "ORDER BY p.id DESC";
+  const orderClause = sort === "oldest" ? "ORDER BY p.id ASC"
+    : sort === "top" ? "ORDER BY score DESC, p.id DESC"
+    : sort === "newest_taken" ? "ORDER BY CASE WHEN p.taken_at IS NULL THEN 1 ELSE 0 END, p.taken_at DESC, p.id DESC"
+    : sort === "oldest_taken" ? "ORDER BY CASE WHEN p.taken_at IS NULL THEN 1 ELSE 0 END, p.taken_at ASC, p.id ASC"
+    : "ORDER BY p.id DESC";
   const total = (db.prepare(`SELECT COUNT(*) AS n FROM photos p ${whereClause}`).get(...params) as { n: number }).n;
   type RawRow = PhotoRow & { taggedIds: string | null };
   const userVoteExpr = userId

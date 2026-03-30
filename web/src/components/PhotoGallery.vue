@@ -127,11 +127,13 @@ interface Photo {
 }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Section { label: string; photos: Photo[] }
+interface AlbumInfo { location?: string; startDate?: string; endDate?: string }
 
 const props = defineProps<{
   sections: Section[];
   members: Member[];
   canDelete?: boolean;
+  albumMap?: Record<string, AlbumInfo>;
 }>();
 
 const emit = defineEmits<{
@@ -418,7 +420,13 @@ function openLightbox(index: number) {
     let topMetaEl: HTMLElement | null = null;
     let captionDisplayEl: HTMLElement | null = null;
     const buildMetaHtml = (p: Photo) => {
-      const dateHtml = p?.takenAt ? `<span class="pswp-caption-date">${formatTime(p.takenAt)}</span>` : "";
+      const album = props.albumMap?.[p.channelId];
+      const locationHtml = album?.location ? `<span class="pswp-location">📍 ${album.location}</span>` : "";
+      let dateStr = p?.takenAt ? formatTime(p.takenAt) : "";
+      if (!dateStr && album?.startDate) dateStr = formatAlbumDateRange(album.startDate, album.endDate);
+      const dateHtml = (locationHtml || dateStr)
+        ? `${locationHtml}${dateStr ? `<span class="pswp-caption-date">${dateStr}</span>` : ""}`
+        : "";
       const uploaderMember = p?.uploadedById ? props.members.find(m => m.userId === p.uploadedById) : null;
       const avatarHtml = uploaderMember?.avatarUrl
         ? `<img src="${uploaderMember.avatarUrl}" style="width:1.4em;height:1.4em;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:5px" />`
@@ -604,6 +612,15 @@ function loadFull(e: Event, fullUrl: string) {
 
 function thumbUrl(url: string): string {
   return url.replace("/uploads/", "/thumbnails/");
+}
+
+function formatAlbumDateRange(startDate: string, endDate?: string): string {
+  const parse = (s: string) => {
+    const d = new Date(s + "T00:00:00Z");
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  };
+  return endDate ? `${parse(startDate)} – ${parse(endDate)}` : parse(startDate);
 }
 
 function formatTime(iso: string): string {

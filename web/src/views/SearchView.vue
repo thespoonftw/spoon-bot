@@ -25,8 +25,10 @@
         <span class="search-filter-label">Sort By:</span>
         <select v-model="sort" @change="resetAndFetch">
           <option value="top">Highest rated</option>
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
+          <option value="newest">Newest upload</option>
+          <option value="oldest">Oldest upload</option>
+          <option value="newest_taken">Newest taken</option>
+          <option value="oldest_taken">Oldest taken</option>
         </select>
       </div>
     </div>
@@ -34,7 +36,7 @@
     <div v-if="loading" class="empty">Loading…</div>
     <div v-else-if="!photos.length" class="empty">No photos found.</div>
 
-    <PhotoGallery v-else :sections="[{ label: '', photos }]" :members="users" />
+    <PhotoGallery v-else :sections="[{ label: '', photos }]" :members="users" :album-map="albumMap" />
 
     <div class="search-pagination" v-if="total !== null && total > pageSize">
       <button :disabled="page === 0" @click="changePage(page - 1)">← Prev</button>
@@ -51,6 +53,7 @@ import PhotoGallery from "../components/PhotoGallery.vue";
 
 interface User { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Photo { id: number; channelId: string; url: string; score?: number; userVote?: string | null }
+interface AlbumInfo { location?: string; startDate?: string; endDate?: string }
 
 const SEARCH_MODE_KEY = "snek_search_mode";
 const SEARCH_USER_KEY = "snek_search_user";
@@ -61,11 +64,12 @@ const photos = ref<Photo[]>([]);
 const total = ref<number | null>(null);
 const loading = ref(false);
 const currentUserId = ref("");
+const albumMap = ref<Record<string, AlbumInfo>>({});
 const filterMode = ref<"all" | "uploadedBy" | "taggedIn">(
   (sessionStorage.getItem(SEARCH_MODE_KEY) as any) ?? "all"
 );
 const filterUserId = ref(sessionStorage.getItem(SEARCH_USER_KEY) ?? "");
-const sort = ref<"newest" | "oldest" | "top">(
+const sort = ref<"newest" | "oldest" | "top" | "newest_taken" | "oldest_taken">(
   (sessionStorage.getItem(SEARCH_SORT_KEY) as any) ?? "top"
 );
 const page = ref(0);
@@ -98,9 +102,10 @@ function resetAndFetch() { page.value = 0; fetchPhotos(); }
 function changePage(p: number) { page.value = p; fetchPhotos(); window.scrollTo(0, 0); }
 
 onMounted(async () => {
-  const [usersRes, authRes] = await Promise.all([
+  const [usersRes, authRes, albumsRes] = await Promise.all([
     fetch("/api/site-users", { headers: authHeaders() }),
     fetch("/api/auth/check", { headers: authHeaders() }),
+    fetch("/api/albums"),
   ]);
   if (usersRes.ok) users.value = await usersRes.json();
   if (authRes.ok) {
@@ -109,6 +114,10 @@ onMounted(async () => {
     if (filterMode.value !== "all" && !filterUserId.value) {
       filterUserId.value = currentUserId.value;
     }
+  }
+  if (albumsRes.ok) {
+    const albums: { channelId: string; location?: string; startDate?: string; endDate?: string }[] = await albumsRes.json();
+    albumMap.value = Object.fromEntries(albums.map(a => [a.channelId, { location: a.location, startDate: a.startDate, endDate: a.endDate }]));
   }
   fetchPhotos();
 });
