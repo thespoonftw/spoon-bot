@@ -87,6 +87,11 @@ export function initDb() {
     try { db.exec(sql); } catch { /* already exists */ }
   }
   migrateFromJson();
+  const cleaned = {
+    votes: db.prepare("DELETE FROM photo_votes WHERE photo_id NOT IN (SELECT id FROM photos)").run().changes,
+    tags: db.prepare("DELETE FROM photo_tagged WHERE photo_id NOT IN (SELECT id FROM photos)").run().changes,
+  };
+  if (cleaned.votes || cleaned.tags) console.log(`[db] Cleaned up orphaned data: ${cleaned.votes} votes, ${cleaned.tags} tags`);
 }
 
 function migrateFromJson() {
@@ -344,8 +349,18 @@ export function dbGetAlbumShare(token: string): { channelId: string; passwordHas
 export function dbDeletePhoto(photoId: number): string | null {
   const row = db.prepare("SELECT filename FROM photos WHERE id = ?").get(photoId) as { filename: string } | undefined;
   if (!row) return null;
-  db.prepare("DELETE FROM photos WHERE id = ?").run(photoId);
+  db.transaction(() => {
+    db.prepare("DELETE FROM photo_votes WHERE photo_id = ?").run(photoId);
+    db.prepare("DELETE FROM photo_tagged WHERE photo_id = ?").run(photoId);
+    db.prepare("DELETE FROM photos WHERE id = ?").run(photoId);
+  })();
   return row.filename;
+}
+
+export function dbCleanOrphanedPhotoData(): { votes: number; tags: number } {
+  const votes = db.prepare("DELETE FROM photo_votes WHERE photo_id NOT IN (SELECT id FROM photos)").run().changes;
+  const tags = db.prepare("DELETE FROM photo_tagged WHERE photo_id NOT IN (SELECT id FROM photos)").run().changes;
+  return { votes, tags };
 }
 
 export function dbSetPhotoTagged(photoId: number, userIds: string[]): void {
