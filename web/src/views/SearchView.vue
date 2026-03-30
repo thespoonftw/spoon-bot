@@ -5,6 +5,7 @@
 
     <div class="search-filters">
       <div class="search-filters-row">
+        <span class="search-filter-label">Filter By:</span>
         <select v-model="filterMode" @change="onFilterModeChange">
           <option value="all">All Photos</option>
           <option value="uploadedBy">Uploaded By</option>
@@ -14,9 +15,15 @@
           <option value="">Any person</option>
           <option v-for="u in users" :key="u.userId" :value="u.userId">{{ u.firstName || u.displayName }}</option>
         </select>
-        <span class="search-count" v-if="total !== null">{{ total }} photo{{ total === 1 ? '' : 's' }}</span>
+        <span class="search-count" v-if="total !== null">{{ total }} result{{ total === 1 ? '' : 's' }}</span>
+        <div class="search-pagination-top" v-if="total !== null && total > pageSize">
+          <button :disabled="page === 0" @click="changePage(page - 1)">← Prev</button>
+          <span>Page {{ page + 1 }} of {{ totalPages }}</span>
+          <button :disabled="page >= totalPages - 1" @click="changePage(page + 1)">Next →</button>
+        </div>
       </div>
       <div class="search-filters-row">
+        <span class="search-filter-label">Sort By:</span>
         <select v-model="sort" @change="resetAndFetch">
           <option value="newest">Newest first</option>
           <option value="oldest">Oldest first</option>
