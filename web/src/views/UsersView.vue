@@ -12,6 +12,11 @@
           <span class="user-row-login">{{ user.displayName }}</span>
           <span class="user-row-login" v-if="user.lastLoginAt">Last login: {{ formatDate(user.lastLoginAt) }}</span>
           <span class="user-row-login never" v-else>Never logged in</span>
+          <span class="user-row-stats" v-if="user.uploadCount !== undefined">
+            📷 {{ user.uploadCount }} upload{{ user.uploadCount === 1 ? '' : 's' }}
+            &nbsp;·&nbsp;
+            👥 tagged {{ user.taggedCount }} time{{ user.taggedCount === 1 ? '' : 's' }}
+          </span>
         </div>
         <button class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
       </div>
@@ -52,7 +57,7 @@ import { ref, computed, onMounted } from "vue";
 import { useCurrentUser } from "../composables/useCurrentUser";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 
-interface SiteUser { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastLoginAt?: string }
+interface SiteUser { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastLoginAt?: string; uploadCount?: number; taggedCount?: number }
 
 const users = ref<SiteUser[]>([]);
 const loading = ref(true);

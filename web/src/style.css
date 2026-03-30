@@ -233,6 +233,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .user-row-name { color: #cdd6f4; font-size: 1rem; font-weight: 600; }
 .user-row-login { color: #a6adc8; font-size: 0.82em; }
 .user-row-login.never { color: #585b70; }
+.user-row-stats { color: #6c7086; font-size: 0.8em; }
 
 .photo-votes { display: flex; align-items: center; margin-top: 4px; width: 220px; }
 

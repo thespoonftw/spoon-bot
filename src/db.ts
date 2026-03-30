@@ -236,7 +236,7 @@ export function dbAddPhoto(channelId: string, url: string) {
     .run(channelId, url, new Date().toISOString());
 }
 
-export type UserRow = { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastLoginAt?: string; level: number };
+export type UserRow = { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastLoginAt?: string; level: number; uploadCount?: number; taggedCount?: number };
 
 export function dbUpsertUser(userId: string, displayName: string, avatarUrl?: string) {
   db.prepare(`
@@ -250,9 +250,13 @@ export function dbUpdateUserLastLogin(userId: string) {
 }
 
 export function dbGetAllUsers(): UserRow[] {
-  return db.prepare(
-    "SELECT user_id AS userId, display_name AS displayName, first_name AS firstName, avatar_url AS avatarUrl, last_login_at AS lastLoginAt, level FROM users WHERE level > 0 ORDER BY display_name ASC"
-  ).all() as UserRow[];
+  return db.prepare(`
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName,
+      u.avatar_url AS avatarUrl, u.last_login_at AS lastLoginAt, u.level,
+      (SELECT COUNT(*) FROM photos p WHERE p.uploaded_by_id = u.user_id) AS uploadCount,
+      (SELECT COUNT(*) FROM photo_tagged pt WHERE pt.user_id = u.user_id) AS taggedCount
+    FROM users u WHERE u.level > 0 ORDER BY display_name ASC
+  `).all() as UserRow[];
 }
 
 export function dbAddAlbumMember(channelId: string, userId: string) {
