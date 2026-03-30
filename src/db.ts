@@ -381,9 +381,9 @@ export function dbSetPhotoCaption(photoId: number, caption: string): void {
 
 export function dbSearchPhotos(opts: {
   uploadedById?: string; taggedUserId?: string;
-  sort: "newest" | "oldest" | "top"; page: number; pageSize: number;
+  sort: "newest" | "oldest" | "top"; page: number; pageSize: number; userId?: string;
 }): { photos: PhotoRow[]; total: number } {
-  const { uploadedById, taggedUserId, sort, page, pageSize } = opts;
+  const { uploadedById, taggedUserId, sort, page, pageSize, userId } = opts;
   const where: string[] = [];
   const params: unknown[] = [];
   if (uploadedById) { where.push("p.uploaded_by_id = ?"); params.push(uploadedById); }
@@ -392,12 +392,16 @@ export function dbSearchPhotos(opts: {
   const orderClause = sort === "oldest" ? "ORDER BY p.id ASC" : sort === "top" ? "ORDER BY score DESC, p.id DESC" : "ORDER BY p.id DESC";
   const total = (db.prepare(`SELECT COUNT(*) AS n FROM photos p ${whereClause}`).get(...params) as { n: number }).n;
   type RawRow = PhotoRow & { taggedIds: string | null };
+  const userVoteExpr = userId
+    ? `(SELECT vote_type FROM photo_votes WHERE photo_id = p.id AND user_id = '${userId.replace(/'/g, "''")}') AS userVote,`
+    : "NULL AS userVote,";
   const rows = db.prepare(`
     SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
       p.uploaded_by_id AS uploadedById,
       COALESCE(u.first_name, u.display_name) AS uploadedByName,
       p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption,
       COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
+      ${userVoteExpr}
       (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
     FROM photos p LEFT JOIN users u ON u.user_id = p.uploaded_by_id
     ${whereClause} ${orderClause} LIMIT ? OFFSET ?

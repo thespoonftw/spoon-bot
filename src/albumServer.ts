@@ -78,13 +78,15 @@ export function startWebServer(): void {
     }
 
     if (url.startsWith("/api/photos/search") && method === "GET") {
-      if (!isValidSession(getTokenFromRequest(req))) { send401(res); return; }
+      const token = getTokenFromRequest(req);
+      if (!isValidSession(token)) { send401(res); return; }
+      const sessionUser = getSessionUser(token!);
       const params = new URLSearchParams(req.url?.includes("?") ? req.url.slice(req.url.indexOf("?") + 1) : "");
       const uploadedById = params.get("uploadedById") || undefined;
       const taggedUserId = params.get("taggedUserId") || undefined;
       const sort = (params.get("sort") ?? "newest") as "newest" | "oldest" | "top";
       const page = Math.max(0, parseInt(params.get("page") ?? "0") || 0);
-      sendJson(res, 200, dbSearchPhotos({ uploadedById, taggedUserId, sort, page, pageSize: 100 }));
+      sendJson(res, 200, dbSearchPhotos({ uploadedById, taggedUserId, sort, page, pageSize: 100, userId: sessionUser?.userId }));
       return;
     }
 
