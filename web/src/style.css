@@ -38,7 +38,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .album-header h1 { margin-bottom: 4px; }
 .upload-area { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .upload-area-buttons { display: flex; gap: 8px; }
-.album-stats { display: flex; gap: 16px; color: #6c7086; font-size: 0.85em; }
+.album-stats { display: flex; gap: 16px; color: #cdd6f4; }
 .upload-error { color: #f38ba8; margin-bottom: 12px; font-size: 0.9em; }
 
 .members-section { margin: 16px 0 4px; }
