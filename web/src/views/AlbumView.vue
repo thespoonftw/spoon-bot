@@ -18,7 +18,7 @@
           </div>
           <div class="album-stats">
             <span>{{ album.photos.length }} 📷</span>
-            <span>{{ album.photos.reduce((n, p) => n + (p.taggedIds?.length ?? 0), 0) }} 👥</span>
+            <span>{{ album.members.length }} 👥</span>
           </div>
         </div>
       </div>
