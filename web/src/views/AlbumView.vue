@@ -14,6 +14,10 @@
         <div class="upload-area">
           <button class="btn-secondary" @click="openShare" style="margin-right:8px">Share</button>
           <button class="btn-primary" @click="openUpload">Upload</button>
+          <div class="album-stats">
+            <span>{{ album.photos.length }} 📷</span>
+            <span>{{ album.photos.reduce((n, p) => n + (p.taggedIds?.length ?? 0), 0) }} 👥</span>
+          </div>
         </div>
       </div>
 
