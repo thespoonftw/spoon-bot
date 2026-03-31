@@ -21,6 +21,11 @@
         <h2>Search</h2>
         <p>Search and filter all photos</p>
       </router-link>
+      <router-link to="/map" class="feature-card">
+        <span class="feature-icon">🗺️</span>
+        <h2>Map</h2>
+        <p>See albums on a world map</p>
+      </router-link>
       <router-link to="/users" class="feature-card">
         <span class="feature-icon">👥</span>
         <h2>Users</h2>

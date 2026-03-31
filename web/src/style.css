@@ -307,3 +307,12 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .db-table td { padding: 5px 10px; border-bottom: 1px solid #313244; color: #cdd6f4; white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
 .db-table tr:last-child td { border-bottom: none; }
 .db-table tbody tr:hover td { background: #313244; }
+.map-page { display: flex; flex-direction: column; height: 100vh; padding-bottom: 0; }
+.map-container { flex: 1; border-radius: 12px; overflow: hidden; min-height: 400px; margin-top: 12px; }
+.map-status { margin: 8px 0 0; }
+.map-popup { font-family: inherit; font-size: 0.9rem; color: #1e1e2e; }
+.map-popup-album { padding: 4px 0; }
+.map-popup-title { font-weight: 700; color: #1e66f5; text-decoration: none; }
+.map-popup-title:hover { text-decoration: underline; }
+.map-popup-meta { font-size: 0.8rem; color: #555; margin-top: 2px; }
+.map-popup-divider { border: none; border-top: 1px solid #ccc; margin: 6px 0; }
