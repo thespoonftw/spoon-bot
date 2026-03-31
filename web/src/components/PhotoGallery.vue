@@ -136,6 +136,7 @@ const props = defineProps<{
   canDelete?: boolean;
   albumMap?: Record<string, AlbumInfo>;
   canLoadMore?: boolean;
+  totalCount?: number;
 }>();
 
 const emit = defineEmits<{
@@ -176,8 +177,6 @@ watch(() => allPhotos.value.length, (newLen, oldLen) => {
   }
   lightboxLoadingMore = false;
   activePswp.element?.classList.remove('pswp--is-last');
-  const counter = activePswp.element?.querySelector('.pswp__counter') as HTMLElement | null;
-  if (counter) counter.textContent = `${activePswp.currIndex + 1} / ${newLen}`;
   refreshLightboxVotes?.();
 });
 
@@ -354,7 +353,7 @@ function openLightbox(index: number) {
     bgOpacity: 1,
     zoom: true,
     close: true,
-    counter: true,
+    counter: false,
     arrowKeys: true,
     pinchToClose: false,
     closeOnVerticalDrag: false,
@@ -446,6 +445,20 @@ function openLightbox(index: number) {
   pswp.on("uiRegister", () => {
     let topMetaEl: HTMLElement | null = null;
     let captionDisplayEl: HTMLElement | null = null;
+    pswp.ui!.registerElement({
+      name: "custom-counter",
+      order: 5,
+      isButton: false,
+      appendTo: "bar",
+      onInit: (el) => {
+        el.className = "pswp__counter";
+        const update = () => {
+          el.textContent = `${pswp.currIndex + 1} / ${props.totalCount ?? dsArray.length}`;
+        };
+        pswp.on("change", update);
+        update();
+      },
+    });
     const buildMetaHtml = (p: Photo) => {
       const album = props.albumMap?.[p.channelId];
       const locationHtml = album?.location ? `<span class="pswp-location">📍 ${album.location}</span>` : "";
