@@ -313,7 +313,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .page-back { color: #cdd6f4; text-decoration: none; background: #313244; border-radius: 20px; padding: 5px 16px; font-size: 1rem; flex-shrink: 0; }
 .page-back:hover { background: #45475a; }
 .map-pin-count, .album-photo-count { background: #313244; border: 1px solid #45475a; border-radius: 10px; padding: 6px 14px; font-size: 1rem; font-weight: 700; color: #cdd6f4; flex-shrink: 0; }
-.album-photo-count { display: inline-block; margin-bottom: 12px; }
+.album-photo-count { margin-left: auto; }
 .map-emoji-pin { background: none !important; border: none !important; font-size: 24px; line-height: 1; }
 .map-container { border-radius: 12px; overflow: hidden; }
 .map-status { margin: 0 0 8px; text-align: center; }

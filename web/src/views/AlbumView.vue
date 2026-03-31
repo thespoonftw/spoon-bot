@@ -45,8 +45,8 @@
             <option value="__nobody__">Nobody</option>
           </select>
         </template>
+        <div v-if="album.photos.length > 0" class="album-photo-count">{{ totalSortedCount }} 📷</div>
       </div>
-      <div v-if="album.photos.length > 0" class="album-photo-count">{{ totalSortedCount }} 📷</div>
       <PhotoGallery :sections="displayedSections" :members="allMembers" :can-delete="true"
         :can-load-more="hasMore" :total-count="totalSortedCount"
         @photo-deleted="onPhotoDeleted" @load-more="displayLimit += 40" />
