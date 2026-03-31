@@ -46,7 +46,12 @@
           </select>
         </template>
       </div>
-      <PhotoGallery :sections="sortedSections" :members="allMembers" :can-delete="true" @photo-deleted="onPhotoDeleted" />
+      <PhotoGallery :sections="displayedSections" :members="allMembers" :can-delete="true"
+        :can-load-more="hasMore" :total-count="totalSortedCount"
+        @photo-deleted="onPhotoDeleted" @load-more="displayLimit += 40" />
+      <div class="search-show-more" v-if="hasMore">
+        <button class="btn-secondary" @click="displayLimit += 40">Show more</button>
+      </div>
     </template>
     <p v-else-if="loading" class="empty">Loading…</p>
     <p v-else class="empty">Album not found.</p>
@@ -167,9 +172,11 @@ const SORT_KEY = 'snek_sort_by';
 const sortBy = ref<'popular' | 'tagging' | 'uploader' | 'newest' | 'oldest'>(
   (sessionStorage.getItem(SORT_KEY) as any) ?? 'popular'
 );
-watch(sortBy, val => sessionStorage.setItem(SORT_KEY, val));
+watch(sortBy, val => { sessionStorage.setItem(SORT_KEY, val); displayLimit.value = 40; });
+const displayLimit = ref(40);
 const currentUserId = ref<string | null>(null);
 const tagFilterUserId = ref<string>('__nobody__');
+watch(tagFilterUserId, () => { displayLimit.value = 40; });
 
 function cmp(a: Photo, b: Photo): number {
   const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
@@ -215,6 +222,20 @@ const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
   }
   return [{ label: '', photos }];
 });
+
+const totalSortedCount = computed(() => sortedSections.value.reduce((n, s) => n + s.photos.length, 0));
+const displayedSections = computed(() => {
+  let remaining = displayLimit.value;
+  const result: { label: string; photos: Photo[] }[] = [];
+  for (const section of sortedSections.value) {
+    if (remaining <= 0) break;
+    const photos = section.photos.slice(0, remaining);
+    result.push({ ...section, photos });
+    remaining -= photos.length;
+  }
+  return result;
+});
+const hasMore = computed(() => displayedSections.value.reduce((n, s) => n + s.photos.length, 0) < totalSortedCount.value);
 
 const byName = (a: Member, b: Member) => (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName);
 
