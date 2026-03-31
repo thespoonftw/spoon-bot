@@ -307,12 +307,11 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .db-table td { padding: 5px 10px; border-bottom: 1px solid #313244; color: #cdd6f4; white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
 .db-table tr:last-child td { border-bottom: none; }
 .db-table tbody tr:hover td { background: #313244; }
-.map-page { display: flex; flex-direction: column; height: 100vh; overflow: hidden; padding: 24px 32px 16px; box-sizing: border-box; }
-.map-header { display: flex; align-items: center; margin-bottom: 8px; }
-.map-header .back { flex: 1; }
-.map-header-spacer { flex: 1; }
-.map-title { flex: 1; text-align: center; margin: 0; font-size: 1.6rem; }
-.map-container { flex: 1; border-radius: 12px; overflow: hidden; min-height: 0; }
+.map-page { padding: 32px; max-width: 1000px; margin: 0 auto; }
+.map-header { position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+.map-header .back { position: absolute; left: 0; margin-bottom: 0; }
+.map-title { margin: 0; font-size: 1.6rem; color: #cba6f7; }
+.map-container { border-radius: 12px; overflow: hidden; }
 .map-status { margin: 0 0 8px; text-align: center; }
 .map-popup { font-family: inherit; font-size: 0.9rem; color: #1e1e2e; }
 .map-popup-album { padding: 4px 0; }

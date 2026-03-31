@@ -3,7 +3,6 @@
     <div class="map-header">
       <router-link to="/" class="back">← Home</router-link>
       <h1 class="map-title">Map</h1>
-      <span class="map-header-spacer"></span>
     </div>
     <p v-if="status" class="empty map-status">{{ status }}</p>
     <div ref="mapEl" class="map-container"></div>
@@ -65,7 +64,16 @@ const mapEl = ref<HTMLElement | null>(null);
 const status = ref("Loading albums…");
 let map: L.Map | null = null;
 
+function fitMapHeight() {
+  if (!mapEl.value) return;
+  const top = mapEl.value.getBoundingClientRect().top;
+  mapEl.value.style.height = (window.innerHeight - top - 24) + "px";
+}
+
 onMounted(async () => {
+  await Promise.resolve(); // let the DOM render first
+  fitMapHeight();
+  window.addEventListener("resize", fitMapHeight);
   const res = await fetch("/api/albums");
   const albums: Album[] = await res.json();
 
@@ -117,5 +125,5 @@ onMounted(async () => {
   }
 });
 
-onUnmounted(() => { map?.remove(); map = null; });
+onUnmounted(() => { map?.remove(); map = null; window.removeEventListener("resize", fitMapHeight); });
 </script>
