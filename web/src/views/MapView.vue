@@ -1,8 +1,8 @@
 <template>
   <div class="map-page">
     <div class="map-header">
-      <router-link to="/" class="back">← Home</router-link>
       <h1 class="map-title">Map</h1>
+      <router-link to="/" class="back">← Home</router-link>
     </div>
     <p v-if="status" class="empty map-status">{{ status }}</p>
     <div ref="mapEl" class="map-container"></div>
@@ -66,8 +66,10 @@ let map: L.Map | null = null;
 
 function fitMapHeight() {
   if (!mapEl.value) return;
+  const appEl = document.querySelector("#app") as HTMLElement | null;
+  const zoom = parseFloat(appEl?.style.zoom || "1") || 1;
   const top = mapEl.value.getBoundingClientRect().top;
-  mapEl.value.style.height = (window.innerHeight - top - 24) + "px";
+  mapEl.value.style.height = (window.innerHeight / zoom - top / zoom - 24) + "px";
 }
 
 onMounted(async () => {
