@@ -200,7 +200,7 @@ export function startWebServer(): void {
             }
           } catch (e) { console.error("[upload] EXIF parse failed:", e); }
           try {
-            await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(thumbPath);
+            await sharp(filePath).resize(256, 256, { fit: "outside", withoutEnlargement: true }).toFile(thumbPath);
           } catch (e) { console.error("Thumbnail generation failed:", e); }
           const photoUrl = `/uploads/${channelId}/${name}`;
           const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, width, height, takenAt);

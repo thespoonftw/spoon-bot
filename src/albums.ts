@@ -150,7 +150,7 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
         }
       } catch {}
 
-      try { await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(path.join(thumbDir, name)); } catch {}
+      try { await sharp(filePath).resize(256, 256, { fit: "outside", withoutEnlargement: true }).toFile(path.join(thumbDir, name)); } catch {}
 
       const photoUrl = `/uploads/${channelId}/${name}`;
       const caption = imageAttachments.length === 1 && message.content.trim() ? message.content.trim() : undefined;
@@ -250,7 +250,7 @@ async function processUpload(pending: PendingUpload): Promise<number> {
           const d = new Date(normalized); if (!isNaN(d.getTime())) takenAt = d.toISOString();
         }
       } catch {}
-      try { await sharp(filePath).resize(512, 512, { fit: "inside", withoutEnlargement: true }).toFile(path.join(thumbDir, name)); } catch {}
+      try { await sharp(filePath).resize(256, 256, { fit: "outside", withoutEnlargement: true }).toFile(path.join(thumbDir, name)); } catch {}
       dbAddUploadedPhoto(channelId, `/uploads/${channelId}/${name}`, name, authorId, width, height, takenAt, attachments.length === 1 ? caption : undefined, messageId);
       count++;
     } catch (e) { console.error("Failed to upload photo:", e); }
