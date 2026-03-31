@@ -14,10 +14,6 @@
             <button class="btn-secondary" @click="openShare">Share</button>
             <button class="btn-primary" @click="openUpload">Upload</button>
           </div>
-          <div class="album-stats">
-            <span>{{ album.photos.length }} 📷</span>
-            <span>{{ album.members.length }} 👥</span>
-          </div>
         </div>
       </div>
 
@@ -50,6 +46,7 @@
           </select>
         </template>
       </div>
+      <div v-if="album.photos.length > 0" class="album-photo-count">{{ totalSortedCount }} 📷</div>
       <PhotoGallery :sections="displayedSections" :members="allMembers" :can-delete="true"
         :can-load-more="hasMore" :total-count="totalSortedCount"
         @photo-deleted="onPhotoDeleted" @load-more="displayLimit += 40" />
