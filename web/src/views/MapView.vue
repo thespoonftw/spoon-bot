@@ -1,8 +1,9 @@
 <template>
   <div class="map-page">
     <div class="map-header">
-      <router-link to="/" class="map-back">‹</router-link>
+      <router-link to="/" class="map-back">← Back</router-link>
       <h1 class="map-title">Map</h1>
+      <span class="map-pin-count" v-if="pinCount !== null">{{ pinCount }} 📍</span>
     </div>
     <p v-if="status" class="empty map-status">{{ status }}</p>
     <div ref="mapEl" class="map-container"></div>
@@ -13,14 +14,7 @@
 import { ref, watch, nextTick, onMounted, onUnmounted } from "vue";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import { formatAlbumDate } from "../utils/formatDate";
-
-// Fix Leaflet default icon paths broken by Vite
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
 
 interface Album {
   channelId: string;
@@ -60,8 +54,17 @@ async function geocode(location: string, cache: Record<string, [number, number] 
   }
 }
 
+const pinIcon = L.divIcon({
+  html: "📍",
+  iconSize: [28, 28],
+  iconAnchor: [14, 28],
+  popupAnchor: [0, -28],
+  className: "map-emoji-pin",
+});
+
 const mapEl = ref<HTMLElement | null>(null);
 const status = ref("Loading albums…");
+const pinCount = ref<number | null>(null);
 let map: L.Map | null = null;
 
 function fitMapHeight() {
@@ -73,9 +76,11 @@ function fitMapHeight() {
 watch(status, () => nextTick(fitMapHeight));
 
 onMounted(async () => {
-  await Promise.resolve(); // let the DOM render first
+  document.body.style.overflow = "hidden";
+  await nextTick();
   fitMapHeight();
   window.addEventListener("resize", fitMapHeight);
+
   const res = await fetch("/api/albums");
   const albums: Album[] = await res.json();
 
@@ -89,7 +94,6 @@ onMounted(async () => {
   const withLocation = albums.filter(a => a.location);
   if (withLocation.length === 0) { status.value = "No albums have a location set."; return; }
 
-  // Group albums by location string so same-location albums share one geocode call
   const byLocation = new Map<string, Album[]>();
   for (const album of withLocation) {
     const loc = album.location!;
@@ -100,6 +104,7 @@ onMounted(async () => {
   const cache = loadCache();
   const locations = [...byLocation.keys()];
   let done = 0;
+  let placed = 0;
   status.value = `Locating albums… 0/${locations.length}`;
 
   for (const loc of locations) {
@@ -109,6 +114,7 @@ onMounted(async () => {
 
     if (!coords || !map) continue;
     const albumsHere = byLocation.get(loc)!;
+    placed++;
 
     const popupHtml = albumsHere.map(a => {
       const date = a.startDate ? formatAlbumDate(a.startDate, a.endDate) : "";
@@ -119,13 +125,19 @@ onMounted(async () => {
       </div>`;
     }).join('<hr class="map-popup-divider">');
 
-    const marker = L.marker(coords).addTo(map);
+    const marker = L.marker(coords, { icon: pinIcon }).addTo(map);
     marker.bindPopup(`<div class="map-popup">${popupHtml}</div>`, { maxWidth: 250 });
 
-    // Small delay to respect Nominatim's 1 req/s rate limit (skip if cached)
     if (!(loc in cache) || cache[loc] === undefined) await new Promise(r => setTimeout(r, 1100));
   }
+
+  pinCount.value = placed;
 });
 
-onUnmounted(() => { map?.remove(); map = null; window.removeEventListener("resize", fitMapHeight); });
+onUnmounted(() => {
+  document.body.style.overflow = "";
+  map?.remove();
+  map = null;
+  window.removeEventListener("resize", fitMapHeight);
+});
 </script>
