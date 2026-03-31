@@ -102,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import MemberAvatar from "./MemberAvatar.vue";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
@@ -135,10 +135,12 @@ const props = defineProps<{
   members: Member[];
   canDelete?: boolean;
   albumMap?: Record<string, AlbumInfo>;
+  canLoadMore?: boolean;
 }>();
 
 const emit = defineEmits<{
   photoDeleted: [id: number];
+  loadMore: [];
 }>();
 
 const dragTagging = useDraggable();
@@ -160,8 +162,20 @@ const deletingPhoto = ref<Photo | null>(null);
 const deleting = ref(false);
 let pendingReopenIndex: number | null = null;
 let activePswp: any = null;
+let activeDsArray: { src: string; width: number; height: number; msrc: string }[] | null = null;
 
 const allPhotos = computed(() => props.sections.flatMap(s => s.photos));
+
+// When new photos are appended (e.g. "load more"), push them into the live PhotoSwipe datasource
+watch(() => allPhotos.value.length, (newLen, oldLen) => {
+  if (!activeDsArray || !activePswp || newLen <= oldLen) return;
+  for (let i = oldLen; i < newLen; i++) {
+    const p = allPhotos.value[i];
+    activeDsArray.push({ src: p.url, width: p.width || 1200, height: p.height || 900, msrc: thumbUrl(p.url) });
+  }
+  activePswp.element?.classList.remove('pswp--is-last');
+  refreshLightboxVotes?.();
+});
 
 const taggedMembers = computed(() =>
   props.members.filter(m => taggingSelection.value.has(m.userId))
@@ -327,8 +341,11 @@ async function deletePhoto() {
 function openLightbox(index: number) {
   const photos = allPhotos.value;
   activePswp = null;
+  const dsArray = photos.map(p => ({ src: p.url, width: p.width || 1200, height: p.height || 900, msrc: thumbUrl(p.url) }));
+  activeDsArray = dsArray;
+  let loadingMore = false;
   const pswp = new PhotoSwipe({
-    dataSource: photos.map(p => ({ src: p.url, width: p.width || 1200, height: p.height || 900, msrc: thumbUrl(p.url) })),
+    dataSource: dsArray,
     index,
     bgOpacity: 1,
     zoom: true,
@@ -353,7 +370,7 @@ function openLightbox(index: number) {
 
   // Keyboard up/down to vote (up → fav → neutral cycle, down = downvote)
   const onKeyDown = (e: KeyboardEvent) => {
-    const p = photos[pswp.currIndex];
+    const p = allPhotos.value[pswp.currIndex];
     if (e.key === "ArrowUp") {
       e.preventDefault();
       const currentVote = getVoteState(p).userVote;
@@ -374,7 +391,7 @@ function openLightbox(index: number) {
     if (e.originalEvent?.pointerType === "touch") {
       const x = e.originalEvent.clientX ?? window.innerWidth / 2;
       const y = e.originalEvent.clientY ?? window.innerHeight / 2;
-      const p = photos[pswp.currIndex];
+      const p = allPhotos.value[pswp.currIndex];
       spawnFloat(x, y, "up", isRemovingVote(getVoteState(p).userVote, "up"));
       doVote(p.channelId, p.id, "up");
     }
@@ -384,7 +401,7 @@ function openLightbox(index: number) {
     if (e.originalEvent?.pointerType === "touch") {
       const x = e.originalEvent.clientX ?? window.innerWidth / 2;
       const y = e.originalEvent.clientY ?? window.innerHeight / 2;
-      const p = photos[pswp.currIndex];
+      const p = allPhotos.value[pswp.currIndex];
       spawnFloat(x, y, "fav", isRemovingVote(getVoteState(p).userVote, "fav"));
       doVote(p.channelId, p.id, "fav");
     }
@@ -414,8 +431,15 @@ function openLightbox(index: number) {
     if (idx !== null) nextTick(() => openLightbox(idx));
   });
   pswp.on("change", () => {
-    if (showTagging.value) openTagging(photos[pswp.currIndex]);
-    if (voteModalPhoto.value) openVoteModal(photos[pswp.currIndex]);
+    if (showTagging.value) openTagging(allPhotos.value[pswp.currIndex]);
+    if (voteModalPhoto.value) openVoteModal(allPhotos.value[pswp.currIndex]);
+    // Reset loadingMore flag once new photos have been pushed into dsArray
+    if (loadingMore && dsArray.length > allPhotos.value.length - 1) loadingMore = false;
+    // Trigger load more when within 5 of the end
+    if (props.canLoadMore && !loadingMore && pswp.currIndex >= dsArray.length - 5) {
+      loadingMore = true;
+      emit('loadMore');
+    }
   });
   pswp.on("uiRegister", () => {
     let topMetaEl: HTMLElement | null = null;
@@ -444,7 +468,7 @@ function openLightbox(index: number) {
       onInit: (el) => {
         topMetaEl = el;
         const update = () => {
-          const { dateHtml, uploaderHtml } = buildMetaHtml(photos[pswp.currIndex]);
+          const { dateHtml, uploaderHtml } = buildMetaHtml(allPhotos.value[pswp.currIndex]);
           el.innerHTML = `<div class="pswp-meta-left">${dateHtml}</div><div class="pswp-meta-right">${uploaderHtml}</div>`;
         };
         pswp.on("change", update);
@@ -467,7 +491,7 @@ function openLightbox(index: number) {
     let captionInputEl: HTMLTextAreaElement | null = null;
     const showCaptionEditor = () => {
       if (!captionEditorEl || !captionInputEl) return;
-      captionInputEl.value = photos[pswp.currIndex].caption ?? "";
+      captionInputEl.value = allPhotos.value[pswp.currIndex].caption ?? "";
       captionEditorEl.style.display = "flex";
       captionInputEl.focus();
     };
@@ -495,7 +519,7 @@ function openLightbox(index: number) {
         saveBtn.textContent = "Save";
         saveBtn.style.cssText = "background:#cba6f7;color:#1e1e2e;border:none;border-radius:6px;padding:6px 16px;cursor:pointer;font-weight:600";
         saveBtn.addEventListener("click", async () => {
-          const photo = photos[pswp.currIndex];
+          const photo = allPhotos.value[pswp.currIndex];
           const caption = ta.value;
           saveBtn.textContent = "Saving…";
           saveBtn.disabled = true;
@@ -530,7 +554,7 @@ function openLightbox(index: number) {
         html: "🗑",
         appendTo: "bar",
         onClick: () => {
-          confirmDelete(photos[pswp.currIndex]);
+          confirmDelete(allPhotos.value[pswp.currIndex]);
         },
       });
     }
@@ -545,18 +569,18 @@ function openLightbox(index: number) {
           const featBtn = (e.target as Element).closest("[data-action='tagged']") as HTMLElement | null;
           if (btn) {
             const voteType = btn.dataset.vote!;
-            const p = photos[pswp.currIndex];
+            const p = allPhotos.value[pswp.currIndex];
             const rect = btn.getBoundingClientRect();
             spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, voteType, isRemovingVote(getVoteState(p).userVote, voteType));
             doVote(p.channelId, p.id, voteType);
           } else if (featBtn) {
-            openTagging(photos[pswp.currIndex], true);
+            openTagging(allPhotos.value[pswp.currIndex], true);
           } else if ((e.target as Element).closest("[data-action='score']")) {
-            openVoteModal(photos[pswp.currIndex]);
+            openVoteModal(allPhotos.value[pswp.currIndex]);
           }
         });
         const update = () => {
-          const p = photos[pswp.currIndex];
+          const p = allPhotos.value[pswp.currIndex];
           const { score, userVote } = getVoteState(p);
           const upActive = userVote === "up" || userVote === "fav";
           const taggedMs = props.members.filter(m => p.taggedIds?.includes(m.userId));
@@ -598,7 +622,7 @@ function openLightbox(index: number) {
       },
     });
   });
-  pswp.on("close", () => { refreshLightboxVotes = null; });
+  pswp.on("close", () => { refreshLightboxVotes = null; activeDsArray = null; });
   pswp.init();
 }
 

@@ -31,7 +31,8 @@
     <div v-if="loading && !photos.length" class="empty">Loading…</div>
     <div v-else-if="!photos.length" class="empty">No photos found.</div>
 
-    <PhotoGallery v-if="photos.length" :sections="[{ label: '', photos }]" :members="users" :album-map="albumMap" />
+    <PhotoGallery v-if="photos.length" :sections="[{ label: '', photos }]" :members="users" :album-map="albumMap"
+      :can-load-more="photos.length < (total ?? 0)" @load-more="loadMore" />
 
     <div class="search-show-more" v-if="photos.length < (total ?? 0)">
       <button class="btn-secondary" @click="loadMore" :disabled="loading">
