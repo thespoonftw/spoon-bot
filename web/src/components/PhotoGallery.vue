@@ -163,6 +163,7 @@ const deleting = ref(false);
 let pendingReopenIndex: number | null = null;
 let activePswp: any = null;
 let activeDsArray: { src: string; width: number; height: number; msrc: string }[] | null = null;
+let lightboxLoadingMore = false;
 
 const allPhotos = computed(() => props.sections.flatMap(s => s.photos));
 
@@ -173,7 +174,10 @@ watch(() => allPhotos.value.length, (newLen, oldLen) => {
     const p = allPhotos.value[i];
     activeDsArray.push({ src: p.url, width: p.width || 1200, height: p.height || 900, msrc: thumbUrl(p.url) });
   }
+  lightboxLoadingMore = false;
   activePswp.element?.classList.remove('pswp--is-last');
+  const counter = activePswp.element?.querySelector('.pswp__counter') as HTMLElement | null;
+  if (counter) counter.textContent = `${activePswp.currIndex + 1} / ${newLen}`;
   refreshLightboxVotes?.();
 });
 
@@ -343,7 +347,7 @@ function openLightbox(index: number) {
   activePswp = null;
   const dsArray = photos.map(p => ({ src: p.url, width: p.width || 1200, height: p.height || 900, msrc: thumbUrl(p.url) }));
   activeDsArray = dsArray;
-  let loadingMore = false;
+  lightboxLoadingMore = false;
   const pswp = new PhotoSwipe({
     dataSource: dsArray,
     index,
@@ -433,11 +437,9 @@ function openLightbox(index: number) {
   pswp.on("change", () => {
     if (showTagging.value) openTagging(allPhotos.value[pswp.currIndex]);
     if (voteModalPhoto.value) openVoteModal(allPhotos.value[pswp.currIndex]);
-    // Reset loadingMore flag once new photos have been pushed into dsArray
-    if (loadingMore && dsArray.length > allPhotos.value.length - 1) loadingMore = false;
     // Trigger load more when within 5 of the end
-    if (props.canLoadMore && !loadingMore && pswp.currIndex >= dsArray.length - 5) {
-      loadingMore = true;
+    if (props.canLoadMore && !lightboxLoadingMore && pswp.currIndex >= dsArray.length - 5) {
+      lightboxLoadingMore = true;
       emit('loadMore');
     }
   });
@@ -622,7 +624,7 @@ function openLightbox(index: number) {
       },
     });
   });
-  pswp.on("close", () => { refreshLightboxVotes = null; activeDsArray = null; });
+  pswp.on("close", () => { refreshLightboxVotes = null; activeDsArray = null; lightboxLoadingMore = false; });
   pswp.init();
 }
 

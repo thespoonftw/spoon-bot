@@ -60,6 +60,7 @@ const users = ref<User[]>([]);
 const photos = ref<Photo[]>([]);
 const total = ref<number | null>(null);
 const loading = ref(false);
+const appending = ref(false);
 const currentUserId = ref("");
 const albumMap = ref<Record<string, AlbumInfo>>({});
 const filterMode = ref<"all" | "uploadedBy" | "taggedIn">(
@@ -95,7 +96,13 @@ function onFilterModeChange() {
 
 function resetAndFetch() { page.value = 0; fetchPhotos(false); }
 
-function loadMore() { page.value++; fetchPhotos(true); }
+async function loadMore() {
+  if (appending.value) return;
+  appending.value = true;
+  page.value++;
+  await fetchPhotos(true);
+  appending.value = false;
+}
 
 onMounted(async () => {
   const [usersRes, authRes, albumsRes] = await Promise.all([
