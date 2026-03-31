@@ -1,7 +1,10 @@
 <template>
-  <div class="page map-page">
-    <router-link to="/" class="back">← Home</router-link>
-    <h1>Map</h1>
+  <div class="map-page">
+    <div class="map-header">
+      <router-link to="/" class="back">← Home</router-link>
+      <h1 class="map-title">Map</h1>
+      <span class="map-header-spacer"></span>
+    </div>
     <p v-if="status" class="empty map-status">{{ status }}</p>
     <div ref="mapEl" class="map-container"></div>
   </div>
