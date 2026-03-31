@@ -1,7 +1,6 @@
 <template>
   <div class="page">
-    <router-link to="/" class="back">← Home</router-link>
-    <h1>Search Photos</h1>
+    <PageHeader back-to="/" title="Search Photos" />
 
     <div class="search-filters">
       <div class="search-filters-row">
@@ -46,6 +45,7 @@
 import { ref, onMounted } from "vue";
 import { authHeaders } from "../utils/session";
 import PhotoGallery from "../components/PhotoGallery.vue";
+import PageHeader from "../components/PageHeader.vue";
 
 interface User { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Photo { id: number; channelId: string; url: string; score?: number; userVote?: string | null }

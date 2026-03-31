@@ -1,10 +1,8 @@
 <template>
   <div class="map-page">
-    <div class="map-header">
-      <router-link to="/" class="map-back">←</router-link>
-      <h1 class="map-title">Map</h1>
+    <PageHeader back-to="/" title="Map">
       <div class="map-pin-count" v-if="pinCount !== null">{{ pinCount }} 📍</div>
-    </div>
+    </PageHeader>
     <p v-if="status" class="empty map-status">{{ status }}</p>
     <div ref="mapEl" class="map-container"></div>
   </div>
@@ -12,6 +10,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted, onUnmounted } from "vue";
+import PageHeader from "../components/PageHeader.vue";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { formatAlbumDate } from "../utils/formatDate";

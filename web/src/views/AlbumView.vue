@@ -1,13 +1,11 @@
 <template>
   <div class="page">
-    <router-link to="/albums" class="back">← All Albums</router-link>
     <template v-if="album">
       <div class="album-header">
         <div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <h1>{{ album.groupName }}</h1>
+          <PageHeader back-to="/albums" :title="album.groupName">
             <button class="btn-icon" @click="showEdit = true" title="Edit album">✏️</button>
-          </div>
+          </PageHeader>
           <p v-if="album.dateText" class="date">{{ album.dateText }}</p>
           <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
         </div>
@@ -143,6 +141,7 @@ import MembersModal from "../components/MembersModal.vue";
 import PhotoGallery from "../components/PhotoGallery.vue";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 import { useDraggable } from "../utils/draggable";
+import PageHeader from "../components/PageHeader.vue";
 
 const dragShare = useDraggable();
 

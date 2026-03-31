@@ -1,7 +1,6 @@
 <template>
   <div class="page">
-    <router-link to="/" class="back">← Home</router-link>
-    <h1>Albums</h1>
+    <PageHeader back-to="/" title="Albums" />
 
     <button class="btn-primary" @click="showModal = true" style="margin-bottom:20px">New Album</button>
 
@@ -66,6 +65,7 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useCurrentUser } from "../composables/useCurrentUser";
 import { authJsonHeaders } from "../utils/session";
 import DateRangePicker from "../components/DateRangePicker.vue";
+import PageHeader from "../components/PageHeader.vue";
 import { formatAlbumDate } from "../utils/formatDate";
 
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }

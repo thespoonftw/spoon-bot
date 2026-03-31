@@ -1,7 +1,6 @@
 <template>
   <div class="page">
-    <router-link to="/" class="back">← Home</router-link>
-    <h1>Status</h1>
+    <PageHeader back-to="/" title="Status" />
 
     <div v-if="status" class="status-grid">
       <div class="status-card storage-card">
@@ -60,6 +59,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { authHeaders } from "../utils/session";
+import PageHeader from "../components/PageHeader.vue";
 
 interface Status { total: number; used: number; available: number; photoCount: number; albumCount: number }
 

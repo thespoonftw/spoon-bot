@@ -1,7 +1,6 @@
 <template>
   <div class="page">
-    <router-link to="/" class="back">← Home</router-link>
-    <h1>Users</h1>
+    <PageHeader back-to="/" title="Users" />
 
     <div class="user-list">
       <div v-for="user in discordUsers" :key="user.userId" class="user-row">
@@ -56,6 +55,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useCurrentUser } from "../composables/useCurrentUser";
 import { authHeaders, authJsonHeaders } from "../utils/session";
+import PageHeader from "../components/PageHeader.vue";
 
 interface SiteUser { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastLoginAt?: string; uploadCount?: number; taggedCount?: number }
 

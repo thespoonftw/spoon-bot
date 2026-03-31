@@ -1,7 +1,6 @@
 <template>
   <div class="page">
-    <router-link to="/" class="back">← Home</router-link>
-    <h1>Database</h1>
+    <PageHeader back-to="/" title="Database" />
 
     <div class="db-layout">
       <div class="db-sidebar">
@@ -56,6 +55,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { authHeaders } from "../utils/session";
+import PageHeader from "../components/PageHeader.vue";
 
 const tables = ref<string[]>([]);
 const activeTable = ref<string | null>(null);
