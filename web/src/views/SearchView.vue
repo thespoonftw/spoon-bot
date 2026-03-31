@@ -15,11 +15,6 @@
           <option v-for="u in users" :key="u.userId" :value="u.userId">{{ u.firstName || u.displayName }}</option>
         </select>
         <span class="search-count" v-if="total !== null">{{ total }} result{{ total === 1 ? '' : 's' }}</span>
-        <div class="search-pagination-top" v-if="total !== null && total > pageSize">
-          <button :disabled="page === 0" @click="changePage(page - 1)">← Prev</button>
-          <span>Page {{ page + 1 }} of {{ totalPages }}</span>
-          <button :disabled="page >= totalPages - 1" @click="changePage(page + 1)">Next →</button>
-        </div>
       </div>
       <div class="search-filters-row">
         <span class="search-filter-label">Sort By:</span>
@@ -33,21 +28,21 @@
       </div>
     </div>
 
-    <div v-if="loading" class="empty">Loading…</div>
+    <div v-if="loading && !photos.length" class="empty">Loading…</div>
     <div v-else-if="!photos.length" class="empty">No photos found.</div>
 
-    <PhotoGallery v-else :sections="[{ label: '', photos }]" :members="users" :album-map="albumMap" />
+    <PhotoGallery v-if="photos.length" :sections="[{ label: '', photos }]" :members="users" :album-map="albumMap" />
 
-    <div class="search-pagination" v-if="total !== null && total > pageSize">
-      <button :disabled="page === 0" @click="changePage(page - 1)">← Prev</button>
-      <span>Page {{ page + 1 }} of {{ totalPages }}</span>
-      <button :disabled="page >= totalPages - 1" @click="changePage(page + 1)">Next →</button>
+    <div class="search-show-more" v-if="photos.length < (total ?? 0)">
+      <button class="btn-secondary" @click="loadMore" :disabled="loading">
+        {{ loading ? 'Loading…' : 'Show more' }}
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import { authHeaders } from "../utils/session";
 import PhotoGallery from "../components/PhotoGallery.vue";
 
@@ -58,6 +53,7 @@ interface AlbumInfo { location?: string; startDate?: string; endDate?: string }
 const SEARCH_MODE_KEY = "snek_search_mode";
 const SEARCH_USER_KEY = "snek_search_user";
 const SEARCH_SORT_KEY = "snek_search_sort";
+const PAGE_SIZE = 40;
 
 const users = ref<User[]>([]);
 const photos = ref<Photo[]>([]);
@@ -73,21 +69,19 @@ const sort = ref<"newest" | "oldest" | "top" | "newest_taken" | "oldest_taken">(
   (sessionStorage.getItem(SEARCH_SORT_KEY) as any) ?? "top"
 );
 const page = ref(0);
-const pageSize = 100;
-const totalPages = computed(() => Math.ceil((total.value ?? 0) / pageSize));
 
-async function fetchPhotos() {
+async function fetchPhotos(append = false) {
   sessionStorage.setItem(SEARCH_MODE_KEY, filterMode.value);
   sessionStorage.setItem(SEARCH_USER_KEY, filterUserId.value);
   sessionStorage.setItem(SEARCH_SORT_KEY, sort.value);
   loading.value = true;
-  const params = new URLSearchParams({ sort: sort.value, page: String(page.value) });
+  const params = new URLSearchParams({ sort: sort.value, page: String(page.value), pageSize: String(PAGE_SIZE) });
   if (filterMode.value === "uploadedBy" && filterUserId.value) params.set("uploadedById", filterUserId.value);
   if (filterMode.value === "taggedIn" && filterUserId.value) params.set("taggedUserId", filterUserId.value);
   const res = await fetch(`/api/photos/search?${params}`, { headers: authHeaders() });
   if (res.ok) {
     const data = await res.json();
-    photos.value = data.photos;
+    photos.value = append ? [...photos.value, ...data.photos] : data.photos;
     total.value = data.total;
   }
   loading.value = false;
@@ -98,8 +92,9 @@ function onFilterModeChange() {
   resetAndFetch();
 }
 
-function resetAndFetch() { page.value = 0; fetchPhotos(); }
-function changePage(p: number) { page.value = p; fetchPhotos(); window.scrollTo(0, 0); }
+function resetAndFetch() { page.value = 0; fetchPhotos(false); }
+
+function loadMore() { page.value++; fetchPhotos(true); }
 
 onMounted(async () => {
   const [usersRes, authRes, albumsRes] = await Promise.all([
@@ -119,6 +114,6 @@ onMounted(async () => {
     const albums: { channelId: string; location?: string; startDate?: string; endDate?: string }[] = await albumsRes.json();
     albumMap.value = Object.fromEntries(albums.map(a => [a.channelId, { location: a.location, startDate: a.startDate, endDate: a.endDate }]));
   }
-  fetchPhotos();
+  fetchPhotos(false);
 });
 </script>

@@ -139,9 +139,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .search-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .search-thumb-meta { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.7)); padding: 16px 6px 5px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.72rem; color: #cdd6f4; }
 .thumb-score { color: #f9e2af; }
-.search-pagination { display: flex; align-items: center; gap: 16px; margin-top: 24px; justify-content: center; }
-.search-pagination button { background: #313244; border: 1px solid #45475a; border-radius: 8px; padding: 7px 16px; color: #cdd6f4; cursor: pointer; font-size: 0.9rem; }
-.search-pagination button:disabled { opacity: 0.4; cursor: default; }
+.search-show-more { display: flex; justify-content: center; margin-top: 24px; }
 .search-pagination button:not(:disabled):hover { background: #45475a; }
 .search-pagination span { color: #a6adc8; font-size: 0.9rem; }
 
