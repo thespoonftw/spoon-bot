@@ -87,7 +87,7 @@ onMounted(async () => {
   const albums: Album[] = await res.json();
 
   if (!mapEl.value) return;
-  map = L.map(mapEl.value).setView([20, 10], 2);
+  map = L.map(mapEl.value).setView([54, -2], 6);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom: 18,
