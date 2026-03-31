@@ -308,8 +308,9 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .db-table tr:last-child td { border-bottom: none; }
 .db-table tbody tr:hover td { background: #313244; }
 .map-page { padding: 32px; max-width: 1000px; margin: 0 auto; }
-.map-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.map-header .back { margin-bottom: 0; }
+.map-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.map-back { color: #89b4fa; text-decoration: none; background: #313244; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; line-height: 1; }
+.map-back:hover { background: #45475a; }
 .map-title { margin: 0; font-size: 1.6rem; color: #cba6f7; }
 .map-container { border-radius: 12px; overflow: hidden; }
 .map-status { margin: 0 0 8px; text-align: center; }
