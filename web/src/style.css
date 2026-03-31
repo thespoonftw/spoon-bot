@@ -309,10 +309,10 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .db-table tbody tr:hover td { background: #313244; }
 .map-page { padding: 32px; max-width: 1000px; margin: 0 auto; }
 .map-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.map-back { color: #fff; text-decoration: none; background: #313244; border-radius: 20px; padding: 5px 20px; font-size: 0.9em; flex-shrink: 0; }
+.map-back { color: #cdd6f4; text-decoration: none; background: #313244; border-radius: 20px; padding: 5px 16px; font-size: 1rem; flex-shrink: 0; }
 .map-back:hover { background: #45475a; }
 .map-title { margin: 0; font-size: 1.6rem; color: #cba6f7; flex: 1; }
-.map-pin-count { color: #a6adc8; font-size: 0.9rem; flex-shrink: 0; }
+.map-pin-count { background: #313244; border: 1px solid #45475a; border-radius: 10px; padding: 6px 14px; font-size: 1rem; font-weight: 700; color: #cdd6f4; flex-shrink: 0; }
 .map-emoji-pin { background: none !important; border: none !important; font-size: 24px; line-height: 1; }
 .map-container { border-radius: 12px; overflow: hidden; }
 .map-status { margin: 0 0 8px; text-align: center; }

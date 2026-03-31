@@ -1,9 +1,9 @@
 <template>
   <div class="map-page">
     <div class="map-header">
-      <router-link to="/" class="map-back">← Back</router-link>
+      <router-link to="/" class="map-back">←</router-link>
       <h1 class="map-title">Map</h1>
-      <span class="map-pin-count" v-if="pinCount !== null">{{ pinCount }} 📍</span>
+      <div class="map-pin-count" v-if="pinCount !== null">{{ pinCount }} 📍</div>
     </div>
     <p v-if="status" class="empty map-status">{{ status }}</p>
     <div ref="mapEl" class="map-container"></div>
@@ -69,8 +69,10 @@ let map: L.Map | null = null;
 
 function fitMapHeight() {
   if (!mapEl.value) return;
+  const w = window.innerWidth;
+  const zoom = w > 1600 ? Math.min(w / 1600, 3) : 1;
   const top = mapEl.value.getBoundingClientRect().top;
-  mapEl.value.style.height = (window.innerHeight - top - 32) + "px";
+  mapEl.value.style.height = ((window.innerHeight - top) / zoom - 32) + "px";
 }
 
 watch(status, () => nextTick(fitMapHeight));
