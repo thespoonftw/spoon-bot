@@ -15,10 +15,7 @@
             <p v-if="album.startDate" class="date">{{ formatAlbumDate(album.startDate, album.endDate) }}</p>
             <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
           </div>
-          <div class="card-left-details">
-            <p class="meta">{{ album.photos.length }} 📷</p>
-            <p v-if="album.members.length > 0" class="meta">{{ album.members.length }} 👥</p>
-          </div>
+          <div class="card-left-details"></div>
           <div v-if="album.members.length > 0" class="card-members">
             <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
               <img v-if="member.avatarUrl" :src="member.avatarUrl" />
@@ -27,6 +24,7 @@
           </div>
         </div>
         <div class="card-right" v-if="buildCollage(album, heroSize).length">
+          <div class="album-photo-count">{{ album.photos.length }} 📷</div>
           <div class="card-collage" :style="{ width: collageWidth(album, heroSize), height: collageHeight(album, heroSize), position: 'relative', flexShrink: '0' }">
             <img v-for="item in buildCollage(album, heroSize)" :key="item.photo.id"
               :src="thumbUrl(item.photo.url)" @error="($event.target as HTMLImageElement).src = item.photo.url"
