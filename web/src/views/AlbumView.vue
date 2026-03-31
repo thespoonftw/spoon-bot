@@ -55,7 +55,7 @@
       <PhotoGallery :sections="displayedSections" :members="allMembers" :can-delete="true"
         :can-load-more="hasMore" :total-count="totalSortedCount"
         @photo-deleted="onPhotoDeleted" @load-more="displayLimit += 40" />
-      <div class="search-show-more" v-if="hasMore">
+      <div class="search-show-more" v-if="hasMore" ref="showMoreEl">
         <button class="btn-secondary" @click="displayLimit += 40">Show more</button>
       </div>
     </template>
@@ -135,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import MemberAvatar from "../components/MemberAvatar.vue";
 import EditAlbumModal from "../components/EditAlbumModal.vue";
@@ -243,6 +243,24 @@ const displayedSections = computed(() => {
 });
 const hasMore = computed(() => displayedSections.value.reduce((n, s) => n + s.photos.length, 0) < totalSortedCount.value);
 
+const showMoreEl = ref<HTMLElement | null>(null);
+let observer: IntersectionObserver | null = null;
+
+watch(hasMore, async (val) => {
+  if (val) {
+    await nextTick();
+    if (showMoreEl.value && !observer) {
+      observer = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting) displayLimit.value += 40;
+      }, { rootMargin: '200px' });
+      observer.observe(showMoreEl.value);
+    }
+  } else {
+    observer?.disconnect();
+    observer = null;
+  }
+});
+
 const byName = (a: Member, b: Member) => (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName);
 
 onMounted(async () => {
@@ -279,7 +297,7 @@ function handleEscape(e: KeyboardEvent) {
   if (showShare.value) { showShare.value = false; e.stopImmediatePropagation(); return; }
 }
 onMounted(() => window.addEventListener("keydown", handleEscape, true));
-onUnmounted(() => window.removeEventListener("keydown", handleEscape, true));
+onUnmounted(() => { window.removeEventListener("keydown", handleEscape, true); observer?.disconnect(); });
 
 function onPhotoDeleted(id: number) {
   if (album.value) album.value.photos = album.value.photos.filter(p => p.id !== id);
