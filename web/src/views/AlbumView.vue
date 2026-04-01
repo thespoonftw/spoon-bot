@@ -36,7 +36,7 @@
       <p v-if="album.photos.length === 0" class="empty" style="margin-top:24px">No photos yet.</p>
       <div v-else class="sort-bar">
         <label class="sort-label">Sort By:</label>
-        <select v-model="sortBy" class="sort-select">
+        <select v-model="sortBy" class="sort-select" @change="onSortChange">
           <option value="popular">Most Popular</option>
           <option v-if="album.locations && album.locations.length > 1" value="location">Location</option>
           <option value="tagging">Tagging</option>
@@ -191,7 +191,8 @@ const SORT_KEY = 'snek_sort_by';
 const sortBy = ref<'popular' | 'tagging' | 'uploader' | 'newest' | 'oldest' | 'location'>(
   (sessionStorage.getItem(SORT_KEY) as any) ?? 'popular'
 );
-watch(sortBy, val => { sessionStorage.setItem(SORT_KEY, val); displayLimit.value = 40; });
+watch(sortBy, () => { displayLimit.value = 40; });
+function onSortChange() { sessionStorage.setItem(SORT_KEY, sortBy.value); }
 const displayLimit = ref(40);
 const currentUserId = ref<string | null>(null);
 const tagFilterUserId = ref<string>('__nobody__');
