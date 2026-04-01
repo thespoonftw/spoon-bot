@@ -49,7 +49,7 @@ import PageHeader from "../components/PageHeader.vue";
 
 interface User { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Photo { id: number; channelId: string; url: string; score?: number; userVote?: string | null }
-interface AlbumInfo { location?: string; startDate?: string; endDate?: string }
+interface AlbumInfo { groupName?: string; locations?: { id: number; name: string }[]; startDate?: string; endDate?: string }
 
 const SEARCH_MODE_KEY = "snek_search_mode";
 const SEARCH_USER_KEY = "snek_search_user";
@@ -119,8 +119,8 @@ onMounted(async () => {
     }
   }
   if (albumsRes.ok) {
-    const albums: { channelId: string; location?: string; startDate?: string; endDate?: string }[] = await albumsRes.json();
-    albumMap.value = Object.fromEntries(albums.map(a => [a.channelId, { location: a.location, startDate: a.startDate, endDate: a.endDate }]));
+    const albums: { channelId: string; groupName: string; locations?: { id: number; name: string }[]; startDate?: string; endDate?: string }[] = await albumsRes.json();
+    albumMap.value = Object.fromEntries(albums.map(a => [a.channelId, { groupName: a.groupName, locations: a.locations, startDate: a.startDate, endDate: a.endDate }]));
   }
   fetchPhotos(false);
 });

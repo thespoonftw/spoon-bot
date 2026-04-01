@@ -162,7 +162,7 @@ interface Photo {
 }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Section { label: string; photos: Photo[] }
-interface AlbumInfo { location?: string; locations?: { id: number; name: string }[]; startDate?: string; endDate?: string }
+interface AlbumInfo { groupName?: string; locations?: { id: number; name: string }[]; startDate?: string; endDate?: string }
 
 const props = defineProps<{
   sections: Section[];
@@ -504,8 +504,20 @@ function openLightbox(index: number) {
     });
     const buildMetaHtml = (p: Photo) => {
       const album = props.albumMap?.[p.channelId];
-      const photoLocation = p.locationId ? props.albumLocations?.find(l => l.id === p.locationId)?.name : null;
-      const locationStr = photoLocation ?? (album?.locations?.length ? album.locations.map(l => l.name).join(', ') : album?.location);
+      const locs = album?.locations ?? [];
+      let locationStr: string | undefined;
+      if (locs.length === 0) {
+        locationStr = undefined;
+      } else {
+        const photoLocation = p.locationId ? (props.albumLocations?.find(l => l.id === p.locationId)?.name ?? locs.find(l => l.id === p.locationId)?.name) : null;
+        if (photoLocation) {
+          locationStr = photoLocation;
+        } else if (locs.length === 1) {
+          locationStr = locs[0].name;
+        } else {
+          locationStr = album?.groupName;
+        }
+      }
       const locationHtml = locationStr ? `<span class="pswp-location">📍 ${locationStr}</span>` : "";
       let dateStr = p?.takenAt ? formatTime(p.takenAt) : "";
       if (!dateStr && album?.startDate) dateStr = formatAlbumDate(album.startDate, album.endDate);

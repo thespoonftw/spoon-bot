@@ -112,7 +112,7 @@ export function startWebServer(): void {
           if (!name || !startDate) {
             sendJson(res, 400, { error: "name and startDate are required" }); return;
           }
-          const album = dbCreateAlbum(name, location || "", startDate, endDate || undefined);
+          const album = dbCreateAlbum(name, startDate, endDate || undefined);
           if (location?.trim()) dbAddAlbumLocation(album.channelId, location.trim());
           const creator = getSessionUser(token);
           if (creator) dbUpsertUser(creator.userId, creator.displayName, creator.avatarUrl);
@@ -136,7 +136,7 @@ export function startWebServer(): void {
         try {
           const { name, startDate, endDate } = JSON.parse(body);
           if (!name?.trim()) { sendJson(res, 400, { error: "name is required" }); return; }
-          const updated = dbUpdateAlbum(channelId, name, undefined, startDate || undefined, endDate || undefined);
+          const updated = dbUpdateAlbum(channelId, name, startDate || undefined, endDate || undefined);
           // Sync to Discord if this is a real event channel
           if (!channelId.startsWith("web_") && albumDiscordClient) {
             const state = eventStates.get(channelId);
@@ -490,7 +490,7 @@ export function startWebServer(): void {
           if (hash !== share.passwordHash) { sendJson(res, 401, { error: "Wrong password" }); return; }
           const album = dbGetAlbumWithPhotos(share.channelId);
           if (!album) { sendJson(res, 404, { error: "Album not found" }); return; }
-          sendJson(res, 200, { groupName: album.groupName, dateText: album.dateText, location: album.location, photos: album.photos });
+          sendJson(res, 200, { groupName: album.groupName, dateText: album.dateText, photos: album.photos });
         } catch { sendJson(res, 500, { error: "Failed" }); }
       });
       return;

@@ -19,7 +19,6 @@
       <div>
         <h1>{{ album.groupName }}</h1>
         <p v-if="album.dateText" class="date">{{ album.dateText }}</p>
-        <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
       </div>
     </div>
     <p v-if="album.photos.length === 0" class="empty" style="margin-top:24px">No photos yet.</p>
@@ -51,7 +50,7 @@ import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
 
 interface Photo { id: number; url: string; uploadedByName?: string; takenAt?: string; width?: number; height?: number }
-interface Album { groupName: string; dateText?: string; location?: string; photos: Photo[] }
+interface Album { groupName: string; dateText?: string; photos: Photo[] }
 
 const route = useRoute();
 const token = route.params.token as string;

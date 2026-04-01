@@ -46,10 +46,6 @@
         <label>Name</label>
         <input v-model="form.name" type="text" placeholder="e.g. Summer Trip" />
       </div>
-      <div class="form-group">
-        <label>Location</label>
-        <input v-model="form.location" type="text" placeholder="e.g. Barcelona" />
-      </div>
       <DateRangePicker v-model:start-date="form.startDate" v-model:end-date="form.endDate" />
       <div v-if="formError" class="error">{{ formError }}</div>
       <div class="modal-actions">
@@ -71,7 +67,7 @@ import { formatAlbumDate } from "../utils/formatDate";
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Photo { id: number; url: string; score?: number }
 interface AlbumLocation { id: number; name: string }
-interface Album { channelId: string; groupName: string; location?: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; createdAt: string; photos: Photo[]; members: Member[] }
+interface Album { channelId: string; groupName: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; createdAt: string; photos: Photo[]; members: Member[] }
 
 const albums = ref<Album[]>([]);
 const loading = ref(true);
@@ -80,7 +76,7 @@ useCurrentUser();
 const showModal = ref(false);
 const creating = ref(false);
 const formError = ref("");
-const form = ref({ name: "", location: "", startDate: "", endDate: "" });
+const form = ref({ name: "", startDate: "", endDate: "" });
 
 const albumsByYear = computed(() => {
   const groups = new Map<string, Album[]>();
@@ -195,13 +191,12 @@ onUnmounted(() => window.removeEventListener("resize", onResize));
 function closeModal() {
   showModal.value = false;
   formError.value = "";
-  form.value = { name: "", location: "", startDate: "", endDate: "" };
+  form.value = { name: "", startDate: "", endDate: "" };
 }
 
 async function createAlbum() {
   formError.value = "";
   if (!form.value.name.trim()) { formError.value = "Name is required."; return; }
-  if (!form.value.location.trim()) { formError.value = "Location is required."; return; }
   if (!form.value.startDate) { formError.value = "Start date is required."; return; }
   creating.value = true;
   const res = await fetch("/api/albums", {
@@ -209,7 +204,6 @@ async function createAlbum() {
     headers: authJsonHeaders(),
     body: JSON.stringify({
       name: form.value.name.trim(),
-      location: form.value.location.trim(),
       startDate: form.value.startDate,
       endDate: form.value.endDate || undefined,
     }),

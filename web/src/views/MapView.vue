@@ -44,7 +44,6 @@ interface AlbumLocation { id: number; name: string; lat?: number | null; lon?: n
 interface Album {
   channelId: string;
   groupName: string;
-  location?: string;
   locations?: AlbumLocation[];
   startDate?: string;
   endDate?: string;
@@ -137,9 +136,7 @@ onMounted(async () => {
   // Collect all named locations with their album, keyed by location name for grouping pins
   const byName = new Map<string, { albums: Album[]; loc: AlbumLocation }>();
   for (const album of albums) {
-    const locs: AlbumLocation[] = album.locations?.length
-      ? album.locations
-      : album.location ? [{ id: -1, name: album.location }] : [];
+    const locs: AlbumLocation[] = album.locations ?? [];
     for (const loc of locs) {
       if (!byName.has(loc.name)) byName.set(loc.name, { albums: [], loc });
       byName.get(loc.name)!.albums.push(album);
