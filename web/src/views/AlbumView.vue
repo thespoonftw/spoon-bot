@@ -3,7 +3,7 @@
     <template v-if="album">
       <div class="album-header">
         <div>
-          <PageHeader back-to="/albums" :title="album.groupName">
+          <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName">
             <button class="btn-icon" @click="showEdit = true" title="Edit album">✏️</button>
           </PageHeader>
           <p v-if="album.dateText" class="date">{{ album.dateText }}</p>
