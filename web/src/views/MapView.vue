@@ -16,7 +16,7 @@ import "leaflet/dist/leaflet.css";
 import { formatAlbumDate } from "../utils/formatDate";
 import { authJsonHeaders } from "../utils/session";
 
-interface AlbumLocation { id: number; name: string; lat?: number | null; lon?: number | null }
+interface AlbumLocation { id: number; name: string; lat?: number | null; lon?: number | null; geocodeAttempted?: number }
 interface Album {
   channelId: string;
   groupName: string;
@@ -28,25 +28,23 @@ interface Album {
 }
 
 async function geocodeAndSave(loc: AlbumLocation): Promise<[number, number] | null> {
+  let lat: number | null = null;
+  let lon: number | null = null;
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(loc.name)}&format=json&limit=1`,
       { headers: { "Accept-Language": "en", "User-Agent": "spoon-bot/1.0" } }
     );
     const data = await res.json();
-    if (!data[0]) return null;
-    const lat = parseFloat(data[0].lat);
-    const lon = parseFloat(data[0].lon);
-    // Save to DB so we don't geocode again
-    fetch(`/api/album-location/${loc.id}/coords`, {
-      method: "PUT",
-      headers: authJsonHeaders(),
-      body: JSON.stringify({ lat, lon }),
-    });
-    return [lat, lon];
-  } catch {
-    return null;
-  }
+    if (data[0]) { lat = parseFloat(data[0].lat); lon = parseFloat(data[0].lon); }
+  } catch { /* network error — don't save attempted, may succeed next time */ return null; }
+  // Save result (even null) so we don't retry
+  fetch(`/api/album-location/${loc.id}/coords`, {
+    method: "PUT",
+    headers: authJsonHeaders(),
+    body: JSON.stringify({ lat, lon }),
+  });
+  return lat != null && lon != null ? [lat, lon] : null;
 }
 
 const pinIcon = L.divIcon({
@@ -103,7 +101,7 @@ onMounted(async () => {
   if (byName.size === 0) { status.value = "No albums have a location set."; return; }
 
   // Separate into already-geocoded and needing geocoding
-  const needsGeocode = [...byName.values()].filter(e => e.loc.id >= 0 && (e.loc.lat == null || e.loc.lon == null));
+  const needsGeocode = [...byName.values()].filter(e => e.loc.id >= 0 && !e.loc.geocodeAttempted && e.loc.lat == null);
   const total = needsGeocode.length;
 
   if (total > 0) status.value = `Locating ${total} new location${total > 1 ? "s" : ""}… 0/${total}`;
