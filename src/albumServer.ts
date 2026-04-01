@@ -14,7 +14,7 @@ import type { Client, Guild } from "discord.js";
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbHasAlbum, dbUpdateAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbSetPhotoCaption, dbListTables, dbTablePage, dbSearchPhotos, dbGetAlbumLocations, dbAddAlbumLocation, dbDeleteAlbumLocation } from "./db";
+import { dbHasAlbum, dbUpdateAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbSetPhotoCaption, dbListTables, dbTablePage, dbSearchPhotos, dbGetAlbumLocations, dbAddAlbumLocation, dbDeleteAlbumLocation, dbSetPhotoLocation } from "./db";
 
 const PHOTO_STORAGE_PATH = process.env.PHOTO_STORAGE_PATH ?? path.join(DATA_DIR, "photos");
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
@@ -283,6 +283,22 @@ export function startWebServer(): void {
         try {
           const { caption } = JSON.parse(body);
           dbSetPhotoCaption(photoId, caption ?? "");
+          sendJson(res, 200, { ok: true });
+        } catch { sendJson(res, 500, { error: "Failed" }); }
+      });
+      return;
+    }
+
+    // PUT /api/photo/:photoId/location — set photo location
+    if (url.match(/^\/api\/photo\/\d+\/location$/) && method === "PUT") {
+      const photoId = parseInt(url.split("/")[3]);
+      if (!isValidSession(getTokenFromRequest(req))) { send401(res); return; }
+      let body = "";
+      req.on("data", chunk => body += chunk);
+      req.on("end", () => {
+        try {
+          const { locationId } = JSON.parse(body);
+          dbSetPhotoLocation(photoId, locationId ?? null);
           sendJson(res, 200, { ok: true });
         } catch { sendJson(res, 500, { error: "Failed" }); }
       });

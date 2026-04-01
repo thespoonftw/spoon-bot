@@ -98,6 +98,33 @@
         </div>
       </div>
     </div>
+    <!-- Location Picker Modal -->
+    <div class="modal-overlay" v-if="showLocationPicker" style="z-index:200000">
+      <div class="modal">
+        <button class="modal-close" @click="showLocationPicker = false; locationPickerPhoto = null">✕</button>
+        <h2>Set Location</h2>
+        <div class="members-modal-list">
+          <div
+            v-for="loc in albumLocations"
+            :key="loc.id"
+            class="members-modal-row location-picker-row"
+            :class="{ active: locationPickerPhoto?.locationId === loc.id }"
+            @click="setPhotoLocation(loc.id)"
+          >
+            <span>📍 {{ loc.name }}</span>
+            <span v-if="locationPickerPhoto?.locationId === loc.id" style="color:#a6e3a1;font-size:0.85em">✓ current</span>
+          </div>
+          <div
+            class="members-modal-row location-picker-row"
+            :class="{ active: !locationPickerPhoto?.locationId }"
+            @click="setPhotoLocation(null)"
+          >
+            <span style="color:#6c7086">— No location</span>
+            <span v-if="!locationPickerPhoto?.locationId" style="color:#a6e3a1;font-size:0.85em">✓ current</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </Teleport>
 </template>
 
@@ -125,6 +152,7 @@ interface Photo {
   score?: number;
   userVote?: string | null;
   taggedIds?: string[];
+  locationId?: number | null;
 }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Section { label: string; photos: Photo[] }
@@ -137,6 +165,7 @@ const props = defineProps<{
   albumMap?: Record<string, AlbumInfo>;
   canLoadMore?: boolean;
   totalCount?: number;
+  albumLocations?: { id: number; name: string }[];
 }>();
 
 const emit = defineEmits<{
@@ -161,6 +190,8 @@ const voteModalData = ref<{ userId: string; displayName: string; firstName: stri
 
 const deletingPhoto = ref<Photo | null>(null);
 const deleting = ref(false);
+const showLocationPicker = ref(false);
+const locationPickerPhoto = ref<Photo | null>(null);
 let pendingReopenIndex: number | null = null;
 let activePswp: any = null;
 let activeDsArray: { src: string; width: number; height: number; msrc: string }[] | null = null;
@@ -562,6 +593,19 @@ function openLightbox(index: number) {
       appendTo: "bar",
       onClick: () => { showCaptionEditor(); },
     });
+    if (props.albumLocations?.length) {
+      pswp.ui!.registerElement({
+        name: "location-button",
+        order: 7,
+        isButton: true,
+        html: "📍",
+        appendTo: "bar",
+        onClick: () => {
+          const photo = allPhotos.value[pswp.currIndex];
+          if (photo) { locationPickerPhoto.value = photo; showLocationPicker.value = true; }
+        },
+      });
+    }
     if (props.canDelete) {
       pswp.ui!.registerElement({
         name: "delete-button",
@@ -640,6 +684,17 @@ function openLightbox(index: number) {
   });
   pswp.on("close", () => { refreshLightboxVotes = null; activeDsArray = null; lightboxLoadingMore = false; });
   pswp.init();
+}
+
+async function setPhotoLocation(locationId: number | null) {
+  const photo = locationPickerPhoto.value;
+  if (!photo) return;
+  await fetch(`/api/photo/${photo.id}/location`, {
+    method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ locationId }),
+  });
+  photo.locationId = locationId;
+  showLocationPicker.value = false;
+  locationPickerPhoto.value = null;
 }
 
 function loadFull(e: Event, fullUrl: string) {

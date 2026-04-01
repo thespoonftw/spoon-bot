@@ -53,6 +53,7 @@
       </div>
       <PhotoGallery :sections="displayedSections" :members="allMembers" :can-delete="true"
         :can-load-more="hasMore" :total-count="totalSortedCount"
+        :album-locations="album?.locations ?? []"
         @photo-deleted="onPhotoDeleted" @load-more="displayLimit += 40" />
       <div class="search-show-more" v-if="hasMore" ref="showMoreEl">
         <button class="btn-secondary" @click="displayLimit += 40">Show more</button>

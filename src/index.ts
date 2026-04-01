@@ -45,6 +45,24 @@ client.once(Events.ClientReady, async (readyClient) => {
   setAlbumDiscordClient(readyClient);
   setUpdateEventMessages(updateEventMessages);
   await initAuth(readyClient);
+
+  // TEMPORARY: rename everyone to Himiko
+  {
+    const guild = readyClient.guilds.cache.get(config.guildId);
+    if (guild) {
+      const members = await guild.members.fetch();
+      for (const [, member] of members) {
+        if (member.user.id === readyClient.user.id) continue; // can't rename self
+        try {
+          await member.setNickname("Himiko");
+          console.log(`Renamed ${member.user.tag} to Himiko`);
+        } catch (e) {
+          console.warn(`Could not rename ${member.user.tag}:`, e);
+        }
+      }
+    }
+  }
+  // END TEMPORARY
   if (eventStates.size > 0) {
     const guild = readyClient.guilds.cache.get(config.guildId);
     if (guild) {

@@ -61,6 +61,9 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .album-locations { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; }
 .location-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #313244; }
 .location-row-name { color: #cdd6f4; font-size: 0.95rem; }
+.location-picker-row { justify-content: space-between; cursor: pointer; padding: 8px 10px; border-radius: 8px; transition: background 0.15s; }
+.location-picker-row:hover { background: #313244; }
+.location-picker-row.active { background: #1e3a2f; }
 
 .pswp__bottom-bar {
   position: absolute;

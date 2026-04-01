@@ -83,6 +83,7 @@ export function initDb() {
     "ALTER TABLE photos ADD COLUMN taken_at TEXT",
     "ALTER TABLE photos ADD COLUMN width INTEGER",
     "ALTER TABLE photos ADD COLUMN height INTEGER",
+    "ALTER TABLE photos ADD COLUMN location_id INTEGER",
     "ALTER TABLE photos ADD COLUMN caption TEXT",
     "ALTER TABLE photos ADD COLUMN discord_message_id TEXT",
     "ALTER TABLE albums DROP COLUMN date_text",
@@ -173,7 +174,12 @@ export type PhotoRow = {
   filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string;
   takenAt?: string; width?: number; height?: number; caption?: string;
   score?: number; userVote?: string | null; taggedIds?: string[];
+  locationId?: number | null;
 };
+
+export function dbSetPhotoLocation(photoId: number, locationId: number | null) {
+  db.prepare("UPDATE photos SET location_id = ? WHERE id = ?").run(locationId, photoId);
+}
 export type AlbumWithPhotos = AlbumRow & { photos: PhotoRow[]; members: UserRow[] };
 
 export function dbHasAlbum(channelId: string): boolean {
@@ -196,7 +202,7 @@ export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
       SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
         p.uploaded_by_id AS uploadedById,
         COALESCE(u.first_name, u.display_name) AS uploadedByName,
-        p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption,
+        p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption, p.location_id AS locationId,
         COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
         (SELECT vote_type FROM photo_votes WHERE photo_id = p.id AND user_id = ?) AS userVote,
         (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
@@ -209,7 +215,7 @@ export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
     SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
       p.uploaded_by_id AS uploadedById,
       COALESCE(u.first_name, u.display_name) AS uploadedByName,
-      p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption,
+      p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption, p.location_id AS locationId,
       COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
       NULL AS userVote,
       (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
