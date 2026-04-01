@@ -115,50 +115,48 @@ async function deletePin(entry: PinEntry) {
   pinCount.value = (pinCount.value ?? 1) - 1;
 }
 
-function startMovePin(entry: PinEntry) {
-  showPinsModal.value = false;
-  const reg = markerRegistry.get(entry.loc.id);
-  if (!reg || !map) return;
-  const { marker, popupContent } = reg;
-
+function doMovePin(loc: AlbumLocation, marker: L.Marker, popupContent: string) {
   const origLatLng = marker.getLatLng();
   marker.dragging?.enable();
   marker.setIcon(editingIcon);
-  map.setView(marker.getLatLng(), Math.max(map.getZoom(), 10));
+  if (map) map.setView(marker.getLatLng(), Math.max(map.getZoom(), 10));
 
-  // Build popup using a real DOM element so event listeners attach immediately
+  const restorePopup = () => {
+    marker.dragging?.disable();
+    marker.setIcon(pinIcon);
+    marker.closePopup();
+    marker.unbindPopup();
+    marker.bindPopup(popupContent, { maxWidth: 320 });
+  };
+
   const container = document.createElement("div");
   container.className = "map-popup";
   container.innerHTML = `<div style="font-weight:700;margin-bottom:8px">Drag pin to correct position</div><div style="display:flex;gap:6px"><button class="map-popup-save-btn">Save</button><button class="map-popup-cancel-btn">Cancel</button></div>`;
 
   container.querySelector(".map-popup-save-btn")!.addEventListener("click", async () => {
     const { lat, lng } = marker.getLatLng();
-    await fetch(`/api/album-location/${entry.loc.id}/coords`, {
+    await fetch(`/api/album-location/${loc.id}/coords`, {
       method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ lat, lon: lng }),
     });
-    entry.loc.lat = lat;
-    entry.loc.lon = lng;
-    marker.dragging?.disable();
-    marker.setIcon(pinIcon);
-    marker.closePopup();
-    marker.unbindPopup();
-    marker.bindPopup(popupContent, { maxWidth: 320 });
-    // update coord inputs in modal
-    const modalEntry = pinEntries.value.find(e => e.loc.id === entry.loc.id);
+    loc.lat = lat; loc.lon = lng;
+    restorePopup();
+    const modalEntry = pinEntries.value.find(e => e.loc.id === loc.id);
     if (modalEntry) { modalEntry.loc.lat = lat; modalEntry.loc.lon = lng; }
   });
 
   container.querySelector(".map-popup-cancel-btn")!.addEventListener("click", () => {
     marker.setLatLng(origLatLng);
-    marker.dragging?.disable();
-    marker.setIcon(pinIcon);
-    marker.closePopup();
-    marker.unbindPopup();
-    marker.bindPopup(popupContent, { maxWidth: 320 });
+    restorePopup();
   });
 
   marker.unbindPopup();
   marker.bindPopup(container, { maxWidth: 240, closeOnClick: false, closeButton: false }).openPopup();
+}
+
+function startMovePin(entry: PinEntry) {
+  showPinsModal.value = false;
+  const reg = markerRegistry.get(entry.loc.id);
+  if (reg && map) doMovePin(entry.loc, reg.marker, reg.popupContent);
 }
 
 let map: L.Map | null = null;
@@ -224,7 +222,8 @@ onMounted(async () => {
     if (loc.lat == null || loc.lon == null) continue;
     placed++;
     const thumbUrl = (url: string) => url.replace("/uploads/", "/thumbnails/");
-    const popupInner = albumsHere.map(a => {
+    const editBtnId = `map-move-btn-${loc.id}`;
+    const popupInner = albumsHere.map((a, i) => {
       const year = a.startDate ? new Date(a.startDate).getUTCFullYear() : "";
       const singleLocation = (a.locations?.length ?? 0) <= 1;
       const locPhotos = singleLocation ? a.photos : a.photos.filter(p => p.locationId === loc.id);
@@ -237,9 +236,10 @@ onMounted(async () => {
           <a href="/album/${a.channelId}?back=/map"><img src="${thumbUrl(topPhotos[0].url)}" class="map-popup-thumb-lg" /></a>
           ${smallThumbs ? `<div class="map-popup-thumbs-stack">${smallThumbs}</div>` : ""}
         </div>` : "";
+      const editBtn = i === 0 ? ` <button id="${editBtnId}" class="map-popup-move-btn" title="Move pin">✏️</button>` : "";
       return `<div class="map-popup-album">
         <a href="/album/${a.channelId}?back=/map" class="map-popup-title">${loc.name}</a>
-        <div class="map-popup-meta">${a.groupName}${year ? ` · ${year}` : ""}</div>
+        <div class="map-popup-meta">${a.groupName}${year ? ` · ${year}` : ""}${editBtn}</div>
         ${thumbsHtml}
       </div>`;
     }).join('<hr class="map-popup-divider">');
@@ -247,6 +247,10 @@ onMounted(async () => {
     const popupContent = `<div class="map-popup">${popupInner}</div>`;
     const marker = L.marker([loc.lat, loc.lon], { icon: pinIcon }).addTo(map!);
     marker.bindPopup(popupContent, { maxWidth: 320 });
+    marker.on("popupopen", () => {
+      const btn = document.getElementById(editBtnId);
+      if (btn) btn.onclick = () => { marker.closePopup(); doMovePin(loc, marker, popupContent); };
+    });
     markerRegistry.set(loc.id, { marker, popupContent });
   }
 
