@@ -7,6 +7,7 @@
     <div ref="mapEl" class="map-container"></div>
     <div v-if="movingPinLoc || (activePinLoc && activePinPhotoCount === 0)" class="map-bottom-bar">
       <template v-if="movingPinLoc">
+        <input class="popup-name-input" type="text" v-model="activeNameStr" placeholder="Location name" @change="saveActiveName" />
         <input class="popup-coord-input" type="number" step="any" v-model="activeLatStr" placeholder="lat" readonly />
         <input class="popup-coord-input" type="number" step="any" v-model="activeLonStr" placeholder="lon" readonly />
         <button class="map-popup-save-btn" @click="saveDrag">Save</button>
@@ -66,6 +67,7 @@ const activePinPhotoCount = ref(0);
 const activePinAlbums = ref<Album[]>([]);
 const activeLatStr = ref("");
 const activeLonStr = ref("");
+const activeNameStr = ref("");
 
 // Drag mode state
 const movingPinLoc = ref<AlbumLocation | null>(null);
@@ -74,6 +76,14 @@ let movingOrigLatLng: L.LatLng | null = null;
 
 const markerRegistry = new Map<number, L.Marker>();
 
+async function saveActiveName() {
+  const name = activeNameStr.value.trim();
+  if (!name || !activePinLoc.value) return;
+  activePinLoc.value.name = name;
+  await fetch(`/api/album-location/${activePinLoc.value.id}/name`, {
+    method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ name }),
+  });
+}
 
 async function deleteActiveLoc() {
   if (!activePinLoc.value) return;
@@ -90,6 +100,7 @@ async function deleteActiveLoc() {
 function startDragMode(loc: AlbumLocation, marker: L.Marker) {
   movingPinLoc.value = loc;
   activePinLoc.value = loc;
+  activeNameStr.value = loc.name;
   movingMarker = marker;
   movingOrigLatLng = marker.getLatLng();
   marker.closePopup();
@@ -134,10 +145,11 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
       <a href="/album/${a.channelId}?back=/map"><img src="${thumbUrl(topPhotos[0].url)}" class="map-popup-thumb-lg" /></a>
       ${smallThumbs ? `<div class="map-popup-thumbs-stack">${smallThumbs}</div>` : ""}
     </div>` : "";
+    const albumPhotoCount = singleLocation ? a.photos.length : locPhotos.length;
     const editBtn = i === 0 ? ` <button class="map-popup-move-btn" title="Move pin">✏️</button>` : "";
     return `<div class="map-popup-album">
       <a href="/album/${a.channelId}?back=/map" class="map-popup-title">${loc.name}</a>
-      <div class="map-popup-meta">${a.groupName}${year ? ` · ${year}` : ""}${editBtn}</div>
+      <div class="map-popup-meta">${a.groupName}${year ? ` · ${year}` : ""} · ${albumPhotoCount} 📸${editBtn}</div>
       ${thumbsHtml}
     </div>`;
   }).join('<hr class="map-popup-divider">');
@@ -219,6 +231,7 @@ onMounted(async () => {
       activePinAlbums.value = albumsHere;
       activeLatStr.value = loc.lat?.toFixed(5) ?? "";
       activeLonStr.value = loc.lon?.toFixed(5) ?? "";
+      activeNameStr.value = loc.name;
     });
     marker.on("popupclose", () => {
       if (!movingPinLoc.value) activePinLoc.value = null;

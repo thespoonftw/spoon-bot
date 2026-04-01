@@ -167,6 +167,9 @@ export function dbGetAlbumLocations(channelId: string): AlbumLocation[] {
 export function dbSetLocationCoords(id: number, lat: number | null, lon: number | null) {
   db.prepare("UPDATE album_locations SET lat = ?, lon = ?, geocode_attempted = 1 WHERE id = ?").run(lat, lon, id);
 }
+export function dbRenameAlbumLocation(id: number, name: string) {
+  db.prepare("UPDATE album_locations SET name = ? WHERE id = ?").run(name.trim(), id);
+}
 export function dbAddAlbumLocation(channelId: string, name: string): AlbumLocation | null {
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM album_locations WHERE channel_id = ?").get(channelId) as { m: number }).m;
   const result = db.prepare("INSERT OR IGNORE INTO album_locations (channel_id, name, sort_order) VALUES (?, ?, ?)").run(channelId, name.trim(), maxOrder + 1);
