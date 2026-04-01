@@ -38,6 +38,7 @@
         <label class="sort-label">Sort By:</label>
         <select v-model="sortBy" class="sort-select">
           <option value="popular">Most Popular</option>
+          <option v-if="album.locations && album.locations.length > 1" value="location">Location</option>
           <option value="tagging">Tagging</option>
           <option value="uploader">Uploader</option>
           <option value="newest">Newest Upload</option>
@@ -156,7 +157,7 @@ import LocationsModal from "../components/LocationsModal.vue";
 
 const dragShare = useDraggable();
 
-interface Photo { id: number; channelId: string; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; caption?: string; score?: number; userVote?: string | null; taggedIds?: string[] }
+interface Photo { id: number; channelId: string; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; caption?: string; score?: number; userVote?: string | null; taggedIds?: string[]; locationId?: number | null }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string; rsvpStatus?: string }
 interface AlbumLocation { id: number; name: string }
 interface Album { channelId: string; groupName: string; dateText?: string; location?: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; photos: Photo[]; members: Member[] }
@@ -187,7 +188,7 @@ const showLocations = ref(false);
 const allMembers = ref<Member[]>([]);
 
 const SORT_KEY = 'snek_sort_by';
-const sortBy = ref<'popular' | 'tagging' | 'uploader' | 'newest' | 'oldest'>(
+const sortBy = ref<'popular' | 'tagging' | 'uploader' | 'newest' | 'oldest' | 'location'>(
   (sessionStorage.getItem(SORT_KEY) as any) ?? 'popular'
 );
 watch(sortBy, val => { sessionStorage.setItem(SORT_KEY, val); displayLimit.value = 40; });
@@ -238,6 +239,19 @@ const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
     for (const s of sections) s.photos.sort(cmp);
     return sections;
   }
+  if (sortBy.value === 'location') {
+    const locs = album.value?.locations ?? [];
+    const groups = new Map<number | null, { label: string; photos: Photo[] }>();
+    for (const loc of locs) groups.set(loc.id, { label: `📍 ${loc.name}`, photos: [] });
+    groups.set(null, { label: 'No Location', photos: [] });
+    for (const photo of photos) {
+      const key = photo.locationId && groups.has(photo.locationId) ? photo.locationId : null;
+      groups.get(key)!.photos.push(photo);
+    }
+    const sections = [...groups.values()].filter(s => s.photos.length > 0);
+    for (const s of sections) s.photos.sort(cmp);
+    return sections;
+  }
   return [{ label: '', photos }];
 });
 
@@ -285,6 +299,9 @@ onMounted(async () => {
     const sortedMembers = (data.members ?? []).slice().sort(byName);
     album.value = { ...data, members: sortedMembers };
     allMembers.value = sortedMembers;
+    if ((data.locations?.length ?? 0) > 1 && !sessionStorage.getItem(SORT_KEY)) {
+      sortBy.value = 'location';
+    }
   }
   if (checkRes.ok) {
     const { userId } = await checkRes.json();
