@@ -520,7 +520,7 @@ function openLightbox(index: number) {
       }
       const locationHtml = locationStr ? `<span class="pswp-location">📍 ${locationStr}</span>` : "";
       let dateStr = p?.takenAt ? formatTime(p.takenAt) : "";
-      if (!dateStr && album?.startDate) dateStr = formatAlbumDate(album.startDate, album.endDate);
+      if (!dateStr && album?.startDate) dateStr = formatAlbumDate(album.startDate, album.endDate, true);
       const dateHtml = (locationHtml || dateStr)
         ? `${locationHtml}${dateStr ? `<span class="pswp-caption-date">${dateStr}</span>` : ""}`
         : "";

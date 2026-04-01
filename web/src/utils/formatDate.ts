@@ -1,4 +1,4 @@
-export function formatAlbumDate(startDate: string, endDate?: string): string {
+export function formatAlbumDate(startDate: string, endDate?: string, showYear = false): string {
   const parse = (s: string) => {
     const d = new Date(s + "T00:00:00Z");
     const day = d.getUTCDate();
@@ -9,8 +9,8 @@ export function formatAlbumDate(startDate: string, endDate?: string): string {
     return { day, suffix, month, year };
   };
   const s = parse(startDate);
-  if (!endDate) return `${s.day}${s.suffix} ${s.month} ${s.year}`;
+  if (!endDate) return showYear ? `${s.day}${s.suffix} ${s.month} ${s.year}` : `${s.day}${s.suffix} ${s.month}`;
   const e = parse(endDate);
-  if (s.year === e.year) return `${s.day}${s.suffix} ${s.month} – ${e.day}${e.suffix} ${e.month} ${e.year}`;
+  if (s.year === e.year) return showYear ? `${s.day}${s.suffix} ${s.month} – ${e.day}${e.suffix} ${e.month} ${e.year}` : `${s.day}${s.suffix} ${s.month} – ${e.day}${e.suffix} ${e.month}`;
   return `${s.day}${s.suffix} ${s.month} ${s.year} – ${e.day}${e.suffix} ${e.month} ${e.year}`;
 }
