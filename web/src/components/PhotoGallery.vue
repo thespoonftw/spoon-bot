@@ -492,7 +492,8 @@ function openLightbox(index: number) {
     });
     const buildMetaHtml = (p: Photo) => {
       const album = props.albumMap?.[p.channelId];
-      const locationStr = album?.locations?.length ? album.locations.map(l => l.name).join(', ') : album?.location;
+      const photoLocation = p.locationId ? props.albumLocations?.find(l => l.id === p.locationId)?.name : null;
+      const locationStr = photoLocation ?? (album?.locations?.length ? album.locations.map(l => l.name).join(', ') : album?.location);
       const locationHtml = locationStr ? `<span class="pswp-location">📍 ${locationStr}</span>` : "";
       let dateStr = p?.takenAt ? formatTime(p.takenAt) : "";
       if (!dateStr && album?.startDate) dateStr = formatAlbumDate(album.startDate, album.endDate);
