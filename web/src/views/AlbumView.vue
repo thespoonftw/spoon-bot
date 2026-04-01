@@ -4,6 +4,7 @@
       <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :editable="true"
         :location-line="album.locations?.length === 1 ? album.locations[0].name : undefined"
         @edit="showEdit = true" @location-edit="showLocations = true">
+        <span class="album-photo-count-badge">📷 {{ album.photos.length }}</span>
         <button class="btn-secondary btn-small" @click="openShare">Share</button>
         <button class="btn-primary btn-small" @click="openUpload">Upload</button>
       </PageHeader>
@@ -39,10 +40,8 @@
 
       <!-- 📷 Photos -->
       <div class="album-section">
-        <div class="album-section-header">
-          <span class="album-section-label">📷</span>
-          <template v-if="album.photos.length > 0">
-            <label class="sort-label">Sort By:</label>
+        <div class="album-section-header" v-if="album.photos.length > 0">
+          <label class="sort-label">Sort By:</label>
             <select v-model="sortBy" class="sort-select" @change="onSortChange">
               <option value="popular">Most Popular</option>
               <option v-if="album.locations && album.locations.length > 1" value="location">Location</option>
@@ -55,8 +54,6 @@
               <option v-for="m in album.members" :key="m.userId" :value="m.userId">{{ m.firstName || m.displayName }}</option>
               <option value="__nobody__">Nobody</option>
             </select>
-          </template>
-          <span class="album-section-count">{{ totalSortedCount }}</span>
         </div>
         <p v-if="album.photos.length === 0" class="empty">No photos yet.</p>
         <PhotoGallery v-else :sections="displayedSections" :members="allMembers" :can-delete="true"
@@ -251,7 +248,7 @@ const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
   if (sortBy.value === 'location') {
     const locs = album.value?.locations ?? [];
     const groups = new Map<number | null, { label: string; photos: Photo[] }>();
-    for (const loc of locs) groups.set(loc.id, { label: `📍 ${loc.name}`, photos: [] });
+    for (const loc of locs) groups.set(loc.id, { label: loc.name, photos: [] });
     groups.set(null, { label: 'No Location', photos: [] });
     for (const photo of photos) {
       const key = photo.locationId && groups.has(photo.locationId) ? photo.locationId : null;
@@ -298,10 +295,17 @@ watch(hasMore, async (val) => {
 
 const byName = (a: Member, b: Member) => (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName);
 
+const windowWidth = ref(window.innerWidth);
+const onWindowResize = () => { windowWidth.value = window.innerWidth; };
+
 const memberRows = computed(() => {
   const m = album.value?.members ?? [];
-  if (m.length <= 5) return [m];
-  const numRows = Math.ceil(m.length / 5);
+  if (m.length <= 3) return [m];
+  // Estimate container width: page has 32px padding each side, max ~868px usable
+  const containerWidth = Math.min(windowWidth.value - 64, 868);
+  // Average chip: avatar(24) + gap(6) + ~80px name + padding(14) + row-gap(8) ≈ 132px
+  const maxPerRow = Math.max(3, Math.floor(containerWidth / 132));
+  const numRows = Math.ceil(m.length / maxPerRow);
   const cols = Math.ceil(m.length / numRows);
   const rows: Member[][] = [];
   for (let i = 0; i < m.length; i += cols) rows.push(m.slice(i, i + cols));
@@ -347,8 +351,8 @@ function handleEscape(e: KeyboardEvent) {
   if (e.key !== "Escape") return;
   if (showShare.value) { showShare.value = false; e.stopImmediatePropagation(); return; }
 }
-onMounted(() => window.addEventListener("keydown", handleEscape, true));
-onUnmounted(() => { window.removeEventListener("keydown", handleEscape, true); observer?.disconnect(); });
+onMounted(() => { window.addEventListener("keydown", handleEscape, true); window.addEventListener("resize", onWindowResize); });
+onUnmounted(() => { window.removeEventListener("keydown", handleEscape, true); window.removeEventListener("resize", onWindowResize); observer?.disconnect(); });
 
 function onPhotoDeleted(id: number) {
   if (album.value) album.value.photos = album.value.photos.filter(p => p.id !== id);

@@ -93,7 +93,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .gallery-section-header { color: #a6adc8; font-size: 0.95em; font-weight: 600; margin: 20px 0 0; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; gap: 8px; user-select: none; }
 .gallery-section-header:hover { color: #cdd6f4; }
 .section-collapse-icon { font-size: 0.7em; flex-shrink: 0; }
-.section-photo-count { font-size: 0.85em; color: #585b70; font-weight: 400; margin-left: auto; text-transform: none; letter-spacing: 0; }
+.section-photo-count { font-size: 0.85em; color: #585b70; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.section-collapse-spacer { flex: 1; }
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, 220px); justify-content: center; gap: 12px; margin-top: 12px; }
 .gallery-mobile { display: none; flex-direction: column; gap: 0; margin-top: 20px; }
 .photo-item { display: flex; flex-direction: column; gap: 0; cursor: pointer; position: relative; }
@@ -324,6 +325,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .page-header-edit-btn:hover { opacity: 1; }
 .page-header-subtitle { color: #a6adc8; font-size: 0.85rem; display: block; margin-top: 2px; }
 .page-header-location { display: flex; align-items: center; gap: 4px; color: #a6adc8; font-size: 0.85rem; margin-top: 3px; }
+.album-photo-count-badge { color: #a6adc8; font-size: 0.85rem; white-space: nowrap; }
 .page-back { color: #cdd6f4; text-decoration: none; background: #313244; border-radius: 20px; padding: 5px 16px; font-size: 2rem; flex-shrink: 0; }
 .page-back:hover { background: #45475a; }
 .album-section { margin-bottom: 24px; }

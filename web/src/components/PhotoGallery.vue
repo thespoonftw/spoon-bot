@@ -4,6 +4,7 @@
       <span class="section-collapse-icon">{{ collapsedSections.has(section.label) ? '▶' : '▼' }}</span>
       {{ section.label }}
       <span class="section-photo-count">{{ section.photos.length }}</span>
+      <span class="section-collapse-spacer"></span>
     </h3>
     <template v-if="!section.label || !collapsedSections.has(section.label)">
       <div class="gallery">
