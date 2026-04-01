@@ -7,10 +7,6 @@
         <label>Name</label>
         <input v-model="form.name" type="text" />
       </div>
-      <div class="form-group">
-        <label>Location</label>
-        <input v-model="form.location" type="text" />
-      </div>
       <DateRangePicker v-model:start-date="form.startDate" v-model:end-date="form.endDate" />
       <div v-if="error" class="error">{{ error }}</div>
       <div class="modal-actions">
@@ -28,13 +24,13 @@ import { useDraggable, useEscKey } from "../utils/draggable";
 
 const drag = useDraggable();
 
-interface AlbumFields { groupName: string; location?: string; startDate?: string; endDate?: string }
+interface AlbumFields { groupName: string; startDate?: string; endDate?: string }
 
 const props = defineProps<{ show: boolean; channelId: string; album: AlbumFields }>();
 const emit = defineEmits<{ close: []; saved: [updated: object] }>();
 useEscKey(computed(() => props.show), () => emit("close"));
 
-const form = ref({ name: "", location: "", startDate: "", endDate: "" });
+const form = ref({ name: "", startDate: "", endDate: "" });
 const saving = ref(false);
 const error = ref("");
 
@@ -43,7 +39,6 @@ watch(() => props.show, (v) => {
     drag.reset();
     form.value = {
       name: props.album.groupName,
-      location: props.album.location ?? "",
       startDate: props.album.startDate ?? "",
       endDate: props.album.endDate ?? "",
     };
@@ -59,7 +54,6 @@ async function save() {
     headers: authJsonHeaders(),
     body: JSON.stringify({
       name: form.value.name.trim(),
-      location: form.value.location.trim() || undefined,
       startDate: form.value.startDate || undefined,
       endDate: form.value.endDate || undefined,
     }),

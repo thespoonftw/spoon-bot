@@ -128,7 +128,7 @@ interface Photo {
 }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Section { label: string; photos: Photo[] }
-interface AlbumInfo { location?: string; startDate?: string; endDate?: string }
+interface AlbumInfo { location?: string; locations?: { id: number; name: string }[]; startDate?: string; endDate?: string }
 
 const props = defineProps<{
   sections: Section[];
@@ -461,7 +461,8 @@ function openLightbox(index: number) {
     });
     const buildMetaHtml = (p: Photo) => {
       const album = props.albumMap?.[p.channelId];
-      const locationHtml = album?.location ? `<span class="pswp-location">📍 ${album.location}</span>` : "";
+      const locationStr = album?.locations?.length ? album.locations.map(l => l.name).join(', ') : album?.location;
+      const locationHtml = locationStr ? `<span class="pswp-location">📍 ${locationStr}</span>` : "";
       let dateStr = p?.takenAt ? formatTime(p.takenAt) : "";
       if (!dateStr && album?.startDate) dateStr = formatAlbumDate(album.startDate, album.endDate);
       const dateHtml = (locationHtml || dateStr)

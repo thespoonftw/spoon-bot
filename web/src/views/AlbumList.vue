@@ -13,7 +13,7 @@
           <div class="card-left-title">
             <h2>{{ album.groupName }}</h2>
             <p v-if="album.startDate" class="date">{{ formatAlbumDate(album.startDate, album.endDate) }}</p>
-            <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
+            <p v-if="album.locations?.length" class="meta">📍 {{ album.locations.map(l => l.name).join(', ') }}</p>
           </div>
           <div class="card-left-details">
             <p class="meta">{{ album.photos.length }} 📷</p>
@@ -70,7 +70,8 @@ import { formatAlbumDate } from "../utils/formatDate";
 
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Photo { id: number; url: string; score?: number }
-interface Album { channelId: string; groupName: string; location?: string; startDate?: string; endDate?: string; createdAt: string; photos: Photo[]; members: Member[] }
+interface AlbumLocation { id: number; name: string }
+interface Album { channelId: string; groupName: string; location?: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; createdAt: string; photos: Photo[]; members: Member[] }
 
 const albums = ref<Album[]>([]);
 const loading = ref(true);

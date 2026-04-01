@@ -58,6 +58,9 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .btn-remove:hover { color: #f38ba8; background: #313244; }
 .btn-unhide:hover { color: #a6e3a1 !important; }
 .member-hidden { opacity: 0.45; }
+.album-locations { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; }
+.location-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #313244; }
+.location-row-name { color: #cdd6f4; font-size: 0.95rem; }
 
 .pswp__bottom-bar {
   position: absolute;

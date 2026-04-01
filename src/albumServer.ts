@@ -14,7 +14,7 @@ import type { Client, Guild } from "discord.js";
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbHasAlbum, dbUpdateAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbSetPhotoCaption, dbListTables, dbTablePage, dbSearchPhotos } from "./db";
+import { dbHasAlbum, dbUpdateAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbSetPhotoCaption, dbListTables, dbTablePage, dbSearchPhotos, dbGetAlbumLocations, dbAddAlbumLocation, dbDeleteAlbumLocation } from "./db";
 
 const PHOTO_STORAGE_PATH = process.env.PHOTO_STORAGE_PATH ?? path.join(DATA_DIR, "photos");
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
@@ -109,10 +109,11 @@ export function startWebServer(): void {
       req.on("end", () => {
         try {
           const { name, location, startDate, endDate } = JSON.parse(body);
-          if (!name || !location || !startDate) {
-            sendJson(res, 400, { error: "name, location, and startDate are required" }); return;
+          if (!name || !startDate) {
+            sendJson(res, 400, { error: "name and startDate are required" }); return;
           }
-          const album = dbCreateAlbum(name, location, startDate, endDate || undefined);
+          const album = dbCreateAlbum(name, location || "", startDate, endDate || undefined);
+          if (location?.trim()) dbAddAlbumLocation(album.channelId, location.trim());
           const creator = getSessionUser(token);
           if (creator) dbUpsertUser(creator.userId, creator.displayName, creator.avatarUrl);
           sendJson(res, 201, { ...album, photos: [] });
@@ -133,15 +134,14 @@ export function startWebServer(): void {
       req.on("data", chunk => body += chunk);
       req.on("end", async () => {
         try {
-          const { name, location, startDate, endDate } = JSON.parse(body);
+          const { name, startDate, endDate } = JSON.parse(body);
           if (!name?.trim()) { sendJson(res, 400, { error: "name is required" }); return; }
-          const updated = dbUpdateAlbum(channelId, name, location, startDate || undefined, endDate || undefined);
+          const updated = dbUpdateAlbum(channelId, name, undefined, startDate || undefined, endDate || undefined);
           // Sync to Discord if this is a real event channel
           if (!channelId.startsWith("web_") && albumDiscordClient) {
             const state = eventStates.get(channelId);
             if (state) {
               state.eventName = name;
-              state.location = location;
               persistState();
               const guild = albumDiscordClient.guilds.cache.get(process.env.GUILD_ID ?? "");
               if (guild && updateEventMessagesFn) updateEventMessagesFn(guild, channelId).catch(e => console.error("Failed to sync album edit to Discord:", e));
@@ -152,6 +152,42 @@ export function startWebServer(): void {
           sendJson(res, 500, { error: "Update failed" });
         }
       });
+      return;
+    }
+
+    // GET /api/album/:id/locations
+    if (url.match(/^\/api\/album\/[^/]+\/locations$/) && method === "GET") {
+      const channelId = url.split("/")[3];
+      if (!isValidSession(getTokenFromRequest(req))) { send401(res); return; }
+      sendJson(res, 200, dbGetAlbumLocations(channelId));
+      return;
+    }
+
+    // POST /api/album/:id/locations
+    if (url.match(/^\/api\/album\/[^/]+\/locations$/) && method === "POST") {
+      const channelId = url.split("/")[3];
+      if (!isValidSession(getTokenFromRequest(req))) { send401(res); return; }
+      if (!dbHasAlbum(channelId)) { sendJson(res, 404, { error: "Not found" }); return; }
+      let body = "";
+      req.on("data", chunk => body += chunk);
+      req.on("end", () => {
+        try {
+          const { name } = JSON.parse(body);
+          if (!name?.trim()) { sendJson(res, 400, { error: "name is required" }); return; }
+          const loc = dbAddAlbumLocation(channelId, name.trim());
+          if (!loc) { sendJson(res, 409, { error: "Location already exists" }); return; }
+          sendJson(res, 201, loc);
+        } catch { sendJson(res, 500, { error: "Failed" }); }
+      });
+      return;
+    }
+
+    // DELETE /api/album/:id/locations/:locId
+    if (url.match(/^\/api\/album\/[^/]+\/locations\/\d+$/) && method === "DELETE") {
+      if (!isValidSession(getTokenFromRequest(req))) { send401(res); return; }
+      const locId = parseInt(url.split("/")[5]);
+      dbDeleteAlbumLocation(locId);
+      sendJson(res, 200, { ok: true });
       return;
     }
 

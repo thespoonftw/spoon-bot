@@ -7,7 +7,11 @@
             <button class="btn-icon" @click="showEdit = true" title="Edit album">✏️</button>
           </PageHeader>
           <p v-if="album.dateText" class="date">{{ album.dateText }}</p>
-          <p v-if="album.location" class="meta">📍 {{ album.location }}</p>
+          <div class="album-locations">
+            <span v-for="loc in album.locations" :key="loc.id" class="meta">📍 {{ loc.name }}</span>
+            <span v-if="!album.locations?.length" class="meta" style="color:#585b70">No location set</span>
+            <button class="btn-icon" @click="showLocations = true" title="Edit locations">✏️</button>
+          </div>
         </div>
         <div class="upload-area">
           <div class="upload-area-buttons">
@@ -127,6 +131,14 @@
     :channel-id="album?.channelId ?? ''"
     @members-updated="onMembersUpdated"
   />
+
+  <LocationsModal
+    v-if="showLocations && album"
+    :channel-id="album.channelId"
+    :locations="album.locations ?? []"
+    @close="showLocations = false"
+    @updated="locs => { if (album) album.locations = locs }"
+  />
 </template>
 
 <script setup lang="ts">
@@ -139,12 +151,14 @@ import PhotoGallery from "../components/PhotoGallery.vue";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 import { useDraggable } from "../utils/draggable";
 import PageHeader from "../components/PageHeader.vue";
+import LocationsModal from "../components/LocationsModal.vue";
 
 const dragShare = useDraggable();
 
 interface Photo { id: number; channelId: string; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; caption?: string; score?: number; userVote?: string | null; taggedIds?: string[] }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string; rsvpStatus?: string }
-interface Album { channelId: string; groupName: string; dateText?: string; location?: string; startDate?: string; endDate?: string; photos: Photo[]; members: Member[] }
+interface AlbumLocation { id: number; name: string }
+interface Album { channelId: string; groupName: string; dateText?: string; location?: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; photos: Photo[]; members: Member[] }
 
 const route = useRoute();
 
@@ -165,6 +179,7 @@ const shareCopied = ref(false);
 
 const showEdit = ref(false);
 const showEditMembers = ref(false);
+const showLocations = ref(false);
 
 
 // allMembers is populated by MembersModal when it opens; used for getTaggedMembers

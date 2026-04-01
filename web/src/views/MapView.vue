@@ -19,6 +19,7 @@ interface Album {
   channelId: string;
   groupName: string;
   location?: string;
+  locations?: { id: number; name: string }[];
   startDate?: string;
   endDate?: string;
   photos: { id: number }[];
@@ -92,14 +93,16 @@ onMounted(async () => {
     maxZoom: 18,
   }).addTo(map);
 
-  const withLocation = albums.filter(a => a.location);
+  const withLocation = albums.filter(a => a.locations?.length || a.location);
   if (withLocation.length === 0) { status.value = "No albums have a location set."; return; }
 
   const byLocation = new Map<string, Album[]>();
   for (const album of withLocation) {
-    const loc = album.location!;
-    if (!byLocation.has(loc)) byLocation.set(loc, []);
-    byLocation.get(loc)!.push(album);
+    const locNames = album.locations?.length ? album.locations.map(l => l.name) : [album.location!];
+    for (const loc of locNames) {
+      if (!byLocation.has(loc)) byLocation.set(loc, []);
+      if (!byLocation.get(loc)!.includes(album)) byLocation.get(loc)!.push(album);
+    }
   }
 
   const cache = loadCache();

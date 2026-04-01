@@ -62,6 +62,12 @@ export function initDb() {
       user_id  TEXT NOT NULL,
       PRIMARY KEY (photo_id, user_id)
     );
+    CREATE TABLE IF NOT EXISTS album_locations (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      channel_id TEXT NOT NULL,
+      name       TEXT NOT NULL,
+      UNIQUE(channel_id, name)
+    );
   `);
   // Add new columns to existing DBs (safe to run repeatedly — fails silently if column exists)
   for (const sql of [
@@ -86,6 +92,10 @@ export function initDb() {
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
+  // Migrate legacy single-location strings into album_locations table
+  try {
+    db.exec("INSERT OR IGNORE INTO album_locations (channel_id, name) SELECT channel_id, location FROM albums WHERE location IS NOT NULL AND location != ''");
+  } catch { }
   migrateFromJson();
   const cleaned = {
     votes: db.prepare("DELETE FROM photo_votes WHERE photo_id NOT IN (SELECT id FROM photos)").run().changes,
@@ -135,11 +145,25 @@ function formatDateDisplay(startDate: string, endDate?: string | null): string {
   return `${s.day}${s.suffix} ${s.month} ${s.year} – ${e.day}${e.suffix} ${e.month} ${e.year}`;
 }
 
+export type AlbumLocation = { id: number; name: string };
 export type AlbumRow = {
   channelId: string; groupName: string;
-  location?: string; startDate?: string; endDate?: string; createdAt: string;
+  location?: string; locations?: AlbumLocation[];
+  startDate?: string; endDate?: string; createdAt: string;
   readonly dateText?: string;
 };
+
+export function dbGetAlbumLocations(channelId: string): AlbumLocation[] {
+  return db.prepare("SELECT id, name FROM album_locations WHERE channel_id = ? ORDER BY id").all(channelId) as AlbumLocation[];
+}
+export function dbAddAlbumLocation(channelId: string, name: string): AlbumLocation | null {
+  const result = db.prepare("INSERT OR IGNORE INTO album_locations (channel_id, name) VALUES (?, ?)").run(channelId, name.trim());
+  if (!result.lastInsertRowid) return null;
+  return { id: Number(result.lastInsertRowid), name: name.trim() };
+}
+export function dbDeleteAlbumLocation(id: number) {
+  db.prepare("DELETE FROM album_locations WHERE id = ?").run(id);
+}
 
 function toAlbumRow(raw: Omit<AlbumRow, "dateText"> & { startDate?: string; endDate?: string }): AlbumRow {
   return { ...raw, dateText: raw.startDate ? formatDateDisplay(raw.startDate, raw.endDate) : undefined };
@@ -160,7 +184,8 @@ export function dbGetAlbum(channelId: string): AlbumRow | undefined {
   const raw = db.prepare(
     "SELECT channel_id AS channelId, group_name AS groupName, location, start_date AS startDate, end_date AS endDate, created_at AS createdAt FROM albums WHERE channel_id = ?"
   ).get(channelId) as Omit<AlbumRow, "dateText"> | undefined;
-  return raw ? toAlbumRow(raw) : undefined;
+  if (!raw) return undefined;
+  return { ...toAlbumRow(raw), locations: dbGetAlbumLocations(channelId) };
 }
 
 export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
@@ -204,7 +229,13 @@ export function dbGetAllAlbumsWithPhotos(): AlbumWithPhotos[] {
   const albums = (db.prepare(
     "SELECT channel_id AS channelId, group_name AS groupName, location, start_date AS startDate, end_date AS endDate, created_at AS createdAt FROM albums ORDER BY created_at DESC"
   ).all() as Omit<AlbumRow, "dateText">[]).map(toAlbumRow);
-  return albums.map(a => ({ ...a, photos: dbGetPhotos(a.channelId), members: dbGetAlbumMembers(a.channelId) }));
+  const allLocs = db.prepare("SELECT channel_id AS channelId, id, name FROM album_locations ORDER BY id").all() as (AlbumLocation & { channelId: string })[];
+  const locMap = new Map<string, AlbumLocation[]>();
+  for (const l of allLocs) {
+    if (!locMap.has(l.channelId)) locMap.set(l.channelId, []);
+    locMap.get(l.channelId)!.push({ id: l.id, name: l.name });
+  }
+  return albums.map(a => ({ ...a, locations: locMap.get(a.channelId) ?? [], photos: dbGetPhotos(a.channelId), members: dbGetAlbumMembers(a.channelId) }));
 }
 
 export function dbInsertAlbum(album: AlbumRow) {
@@ -225,9 +256,14 @@ export function dbSyncAlbumFromEvent(channelId: string, eventName: string, locat
     .run(eventName, location, channelId);
 }
 
-export function dbUpdateAlbum(channelId: string, name: string, location: string, startDate?: string, endDate?: string): AlbumRow | undefined {
-  db.prepare("UPDATE albums SET group_name=?, location=?, start_date=?, end_date=? WHERE channel_id=?")
-    .run(name, location, startDate ?? null, endDate ?? null, channelId);
+export function dbUpdateAlbum(channelId: string, name: string, location: string | undefined, startDate?: string, endDate?: string): AlbumRow | undefined {
+  if (location !== undefined) {
+    db.prepare("UPDATE albums SET group_name=?, location=?, start_date=?, end_date=? WHERE channel_id=?")
+      .run(name, location, startDate ?? null, endDate ?? null, channelId);
+  } else {
+    db.prepare("UPDATE albums SET group_name=?, start_date=?, end_date=? WHERE channel_id=?")
+      .run(name, startDate ?? null, endDate ?? null, channelId);
+  }
   return dbGetAlbum(channelId);
 }
 
