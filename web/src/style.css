@@ -328,7 +328,6 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .album-section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .album-section-label { font-weight: 600; font-size: 0.95rem; color: #a6adc8; }
 .album-section-count { color: #585b70; font-size: 0.9rem; font-weight: 500; }
-.album-sort-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .album-locations-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .location-tag { background: #313244; border: 1px solid #45475a; border-radius: 20px; padding: 3px 12px; font-size: 0.85rem; color: #cdd6f4; }
 .map-pin-count { background: #313244; border: 1px solid #45475a; border-radius: 10px; padding: 6px 14px; font-size: 1rem; font-weight: 700; color: #cdd6f4; flex-shrink: 0; }
