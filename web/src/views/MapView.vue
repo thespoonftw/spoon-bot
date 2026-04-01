@@ -6,14 +6,13 @@
     <p v-if="status" class="empty map-status">{{ status }}</p>
     <div ref="mapEl" class="map-container"></div>
     <div v-if="movingPinLoc || activePinLoc" class="map-bottom-bar">
+      <input class="popup-coord-input" type="number" step="any" v-model="activeLatStr" placeholder="lat" @change="saveActiveCoords" :readonly="!!movingPinLoc" />
+      <input class="popup-coord-input" type="number" step="any" v-model="activeLonStr" placeholder="lon" @change="saveActiveCoords" :readonly="!!movingPinLoc" />
       <template v-if="movingPinLoc">
-        <span>Drag pin to new position</span>
         <button class="map-popup-save-btn" @click="saveDrag">Save</button>
         <button class="map-popup-cancel-btn" @click="cancelDrag">Cancel</button>
       </template>
       <template v-else>
-        <input class="popup-coord-input" type="number" step="any" v-model="activeLatStr" placeholder="lat" @change="saveActiveCoords" />
-        <input class="popup-coord-input" type="number" step="any" v-model="activeLonStr" placeholder="lon" @change="saveActiveCoords" />
         <button v-if="activePinPhotoCount === 0" class="btn-danger btn-small" @click="deleteActiveLoc">🗑️ Delete</button>
       </template>
     </div>
@@ -100,6 +99,7 @@ async function deleteActiveLoc() {
 
 function startDragMode(loc: AlbumLocation, marker: L.Marker) {
   movingPinLoc.value = loc;
+  activePinLoc.value = loc;
   movingMarker = marker;
   movingOrigLatLng = marker.getLatLng();
   marker.closePopup();
@@ -232,6 +232,11 @@ onMounted(async () => {
     });
     marker.on("popupclose", () => {
       if (!movingPinLoc.value) activePinLoc.value = null;
+    });
+    marker.on("drag", () => {
+      const { lat, lng } = marker.getLatLng();
+      activeLatStr.value = lat.toFixed(5);
+      activeLonStr.value = lng.toFixed(5);
     });
     markerRegistry.set(loc.id, marker);
   }
