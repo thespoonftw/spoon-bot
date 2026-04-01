@@ -66,6 +66,7 @@ export function initDb() {
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       channel_id TEXT NOT NULL,
       name       TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
       UNIQUE(channel_id, name)
     );
   `);
@@ -84,6 +85,7 @@ export function initDb() {
     "ALTER TABLE photos ADD COLUMN width INTEGER",
     "ALTER TABLE photos ADD COLUMN height INTEGER",
     "ALTER TABLE photos ADD COLUMN location_id INTEGER",
+    "ALTER TABLE album_locations ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE photos ADD COLUMN caption TEXT",
     "ALTER TABLE photos ADD COLUMN discord_message_id TEXT",
     "ALTER TABLE albums DROP COLUMN date_text",
@@ -155,15 +157,24 @@ export type AlbumRow = {
 };
 
 export function dbGetAlbumLocations(channelId: string): AlbumLocation[] {
-  return db.prepare("SELECT id, name FROM album_locations WHERE channel_id = ? ORDER BY id").all(channelId) as AlbumLocation[];
+  return db.prepare("SELECT id, name FROM album_locations WHERE channel_id = ? ORDER BY sort_order, id").all(channelId) as AlbumLocation[];
 }
 export function dbAddAlbumLocation(channelId: string, name: string): AlbumLocation | null {
-  const result = db.prepare("INSERT OR IGNORE INTO album_locations (channel_id, name) VALUES (?, ?)").run(channelId, name.trim());
+  const maxOrder = (db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM album_locations WHERE channel_id = ?").get(channelId) as { m: number }).m;
+  const result = db.prepare("INSERT OR IGNORE INTO album_locations (channel_id, name, sort_order) VALUES (?, ?, ?)").run(channelId, name.trim(), maxOrder + 1);
   if (!result.lastInsertRowid) return null;
   return { id: Number(result.lastInsertRowid), name: name.trim() };
 }
 export function dbDeleteAlbumLocation(id: number) {
+  db.prepare("UPDATE photos SET location_id = NULL WHERE location_id = ?").run(id);
   db.prepare("DELETE FROM album_locations WHERE id = ?").run(id);
+}
+export function dbReorderAlbumLocations(channelId: string, orderedIds: number[]) {
+  const update = db.prepare("UPDATE album_locations SET sort_order = ? WHERE id = ? AND channel_id = ?");
+  const tx = db.transaction(() => {
+    orderedIds.forEach((id, i) => update.run(i, id, channelId));
+  });
+  tx();
 }
 
 function toAlbumRow(raw: Omit<AlbumRow, "dateText"> & { startDate?: string; endDate?: string }): AlbumRow {
@@ -235,7 +246,7 @@ export function dbGetAllAlbumsWithPhotos(): AlbumWithPhotos[] {
   const albums = (db.prepare(
     "SELECT channel_id AS channelId, group_name AS groupName, location, start_date AS startDate, end_date AS endDate, created_at AS createdAt FROM albums ORDER BY created_at DESC"
   ).all() as Omit<AlbumRow, "dateText">[]).map(toAlbumRow);
-  const allLocs = db.prepare("SELECT channel_id AS channelId, id, name FROM album_locations ORDER BY id").all() as (AlbumLocation & { channelId: string })[];
+  const allLocs = db.prepare("SELECT channel_id AS channelId, id, name FROM album_locations ORDER BY sort_order, id").all() as (AlbumLocation & { channelId: string })[];
   const locMap = new Map<string, AlbumLocation[]>();
   for (const l of allLocs) {
     if (!locMap.has(l.channelId)) locMap.set(l.channelId, []);

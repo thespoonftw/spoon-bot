@@ -4,11 +4,15 @@
       <button class="modal-close" @click="emit('close')">✕</button>
       <h2 class="modal-drag-handle" @mousedown="drag.onMouseDown">Locations</h2>
 
-      <div v-for="loc in locations" :key="loc.id" class="location-row">
+      <div v-for="(loc, i) in localLocations" :key="loc.id" class="location-row">
         <span class="location-row-name">📍 {{ loc.name }}</span>
-        <button class="btn-icon" @click="remove(loc.id)" title="Remove">🗑️</button>
+        <div style="display:flex;gap:4px;align-items:center">
+          <button class="btn-icon" @click="moveUp(i)" :disabled="i === 0" title="Move up">↑</button>
+          <button class="btn-icon" @click="moveDown(i)" :disabled="i === localLocations.length - 1" title="Move down">↓</button>
+          <button class="btn-icon" @click="remove(loc.id)" title="Remove">🗑️</button>
+        </div>
       </div>
-      <p v-if="locations.length === 0" class="empty" style="margin: 8px 0">No locations set.</p>
+      <p v-if="localLocations.length === 0" class="empty" style="margin: 8px 0">No locations set.</p>
 
       <div class="form-group" style="margin-top: 16px">
         <label>Add location</label>
@@ -36,9 +40,36 @@ const drag = useDraggable();
 const isOpen = ref(true);
 useEscKey(isOpen, () => emit("close"));
 
+const localLocations = ref<AlbumLocation[]>([...props.locations]);
+
 const newName = ref("");
 const adding = ref(false);
 const error = ref("");
+
+async function saveOrder() {
+  await fetch(`/api/album/${props.channelId}/locations/order`, {
+    method: "PUT",
+    headers: authJsonHeaders(),
+    body: JSON.stringify({ ids: localLocations.value.map(l => l.id) }),
+  });
+  emit("updated", [...localLocations.value]);
+}
+
+async function moveUp(i: number) {
+  if (i === 0) return;
+  const arr = [...localLocations.value];
+  [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]];
+  localLocations.value = arr;
+  await saveOrder();
+}
+
+async function moveDown(i: number) {
+  if (i === localLocations.value.length - 1) return;
+  const arr = [...localLocations.value];
+  [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]];
+  localLocations.value = arr;
+  await saveOrder();
+}
 
 async function add() {
   if (!newName.value.trim()) return;
@@ -53,7 +84,8 @@ async function add() {
   if (res.ok) {
     const loc: AlbumLocation = await res.json();
     newName.value = "";
-    emit("updated", [...props.locations, loc]);
+    localLocations.value = [...localLocations.value, loc];
+    emit("updated", [...localLocations.value]);
   } else if (res.status === 409) {
     error.value = "That location already exists.";
   } else {
@@ -63,6 +95,7 @@ async function add() {
 
 async function remove(id: number) {
   await fetch(`/api/album/${props.channelId}/locations/${id}`, { method: "DELETE", headers: authHeaders() });
-  emit("updated", props.locations.filter(l => l.id !== id));
+  localLocations.value = localLocations.value.filter(l => l.id !== id);
+  emit("updated", [...localLocations.value]);
 }
 </script>
