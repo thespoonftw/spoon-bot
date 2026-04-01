@@ -258,7 +258,7 @@ export function dbGetAllAlbumsWithPhotos(): AlbumWithPhotos[] {
   const locMap = new Map<string, AlbumLocation[]>();
   for (const l of allLocs) {
     if (!locMap.has(l.channelId)) locMap.set(l.channelId, []);
-    locMap.get(l.channelId)!.push({ id: l.id, name: l.name });
+    locMap.get(l.channelId)!.push({ id: l.id, name: l.name, lat: l.lat, lon: l.lon, geocodeAttempted: l.geocodeAttempted });
   }
   return albums.map(a => ({ ...a, locations: locMap.get(a.channelId) ?? [], photos: dbGetPhotos(a.channelId), members: dbGetAlbumMembers(a.channelId) }));
 }
