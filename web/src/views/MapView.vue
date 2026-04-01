@@ -24,7 +24,7 @@ interface Album {
   locations?: AlbumLocation[];
   startDate?: string;
   endDate?: string;
-  photos: { id: number }[];
+  photos: { id: number; url: string; score?: number }[];
 }
 
 async function geocodeAndSave(loc: AlbumLocation): Promise<[number, number] | null> {
@@ -122,17 +122,22 @@ onMounted(async () => {
   for (const { albums: albumsHere, loc } of byName.values()) {
     if (loc.lat == null || loc.lon == null) continue;
     placed++;
+    const thumbUrl = (url: string) => url.replace("/uploads/", "/thumbnails/");
     const popupHtml = albumsHere.map(a => {
-      const date = a.startDate ? formatAlbumDate(a.startDate, a.endDate) : "";
+      const year = a.startDate ? new Date(a.startDate).getUTCFullYear() : "";
+      const topPhotos = [...a.photos].sort((x, y) => (y.score ?? 0) - (x.score ?? 0)).slice(0, 3);
+      const thumbsHtml = topPhotos.map(p =>
+        `<a href="/album/${a.channelId}"><img src="${thumbUrl(p.url)}" class="map-popup-thumb" /></a>`
+      ).join("");
       return `<div class="map-popup-album">
         <a href="/album/${a.channelId}" class="map-popup-title">${a.groupName}</a>
-        ${date ? `<div class="map-popup-meta">${date}</div>` : ""}
-        <div class="map-popup-meta">${a.photos.length} 📷</div>
+        ${year ? `<div class="map-popup-year">${year}</div>` : ""}
+        ${thumbsHtml ? `<div class="map-popup-thumbs">${thumbsHtml}</div>` : ""}
       </div>`;
     }).join('<hr class="map-popup-divider">');
 
     const marker = L.marker([loc.lat, loc.lon], { icon: pinIcon }).addTo(map!);
-    marker.bindPopup(`<div class="map-popup">${popupHtml}</div>`, { maxWidth: 250 });
+    marker.bindPopup(`<div class="map-popup"><div class="map-popup-loc">${loc.name}</div>${popupHtml}</div>`, { maxWidth: 280 });
   }
 
   pinCount.value = placed;

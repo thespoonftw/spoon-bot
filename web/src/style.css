@@ -329,9 +329,12 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .map-emoji-pin { background: none !important; border: none !important; font-size: 24px; line-height: 1; }
 .map-container { border-radius: 12px; overflow: hidden; }
 .map-status { margin: 0 0 8px; text-align: center; }
-.map-popup { font-family: inherit; font-size: 0.9rem; color: #1e1e2e; }
+.map-popup { font-family: inherit; font-size: 0.9rem; color: #1e1e2e; min-width: 200px; }
+.map-popup-loc { font-weight: 800; font-size: 1rem; color: #1e1e2e; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid #e0e0e0; }
 .map-popup-album { padding: 4px 0; }
-.map-popup-title { font-weight: 700; color: #1e66f5; text-decoration: none; }
+.map-popup-title { font-weight: 700; color: #1e66f5; text-decoration: none; display: block; }
 .map-popup-title:hover { text-decoration: underline; }
-.map-popup-meta { font-size: 0.8rem; color: #555; margin-top: 2px; }
-.map-popup-divider { border: none; border-top: 1px solid #ccc; margin: 6px 0; }
+.map-popup-year { font-size: 0.8rem; color: #555; margin-top: 1px; margin-bottom: 6px; }
+.map-popup-thumbs { display: flex; gap: 4px; margin-top: 4px; }
+.map-popup-thumb { width: 72px; height: 72px; object-fit: cover; border-radius: 4px; display: block; }
+.map-popup-divider { border: none; border-top: 1px solid #ccc; margin: 8px 0; }
