@@ -53,6 +53,7 @@ client.once(Events.ClientReady, async (readyClient) => {
       const members = await guild.members.fetch();
       for (const [, member] of members) {
         if (member.user.id === readyClient.user.id) continue; // can't rename self
+        if (member.nickname === "Himiko") continue;
         try {
           await member.setNickname("Himiko");
           console.log(`Renamed ${member.user.tag} to Himiko`);
