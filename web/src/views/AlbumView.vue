@@ -299,8 +299,11 @@ onMounted(async () => {
     const sortedMembers = (data.members ?? []).slice().sort(byName);
     album.value = { ...data, members: sortedMembers };
     allMembers.value = sortedMembers;
-    if ((data.locations?.length ?? 0) > 1 && !sessionStorage.getItem(SORT_KEY) && window.innerWidth >= 768) {
+    const hasMultipleLocations = (data.locations?.length ?? 0) > 1;
+    if (hasMultipleLocations && !sessionStorage.getItem(SORT_KEY) && window.innerWidth >= 768) {
       sortBy.value = 'location';
+    } else if (!hasMultipleLocations && sortBy.value === 'location') {
+      sortBy.value = 'popular';
     }
   }
   if (checkRes.ok) {
