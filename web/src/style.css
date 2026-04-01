@@ -331,6 +331,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .map-status { margin: 0 0 8px; text-align: center; }
 .leaflet-popup-content-wrapper { padding: 0 !important; border-radius: 8px !important; }
 .leaflet-popup-content { margin: 10px 10px 10px 10px !important; }
+.leaflet-popup-close-button { font-size: 22px !important; width: 28px !important; height: 28px !important; top: 4px !important; right: 4px !important; line-height: 26px !important; }
 .map-popup { font-family: inherit; font-size: 0.9rem; color: #1e1e2e; min-width: 200px; }
 .map-popup-album { padding: 4px 0; }
 .map-popup-title { font-weight: 700; color: #1e66f5; text-decoration: none; display: block; font-size: 1rem; }
@@ -346,3 +347,10 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .map-emoji-pin-editing { filter: hue-rotate(200deg); }
 .map-popup-save-btn { background: #1e66f5; color: #fff; border: none; border-radius: 4px; padding: 5px 12px; cursor: pointer; font-size: 0.85rem; }
 .map-popup-cancel-btn { background: #eee; color: #333; border: none; border-radius: 4px; padding: 5px 12px; cursor: pointer; font-size: 0.85rem; }
+.pins-modal-list { display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; }
+.pins-modal-row { display: flex; flex-direction: column; gap: 6px; padding: 10px; background: #1e1e2e; border-radius: 8px; border: 1px solid #313244; }
+.pins-modal-name { font-weight: 600; color: #cdd6f4; }
+.pins-modal-coords { display: flex; gap: 8px; }
+.pins-coord-input { flex: 1; background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; width: 0; }
+.pins-modal-actions { display: flex; align-items: center; gap: 10px; }
+.pins-photo-count { color: #a6adc8; font-size: 0.85rem; flex: 1; }

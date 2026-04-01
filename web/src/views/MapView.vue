@@ -1,11 +1,35 @@
 <template>
   <div class="map-page">
     <PageHeader back-to="/" title="Map">
-      <div class="map-pin-count" v-if="pinCount !== null">{{ pinCount }} 📍</div>
+      <div class="map-pin-count" v-if="pinCount !== null" @click="showPinsModal = true" style="cursor:pointer">{{ pinCount }} 📍</div>
     </PageHeader>
     <p v-if="status" class="empty map-status">{{ status }}</p>
     <div ref="mapEl" class="map-container"></div>
   </div>
+
+  <Teleport to="body">
+    <div class="modal-overlay" v-if="showPinsModal" style="z-index:200000">
+      <div class="modal" style="max-width:520px;width:95vw">
+        <button class="modal-close" @click="showPinsModal = false">✕</button>
+        <h2>Pins</h2>
+        <div class="pins-modal-list">
+          <div v-for="entry in pinEntries" :key="entry.loc.id" class="pins-modal-row">
+            <div class="pins-modal-name">📍 {{ entry.loc.name }}</div>
+            <div class="pins-modal-coords">
+              <input class="pins-coord-input" type="number" step="any" :value="entry.loc.lat ?? ''" placeholder="lat"
+                @change="e => updateCoord(entry, 'lat', (e.target as HTMLInputElement).value)" />
+              <input class="pins-coord-input" type="number" step="any" :value="entry.loc.lon ?? ''" placeholder="lon"
+                @change="e => updateCoord(entry, 'lon', (e.target as HTMLInputElement).value)" />
+            </div>
+            <div class="pins-modal-actions">
+              <span class="pins-photo-count">{{ entry.photoCount }} 📷</span>
+              <button class="btn-danger btn-small" :disabled="entry.photoCount > 0" @click="deletePin(entry)" title="Delete">🗑️</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -14,7 +38,7 @@ import PageHeader from "../components/PageHeader.vue";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { formatAlbumDate } from "../utils/formatDate";
-import { authJsonHeaders } from "../utils/session";
+import { authJsonHeaders, authHeaders } from "../utils/session";
 
 interface AlbumLocation { id: number; name: string; lat?: number | null; lon?: number | null; geocodeAttempted?: number }
 interface Album {
@@ -58,6 +82,30 @@ const pinIcon = L.divIcon({
 const mapEl = ref<HTMLElement | null>(null);
 const status = ref("Loading albums…");
 const pinCount = ref<number | null>(null);
+const showPinsModal = ref(false);
+
+interface PinEntry { loc: AlbumLocation; albums: Album[]; photoCount: number }
+const pinEntries = ref<PinEntry[]>([]);
+
+async function updateCoord(entry: PinEntry, field: 'lat' | 'lon', val: string) {
+  const num = parseFloat(val);
+  if (isNaN(num)) return;
+  entry.loc[field] = num;
+  await fetch(`/api/album-location/${entry.loc.id}/coords`, {
+    method: "PUT", headers: authJsonHeaders(),
+    body: JSON.stringify({ lat: entry.loc.lat, lon: entry.loc.lon }),
+  });
+}
+
+async function deletePin(entry: PinEntry) {
+  if (entry.photoCount > 0) return;
+  const channelId = entry.albums[0]?.channelId;
+  if (!channelId) return;
+  await fetch(`/api/album/${channelId}/locations/${entry.loc.id}`, { method: "DELETE", headers: authHeaders() });
+  pinEntries.value = pinEntries.value.filter(e => e.loc.id !== entry.loc.id);
+  pinCount.value = (pinCount.value ?? 1) - 1;
+}
+
 let map: L.Map | null = null;
 
 function fitMapHeight() {
@@ -185,6 +233,14 @@ onMounted(async () => {
   }
 
   pinCount.value = placed;
+  pinEntries.value = [...byName.values()]
+    .filter(e => e.loc.id >= 0)
+    .map(e => ({
+      loc: e.loc,
+      albums: e.albums,
+      photoCount: e.albums.reduce((n, a) => n + a.photos.filter(p => p.locationId === e.loc.id).length, 0),
+    }))
+    .sort((a, b) => a.loc.name.localeCompare(b.loc.name));
 });
 
 onUnmounted(() => {
