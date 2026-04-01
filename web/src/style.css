@@ -40,13 +40,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 
 .album-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 16px; }
 .album-header h1 { margin-bottom: 4px; }
-.upload-area { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.upload-area-buttons { display: flex; gap: 8px; }
-.album-stats { display: flex; gap: 16px; color: #cdd6f4; }
 .upload-error { color: #f38ba8; margin-bottom: 12px; font-size: 0.9em; }
-
-.members-section { margin: 16px 0 4px; }
-.members-header { display: flex; align-items: center; gap: 10px; }
 .members-list { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
 .member-chip { display: flex; align-items: center; gap: 6px; background: #313244; border-radius: 20px; padding: 4px 10px 4px 4px; font-size: 0.85em; color: #cdd6f4; }
 .member-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; display: block; flex-shrink: 0; }
@@ -62,7 +56,6 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .btn-remove:hover { color: #f38ba8; background: #313244; }
 .btn-unhide:hover { color: #a6e3a1 !important; }
 .member-hidden { opacity: 0.45; }
-.album-locations { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; }
 .location-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #313244; cursor: grab; user-select: none; }
 .location-row-name { color: #cdd6f4; font-size: 0.95rem; flex: 1; }
 .location-drag-handle { color: #585b70; font-size: 1.1rem; flex-shrink: 0; }
@@ -93,7 +86,6 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .pswp-upload-date { color: rgba(255,255,255,0.85); font-size: 0.9em; display: none; }
 @media (min-width: 768px) { .pswp-upload-date { display: block; } }
 
-.sort-bar { display: flex; align-items: center; gap: 10px; margin-top: 20px; }
 .sort-label { color: #a6adc8; font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
 .sort-select { background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 8px; padding: 7px 12px; font-size: 0.9rem; cursor: pointer; outline: none; }
 .sort-select:hover { border-color: #89b4fa; }
@@ -121,7 +113,6 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .gallery { display: none; }
   .gallery-mobile { display: flex; }
   .album-header { flex-direction: column; }
-  .upload-area { display: flex; gap: 8px; }
   .db-sidebar { width: 100%; }
   .db-table-btn { width: 100%; }
   .gallery-mobile { margin: 20px -16px 0; }
@@ -325,11 +316,15 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .db-table tbody tr:hover td { background: #313244; }
 .map-page { padding: 32px; max-width: 1000px; margin: 0 auto; position: relative; }
 .page-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
-.page-header h1 { margin: 0; flex: 1; }
+.page-header-title { flex: 1; }
+.page-header h1 { margin: 0; }
+.page-header-subtitle { color: #a6adc8; font-size: 0.85rem; display: block; margin-top: 2px; }
 .page-back { color: #cdd6f4; text-decoration: none; background: #313244; border-radius: 20px; padding: 5px 16px; font-size: 2rem; flex-shrink: 0; }
 .page-back:hover { background: #45475a; }
-.map-pin-count, .album-photo-count { background: #313244; border: 1px solid #45475a; border-radius: 10px; padding: 6px 14px; font-size: 1rem; font-weight: 700; color: #cdd6f4; flex-shrink: 0; }
-.album-photo-count { margin-left: auto; }
+.album-section { margin-bottom: 28px; }
+.album-section-header { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid #313244; margin-bottom: 14px; font-weight: 600; font-size: 1rem; color: #cdd6f4; }
+.album-locations-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.map-pin-count { background: #313244; border: 1px solid #45475a; border-radius: 10px; padding: 6px 14px; font-size: 1rem; font-weight: 700; color: #cdd6f4; flex-shrink: 0; }
 .map-emoji-pin { background: none !important; border: none !important; font-size: 24px; line-height: 1; }
 .map-container { border-radius: 12px; overflow: hidden; }
 .map-status { margin: 0 0 8px; text-align: center; }

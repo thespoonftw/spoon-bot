@@ -1,11 +1,14 @@
 <template>
   <div class="page-header">
     <router-link :to="backTo" class="page-back">←</router-link>
-    <h1>{{ title }}</h1>
+    <div class="page-header-title">
+      <h1>{{ title }}</h1>
+      <span v-if="subtitle" class="page-header-subtitle">{{ subtitle }}</span>
+    </div>
     <slot />
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{ backTo: string; title: string }>();
+defineProps<{ backTo: string; title: string; subtitle?: string }>();
 </script>

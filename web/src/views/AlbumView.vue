@@ -1,63 +1,66 @@
 <template>
   <div class="page">
     <template v-if="album">
-      <div class="album-header">
-        <div>
-          <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName">
-            <button class="btn-icon" @click="showEdit = true" title="Edit album">✏️</button>
-          </PageHeader>
-          <p v-if="album.dateText" class="date">{{ album.dateText }}</p>
-          <div class="album-locations">
-            <span v-for="loc in album.locations" :key="loc.id" class="meta">📍 {{ loc.name }}</span>
-            <span v-if="!album.locations?.length" class="meta" style="color:#585b70">No location set</span>
-            <button class="btn-icon" @click="showLocations = true" title="Edit locations">✏️</button>
-          </div>
+      <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText">
+        <button class="btn-icon" @click="showEdit = true" title="Edit album">✏️</button>
+        <button class="btn-secondary btn-small" @click="openShare">Share</button>
+        <button class="btn-primary btn-small" @click="openUpload">Upload</button>
+      </PageHeader>
+
+      <!-- 👥 Attendees -->
+      <div class="album-section">
+        <div class="album-section-header">
+          <span>👥 Attendees ({{ album.members.length }})</span>
+          <button class="btn-icon" @click="showEditMembers = true" title="Edit members">✏️</button>
         </div>
-        <div class="upload-area">
-          <div class="upload-area-buttons">
-            <button class="btn-secondary" @click="openShare">Share</button>
-            <button class="btn-primary" @click="openUpload">Upload</button>
+        <div class="members-list">
+          <div v-for="member in album.members" :key="member.userId" class="member-chip" :title="member.firstName || member.displayName">
+            <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
+            <span class="member-name">{{ member.firstName || member.displayName }}</span>
           </div>
         </div>
       </div>
 
-      <div v-if="album.members.length > 0" class="members-section">
-        <div class="members-header">
-          <div class="members-list">
-            <div v-for="member in album.members" :key="member.userId" class="member-chip" :title="member.firstName || member.displayName">
-              <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
-              <span class="member-name">{{ member.firstName || member.displayName }}</span>
-            </div>
-            <button class="btn-icon" @click="showEditMembers = true" title="Edit members">✏️</button>
-          </div>
+      <!-- 📍 Locations -->
+      <div class="album-section">
+        <div class="album-section-header">
+          <span>📍 Locations ({{ album.locations?.length ?? 0 }})</span>
+          <button class="btn-icon" @click="showLocations = true" title="Edit locations">✏️</button>
+        </div>
+        <div class="album-locations-list">
+          <span v-for="loc in album.locations" :key="loc.id" class="meta">{{ loc.name }}</span>
+          <span v-if="!album.locations?.length" class="meta" style="color:#585b70">No locations set</span>
         </div>
       </div>
 
-      <p v-if="album.photos.length === 0" class="empty" style="margin-top:24px">No photos yet.</p>
-      <div v-else class="sort-bar">
-        <label class="sort-label">Sort By:</label>
-        <select v-model="sortBy" class="sort-select" @change="onSortChange">
-          <option value="popular">Most Popular</option>
-          <option v-if="album.locations && album.locations.length > 1" value="location">Location</option>
-          <option value="tagging">Tagging</option>
-          <option value="uploader">Uploader</option>
-          <option value="newest">Newest Upload</option>
-          <option value="oldest">Oldest Upload</option>
-        </select>
-        <template v-if="sortBy === 'tagging'">
-          <select v-model="tagFilterUserId" class="sort-select">
-            <option v-for="m in album.members" :key="m.userId" :value="m.userId">{{ m.firstName || m.displayName }}</option>
-            <option value="__nobody__">Nobody</option>
-          </select>
-        </template>
-        <div v-if="album.photos.length > 0" class="album-photo-count">{{ totalSortedCount }} 📷</div>
-      </div>
-      <PhotoGallery :sections="displayedSections" :members="allMembers" :can-delete="true"
-        :can-load-more="hasMore" :total-count="totalSortedCount"
-        :album-locations="album?.locations ?? []"
-        @photo-deleted="onPhotoDeleted" @load-more="displayLimit += 40" />
-      <div class="search-show-more" v-if="hasMore" ref="showMoreEl">
-        <button class="btn-secondary" @click="displayLimit += 40">Show more</button>
+      <!-- 📷 Photos -->
+      <div class="album-section">
+        <div class="album-section-header">
+          <span>📷 Photos ({{ totalSortedCount }})</span>
+          <template v-if="album.photos.length > 0">
+            <label class="sort-label">Sort By:</label>
+            <select v-model="sortBy" class="sort-select" @change="onSortChange">
+              <option value="popular">Most Popular</option>
+              <option v-if="album.locations && album.locations.length > 1" value="location">Location</option>
+              <option value="tagging">Tagging</option>
+              <option value="uploader">Uploader</option>
+              <option value="newest">Newest Upload</option>
+              <option value="oldest">Oldest Upload</option>
+            </select>
+            <select v-if="sortBy === 'tagging'" v-model="tagFilterUserId" class="sort-select">
+              <option v-for="m in album.members" :key="m.userId" :value="m.userId">{{ m.firstName || m.displayName }}</option>
+              <option value="__nobody__">Nobody</option>
+            </select>
+          </template>
+        </div>
+        <p v-if="album.photos.length === 0" class="empty">No photos yet.</p>
+        <PhotoGallery v-else :sections="displayedSections" :members="allMembers" :can-delete="true"
+          :can-load-more="hasMore" :total-count="totalSortedCount"
+          :album-locations="album?.locations ?? []"
+          @photo-deleted="onPhotoDeleted" @load-more="displayLimit += 40" />
+        <div class="search-show-more" v-if="hasMore" ref="showMoreEl">
+          <button class="btn-secondary" @click="displayLimit += 40">Show more</button>
+        </div>
       </div>
     </template>
     <p v-else-if="loading" class="empty">Loading…</p>
