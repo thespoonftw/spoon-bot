@@ -24,7 +24,7 @@ interface Album {
   locations?: AlbumLocation[];
   startDate?: string;
   endDate?: string;
-  photos: { id: number; url: string; score?: number }[];
+  photos: { id: number; url: string; score?: number; locationId?: number | null }[];
 }
 
 async function geocodeAndSave(loc: AlbumLocation): Promise<[number, number] | null> {
@@ -125,7 +125,8 @@ onMounted(async () => {
     const thumbUrl = (url: string) => url.replace("/uploads/", "/thumbnails/");
     const popupHtml = albumsHere.map(a => {
       const year = a.startDate ? new Date(a.startDate).getUTCFullYear() : "";
-      const topPhotos = [...a.photos].sort((x, y) => (y.score ?? 0) - (x.score ?? 0)).slice(0, 3);
+      const locPhotos = loc.id >= 0 ? a.photos.filter(p => p.locationId === loc.id) : a.photos;
+      const topPhotos = [...locPhotos].sort((x, y) => (y.score ?? 0) - (x.score ?? 0)).slice(0, 3);
       const smallThumbs = topPhotos.slice(1).map(p =>
         `<a href="/album/${a.channelId}"><img src="${thumbUrl(p.url)}" class="map-popup-thumb-sm" /></a>`
       ).join("");
