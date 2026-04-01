@@ -16,8 +16,8 @@
             <p v-if="album.locations?.length" class="meta">📍 {{ album.locations.map(l => l.name).join(', ') }}</p>
           </div>
           <div class="card-left-details">
-            <p class="meta">{{ album.photos.length }} 📷</p>
-            <p v-if="album.members.length > 0" class="meta">{{ album.members.length }} 👥</p>
+            <p class="meta">📷 {{ album.photos.length }}</p>
+            <p v-if="album.members.length > 0" class="meta">👥 {{ album.members.length }}</p>
           </div>
           <div v-if="album.members.length > 0" class="card-members">
             <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">

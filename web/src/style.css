@@ -336,7 +336,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .map-popup-album { padding: 4px 0; }
 .map-popup-title { font-weight: 700; color: #1e66f5; text-decoration: none; display: block; font-size: 1rem; }
 .map-popup-title:hover { text-decoration: underline; }
-.map-popup-meta { font-size: 0.8rem; color: #555; margin-top: 2px; margin-bottom: 6px; }
+.map-popup-meta { font-size: 0.8rem; color: #555; margin-top: 2px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+.map-popup-photo-count { color: #888; font-size: 0.75rem; }
 .map-popup-thumbs { display: flex; gap: 4px; margin-top: 6px; align-items: flex-start; }
 .map-popup-thumb-lg { width: 162px; height: 162px; object-fit: cover; border-radius: 4px; display: block; }
 .map-popup-thumbs-stack { display: flex; flex-direction: column; gap: 4px; }

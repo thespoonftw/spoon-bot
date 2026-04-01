@@ -149,7 +149,7 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
     const editBtn = i === 0 ? ` <button class="map-popup-move-btn" title="Move pin">✏️</button>` : "";
     return `<div class="map-popup-album">
       <a href="/album/${a.channelId}?back=/map" class="map-popup-title">${loc.name}</a>
-      <div class="map-popup-meta">${a.groupName}${year ? ` · ${year}` : ""} · ${albumPhotoCount} 📸${editBtn}</div>
+      <div class="map-popup-meta"><span>${a.groupName}${year ? ` · ${year}` : ""}${editBtn}</span><span class="map-popup-photo-count">${albumPhotoCount} 📸</span></div>
       ${thumbsHtml}
     </div>`;
   }).join('<hr class="map-popup-divider">');
