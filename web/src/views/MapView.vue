@@ -23,6 +23,7 @@
             </div>
             <div class="pins-modal-actions">
               <span class="pins-photo-count">{{ entry.photoCount }} 📷</span>
+              <button class="btn-secondary btn-small" @click="startMovePin(entry)" title="Move pin">✏️</button>
               <button class="btn-danger btn-small" :disabled="entry.photoCount > 0" @click="deletePin(entry)" title="Delete">🗑️</button>
             </div>
           </div>
@@ -37,7 +38,6 @@ import { ref, watch, nextTick, onMounted, onUnmounted } from "vue";
 import PageHeader from "../components/PageHeader.vue";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { formatAlbumDate } from "../utils/formatDate";
 import { authJsonHeaders, authHeaders } from "../utils/session";
 
 interface AlbumLocation { id: number; name: string; lat?: number | null; lon?: number | null; geocodeAttempted?: number }
@@ -78,6 +78,13 @@ const pinIcon = L.divIcon({
   className: "map-emoji-pin",
 });
 
+const editingIcon = L.divIcon({
+  html: "📍",
+  iconSize: [36, 36],
+  iconAnchor: [18, 36],
+  className: "map-emoji-pin map-emoji-pin-editing",
+});
+
 const mapEl = ref<HTMLElement | null>(null);
 const status = ref("Loading albums…");
 const pinCount = ref<number | null>(null);
@@ -85,6 +92,9 @@ const showPinsModal = ref(false);
 
 interface PinEntry { loc: AlbumLocation; albums: Album[]; photoCount: number }
 const pinEntries = ref<PinEntry[]>([]);
+
+// marker registry — populated during onMounted
+const markerRegistry = new Map<number, { marker: L.Marker; popupContent: string }>();
 
 async function updateCoord(entry: PinEntry, field: 'lat' | 'lon', val: string) {
   const num = parseFloat(val);
@@ -103,6 +113,52 @@ async function deletePin(entry: PinEntry) {
   await fetch(`/api/album/${channelId}/locations/${entry.loc.id}`, { method: "DELETE", headers: authHeaders() });
   pinEntries.value = pinEntries.value.filter(e => e.loc.id !== entry.loc.id);
   pinCount.value = (pinCount.value ?? 1) - 1;
+}
+
+function startMovePin(entry: PinEntry) {
+  showPinsModal.value = false;
+  const reg = markerRegistry.get(entry.loc.id);
+  if (!reg || !map) return;
+  const { marker, popupContent } = reg;
+
+  const origLatLng = marker.getLatLng();
+  marker.dragging?.enable();
+  marker.setIcon(editingIcon);
+  map.setView(marker.getLatLng(), Math.max(map.getZoom(), 10));
+
+  // Build popup using a real DOM element so event listeners attach immediately
+  const container = document.createElement("div");
+  container.className = "map-popup";
+  container.innerHTML = `<div style="font-weight:700;margin-bottom:8px">Drag pin to correct position</div><div style="display:flex;gap:6px"><button class="map-popup-save-btn">Save</button><button class="map-popup-cancel-btn">Cancel</button></div>`;
+
+  container.querySelector(".map-popup-save-btn")!.addEventListener("click", async () => {
+    const { lat, lng } = marker.getLatLng();
+    await fetch(`/api/album-location/${entry.loc.id}/coords`, {
+      method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ lat, lon: lng }),
+    });
+    entry.loc.lat = lat;
+    entry.loc.lon = lng;
+    marker.dragging?.disable();
+    marker.setIcon(pinIcon);
+    marker.closePopup();
+    marker.unbindPopup();
+    marker.bindPopup(popupContent, { maxWidth: 320 });
+    // update coord inputs in modal
+    const modalEntry = pinEntries.value.find(e => e.loc.id === entry.loc.id);
+    if (modalEntry) { modalEntry.loc.lat = lat; modalEntry.loc.lon = lng; }
+  });
+
+  container.querySelector(".map-popup-cancel-btn")!.addEventListener("click", () => {
+    marker.setLatLng(origLatLng);
+    marker.dragging?.disable();
+    marker.setIcon(pinIcon);
+    marker.closePopup();
+    marker.unbindPopup();
+    marker.bindPopup(popupContent, { maxWidth: 320 });
+  });
+
+  marker.unbindPopup();
+  marker.bindPopup(container, { maxWidth: 240, closeOnClick: false, closeButton: false }).openPopup();
 }
 
 let map: L.Map | null = null;
@@ -168,7 +224,7 @@ onMounted(async () => {
     if (loc.lat == null || loc.lon == null) continue;
     placed++;
     const thumbUrl = (url: string) => url.replace("/uploads/", "/thumbnails/");
-    const popupHtml = albumsHere.map(a => {
+    const popupInner = albumsHere.map(a => {
       const year = a.startDate ? new Date(a.startDate).getUTCFullYear() : "";
       const singleLocation = (a.locations?.length ?? 0) <= 1;
       const locPhotos = singleLocation ? a.photos : a.photos.filter(p => p.locationId === loc.id);
@@ -188,46 +244,10 @@ onMounted(async () => {
       </div>`;
     }).join('<hr class="map-popup-divider">');
 
-    const editBtnId = `map-edit-${loc.id}`;
+    const popupContent = `<div class="map-popup">${popupInner}</div>`;
     const marker = L.marker([loc.lat, loc.lon], { icon: pinIcon }).addTo(map!);
-    marker.bindPopup(`<div class="map-popup">${popupHtml}<button class="map-popup-edit-btn" id="${editBtnId}">✏️ Move pin</button></div>`, { maxWidth: 320 });
-    marker.on("popupopen", () => {
-      const btn = document.getElementById(editBtnId);
-      if (!btn) return;
-      btn.addEventListener("click", () => {
-        marker.closePopup();
-        marker.setDraggable(true);
-        marker.setIcon(L.divIcon({ html: "📍", iconSize: [36, 36], iconAnchor: [18, 36], className: "map-emoji-pin map-emoji-pin-editing" }));
-        const saveId = `map-save-${loc.id}`;
-        const cancelId = `map-cancel-${loc.id}`;
-        const origLatLng = marker.getLatLng();
-        marker.bindPopup(`<div class="map-popup"><div style="font-weight:700;margin-bottom:8px">Drag pin to correct position</div><div style="display:flex;gap:6px"><button id="${saveId}" class="map-popup-save-btn">Save</button><button id="${cancelId}" class="map-popup-cancel-btn">Cancel</button></div></div>`, { maxWidth: 240 }).openPopup();
-        const setupSaveCancel = () => {
-          const saveBtn = document.getElementById(saveId);
-          const cancelBtn = document.getElementById(cancelId);
-          if (saveBtn) saveBtn.addEventListener("click", async () => {
-            const { lat, lng } = marker.getLatLng();
-            await fetch(`/api/album-location/${loc.id}/coords`, {
-              method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ lat, lon: lng }),
-            });
-            loc.lat = lat; loc.lon = lng;
-            marker.setDraggable(false);
-            marker.setIcon(pinIcon);
-            marker.bindPopup(`<div class="map-popup">${popupHtml}<button class="map-popup-edit-btn" id="${editBtnId}">✏️ Move pin</button></div>`, { maxWidth: 320 });
-            marker.closePopup();
-          });
-          if (cancelBtn) cancelBtn.addEventListener("click", () => {
-            marker.setLatLng(origLatLng);
-            marker.setDraggable(false);
-            marker.setIcon(pinIcon);
-            marker.bindPopup(`<div class="map-popup">${popupHtml}<button class="map-popup-edit-btn" id="${editBtnId}">✏️ Move pin</button></div>`, { maxWidth: 320 });
-            marker.closePopup();
-          });
-        };
-        marker.on("popupopen", setupSaveCancel);
-        setupSaveCancel();
-      });
-    });
+    marker.bindPopup(popupContent, { maxWidth: 320 });
+    markerRegistry.set(loc.id, { marker, popupContent });
   }
 
   pinCount.value = placed;
@@ -245,6 +265,7 @@ onUnmounted(() => {
   document.body.style.overflow = "";
   map?.remove();
   map = null;
+  markerRegistry.clear();
   window.removeEventListener("resize", fitMapHeight);
 });
 </script>
