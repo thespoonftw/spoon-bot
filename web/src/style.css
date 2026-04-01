@@ -330,9 +330,9 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .map-container { border-radius: 12px; overflow: hidden; }
 .map-status { margin: 0 0 8px; text-align: center; }
 .leaflet-popup-content-wrapper { padding: 0 !important; border-radius: 8px !important; }
-.leaflet-popup-content { margin: 16px 10px !important; }
+.leaflet-popup-content { margin: 0 !important; }
 .leaflet-popup-close-button { font-size: 22px !important; width: 28px !important; height: 28px !important; top: 4px !important; right: 4px !important; line-height: 26px !important; }
-.map-popup { font-family: inherit; font-size: 0.9rem; color: #1e1e2e; min-width: 200px; }
+.map-popup { font-family: inherit; font-size: 0.9rem; color: #1e1e2e; min-width: 200px; padding: 14px 12px; }
 .map-popup-album { padding: 4px 0; }
 .map-popup-title { font-weight: 700; color: #1e66f5; text-decoration: none; display: block; font-size: 1rem; }
 .map-popup-title:hover { text-decoration: underline; }
