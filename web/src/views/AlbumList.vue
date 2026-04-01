@@ -13,13 +13,15 @@
           <div class="card-left-title">
             <h2>{{ album.groupName }}</h2>
             <p v-if="album.startDate" class="date">{{ formatAlbumDate(album.startDate, album.endDate) }}</p>
-            <p v-if="album.locations?.length" class="meta">📍 {{ album.locations.map(l => l.name).join(', ') }}</p>
+            <p v-if="album.locations?.length === 1" class="meta">📍 {{ album.locations[0].name }}</p>
           </div>
           <div class="card-left-details">
             <p class="meta desktop-only">📷 {{ album.photos.length }}</p>
             <p class="meta mobile-only">{{ album.photos.length }} 📷</p>
             <p v-if="album.members.length > 0" class="meta desktop-only">👥 {{ album.members.length }}</p>
             <p v-if="album.members.length > 0" class="meta mobile-only">{{ album.members.length }} 👥</p>
+            <p v-if="(album.locations?.length ?? 0) > 1" class="meta desktop-only">📍 {{ album.locations!.length }}</p>
+            <p v-if="(album.locations?.length ?? 0) > 1" class="meta mobile-only">{{ album.locations!.length }} 📍</p>
           </div>
           <div v-if="album.members.length > 0" class="card-members">
             <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
