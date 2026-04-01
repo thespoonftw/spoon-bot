@@ -126,18 +126,23 @@ onMounted(async () => {
     const popupHtml = albumsHere.map(a => {
       const year = a.startDate ? new Date(a.startDate).getUTCFullYear() : "";
       const topPhotos = [...a.photos].sort((x, y) => (y.score ?? 0) - (x.score ?? 0)).slice(0, 3);
-      const thumbsHtml = topPhotos.map(p =>
-        `<a href="/album/${a.channelId}"><img src="${thumbUrl(p.url)}" class="map-popup-thumb" /></a>`
+      const smallThumbs = topPhotos.slice(1).map(p =>
+        `<a href="/album/${a.channelId}"><img src="${thumbUrl(p.url)}" class="map-popup-thumb-sm" /></a>`
       ).join("");
+      const thumbsHtml = topPhotos.length ? `
+        <div class="map-popup-thumbs">
+          <a href="/album/${a.channelId}"><img src="${thumbUrl(topPhotos[0].url)}" class="map-popup-thumb-lg" /></a>
+          ${smallThumbs ? `<div class="map-popup-thumbs-stack">${smallThumbs}</div>` : ""}
+        </div>` : "";
       return `<div class="map-popup-album">
-        <a href="/album/${a.channelId}" class="map-popup-title">${a.groupName}</a>
-        ${year ? `<div class="map-popup-year">${year}</div>` : ""}
-        ${thumbsHtml ? `<div class="map-popup-thumbs">${thumbsHtml}</div>` : ""}
+        <a href="/album/${a.channelId}" class="map-popup-title">${loc.name}</a>
+        <div class="map-popup-meta">${a.groupName}${year ? ` · ${year}` : ""}</div>
+        ${thumbsHtml}
       </div>`;
     }).join('<hr class="map-popup-divider">');
 
     const marker = L.marker([loc.lat, loc.lon], { icon: pinIcon }).addTo(map!);
-    marker.bindPopup(`<div class="map-popup"><div class="map-popup-loc">${loc.name}</div>${popupHtml}</div>`, { maxWidth: 280 });
+    marker.bindPopup(`<div class="map-popup">${popupHtml}</div>`, { maxWidth: 280 });
   }
 
   pinCount.value = placed;
