@@ -14,42 +14,37 @@ import PageHeader from "../components/PageHeader.vue";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { formatAlbumDate } from "../utils/formatDate";
+import { authJsonHeaders } from "../utils/session";
 
+interface AlbumLocation { id: number; name: string; lat?: number | null; lon?: number | null }
 interface Album {
   channelId: string;
   groupName: string;
   location?: string;
-  locations?: { id: number; name: string }[];
+  locations?: AlbumLocation[];
   startDate?: string;
   endDate?: string;
   photos: { id: number }[];
 }
 
-const GEOCODE_CACHE_KEY = "geocode_cache_v1";
-
-function loadCache(): Record<string, [number, number] | null> {
-  try { return JSON.parse(sessionStorage.getItem(GEOCODE_CACHE_KEY) ?? "{}"); }
-  catch { return {}; }
-}
-
-function saveCache(cache: Record<string, [number, number] | null>) {
-  sessionStorage.setItem(GEOCODE_CACHE_KEY, JSON.stringify(cache));
-}
-
-async function geocode(location: string, cache: Record<string, [number, number] | null>): Promise<[number, number] | null> {
-  if (location in cache) return cache[location];
+async function geocodeAndSave(loc: AlbumLocation): Promise<[number, number] | null> {
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`,
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(loc.name)}&format=json&limit=1`,
       { headers: { "Accept-Language": "en", "User-Agent": "spoon-bot/1.0" } }
     );
     const data = await res.json();
-    const result: [number, number] | null = data[0] ? [parseFloat(data[0].lat), parseFloat(data[0].lon)] : null;
-    cache[location] = result;
-    saveCache(cache);
-    return result;
+    if (!data[0]) return null;
+    const lat = parseFloat(data[0].lat);
+    const lon = parseFloat(data[0].lon);
+    // Save to DB so we don't geocode again
+    fetch(`/api/album-location/${loc.id}/coords`, {
+      method: "PUT",
+      headers: authJsonHeaders(),
+      body: JSON.stringify({ lat, lon }),
+    });
+    return [lat, lon];
   } catch {
-    cache[location] = null;
     return null;
   }
 }
@@ -93,33 +88,42 @@ onMounted(async () => {
     maxZoom: 18,
   }).addTo(map);
 
-  const withLocation = albums.filter(a => a.locations?.length || a.location);
-  if (withLocation.length === 0) { status.value = "No albums have a location set."; return; }
-
-  const byLocation = new Map<string, Album[]>();
-  for (const album of withLocation) {
-    const locNames = album.locations?.length ? album.locations.map(l => l.name) : [album.location!];
-    for (const loc of locNames) {
-      if (!byLocation.has(loc)) byLocation.set(loc, []);
-      if (!byLocation.get(loc)!.includes(album)) byLocation.get(loc)!.push(album);
+  // Collect all named locations with their album, keyed by location name for grouping pins
+  const byName = new Map<string, { albums: Album[]; loc: AlbumLocation }>();
+  for (const album of albums) {
+    const locs: AlbumLocation[] = album.locations?.length
+      ? album.locations
+      : album.location ? [{ id: -1, name: album.location }] : [];
+    for (const loc of locs) {
+      if (!byName.has(loc.name)) byName.set(loc.name, { albums: [], loc });
+      byName.get(loc.name)!.albums.push(album);
     }
   }
 
-  const cache = loadCache();
-  const locations = [...byLocation.keys()];
+  if (byName.size === 0) { status.value = "No albums have a location set."; return; }
+
+  // Separate into already-geocoded and needing geocoding
+  const needsGeocode = [...byName.values()].filter(e => e.loc.id >= 0 && (e.loc.lat == null || e.loc.lon == null));
+  const total = needsGeocode.length;
+
+  if (total > 0) status.value = `Locating ${total} new location${total > 1 ? "s" : ""}… 0/${total}`;
+
   let done = 0;
-  let placed = 0;
-  status.value = `Locating albums… 0/${locations.length}`;
-
-  for (const loc of locations) {
-    const coords = await geocode(loc, cache);
+  for (const entry of needsGeocode) {
+    const coords = await geocodeAndSave(entry.loc);
+    if (coords) { entry.loc.lat = coords[0]; entry.loc.lon = coords[1]; }
     done++;
-    status.value = done < locations.length ? `Locating albums… ${done}/${locations.length}` : "";
+    if (done < total) status.value = `Locating… ${done}/${total}`;
+    else status.value = "";
+    if (done < total) await new Promise(r => setTimeout(r, 1100));
+  }
 
-    if (!coords || !map) continue;
-    const albumsHere = byLocation.get(loc)!;
+  status.value = "";
+  let placed = 0;
+
+  for (const { albums: albumsHere, loc } of byName.values()) {
+    if (loc.lat == null || loc.lon == null) continue;
     placed++;
-
     const popupHtml = albumsHere.map(a => {
       const date = a.startDate ? formatAlbumDate(a.startDate, a.endDate) : "";
       return `<div class="map-popup-album">
@@ -129,10 +133,8 @@ onMounted(async () => {
       </div>`;
     }).join('<hr class="map-popup-divider">');
 
-    const marker = L.marker(coords, { icon: pinIcon }).addTo(map);
+    const marker = L.marker([loc.lat, loc.lon], { icon: pinIcon }).addTo(map!);
     marker.bindPopup(`<div class="map-popup">${popupHtml}</div>`, { maxWidth: 250 });
-
-    if (!(loc in cache) || cache[loc] === undefined) await new Promise(r => setTimeout(r, 1100));
   }
 
   pinCount.value = placed;

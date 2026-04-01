@@ -67,6 +67,8 @@ export function initDb() {
       channel_id TEXT NOT NULL,
       name       TEXT NOT NULL,
       sort_order INTEGER NOT NULL DEFAULT 0,
+      lat        REAL,
+      lon        REAL,
       UNIQUE(channel_id, name)
     );
   `);
@@ -86,6 +88,8 @@ export function initDb() {
     "ALTER TABLE photos ADD COLUMN height INTEGER",
     "ALTER TABLE photos ADD COLUMN location_id INTEGER",
     "ALTER TABLE album_locations ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE album_locations ADD COLUMN lat REAL",
+    "ALTER TABLE album_locations ADD COLUMN lon REAL",
     "ALTER TABLE photos ADD COLUMN caption TEXT",
     "ALTER TABLE photos ADD COLUMN discord_message_id TEXT",
     "ALTER TABLE albums DROP COLUMN date_text",
@@ -148,7 +152,7 @@ function formatDateDisplay(startDate: string, endDate?: string | null): string {
   return `${s.day}${s.suffix} ${s.month} ${s.year} – ${e.day}${e.suffix} ${e.month} ${e.year}`;
 }
 
-export type AlbumLocation = { id: number; name: string };
+export type AlbumLocation = { id: number; name: string; lat?: number | null; lon?: number | null };
 export type AlbumRow = {
   channelId: string; groupName: string;
   location?: string; locations?: AlbumLocation[];
@@ -157,7 +161,10 @@ export type AlbumRow = {
 };
 
 export function dbGetAlbumLocations(channelId: string): AlbumLocation[] {
-  return db.prepare("SELECT id, name FROM album_locations WHERE channel_id = ? ORDER BY sort_order, id").all(channelId) as AlbumLocation[];
+  return db.prepare("SELECT id, name, lat, lon FROM album_locations WHERE channel_id = ? ORDER BY sort_order, id").all(channelId) as AlbumLocation[];
+}
+export function dbSetLocationCoords(id: number, lat: number, lon: number) {
+  db.prepare("UPDATE album_locations SET lat = ?, lon = ? WHERE id = ?").run(lat, lon, id);
 }
 export function dbAddAlbumLocation(channelId: string, name: string): AlbumLocation | null {
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM album_locations WHERE channel_id = ?").get(channelId) as { m: number }).m;
@@ -246,7 +253,7 @@ export function dbGetAllAlbumsWithPhotos(): AlbumWithPhotos[] {
   const albums = (db.prepare(
     "SELECT channel_id AS channelId, group_name AS groupName, location, start_date AS startDate, end_date AS endDate, created_at AS createdAt FROM albums ORDER BY created_at DESC"
   ).all() as Omit<AlbumRow, "dateText">[]).map(toAlbumRow);
-  const allLocs = db.prepare("SELECT channel_id AS channelId, id, name FROM album_locations ORDER BY sort_order, id").all() as (AlbumLocation & { channelId: string })[];
+  const allLocs = db.prepare("SELECT channel_id AS channelId, id, name, lat, lon FROM album_locations ORDER BY sort_order, id").all() as (AlbumLocation & { channelId: string })[];
   const locMap = new Map<string, AlbumLocation[]>();
   for (const l of allLocs) {
     if (!locMap.has(l.channelId)) locMap.set(l.channelId, []);
