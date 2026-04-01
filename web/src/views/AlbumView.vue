@@ -1,8 +1,7 @@
 <template>
   <div class="page">
     <template v-if="album">
-      <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText">
-        <button class="btn-icon" @click="showEdit = true" title="Edit album">✏️</button>
+      <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :editable="true" @edit="showEdit = true">
         <button class="btn-secondary btn-small" @click="openShare">Share</button>
         <button class="btn-primary btn-small" @click="openUpload">Upload</button>
       </PageHeader>
@@ -10,7 +9,8 @@
       <!-- 👥 Attendees -->
       <div class="album-section">
         <div class="album-section-header">
-          <span>👥 Attendees ({{ album.members.length }})</span>
+          <span class="album-section-label">👥 Attendees</span>
+          <span class="album-section-count">{{ album.members.length }}</span>
           <button class="btn-icon" @click="showEditMembers = true" title="Edit members">✏️</button>
         </div>
         <div class="members-list">
@@ -24,11 +24,12 @@
       <!-- 📍 Locations -->
       <div class="album-section">
         <div class="album-section-header">
-          <span>📍 Locations ({{ album.locations?.length ?? 0 }})</span>
+          <span class="album-section-label">📍 Locations</span>
+          <span class="album-section-count">{{ album.locations?.length ?? 0 }}</span>
           <button class="btn-icon" @click="showLocations = true" title="Edit locations">✏️</button>
         </div>
         <div class="album-locations-list">
-          <span v-for="loc in album.locations" :key="loc.id" class="meta">{{ loc.name }}</span>
+          <span v-for="loc in album.locations" :key="loc.id" class="location-tag">{{ loc.name }}</span>
           <span v-if="!album.locations?.length" class="meta" style="color:#585b70">No locations set</span>
         </div>
       </div>
@@ -36,22 +37,23 @@
       <!-- 📷 Photos -->
       <div class="album-section">
         <div class="album-section-header">
-          <span>📷 Photos ({{ totalSortedCount }})</span>
-          <template v-if="album.photos.length > 0">
-            <label class="sort-label">Sort By:</label>
-            <select v-model="sortBy" class="sort-select" @change="onSortChange">
-              <option value="popular">Most Popular</option>
-              <option v-if="album.locations && album.locations.length > 1" value="location">Location</option>
-              <option value="tagging">Tagging</option>
-              <option value="uploader">Uploader</option>
-              <option value="newest">Newest Upload</option>
-              <option value="oldest">Oldest Upload</option>
-            </select>
-            <select v-if="sortBy === 'tagging'" v-model="tagFilterUserId" class="sort-select">
-              <option v-for="m in album.members" :key="m.userId" :value="m.userId">{{ m.firstName || m.displayName }}</option>
-              <option value="__nobody__">Nobody</option>
-            </select>
-          </template>
+          <span class="album-section-label">📷 Photos</span>
+          <span class="album-section-count">{{ totalSortedCount }}</span>
+        </div>
+        <div v-if="album.photos.length > 0" class="album-sort-bar">
+          <label class="sort-label">Sort By:</label>
+          <select v-model="sortBy" class="sort-select" @change="onSortChange">
+            <option value="popular">Most Popular</option>
+            <option v-if="album.locations && album.locations.length > 1" value="location">Location</option>
+            <option value="tagging">Tagging</option>
+            <option value="uploader">Uploader</option>
+            <option value="newest">Newest Upload</option>
+            <option value="oldest">Oldest Upload</option>
+          </select>
+          <select v-if="sortBy === 'tagging'" v-model="tagFilterUserId" class="sort-select">
+            <option v-for="m in album.members" :key="m.userId" :value="m.userId">{{ m.firstName || m.displayName }}</option>
+            <option value="__nobody__">Nobody</option>
+          </select>
         </div>
         <p v-if="album.photos.length === 0" class="empty">No photos yet.</p>
         <PhotoGallery v-else :sections="displayedSections" :members="allMembers" :can-delete="true"

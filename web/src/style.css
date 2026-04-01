@@ -316,14 +316,21 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .db-table tbody tr:hover td { background: #313244; }
 .map-page { padding: 32px; max-width: 1000px; margin: 0 auto; position: relative; }
 .page-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
-.page-header-title { flex: 1; }
+.page-header-title { flex: 1; min-width: 0; }
+.page-header-title-row { display: flex; align-items: center; gap: 6px; }
 .page-header h1 { margin: 0; }
+.page-header-edit-btn { font-size: 0.9rem; opacity: 0.45; padding: 2px 4px; flex-shrink: 0; }
+.page-header-edit-btn:hover { opacity: 1; }
 .page-header-subtitle { color: #a6adc8; font-size: 0.85rem; display: block; margin-top: 2px; }
 .page-back { color: #cdd6f4; text-decoration: none; background: #313244; border-radius: 20px; padding: 5px 16px; font-size: 2rem; flex-shrink: 0; }
 .page-back:hover { background: #45475a; }
-.album-section { margin-bottom: 28px; }
-.album-section-header { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid #313244; margin-bottom: 14px; font-weight: 600; font-size: 1rem; color: #cdd6f4; }
+.album-section { margin-bottom: 24px; }
+.album-section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.album-section-label { font-weight: 600; font-size: 0.95rem; color: #a6adc8; }
+.album-section-count { color: #585b70; font-size: 0.9rem; font-weight: 500; }
+.album-sort-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .album-locations-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.location-tag { background: #313244; border: 1px solid #45475a; border-radius: 20px; padding: 3px 12px; font-size: 0.85rem; color: #cdd6f4; }
 .map-pin-count { background: #313244; border: 1px solid #45475a; border-radius: 10px; padding: 6px 14px; font-size: 1rem; font-weight: 700; color: #cdd6f4; flex-shrink: 0; }
 .map-emoji-pin { background: none !important; border: none !important; font-size: 24px; line-height: 1; }
 .map-container { border-radius: 12px; overflow: hidden; }
