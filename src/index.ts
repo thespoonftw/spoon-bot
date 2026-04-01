@@ -46,25 +46,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   setUpdateEventMessages(updateEventMessages);
   await initAuth(readyClient);
 
-  // TEMPORARY: reset everyone's nickname
-  {
-    const guild = readyClient.guilds.cache.get(config.guildId);
-    if (guild) {
-      const members = await guild.members.fetch();
-      for (const [, member] of members) {
-        if (member.user.id === readyClient.user.id) continue; // can't rename self
-        if (!member.nickname) continue;
-        try {
-          await member.setNickname(null);
-          console.log(`Reset nickname for ${member.user.tag}`);
-        } catch (e) {
-          console.warn(`Could not reset nickname for ${member.user.tag}:`, e);
-        }
-      }
-    }
-  }
-  // END TEMPORARY
-  if (eventStates.size > 0) {
+if (eventStates.size > 0) {
     const guild = readyClient.guilds.cache.get(config.guildId);
     if (guild) {
       for (const [channelId, state] of eventStates) {
