@@ -511,9 +511,9 @@ function openLightbox(index: number) {
       } else {
         const photoLocation = p.locationId ? (props.albumLocations?.find(l => l.id === p.locationId)?.name ?? locs.find(l => l.id === p.locationId)?.name) : null;
         if (photoLocation) {
-          locationStr = photoLocation;
+          locationStr = album?.groupName ? `${photoLocation}, ${album.groupName}` : photoLocation;
         } else if (locs.length === 1) {
-          locationStr = locs[0].name;
+          locationStr = album?.groupName ? `${locs[0].name}, ${album.groupName}` : locs[0].name;
         } else {
           locationStr = album?.groupName;
         }

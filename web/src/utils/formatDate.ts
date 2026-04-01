@@ -9,8 +9,8 @@ export function formatAlbumDate(startDate: string, endDate?: string): string {
     return { day, suffix, month, year };
   };
   const s = parse(startDate);
-  if (!endDate) return `${s.day}${s.suffix} ${s.month}`;
+  if (!endDate) return `${s.day}${s.suffix} ${s.month} ${s.year}`;
   const e = parse(endDate);
-  if (s.year === e.year) return `${s.day}${s.suffix} ${s.month} – ${e.day}${e.suffix} ${e.month}`;
-  return `${s.day}${s.suffix} ${s.month} – ${e.day}${e.suffix} ${e.month} ${e.year}`;
+  if (s.year === e.year) return `${s.day}${s.suffix} ${s.month} – ${e.day}${e.suffix} ${e.month} ${e.year}`;
+  return `${s.day}${s.suffix} ${s.month} ${s.year} – ${e.day}${e.suffix} ${e.month} ${e.year}`;
 }
