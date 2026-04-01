@@ -170,7 +170,8 @@ onMounted(async () => {
     const thumbUrl = (url: string) => url.replace("/uploads/", "/thumbnails/");
     const popupHtml = albumsHere.map(a => {
       const year = a.startDate ? new Date(a.startDate).getUTCFullYear() : "";
-      const locPhotos = loc.id >= 0 ? a.photos.filter(p => p.locationId === loc.id) : a.photos;
+      const singleLocation = (a.locations?.length ?? 0) <= 1;
+      const locPhotos = singleLocation ? a.photos : a.photos.filter(p => p.locationId === loc.id);
       const topPhotos = [...locPhotos].sort((x, y) => (y.score ?? 0) - (x.score ?? 0)).slice(0, 3);
       const smallThumbs = topPhotos.slice(1).map(p =>
         `<a href="/album/${a.channelId}"><img src="${thumbUrl(p.url)}" class="map-popup-thumb-sm" /></a>`
@@ -235,7 +236,7 @@ onMounted(async () => {
     .map(e => ({
       loc: e.loc,
       albums: e.albums,
-      photoCount: e.albums.reduce((n, a) => n + a.photos.filter(p => p.locationId === e.loc.id).length, 0),
+      photoCount: e.albums.reduce((n, a) => n + ((a.locations?.length ?? 0) <= 1 ? a.photos.length : a.photos.filter(p => p.locationId === e.loc.id).length), 0),
     }))
     .sort((a, b) => a.loc.name.localeCompare(b.loc.name));
 });
