@@ -142,8 +142,46 @@ onMounted(async () => {
       </div>`;
     }).join('<hr class="map-popup-divider">');
 
+    const editBtnId = `map-edit-${loc.id}`;
     const marker = L.marker([loc.lat, loc.lon], { icon: pinIcon }).addTo(map!);
-    marker.bindPopup(`<div class="map-popup">${popupHtml}</div>`, { maxWidth: 280 });
+    marker.bindPopup(`<div class="map-popup">${popupHtml}<button class="map-popup-edit-btn" id="${editBtnId}">✏️ Move pin</button></div>`, { maxWidth: 320 });
+    marker.on("popupopen", () => {
+      const btn = document.getElementById(editBtnId);
+      if (!btn) return;
+      btn.addEventListener("click", () => {
+        marker.closePopup();
+        marker.setDraggable(true);
+        marker.setIcon(L.divIcon({ html: "📍", iconSize: [36, 36], iconAnchor: [18, 36], className: "map-emoji-pin map-emoji-pin-editing" }));
+        const saveId = `map-save-${loc.id}`;
+        const cancelId = `map-cancel-${loc.id}`;
+        const origLatLng = marker.getLatLng();
+        marker.bindPopup(`<div class="map-popup"><div style="font-weight:700;margin-bottom:8px">Drag pin to correct position</div><div style="display:flex;gap:6px"><button id="${saveId}" class="map-popup-save-btn">Save</button><button id="${cancelId}" class="map-popup-cancel-btn">Cancel</button></div></div>`, { maxWidth: 240 }).openPopup();
+        const setupSaveCancel = () => {
+          const saveBtn = document.getElementById(saveId);
+          const cancelBtn = document.getElementById(cancelId);
+          if (saveBtn) saveBtn.addEventListener("click", async () => {
+            const { lat, lng } = marker.getLatLng();
+            await fetch(`/api/album-location/${loc.id}/coords`, {
+              method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ lat, lon: lng }),
+            });
+            loc.lat = lat; loc.lon = lng;
+            marker.setDraggable(false);
+            marker.setIcon(pinIcon);
+            marker.bindPopup(`<div class="map-popup">${popupHtml}<button class="map-popup-edit-btn" id="${editBtnId}">✏️ Move pin</button></div>`, { maxWidth: 320 });
+            marker.closePopup();
+          });
+          if (cancelBtn) cancelBtn.addEventListener("click", () => {
+            marker.setLatLng(origLatLng);
+            marker.setDraggable(false);
+            marker.setIcon(pinIcon);
+            marker.bindPopup(`<div class="map-popup">${popupHtml}<button class="map-popup-edit-btn" id="${editBtnId}">✏️ Move pin</button></div>`, { maxWidth: 320 });
+            marker.closePopup();
+          });
+        };
+        marker.on("popupopen", setupSaveCancel);
+        setupSaveCancel();
+      });
+    });
   }
 
   pinCount.value = placed;
