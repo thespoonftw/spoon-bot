@@ -1,33 +1,39 @@
 <template>
   <template v-for="section in sections" :key="section.label">
-    <h3 v-if="section.label" class="gallery-section-header">{{ section.label }}</h3>
-    <div class="gallery">
-      <div v-for="photo in section.photos" :key="photo.id" class="photo-item" @click="openLightbox(allPhotos.indexOf(photo))">
-        <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
-        <button v-if="canDelete" class="photo-delete-btn" @click.stop="confirmDelete(photo)" title="Delete photo">🗑</button>
-        <div class="photo-votes" @click.stop>
-          <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'fav')" title="Favourite">⭐</button>
-          <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'up')" title="Upvote">👍</button>
-          <button class="vote-btn vote-score" @click.stop="openVoteModal(photo)">{{ getVoteState(photo).score }}</button>
-          <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo, 'down')" title="Downvote">👎</button>
-          <button class="vote-btn vote-group" :class="{ active: photo.taggedIds?.length }" @click.stop="openTagging(photo, true)" title="Tagging">
-            <span v-if="getTaggedMembers(photo).length >= 4" style="color:#fff"><span class="tag-count">{{ getTaggedMembers(photo).length }}</span>👥</span>
-            <span v-else-if="getTaggedMembers(photo).length" class="tagging-avatars">
-              <template v-for="m in getTaggedMembers(photo)" :key="m.userId">
-                <img v-if="m.avatarUrl" :src="m.avatarUrl" class="tagging-mini-avatar" />
-                <span v-else class="tagging-mini-avatar tagging-mini-initial">{{ (m.firstName || m.displayName)[0] }}</span>
-              </template>
-            </span>
-            <span v-else>👥</span>
-          </button>
+    <h3 v-if="section.label" class="gallery-section-header" @click="toggleSection(section.label)">
+      <span class="section-collapse-icon">{{ collapsedSections.has(section.label) ? '▶' : '▼' }}</span>
+      {{ section.label }}
+      <span class="section-photo-count">{{ section.photos.length }}</span>
+    </h3>
+    <template v-if="!section.label || !collapsedSections.has(section.label)">
+      <div class="gallery">
+        <div v-for="photo in section.photos" :key="photo.id" class="photo-item" @click="openLightbox(allPhotos.indexOf(photo))">
+          <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
+          <button v-if="canDelete" class="photo-delete-btn" @click.stop="confirmDelete(photo)" title="Delete photo">🗑</button>
+          <div class="photo-votes" @click.stop>
+            <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'fav')" title="Favourite">⭐</button>
+            <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'up')" title="Upvote">👍</button>
+            <button class="vote-btn vote-score" @click.stop="openVoteModal(photo)">{{ getVoteState(photo).score }}</button>
+            <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo, 'down')" title="Downvote">👎</button>
+            <button class="vote-btn vote-group" :class="{ active: photo.taggedIds?.length }" @click.stop="openTagging(photo, true)" title="Tagging">
+              <span v-if="getTaggedMembers(photo).length >= 4" style="color:#fff"><span class="tag-count">{{ getTaggedMembers(photo).length }}</span>👥</span>
+              <span v-else-if="getTaggedMembers(photo).length" class="tagging-avatars">
+                <template v-for="m in getTaggedMembers(photo)" :key="m.userId">
+                  <img v-if="m.avatarUrl" :src="m.avatarUrl" class="tagging-mini-avatar" />
+                  <span v-else class="tagging-mini-avatar tagging-mini-initial">{{ (m.firstName || m.displayName)[0] }}</span>
+                </template>
+              </span>
+              <span v-else>👥</span>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="gallery-mobile">
-      <div v-for="photo in section.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(allPhotos.indexOf(photo))">
-        <img :src="thumbUrl(photo.url)" loading="lazy" @load="loadFull($event, photo.url)" />
+      <div class="gallery-mobile">
+        <div v-for="photo in section.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(allPhotos.indexOf(photo))">
+          <img :src="thumbUrl(photo.url)" loading="lazy" @load="loadFull($event, photo.url)" />
+        </div>
       </div>
-    </div>
+    </template>
   </template>
 
   <Teleport to="body">
@@ -191,6 +197,12 @@ const voteModalData = ref<{ userId: string; displayName: string; firstName: stri
 const deletingPhoto = ref<Photo | null>(null);
 const deleting = ref(false);
 const showLocationPicker = ref(false);
+const collapsedSections = ref(new Set<string>());
+function toggleSection(label: string) {
+  const s = new Set(collapsedSections.value);
+  s.has(label) ? s.delete(label) : s.add(label);
+  collapsedSections.value = s;
+}
 const locationPickerPhoto = ref<Photo | null>(null);
 let pendingReopenIndex: number | null = null;
 let activePswp: any = null;

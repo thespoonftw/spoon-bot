@@ -299,7 +299,7 @@ onMounted(async () => {
     const sortedMembers = (data.members ?? []).slice().sort(byName);
     album.value = { ...data, members: sortedMembers };
     allMembers.value = sortedMembers;
-    if ((data.locations?.length ?? 0) > 1 && !sessionStorage.getItem(SORT_KEY)) {
+    if ((data.locations?.length ?? 0) > 1 && !sessionStorage.getItem(SORT_KEY) && window.innerWidth >= 768) {
       sortBy.value = 'location';
     }
   }
