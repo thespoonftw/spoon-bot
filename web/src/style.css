@@ -30,7 +30,9 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .share-link-input { flex: 1; background: #313244; border: 1px solid #45475a; border-radius: 8px; padding: 8px 10px; color: #cdd6f4; font-size: 0.85rem; outline: none; }
 .card-meta-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .card-left-details { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
-.card-members { display: flex; align-items: center; margin-top: auto; padding-top: 12px; flex-wrap: nowrap; }
+.card-members-area { margin-top: auto; }
+.card-counts { display: flex; gap: 12px; margin-bottom: 6px; }
+.card-members { display: flex; align-items: center; padding-top: 8px; flex-wrap: nowrap; border-top: 1px solid #313244; }
 .card-member-avatar { width: 28px; height: 28px; border-radius: 50%; overflow: hidden; border: 2px solid #1e1e2e; margin-left: -10px; background: #45475a; display: flex; align-items: center; justify-content: center; font-size: 0.75em; color: #cdd6f4; font-weight: 600; flex-shrink: 0; }
 .card-member-avatar:first-child { margin-left: 0; }
 .card-member-avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -130,7 +132,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
   .card-left-details .meta { font-size: 1em; }
   .card-left { width: 100%; }
   .card-right { flex: none; width: 100%; justify-content: center; }
-  .card-members { display: none; }
+  .card-members-area { display: none; }
 }
 
 .btn-icon { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 2px 4px; opacity: 0.5; line-height: 1; flex-shrink: 0; filter: grayscale(1); }
