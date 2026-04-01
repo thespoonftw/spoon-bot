@@ -696,6 +696,7 @@ async function setPhotoLocation(locationId: number | null) {
   photo.locationId = locationId;
   showLocationPicker.value = false;
   locationPickerPhoto.value = null;
+  refreshLightboxVotes?.();
 }
 
 function loadFull(e: Event, fullUrl: string) {
