@@ -1,21 +1,22 @@
 <template>
   <div class="page">
     <template v-if="album">
-      <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :editable="true" @edit="showEdit = true">
+      <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :editable="true"
+        :location-line="album.locations?.length === 1 ? album.locations[0].name : undefined"
+        @edit="showEdit = true" @location-edit="showLocations = true">
         <button class="btn-secondary btn-small" @click="openShare">Share</button>
         <button class="btn-primary btn-small" @click="openUpload">Upload</button>
       </PageHeader>
 
-      <!-- 📍 Locations -->
-      <div class="album-section">
+      <!-- 📍 Locations (multi only) -->
+      <div v-if="(album.locations?.length ?? 0) > 1" class="album-section">
         <div class="album-section-header">
           <span class="album-section-label">📍</span>
-          <span v-if="(album.locations?.length ?? 0) > 1" class="album-section-count">{{ album.locations!.length }}</span>
+          <span class="album-section-count">{{ album.locations!.length }}</span>
           <button class="btn-icon" @click="showLocations = true" title="Edit locations">✏️</button>
         </div>
         <div class="album-locations-list">
           <span v-for="loc in album.locations" :key="loc.id" class="location-tag">{{ loc.name }}</span>
-          <span v-if="!album.locations?.length" class="meta" style="color:#585b70">No locations set</span>
         </div>
       </div>
 
@@ -26,10 +27,12 @@
           <span class="album-section-count">{{ album.members.length }}</span>
           <button class="btn-icon" @click="showEditMembers = true" title="Edit members">✏️</button>
         </div>
-        <div class="members-list">
-          <div v-for="member in album.members" :key="member.userId" class="member-chip" :title="member.firstName || member.displayName">
-            <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
-            <span class="member-name">{{ member.firstName || member.displayName }}</span>
+        <div class="members-rows">
+          <div v-for="(row, i) in memberRows" :key="i" class="members-list">
+            <div v-for="member in row" :key="member.userId" class="member-chip" :title="member.firstName || member.displayName">
+              <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
+              <span class="member-name">{{ member.firstName || member.displayName }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -294,6 +297,16 @@ watch(hasMore, async (val) => {
 });
 
 const byName = (a: Member, b: Member) => (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName);
+
+const memberRows = computed(() => {
+  const m = album.value?.members ?? [];
+  if (m.length <= 5) return [m];
+  const numRows = Math.ceil(m.length / 5);
+  const cols = Math.ceil(m.length / numRows);
+  const rows: Member[][] = [];
+  for (let i = 0; i < m.length; i += cols) rows.push(m.slice(i, i + cols));
+  return rows;
+});
 
 onMounted(async () => {
   const [albumRes, checkRes] = await Promise.all([

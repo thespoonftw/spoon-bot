@@ -7,12 +7,16 @@
         <button v-if="editable" class="btn-icon page-header-edit-btn" @click="$emit('edit')" title="Edit">✏️</button>
       </div>
       <span v-if="subtitle" class="page-header-subtitle">{{ subtitle }}</span>
+      <div v-if="locationLine" class="page-header-location">
+        📍 {{ locationLine }}
+        <button class="btn-icon page-header-edit-btn" @click="$emit('location-edit')" title="Edit location">✏️</button>
+      </div>
     </div>
     <slot />
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{ backTo: string; title: string; subtitle?: string; editable?: boolean }>();
-defineEmits<{ edit: [] }>();
+defineProps<{ backTo: string; title: string; subtitle?: string; editable?: boolean; locationLine?: string }>();
+defineEmits<{ edit: []; 'location-edit': [] }>();
 </script>
