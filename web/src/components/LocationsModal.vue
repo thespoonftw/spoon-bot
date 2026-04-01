@@ -4,13 +4,20 @@
       <button class="modal-close" @click="emit('close')">✕</button>
       <h2 class="modal-drag-handle" @mousedown="drag.onMouseDown">Locations</h2>
 
-      <div v-for="(loc, i) in localLocations" :key="loc.id" class="location-row">
+      <div
+        v-for="(loc, i) in localLocations"
+        :key="loc.id"
+        class="location-row"
+        draggable="true"
+        :class="{ 'location-row-dragging': dragIndex === i, 'location-row-dragover': dragOverIndex === i }"
+        @dragstart="onDragStart(i)"
+        @dragover.prevent="onDragOver(i)"
+        @drop.prevent="onDrop"
+        @dragend="onDragEnd"
+      >
+        <span class="location-drag-handle" title="Drag to reorder">⠿</span>
         <span class="location-row-name">📍 {{ loc.name }}</span>
-        <div style="display:flex;gap:4px;align-items:center">
-          <button class="btn-icon" @click="moveUp(i)" :disabled="i === 0" title="Move up">↑</button>
-          <button class="btn-icon" @click="moveDown(i)" :disabled="i === localLocations.length - 1" title="Move down">↓</button>
-          <button class="btn-icon" @click="remove(loc.id)" title="Remove">🗑️</button>
-        </div>
+        <button class="btn-icon" @click="remove(loc.id)" title="Remove">🗑️</button>
       </div>
       <p v-if="localLocations.length === 0" class="empty" style="margin: 8px 0">No locations set.</p>
 
@@ -41,34 +48,32 @@ const isOpen = ref(true);
 useEscKey(isOpen, () => emit("close"));
 
 const localLocations = ref<AlbumLocation[]>([...props.locations]);
+const dragIndex = ref<number | null>(null);
+const dragOverIndex = ref<number | null>(null);
 
 const newName = ref("");
 const adding = ref(false);
 const error = ref("");
 
-async function saveOrder() {
+function onDragStart(i: number) { dragIndex.value = i; }
+function onDragOver(i: number) { dragOverIndex.value = i; }
+function onDragEnd() { dragIndex.value = null; dragOverIndex.value = null; }
+
+async function onDrop() {
+  const from = dragIndex.value;
+  const to = dragOverIndex.value;
+  dragIndex.value = null;
+  dragOverIndex.value = null;
+  if (from === null || to === null || from === to) return;
+  const arr = [...localLocations.value];
+  arr.splice(to, 0, arr.splice(from, 1)[0]);
+  localLocations.value = arr;
   await fetch(`/api/album/${props.channelId}/locations/order`, {
     method: "PUT",
     headers: authJsonHeaders(),
-    body: JSON.stringify({ ids: localLocations.value.map(l => l.id) }),
+    body: JSON.stringify({ ids: arr.map(l => l.id) }),
   });
-  emit("updated", [...localLocations.value]);
-}
-
-async function moveUp(i: number) {
-  if (i === 0) return;
-  const arr = [...localLocations.value];
-  [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]];
-  localLocations.value = arr;
-  await saveOrder();
-}
-
-async function moveDown(i: number) {
-  if (i === localLocations.value.length - 1) return;
-  const arr = [...localLocations.value];
-  [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]];
-  localLocations.value = arr;
-  await saveOrder();
+  emit("updated", [...arr]);
 }
 
 async function add() {
