@@ -5,15 +5,15 @@
     </PageHeader>
     <p v-if="status" class="empty map-status">{{ status }}</p>
     <div ref="mapEl" class="map-container"></div>
-    <div v-if="movingPinLoc || activePinLoc" class="map-bottom-bar">
-      <input class="popup-coord-input" type="number" step="any" v-model="activeLatStr" placeholder="lat" @change="saveActiveCoords" :readonly="!!movingPinLoc" />
-      <input class="popup-coord-input" type="number" step="any" v-model="activeLonStr" placeholder="lon" @change="saveActiveCoords" :readonly="!!movingPinLoc" />
+    <div v-if="movingPinLoc || (activePinLoc && activePinPhotoCount === 0)" class="map-bottom-bar">
       <template v-if="movingPinLoc">
+        <input class="popup-coord-input" type="number" step="any" v-model="activeLatStr" placeholder="lat" readonly />
+        <input class="popup-coord-input" type="number" step="any" v-model="activeLonStr" placeholder="lon" readonly />
         <button class="map-popup-save-btn" @click="saveDrag">Save</button>
         <button class="map-popup-cancel-btn" @click="cancelDrag">Cancel</button>
       </template>
       <template v-else>
-        <button v-if="activePinPhotoCount === 0" class="btn-danger btn-small" @click="deleteActiveLoc">🗑️ Delete</button>
+        <button class="btn-danger btn-small" @click="deleteActiveLoc">🗑️ Delete</button>
       </template>
     </div>
   </div>
@@ -74,16 +74,6 @@ let movingOrigLatLng: L.LatLng | null = null;
 
 const markerRegistry = new Map<number, L.Marker>();
 
-async function saveActiveCoords() {
-  const lat = parseFloat(activeLatStr.value);
-  const lon = parseFloat(activeLonStr.value);
-  if (isNaN(lat) || isNaN(lon) || !activePinLoc.value) return;
-  activePinLoc.value.lat = lat; activePinLoc.value.lon = lon;
-  markerRegistry.get(activePinLoc.value.id)?.setLatLng([lat, lon]);
-  await fetch(`/api/album-location/${activePinLoc.value.id}/coords`, {
-    method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ lat, lon }),
-  });
-}
 
 async function deleteActiveLoc() {
   if (!activePinLoc.value) return;
