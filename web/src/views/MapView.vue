@@ -5,10 +5,17 @@
     </PageHeader>
     <p v-if="status" class="empty map-status">{{ status }}</p>
     <div ref="mapEl" class="map-container"></div>
-    <div v-if="movingPinLoc" class="map-move-overlay">
-      <span>Drag pin to new position</span>
-      <button class="map-popup-save-btn" @click="saveDrag">Save</button>
-      <button class="map-popup-cancel-btn" @click="cancelDrag">Cancel</button>
+    <div v-if="movingPinLoc || activePinLoc" class="map-bottom-bar">
+      <template v-if="movingPinLoc">
+        <span>Drag pin to new position</span>
+        <button class="map-popup-save-btn" @click="saveDrag">Save</button>
+        <button class="map-popup-cancel-btn" @click="cancelDrag">Cancel</button>
+      </template>
+      <template v-else>
+        <input class="popup-coord-input" type="number" step="any" v-model="activeLatStr" placeholder="lat" @change="saveActiveCoords" />
+        <input class="popup-coord-input" type="number" step="any" v-model="activeLonStr" placeholder="lon" @change="saveActiveCoords" />
+        <button v-if="activePinPhotoCount === 0" class="btn-danger btn-small" @click="deleteActiveLoc">🗑️ Delete</button>
+      </template>
     </div>
   </div>
 </template>
@@ -53,15 +60,77 @@ const editingIcon = L.divIcon({ html: "📍", iconSize: [36, 36], iconAnchor: [1
 const mapEl = ref<HTMLElement | null>(null);
 const status = ref("Loading albums…");
 const pinCount = ref<number | null>(null);
-const movingPinLoc = ref<AlbumLocation | null>(null);
 
+// Active popup state (drives the bottom bar)
+const activePinLoc = ref<AlbumLocation | null>(null);
+const activePinPhotoCount = ref(0);
+const activePinAlbums = ref<Album[]>([]);
+const activeLatStr = ref("");
+const activeLonStr = ref("");
+
+// Drag mode state
+const movingPinLoc = ref<AlbumLocation | null>(null);
 let movingMarker: L.Marker | null = null;
 let movingOrigLatLng: L.LatLng | null = null;
-let movingPopupEl: HTMLElement | null = null;
 
-const markerRegistry = new Map<number, { marker: L.Marker; popupEl: HTMLElement }>();
+const markerRegistry = new Map<number, L.Marker>();
 
-function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], photoCount: number, marker: L.Marker): HTMLElement {
+async function saveActiveCoords() {
+  const lat = parseFloat(activeLatStr.value);
+  const lon = parseFloat(activeLonStr.value);
+  if (isNaN(lat) || isNaN(lon) || !activePinLoc.value) return;
+  activePinLoc.value.lat = lat; activePinLoc.value.lon = lon;
+  markerRegistry.get(activePinLoc.value.id)?.setLatLng([lat, lon]);
+  await fetch(`/api/album-location/${activePinLoc.value.id}/coords`, {
+    method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ lat, lon }),
+  });
+}
+
+async function deleteActiveLoc() {
+  if (!activePinLoc.value) return;
+  const channelId = activePinAlbums.value[0]?.channelId;
+  if (!channelId) return;
+  await fetch(`/api/album/${channelId}/locations/${activePinLoc.value.id}`, { method: "DELETE", headers: authHeaders() });
+  const marker = markerRegistry.get(activePinLoc.value.id);
+  marker?.remove();
+  markerRegistry.delete(activePinLoc.value.id);
+  pinCount.value = (pinCount.value ?? 1) - 1;
+  activePinLoc.value = null;
+}
+
+function startDragMode(loc: AlbumLocation, marker: L.Marker) {
+  movingPinLoc.value = loc;
+  movingMarker = marker;
+  movingOrigLatLng = marker.getLatLng();
+  marker.closePopup();
+  marker.dragging?.enable();
+  marker.setIcon(editingIcon);
+}
+
+async function saveDrag() {
+  if (!movingMarker || !movingPinLoc.value) return;
+  const { lat, lng } = movingMarker.getLatLng();
+  await fetch(`/api/album-location/${movingPinLoc.value.id}/coords`, {
+    method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ lat, lon: lng }),
+  });
+  movingPinLoc.value.lat = lat; movingPinLoc.value.lon = lng;
+  endDragMode();
+}
+
+function cancelDrag() {
+  if (movingMarker && movingOrigLatLng) movingMarker.setLatLng(movingOrigLatLng);
+  endDragMode();
+}
+
+function endDragMode() {
+  movingMarker?.dragging?.disable();
+  movingMarker?.setIcon(pinIcon);
+  movingPinLoc.value = null;
+  movingMarker = null;
+  movingOrigLatLng = null;
+}
+
+function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker): HTMLElement {
   const thumbUrl = (url: string) => url.replace("/uploads/", "/thumbnails/");
   const albumsHtml = albumsHere.map((a, i) => {
     const year = a.startDate ? new Date(a.startDate).getUTCFullYear() : "";
@@ -83,89 +152,14 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], photoCount: numbe
     </div>`;
   }).join('<hr class="map-popup-divider">');
 
-  const deleteBtn = photoCount === 0 ? `<button class="popup-delete-btn btn-danger btn-small" title="Delete location">🗑️ Delete</button>` : "";
-  const coordsRow = `<div class="popup-coords-row">
-    <input class="popup-coord-input" type="number" step="any" value="${loc.lat?.toFixed(5) ?? ""}" placeholder="lat" />
-    <input class="popup-coord-input" type="number" step="any" value="${loc.lon?.toFixed(5) ?? ""}" placeholder="lon" />
-    ${deleteBtn}
-  </div>`;
-
   const el = document.createElement("div");
   el.className = "map-popup";
-  el.innerHTML = albumsHtml + coordsRow;
+  el.innerHTML = albumsHtml;
 
-  // Move pin button
   (el.querySelector(".map-popup-move-btn") as HTMLButtonElement | null)
-    ?.addEventListener("click", () => {
-      marker.closePopup();
-      startDragMode(loc, marker, el);
-    });
-
-  // Lat/lon inputs
-  const [latInput, lonInput] = el.querySelectorAll<HTMLInputElement>(".popup-coord-input");
-  const saveCoords = async () => {
-    const lat = parseFloat(latInput.value);
-    const lon = parseFloat(lonInput.value);
-    if (!isNaN(lat) && !isNaN(lon)) {
-      loc.lat = lat; loc.lon = lon;
-      marker.setLatLng([lat, lon]);
-      await fetch(`/api/album-location/${loc.id}/coords`, {
-        method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ lat, lon }),
-      });
-    }
-  };
-  latInput.addEventListener("change", saveCoords);
-  lonInput.addEventListener("change", saveCoords);
-
-  // Delete button
-  (el.querySelector(".popup-delete-btn") as HTMLButtonElement | null)
-    ?.addEventListener("click", async () => {
-      const channelId = albumsHere[0]?.channelId;
-      if (!channelId) return;
-      await fetch(`/api/album/${channelId}/locations/${loc.id}`, { method: "DELETE", headers: authHeaders() });
-      marker.remove();
-      markerRegistry.delete(loc.id);
-      pinCount.value = (pinCount.value ?? 1) - 1;
-    });
+    ?.addEventListener("click", () => startDragMode(loc, marker));
 
   return el;
-}
-
-function startDragMode(loc: AlbumLocation, marker: L.Marker, popupEl: HTMLElement) {
-  movingPinLoc.value = loc;
-  movingMarker = marker;
-  movingOrigLatLng = marker.getLatLng();
-  movingPopupEl = popupEl;
-  marker.dragging?.enable();
-  marker.setIcon(editingIcon);
-}
-
-async function saveDrag() {
-  if (!movingMarker || !movingPinLoc.value) return;
-  const { lat, lng } = movingMarker.getLatLng();
-  await fetch(`/api/album-location/${movingPinLoc.value.id}/coords`, {
-    method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ lat, lon: lng }),
-  });
-  movingPinLoc.value.lat = lat; movingPinLoc.value.lon = lng;
-  // update coord inputs
-  const [latInput, lonInput] = (movingPopupEl?.querySelectorAll<HTMLInputElement>(".popup-coord-input") ?? []);
-  if (latInput) latInput.value = lat.toFixed(5);
-  if (lonInput) lonInput.value = lng.toFixed(5);
-  endDragMode();
-}
-
-function cancelDrag() {
-  if (movingMarker && movingOrigLatLng) movingMarker.setLatLng(movingOrigLatLng);
-  endDragMode();
-}
-
-function endDragMode() {
-  movingMarker?.dragging?.disable();
-  movingMarker?.setIcon(pinIcon);
-  movingPinLoc.value = null;
-  movingMarker = null;
-  movingOrigLatLng = null;
-  movingPopupEl = null;
 }
 
 let map: L.Map | null = null;
@@ -227,9 +221,19 @@ onMounted(async () => {
     const photoCount = albumsHere.reduce((n, a) =>
       n + ((a.locations?.length ?? 0) <= 1 ? a.photos.length : a.photos.filter(p => p.locationId === loc.id).length), 0);
     const marker = L.marker([loc.lat, loc.lon], { icon: pinIcon }).addTo(map!);
-    const popupEl = buildPopupEl(loc, albumsHere, photoCount, marker);
+    const popupEl = buildPopupEl(loc, albumsHere, marker);
     marker.bindPopup(popupEl, { maxWidth: 340 });
-    markerRegistry.set(loc.id, { marker, popupEl });
+    marker.on("popupopen", () => {
+      activePinLoc.value = loc;
+      activePinPhotoCount.value = photoCount;
+      activePinAlbums.value = albumsHere;
+      activeLatStr.value = loc.lat?.toFixed(5) ?? "";
+      activeLonStr.value = loc.lon?.toFixed(5) ?? "";
+    });
+    marker.on("popupclose", () => {
+      if (!movingPinLoc.value) activePinLoc.value = null;
+    });
+    markerRegistry.set(loc.id, marker);
   }
   pinCount.value = placed;
 });
