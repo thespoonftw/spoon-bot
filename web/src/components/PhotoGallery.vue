@@ -13,9 +13,9 @@
           <button v-if="canDelete" class="photo-delete-btn" @click.stop="confirmDelete(photo)" title="Delete photo">🗑</button>
           <div class="photo-votes" @click.stop>
             <button class="vote-btn vote-fav" :class="{ active: !!getVoteState(photo).userIsSuper }" @click="handleVote($event, photo, '⭐', true)" title="Super vote">⭐</button>
-            <div class="vote-up-wrapper" @mouseenter="emojiPickerPhotoId = photo.id" @mouseleave="emojiPickerPhotoId = null">
+            <div class="vote-up-wrapper" @mouseenter="showEmojiPicker(photo.id)" @mouseleave="hideEmojiPicker()">
               <button class="vote-btn vote-up" :class="{ active: !!getVoteState(photo).userVote }" @click.stop="handleVote($event, photo, '👍', false)" title="Vote">{{ getVoteLabel(getVoteState(photo).userVote) }}</button>
-              <div v-if="emojiPickerPhotoId === photo.id" class="emoji-picker-wrap" @click.stop @mousedown.stop>
+              <div v-if="emojiPickerPhotoId === photo.id" class="emoji-picker-wrap" @click.stop @mousedown.stop @mouseenter="cancelHideEmojiPicker()" @mouseleave="hideEmojiPicker()">
                 <emoji-picker class="dark" @emoji-click="(e: any) => { const { reactType, isSuper } = getEmojiReact(e.detail.unicode); handleVote(e, photo, reactType, isSuper); emojiPickerPhotoId = null }" />
               </div>
             </div>
@@ -193,6 +193,17 @@ const dragDelete = useDraggable();
 const votes = ref<Record<number, { score: number; userVote: string | null; userIsSuper: number }>>({});
 let refreshLightboxVotes: (() => void) | null = null;
 const emojiPickerPhotoId = ref<number | null>(null);
+let emojiPickerHideTimer: ReturnType<typeof setTimeout> | null = null;
+function showEmojiPicker(photoId: number) {
+  if (emojiPickerHideTimer) { clearTimeout(emojiPickerHideTimer); emojiPickerHideTimer = null; }
+  emojiPickerPhotoId.value = photoId;
+}
+function hideEmojiPicker() {
+  emojiPickerHideTimer = setTimeout(() => { emojiPickerPhotoId.value = null; }, 150);
+}
+function cancelHideEmojiPicker() {
+  if (emojiPickerHideTimer) { clearTimeout(emojiPickerHideTimer); emojiPickerHideTimer = null; }
+}
 function getEmojiReact(emoji: string): { reactType: string; isSuper: boolean } {
   return emoji === '⭐' ? { reactType: '⭐', isSuper: true } : { reactType: emoji, isSuper: false };
 }
