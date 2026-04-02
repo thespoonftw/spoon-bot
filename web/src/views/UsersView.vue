@@ -7,17 +7,18 @@
         <img v-if="user.avatarUrl" :src="user.avatarUrl" class="avatar" />
         <div class="avatar placeholder" v-else>{{ (user.firstName || user.displayName)[0] }}</div>
         <div class="user-row-info">
-          <span class="user-row-name">{{ user.firstName || user.displayName }}</span>
+          <div class="user-row-name-row">
+            <span class="user-row-name">{{ user.firstName || user.displayName }}</span>
+            <button class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
+          </div>
           <span class="user-row-login">{{ user.displayName }}</span>
           <span class="user-row-login" v-if="user.lastSeenAt">Last seen: {{ formatDate(user.lastSeenAt) }}</span>
           <span class="user-row-login never" v-else>Never seen</span>
           <span class="user-row-stats" v-if="user.uploadCount !== undefined">
             📷 {{ user.uploadCount }} upload{{ user.uploadCount === 1 ? '' : 's' }}
-            &nbsp;·&nbsp;
-            👥 tagged {{ user.taggedCount }} time{{ user.taggedCount === 1 ? '' : 's' }}
+            <span class="user-row-stats-tagged">&nbsp;·&nbsp;👥 tagged {{ user.taggedCount }} time{{ user.taggedCount === 1 ? '' : 's' }}</span>
           </span>
         </div>
-        <button class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
       </div>
       <p v-if="loading" class="empty">Loading…</p>
       <p v-else-if="discordUsers.length === 0" class="empty">No users yet.</p>
@@ -26,9 +27,11 @@
         <div v-for="user in guestUsers" :key="user.userId" class="user-row">
           <div class="avatar placeholder">{{ (user.firstName || user.displayName)[0] }}</div>
           <div class="user-row-info">
-            <span class="user-row-name">{{ user.firstName || user.displayName }}</span>
+            <div class="user-row-name-row">
+              <span class="user-row-name">{{ user.firstName || user.displayName }}</span>
+              <button class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
+            </div>
           </div>
-          <button class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
         </div>
       </template>
     </div>
@@ -40,7 +43,7 @@
       <h2>Edit User</h2>
       <p style="color:#a6adc8;font-size:0.85em;margin-bottom:20px">{{ editingUser.displayName }}</p>
       <div class="form-group">
-        <label>Brunch Name</label>
+        <label>Display Name</label>
         <input v-model="editFirstName" type="text" :placeholder="editingUser.displayName" />
       </div>
       <div v-if="saveError" class="error">{{ saveError }}</div>
