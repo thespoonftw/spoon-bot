@@ -12,7 +12,9 @@
         <button class="btn-icon page-header-edit-btn" @click="$emit('location-edit')" title="Edit location">✏️</button>
       </div>
     </div>
-    <slot />
+    <div class="page-header-actions">
+      <slot />
+    </div>
   </div>
 </template>
 
