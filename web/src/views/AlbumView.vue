@@ -3,13 +3,14 @@
     <template v-if="album">
       <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :editable="true" :mobile-stack="true"
         :location-line="album.locations?.length === 1 ? album.locations[0].name : undefined"
+        :location-count="(album.locations?.length ?? 0) > 1 ? album.locations!.length : undefined"
         @edit="showEdit = true" @location-edit="showLocations = true">
         <button class="btn-secondary btn-small" @click="openShare">Share</button>
         <button class="btn-primary btn-small" @click="openUpload">Upload</button>
       </PageHeader>
 
-      <!-- 📍 Locations (multi only) -->
-      <div v-if="(album.locations?.length ?? 0) > 1" class="album-section">
+      <!-- 📍 Locations (multi only, desktop only) -->
+      <div v-if="(album.locations?.length ?? 0) > 1" class="album-section desktop-only">
         <div class="album-section-header">
           <span class="album-section-label">📍</span>
           <span class="album-section-count">{{ album.locations!.length }}</span>
@@ -27,12 +28,17 @@
           <span class="album-section-count">{{ album.members.length }}</span>
           <button class="btn-icon" @click="showEditMembers = true" title="Edit members">✏️</button>
         </div>
-        <div class="members-rows">
+        <div class="members-rows desktop-only">
           <div v-for="(row, i) in memberRows" :key="i" class="members-list">
             <div v-for="member in row" :key="member.userId" class="member-chip" :title="member.firstName || member.displayName">
               <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
               <span class="member-name">{{ member.firstName || member.displayName }}</span>
             </div>
+          </div>
+        </div>
+        <div class="card-members mobile-only">
+          <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
+            <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
           </div>
         </div>
       </div>
