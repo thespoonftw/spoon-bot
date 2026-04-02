@@ -68,7 +68,7 @@
         <p v-if="album.photos.length === 0" class="empty">No photos yet.</p>
         <PhotoGallery v-else :sections="displayedSections" :members="allMembers" :can-delete="true"
           :can-load-more="hasMore" :total-count="totalSortedCount"
-          :album-locations="album?.locations ?? []"
+          :album-locations="(album?.locations?.length ?? 0) > 1 ? (album?.locations ?? []) : []"
           @photo-deleted="onPhotoDeleted" @load-more="displayLimit += 40" />
         <div class="search-show-more" v-if="hasMore" ref="showMoreEl">
           <button class="btn-secondary" @click="displayLimit += 40">Show more</button>
@@ -330,8 +330,8 @@ const memberRows = computed(() => {
   if (m.length <= 3) return [m];
   // Estimate container width: page has 32px padding each side, max ~868px usable
   const containerWidth = Math.min(windowWidth.value - 64, 868);
-  // Average chip: avatar(24) + gap(6) + ~80px name + padding(14) + row-gap(8) ≈ 132px
-  const maxPerRow = Math.max(3, Math.floor(containerWidth / 132));
+  // Average chip: avatar(24) + gap(6) + ~52px name + padding(14) + chip-gap(8) ≈ 104px
+  const maxPerRow = Math.max(3, Math.floor(containerWidth / 104));
   const numRows = Math.ceil(m.length / maxPerRow);
   const cols = Math.ceil(m.length / numRows);
   const rows: Member[][] = [];
