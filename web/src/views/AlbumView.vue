@@ -9,18 +9,6 @@
         <button class="btn-primary btn-small" @click="openUpload">Upload</button>
       </PageHeader>
 
-      <!-- 📍 Locations (multi only, desktop only) -->
-      <div v-if="(album.locations?.length ?? 0) > 1" class="album-section desktop-only">
-        <div class="album-section-header">
-          <span class="album-section-label">📍</span>
-          <span class="album-section-count">{{ album.locations!.length }}</span>
-          <button class="btn-icon" @click="showLocations = true" title="Edit locations">✏️</button>
-        </div>
-        <div class="album-locations-list">
-          <span v-for="loc in album.locations" :key="loc.id" class="location-tag location-tag-link" @click="jumpToPhotos(loc.id)">{{ loc.name }}</span>
-        </div>
-      </div>
-
       <!-- 👥 Attendees -->
       <div class="album-section">
         <div class="album-section-header desktop-only">
@@ -41,6 +29,18 @@
             <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
           </div>
           <button class="btn-icon" @click="showEditMembers = true" title="Edit members" style="margin-left:8px">✏️</button>
+        </div>
+      </div>
+
+      <!-- 📍 Locations (multi only, desktop only) -->
+      <div v-if="(album.locations?.length ?? 0) > 1" class="album-section desktop-only">
+        <div class="album-section-header">
+          <span class="album-section-label">📍</span>
+          <span class="album-section-count">{{ album.locations!.length }}</span>
+          <button class="btn-icon" @click="showLocations = true" title="Edit locations">✏️</button>
+        </div>
+        <div class="album-locations-list">
+          <span v-for="loc in album.locations" :key="loc.id" class="location-tag location-tag-link" @click="jumpToPhotos(loc.id)">{{ loc.name }}</span>
         </div>
       </div>
 
