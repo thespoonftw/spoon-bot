@@ -12,11 +12,11 @@
           <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
           <button v-if="canDelete" class="photo-delete-btn" @click.stop="confirmDelete(photo)" title="Delete photo">🗑</button>
           <div class="photo-votes" @click.stop>
-            <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'fav')" title="Favourite">⭐</button>
+            <button class="vote-btn vote-fav" :class="{ active: !!getVoteState(photo).userIsSuper }" @click="handleVote($event, photo, '⭐', true)" title="Super vote">⭐</button>
             <div class="vote-up-wrapper" @mouseenter="emojiPickerPhotoId = photo.id" @mouseleave="emojiPickerPhotoId = null">
-              <button class="vote-btn vote-up" :class="{ active: !!getVoteState(photo).userVote }" @click.stop="handleVote($event, photo, 'up')" title="Vote">{{ getVoteLabel(getVoteState(photo).userVote) }}</button>
+              <button class="vote-btn vote-up" :class="{ active: !!getVoteState(photo).userVote }" @click.stop="handleVote($event, photo, '👍', false)" title="Vote">{{ getVoteLabel(getVoteState(photo).userVote) }}</button>
               <div v-if="emojiPickerPhotoId === photo.id" class="emoji-picker" @click.stop>
-                <button v-for="emoji in VOTE_EMOJIS" :key="emoji" class="emoji-pick-btn" :class="{ active: getEmojiVoteType(emoji) === getVoteState(photo).userVote }" @click.stop="handleVote($event, photo, getEmojiVoteType(emoji)); emojiPickerPhotoId = null">{{ emoji }}</button>
+                <button v-for="emoji in VOTE_EMOJIS" :key="emoji" class="emoji-pick-btn" :class="{ active: isRemovingVote(getVoteState(photo), getEmojiReact(emoji).reactType, getEmojiReact(emoji).isSuper) }" @click.stop="handleVote($event, photo, getEmojiReact(emoji).reactType, getEmojiReact(emoji).isSuper); emojiPickerPhotoId = null">{{ emoji }}</button>
               </div>
             </div>
             <button class="vote-btn vote-score" @click.stop="openVoteModal(photo)">{{ getVoteState(photo).score }}</button>
@@ -93,7 +93,7 @@
             <img v-if="v.avatarUrl" :src="v.avatarUrl" class="vote-modal-avatar" />
             <span v-else class="vote-modal-avatar vote-modal-initial">{{ (v.firstName || v.displayName)[0] }}</span>
             <span class="vote-modal-name">{{ v.firstName || v.displayName }}</span>
-            <span class="vote-modal-icon">{{ v.voteType === 'fav' ? '⭐' : v.voteType === 'up' ? '👍' : v.voteType }}</span>
+            <span class="vote-modal-icon">{{ v.reactType }}{{ v.isSuper ? '✨' : '' }}</span>
           </div>
         </div>
       </div>
@@ -162,6 +162,7 @@ interface Photo {
   caption?: string;
   score?: number;
   userVote?: string | null;
+  userIsSuper?: number | null;
   taggedIds?: string[];
   locationId?: number | null;
 }
@@ -188,15 +189,15 @@ const dragTagging = useDraggable();
 const dragVotes = useDraggable();
 const dragDelete = useDraggable();
 
-const votes = ref<Record<number, { score: number; userVote: string | null }>>({});
+const votes = ref<Record<number, { score: number; userVote: string | null; userIsSuper: number }>>({});
 let refreshLightboxVotes: (() => void) | null = null;
 const emojiPickerPhotoId = ref<number | null>(null);
 const VOTE_EMOJIS = ['👍', '❤️', '😂', '🔥', '😮', '🥹', '⭐', '🤩'];
-function getEmojiVoteType(emoji: string): string { return emoji === '⭐' ? 'fav' : emoji; }
+function getEmojiReact(emoji: string): { reactType: string; isSuper: boolean } {
+  return emoji === '⭐' ? { reactType: '⭐', isSuper: true } : { reactType: emoji, isSuper: false };
+}
 function getVoteLabel(userVote: string | null | undefined): string {
-  if (!userVote || userVote === 'up') return '👍';
-  if (userVote === 'fav') return '⭐';
-  return userVote;
+  return userVote || '👍';
 }
 
 const showTagging = ref(false);
@@ -205,7 +206,7 @@ const taggingPhoto = ref<Photo | null>(null);
 const taggingSelection = ref(new Set<string>());
 
 const voteModalPhoto = ref<Photo | null>(null);
-const voteModalData = ref<{ userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; voteType: string }[]>([]);
+const voteModalData = ref<{ userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; reactType: string; isSuper: number }[]>([]);
 
 const deletingPhoto = ref<Photo | null>(null);
 const deleting = ref(false);
@@ -263,18 +264,18 @@ async function openVoteModal(photo: Photo) {
 }
 
 function getVoteState(photo: Photo) {
-  return votes.value[photo.id] ?? { score: photo.score ?? 0, userVote: photo.userVote ?? null };
+  return votes.value[photo.id] ?? { score: photo.score ?? 0, userVote: photo.userVote ?? null, userIsSuper: photo.userIsSuper ?? 0 };
 }
 
-async function doVote(channelId: string, photoId: number, voteType: string) {
+async function doVote(channelId: string, photoId: number, reactType: string, isSuper: boolean) {
   const res = await fetch(`/api/album/${channelId}/photos/${photoId}/vote`, {
     method: "POST",
     headers: authJsonHeaders(),
-    body: JSON.stringify({ voteType }),
+    body: JSON.stringify({ reactType, isSuper }),
   });
   if (res.ok) {
-    const { score, userVote } = await res.json();
-    votes.value = { ...votes.value, [photoId]: { score, userVote } };
+    const { score, userVote, userIsSuper } = await res.json();
+    votes.value = { ...votes.value, [photoId]: { score, userVote, userIsSuper } };
     refreshLightboxVotes?.();
   }
 }
@@ -347,16 +348,15 @@ function spawnFloat(x: number, y: number, voteType: string, grey = false) {
   span.addEventListener("animationend", () => span.remove());
 }
 
-function isRemovingVote(currentVote: string | null | undefined, voteType: string) {
-  return (voteType === "fav" && currentVote === "fav") ||
-    (voteType === "up" && (currentVote === "up" || currentVote === "fav")) ||
-    (voteType !== "fav" && voteType !== "up" && currentVote === voteType);
+function isRemovingVote(state: { userVote: string | null; userIsSuper: number }, reactType: string, isSuper: boolean) {
+  return state.userVote === reactType && !!state.userIsSuper === isSuper;
 }
 
-function handleVote(e: Event, photo: Photo, voteType: string) {
+function handleVote(e: Event, photo: Photo, reactType: string, isSuper = false) {
   const rect = (e.currentTarget as Element).getBoundingClientRect();
-  spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, voteType, isRemovingVote(getVoteState(photo).userVote, voteType));
-  doVote(photo.channelId, photo.id, voteType);
+  const state = getVoteState(photo);
+  spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, reactType, isRemovingVote(state, reactType, isSuper));
+  doVote(photo.channelId, photo.id, reactType, isSuper);
 }
 
 function confirmDelete(photo: Photo) { dragDelete.reset(); deletingPhoto.value = photo; }
@@ -430,15 +430,17 @@ function openLightbox(index: number) {
   const onPopState = () => { closedByBack = true; pswp.close(); };
   window.addEventListener("popstate", onPopState, { once: true });
 
-  // Keyboard up to vote (up → fav → neutral cycle)
+  // Keyboard up to vote (up → super → neutral cycle)
   const onKeyDown = (e: KeyboardEvent) => {
     const p = frozenPhotos![pswp.currIndex];
     if (e.key === "ArrowUp") {
       e.preventDefault();
-      const currentVote = getVoteState(p).userVote;
-      const voteType = (currentVote === "up" || currentVote === "fav") ? "fav" : "up";
-      spawnFloat(window.innerWidth / 2, window.innerHeight / 2, voteType);
-      doVote(p.channelId, p.id, voteType);
+      const state = getVoteState(p);
+      const isSuper = !!(state.userVote && state.userIsSuper);
+      const wasUp = !!(state.userVote && !state.userIsSuper);
+      const newIsSuper = wasUp;  // first press = up, second = super
+      spawnFloat(window.innerWidth / 2, window.innerHeight / 2, newIsSuper ? '⭐' : '👍');
+      doVote(p.channelId, p.id, newIsSuper ? '⭐' : '👍', newIsSuper);
     }
   };
   window.addEventListener("keydown", onKeyDown);
@@ -450,8 +452,9 @@ function openLightbox(index: number) {
       const x = e.originalEvent.clientX ?? window.innerWidth / 2;
       const y = e.originalEvent.clientY ?? window.innerHeight / 2;
       const p = frozenPhotos![pswp.currIndex];
-      spawnFloat(x, y, "up", isRemovingVote(getVoteState(p).userVote, "up"));
-      doVote(p.channelId, p.id, "up");
+      const state = getVoteState(p);
+      spawnFloat(x, y, '👍', isRemovingVote(state, '👍', false));
+      doVote(p.channelId, p.id, '👍', false);
     }
   });
   (pswp as any).on("doubleTapAction", (e: any) => {
@@ -460,8 +463,9 @@ function openLightbox(index: number) {
       const x = e.originalEvent.clientX ?? window.innerWidth / 2;
       const y = e.originalEvent.clientY ?? window.innerHeight / 2;
       const p = frozenPhotos![pswp.currIndex];
-      spawnFloat(x, y, "fav", isRemovingVote(getVoteState(p).userVote, "fav"));
-      doVote(p.channelId, p.id, "fav");
+      const state = getVoteState(p);
+      spawnFloat(x, y, '⭐', isRemovingVote(state, '⭐', true));
+      doVote(p.channelId, p.id, '⭐', true);
     }
   });
 
@@ -666,11 +670,11 @@ function openLightbox(index: number) {
           const btn = (e.target as Element).closest("[data-vote]") as HTMLElement | null;
           const featBtn = (e.target as Element).closest("[data-action='tagged']") as HTMLElement | null;
           if (btn) {
-            const voteType = btn.dataset.vote!;
+            const { reactType, isSuper } = getEmojiReact(btn.dataset.vote!);
             const p = frozenPhotos![pswp.currIndex];
             const rect = btn.getBoundingClientRect();
-            spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, voteType, isRemovingVote(getVoteState(p).userVote, voteType));
-            doVote(p.channelId, p.id, voteType);
+            spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, btn.dataset.vote!, isRemovingVote(getVoteState(p), reactType, isSuper));
+            doVote(p.channelId, p.id, reactType, isSuper);
           } else if (featBtn) {
             openTagging(frozenPhotos![pswp.currIndex], true);
           } else if ((e.target as Element).closest("[data-action='score']")) {
@@ -679,8 +683,9 @@ function openLightbox(index: number) {
         });
         const update = () => {
           const p = frozenPhotos![pswp.currIndex];
-          const { score, userVote } = getVoteState(p);
-          const upActive = userVote === "up" || userVote === "fav";
+          const { score, userVote, userIsSuper } = getVoteState(p);
+          const upActive = !!userVote && !userIsSuper;
+          const favActive = !!userVote && !!userIsSuper;
           const taggedMs = props.members.filter(m => p.taggedIds?.includes(m.userId));
           const avStyle = (i: number) => `width:1.4em;height:1.4em;border-radius:50%;object-fit:cover;pointer-events:none;border:1.5px solid rgba(0,0,0,0.4);flex-shrink:0;${i > 0 ? "margin-left:-0.5em;" : ""}`;
           const taggedBtnContent = taggedMs.length >= 4
@@ -696,8 +701,8 @@ function openLightbox(index: number) {
             <div class="pswp-meta-left">${dateHtml}</div>
             <div class="pswp-meta-right">${uploaderHtml}</div>
             <div class="pswp-votes">
-              <button data-vote="fav" class="pswp-vote-btn${userVote === "fav" ? " active-fav" : ""}">⭐</button>
-              <button data-vote="up" class="pswp-vote-btn${upActive ? " active-up" : ""}">👍</button>
+              <button data-vote="⭐" class="pswp-vote-btn${favActive ? " active-fav" : ""}">⭐</button>
+              <button data-vote="👍" class="pswp-vote-btn${upActive ? " active-up" : ""}">${userVote && !userIsSuper ? userVote : '👍'}</button>
               <button data-action="score" class="pswp-vote-btn pswp-vote-score">${score}</button>
               <button data-action="tagged" class="pswp-vote-btn${taggedMs.length ? " active-fav" : ""}">${taggedBtnContent}</button>
             </div>

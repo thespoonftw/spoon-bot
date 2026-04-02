@@ -375,11 +375,11 @@ export function startWebServer(): void {
       req.on("data", chunk => body += chunk);
       req.on("end", () => {
         try {
-          const { voteType } = JSON.parse(body);
-          if (!voteType || typeof voteType !== 'string' || voteType.length > 10) {
-            sendJson(res, 400, { error: "Invalid vote type" }); return;
+          const { reactType, isSuper } = JSON.parse(body);
+          if (!reactType || typeof reactType !== 'string' || reactType.length > 10) {
+            sendJson(res, 400, { error: "Invalid react type" }); return;
           }
-          const result = dbVotePhoto(photoId, sessionUser.userId, voteType);
+          const result = dbVotePhoto(photoId, sessionUser.userId, reactType, !!isSuper);
           sendJson(res, 200, result);
         } catch { sendJson(res, 500, { error: "Failed" }); }
       });

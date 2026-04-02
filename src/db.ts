@@ -51,9 +51,10 @@ export function initDb() {
       created_at    TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS photo_votes (
-      photo_id  INTEGER NOT NULL,
-      user_id   TEXT NOT NULL,
-      vote_type TEXT NOT NULL,
+      photo_id   INTEGER NOT NULL,
+      user_id    TEXT NOT NULL,
+      react_type TEXT NOT NULL DEFAULT '👍',
+      is_super   INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (photo_id, user_id)
     );
     CREATE TABLE IF NOT EXISTS photo_tagged (
@@ -98,9 +99,15 @@ export function initDb() {
     "DROP TABLE IF EXISTS photo_featured",
     "ALTER TABLE albums DROP COLUMN location",
     "ALTER TABLE users RENAME COLUMN last_login_at TO last_seen_at",
+    "ALTER TABLE photo_votes ADD COLUMN react_type TEXT NOT NULL DEFAULT '👍'",
+    "ALTER TABLE photo_votes ADD COLUMN is_super INTEGER NOT NULL DEFAULT 0",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
+  // Migrate legacy vote_type column to react_type + is_super
+  try {
+    db.exec(`UPDATE photo_votes SET react_type = '👍', is_super = CASE vote_type WHEN 'fav' THEN 1 ELSE 0 END WHERE vote_type IS NOT NULL AND react_type = '👍' AND is_super = 0`);
+  } catch { }
   // Migrate legacy single-location strings into album_locations table
   try {
     db.exec("INSERT OR IGNORE INTO album_locations (channel_id, name) SELECT channel_id, location FROM albums WHERE location IS NOT NULL AND location != ''");
@@ -196,7 +203,7 @@ export type PhotoRow = {
   id: number; channelId: string; url: string;
   filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string;
   takenAt?: string; width?: number; height?: number; caption?: string;
-  score?: number; userVote?: string | null; taggedIds?: string[];
+  score?: number; userVote?: string | null; userIsSuper?: number | null; taggedIds?: string[];
   locationId?: number | null;
 };
 
@@ -226,12 +233,13 @@ export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
         p.uploaded_by_id AS uploadedById,
         COALESCE(u.first_name, u.display_name) AS uploadedByName,
         p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption, p.location_id AS locationId,
-        COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 ELSE 1 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
-        (SELECT vote_type FROM photo_votes WHERE photo_id = p.id AND user_id = ?) AS userVote,
+        COALESCE((SELECT SUM(CASE is_super WHEN 1 THEN 3 ELSE 1 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
+        (SELECT react_type FROM photo_votes WHERE photo_id = p.id AND user_id = ?) AS userVote,
+        (SELECT is_super FROM photo_votes WHERE photo_id = p.id AND user_id = ?) AS userIsSuper,
         (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
       FROM photos p LEFT JOIN users u ON u.user_id = p.uploaded_by_id
       WHERE p.channel_id = ? ORDER BY p.id
-    `).all(userId, channelId) as RawRow[];
+    `).all(userId, userId, channelId) as RawRow[];
     return rows.map(toRow);
   }
   const rows = db.prepare(`
@@ -239,7 +247,7 @@ export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
       p.uploaded_by_id AS uploadedById,
       COALESCE(u.first_name, u.display_name) AS uploadedByName,
       p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption, p.location_id AS locationId,
-      COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 ELSE 1 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
+      COALESCE((SELECT SUM(CASE is_super WHEN 1 THEN 3 ELSE 1 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
       NULL AS userVote,
       (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
     FROM photos p LEFT JOIN users u ON u.user_id = p.uploaded_by_id
@@ -432,13 +440,13 @@ export function dbSetPhotoTagged(photoId: number, userIds: string[]): void {
   })();
 }
 
-export function dbGetPhotoVotes(photoId: number): { userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; voteType: string }[] {
+export function dbGetPhotoVotes(photoId: number): { userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; reactType: string; isSuper: number }[] {
   return db.prepare(`
-    SELECT pv.user_id as userId, u.display_name as displayName, u.first_name as firstName, u.avatar_url as avatarUrl, pv.vote_type as voteType
+    SELECT pv.user_id as userId, u.display_name as displayName, u.first_name as firstName, u.avatar_url as avatarUrl, pv.react_type as reactType, pv.is_super as isSuper
     FROM photo_votes pv LEFT JOIN users u ON u.user_id = pv.user_id
     WHERE pv.photo_id = ?
-    ORDER BY CASE pv.vote_type WHEN 'fav' THEN 1 WHEN 'up' THEN 2 END
-  `).all(photoId) as { userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; voteType: string }[];
+    ORDER BY pv.is_super DESC, pv.photo_id
+  `).all(photoId) as { userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; reactType: string; isSuper: number }[];
 }
 
 export function dbListTables(): string[] {
@@ -475,15 +483,16 @@ export function dbSearchPhotos(opts: {
     : "ORDER BY p.id DESC";
   const total = (db.prepare(`SELECT COUNT(*) AS n FROM photos p ${whereClause}`).get(...params) as { n: number }).n;
   type RawRow = PhotoRow & { taggedIds: string | null };
+  const safeUid = userId?.replace(/'/g, "''");
   const userVoteExpr = userId
-    ? `(SELECT vote_type FROM photo_votes WHERE photo_id = p.id AND user_id = '${userId.replace(/'/g, "''")}') AS userVote,`
-    : "NULL AS userVote,";
+    ? `(SELECT react_type FROM photo_votes WHERE photo_id = p.id AND user_id = '${safeUid}') AS userVote, (SELECT is_super FROM photo_votes WHERE photo_id = p.id AND user_id = '${safeUid}') AS userIsSuper,`
+    : "NULL AS userVote, NULL AS userIsSuper,";
   const rows = db.prepare(`
     SELECT p.id, p.channel_id AS channelId, p.url, p.filename,
       p.uploaded_by_id AS uploadedById,
       COALESCE(u.first_name, u.display_name) AS uploadedByName,
       p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption, p.location_id AS locationId,
-      COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 ELSE 1 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
+      COALESCE((SELECT SUM(CASE is_super WHEN 1 THEN 3 ELSE 1 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
       ${userVoteExpr}
       (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
     FROM photos p LEFT JOIN users u ON u.user_id = p.uploaded_by_id
@@ -493,16 +502,17 @@ export function dbSearchPhotos(opts: {
   return { photos, total };
 }
 
-export function dbVotePhoto(photoId: number, userId: string, voteType: string): { score: number; userVote: string | null } {
-  const existing = db.prepare("SELECT vote_type FROM photo_votes WHERE photo_id = ? AND user_id = ?").get(photoId, userId) as { vote_type: string } | undefined;
-  if (existing?.vote_type === voteType) {
+export function dbVotePhoto(photoId: number, userId: string, reactType: string, isSuper: boolean): { score: number; userVote: string | null; userIsSuper: number } {
+  const existing = db.prepare("SELECT react_type, is_super FROM photo_votes WHERE photo_id = ? AND user_id = ?").get(photoId, userId) as { react_type: string; is_super: number } | undefined;
+  const isSameVote = existing?.react_type === reactType && !!existing?.is_super === isSuper;
+  if (isSameVote) {
     db.prepare("DELETE FROM photo_votes WHERE photo_id = ? AND user_id = ?").run(photoId, userId);
   } else {
-    db.prepare("INSERT OR REPLACE INTO photo_votes (photo_id, user_id, vote_type) VALUES (?, ?, ?)").run(photoId, userId, voteType);
+    db.prepare("INSERT OR REPLACE INTO photo_votes (photo_id, user_id, react_type, is_super) VALUES (?, ?, ?, ?)").run(photoId, userId, reactType, isSuper ? 1 : 0);
   }
   const scoreRow = db.prepare(
-    "SELECT COALESCE(SUM(CASE vote_type WHEN 'fav' THEN 3 ELSE 1 END), 0) AS score FROM photo_votes WHERE photo_id = ?"
+    "SELECT COALESCE(SUM(CASE is_super WHEN 1 THEN 3 ELSE 1 END), 0) AS score FROM photo_votes WHERE photo_id = ?"
   ).get(photoId) as { score: number };
-  const voteRow = db.prepare("SELECT vote_type FROM photo_votes WHERE photo_id = ? AND user_id = ?").get(photoId, userId) as { vote_type: string } | undefined;
-  return { score: scoreRow.score, userVote: voteRow?.vote_type ?? null };
+  const voteRow = db.prepare("SELECT react_type, is_super FROM photo_votes WHERE photo_id = ? AND user_id = ?").get(photoId, userId) as { react_type: string; is_super: number } | undefined;
+  return { score: scoreRow.score, userVote: voteRow?.react_type ?? null, userIsSuper: voteRow?.is_super ?? 0 };
 }
