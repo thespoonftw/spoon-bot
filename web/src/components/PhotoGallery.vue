@@ -15,8 +15,8 @@
             <button class="vote-btn vote-fav" :class="{ active: !!getVoteState(photo).userIsSuper }" @click="handleVote($event, photo, '⭐', true)" title="Super vote">⭐</button>
             <div class="vote-up-wrapper" @mouseenter="emojiPickerPhotoId = photo.id" @mouseleave="emojiPickerPhotoId = null">
               <button class="vote-btn vote-up" :class="{ active: !!getVoteState(photo).userVote }" @click.stop="handleVote($event, photo, '👍', false)" title="Vote">{{ getVoteLabel(getVoteState(photo).userVote) }}</button>
-              <div v-if="emojiPickerPhotoId === photo.id" class="emoji-picker" @click.stop>
-                <button v-for="emoji in VOTE_EMOJIS" :key="emoji" class="emoji-pick-btn" :class="{ active: isRemovingVote(getVoteState(photo), getEmojiReact(emoji).reactType, getEmojiReact(emoji).isSuper) }" @click.stop="handleVote($event, photo, getEmojiReact(emoji).reactType, getEmojiReact(emoji).isSuper); emojiPickerPhotoId = null">{{ emoji }}</button>
+              <div v-if="emojiPickerPhotoId === photo.id" class="emoji-picker-wrap" @click.stop @mousedown.stop>
+                <emoji-picker class="dark" @emoji-click="(e: any) => { const { reactType, isSuper } = getEmojiReact(e.detail.unicode); handleVote(e, photo, reactType, isSuper); emojiPickerPhotoId = null }" />
               </div>
             </div>
             <button class="vote-btn vote-score" @click.stop="openVoteModal(photo)">{{ getVoteState(photo).score }}</button>
@@ -141,6 +141,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
+import "emoji-picker-element";
 import MemberAvatar from "./MemberAvatar.vue";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
@@ -192,7 +193,6 @@ const dragDelete = useDraggable();
 const votes = ref<Record<number, { score: number; userVote: string | null; userIsSuper: number }>>({});
 let refreshLightboxVotes: (() => void) | null = null;
 const emojiPickerPhotoId = ref<number | null>(null);
-const VOTE_EMOJIS = ['👍', '❤️', '😂', '🔥', '😮', '🥹', '⭐', '🤩'];
 function getEmojiReact(emoji: string): { reactType: string; isSuper: boolean } {
   return emoji === '⭐' ? { reactType: '⭐', isSuper: true } : { reactType: emoji, isSuper: false };
 }
