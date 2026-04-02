@@ -8,7 +8,7 @@
     <p v-else-if="albums.length === 0" class="empty">No albums yet.</p>
     <template v-for="group in albumsByYear" :key="group.year">
       <h2 class="year-header">{{ group.year }}</h2>
-      <router-link v-for="album in group.items" :key="album.channelId" :to="`/album/${album.channelId}`" class="card">
+      <router-link v-for="album in group.items" :key="album.channelId" :to="`/album/${album.channelId}`" :class="['card', { 'card-multi-location': (album.locations?.length ?? 0) > 1 }]">
         <div class="card-left">
           <div class="card-left-title">
             <h2>{{ album.groupName }}</h2>

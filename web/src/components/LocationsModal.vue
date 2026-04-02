@@ -18,7 +18,7 @@
         >
           <span class="location-drag-handle" title="Drag to reorder">⠿</span>
           <span class="location-row-name">📍 {{ loc.name }}</span>
-          <button class="btn-icon" @click="remove(loc.id)" title="Remove">🗑️</button>
+          <button class="btn-remove" @click="remove(loc.id)" title="Remove">delete</button>
         </div>
         <p v-if="localLocations.length === 0" class="empty" style="margin: 8px 0">No locations set.</p>
       </div>
