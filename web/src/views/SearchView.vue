@@ -14,9 +14,7 @@
           <option v-for="u in users" :key="u.userId" :value="u.userId">{{ u.firstName || u.displayName }}</option>
         </select>
         <span class="search-count" v-if="total !== null">{{ total }} result{{ total === 1 ? '' : 's' }}</span>
-      </div>
-      <div class="search-filters-row">
-        <span class="search-filter-label">Sort By:</span>
+        <span class="search-filter-label" style="margin-left: auto">Sort By:</span>
         <select v-model="sort" @change="resetAndFetch">
           <option value="top">Highest rated</option>
           <option value="newest">Newest upload</option>

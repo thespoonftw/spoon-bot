@@ -4,7 +4,6 @@
       <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :editable="true"
         :location-line="album.locations?.length === 1 ? album.locations[0].name : undefined"
         @edit="showEdit = true" @location-edit="showLocations = true">
-        <span class="album-photo-count-badge">📷 {{ album.photos.length }}</span>
         <button class="btn-secondary btn-small" @click="openShare">Share</button>
         <button class="btn-primary btn-small" @click="openUpload">Upload</button>
       </PageHeader>
@@ -40,8 +39,11 @@
 
       <!-- 📷 Photos -->
       <div class="album-section">
-        <div class="album-section-header" v-if="album.photos.length > 0">
-          <label class="sort-label">Sort By:</label>
+        <div class="album-section-header">
+          <span class="album-section-label">📷</span>
+          <span class="album-section-count">{{ totalSortedCount }}</span>
+          <template v-if="album.photos.length > 0">
+          <label class="sort-label" style="margin-left: auto">Sort By:</label>
             <select v-model="sortBy" class="sort-select" @change="onSortChange">
               <option value="popular">Most Popular</option>
               <option v-if="album.locations && album.locations.length > 1" value="location">Location</option>
@@ -54,6 +56,7 @@
               <option v-for="m in album.members" :key="m.userId" :value="m.userId">{{ m.firstName || m.displayName }}</option>
               <option value="__nobody__">Nobody</option>
             </select>
+          </template>
         </div>
         <p v-if="album.photos.length === 0" class="empty">No photos yet.</p>
         <PhotoGallery v-else :sections="displayedSections" :members="allMembers" :can-delete="true"
