@@ -49,7 +49,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .member-name { white-space: nowrap; }
 .btn-small { padding: 5px 12px; font-size: 0.8rem; }
 
-.members-modal-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; max-height: 400px; overflow-y: auto; }
+.members-modal-list, .locations-modal-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; max-height: 400px; overflow-y: auto; }
 .members-modal-row { display: flex; align-items: center; gap: 10px; }
 .members-modal-name { flex: 1; color: #cdd6f4; }
 .rsvp-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 10px; background: #45475a; color: #cdd6f4; white-space: nowrap; min-width: 68px; text-align: center; }

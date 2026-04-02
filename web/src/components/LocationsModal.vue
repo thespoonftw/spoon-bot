@@ -4,22 +4,24 @@
       <button class="modal-close" @click="emit('close')">✕</button>
       <h2 class="modal-drag-handle" @mousedown="drag.onMouseDown">Locations</h2>
 
-      <div
-        v-for="(loc, i) in localLocations"
-        :key="loc.id"
-        class="location-row"
-        draggable="true"
-        :class="{ 'location-row-dragging': dragIndex === i, 'location-row-dragover': dragOverIndex === i }"
-        @dragstart="onDragStart(i)"
-        @dragover.prevent="onDragOver(i)"
-        @drop.prevent="onDrop"
-        @dragend="onDragEnd"
-      >
-        <span class="location-drag-handle" title="Drag to reorder">⠿</span>
-        <span class="location-row-name">📍 {{ loc.name }}</span>
-        <button class="btn-icon" @click="remove(loc.id)" title="Remove">🗑️</button>
+      <div class="locations-modal-list">
+        <div
+          v-for="(loc, i) in localLocations"
+          :key="loc.id"
+          class="location-row"
+          draggable="true"
+          :class="{ 'location-row-dragging': dragIndex === i, 'location-row-dragover': dragOverIndex === i }"
+          @dragstart="onDragStart(i)"
+          @dragover.prevent="onDragOver(i)"
+          @drop.prevent="onDrop"
+          @dragend="onDragEnd"
+        >
+          <span class="location-drag-handle" title="Drag to reorder">⠿</span>
+          <span class="location-row-name">📍 {{ loc.name }}</span>
+          <button class="btn-icon" @click="remove(loc.id)" title="Remove">🗑️</button>
+        </div>
+        <p v-if="localLocations.length === 0" class="empty" style="margin: 8px 0">No locations set.</p>
       </div>
-      <p v-if="localLocations.length === 0" class="empty" style="margin: 8px 0">No locations set.</p>
 
       <div class="form-group" style="margin-top: 16px">
         <label>Add location</label>
