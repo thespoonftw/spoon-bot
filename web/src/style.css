@@ -319,7 +319,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .map-page { padding: 32px; max-width: 1000px; margin: 0 auto; position: relative; }
 .page-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
 .page-header-actions { display: flex; align-items: center; gap: 8px; }
-@media (max-width: 767px) { .page-header-actions { flex-basis: 100%; } }
+@media (max-width: 767px) { .page-header-actions--stack { flex-basis: 100%; } }
 .page-header-title { flex: 1; min-width: 0; }
 .page-header-title-row { display: flex; align-items: center; gap: 6px; }
 .page-header h1 { margin: 0; }

@@ -12,13 +12,13 @@
         <button class="btn-icon page-header-edit-btn" @click="$emit('location-edit')" title="Edit location">✏️</button>
       </div>
     </div>
-    <div class="page-header-actions">
+    <div :class="['page-header-actions', { 'page-header-actions--stack': mobileStack }]">
       <slot />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{ backTo: string; title: string; subtitle?: string; editable?: boolean; locationLine?: string }>();
+defineProps<{ backTo: string; title: string; subtitle?: string; editable?: boolean; locationLine?: string; mobileStack?: boolean }>();
 defineEmits<{ edit: []; 'location-edit': [] }>();
 </script>

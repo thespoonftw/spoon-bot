@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <template v-if="album">
-      <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :editable="true"
+      <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :editable="true" :mobile-stack="true"
         :location-line="album.locations?.length === 1 ? album.locations[0].name : undefined"
         @edit="showEdit = true" @location-edit="showLocations = true">
         <button class="btn-secondary btn-small" @click="openShare">Share</button>
