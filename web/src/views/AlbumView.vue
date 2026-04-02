@@ -23,7 +23,7 @@
 
       <!-- 👥 Attendees -->
       <div class="album-section">
-        <div class="album-section-header">
+        <div class="album-section-header desktop-only">
           <span class="album-section-label">👥</span>
           <span class="album-section-count">{{ album.members.length }}</span>
           <button class="btn-icon" @click="showEditMembers = true" title="Edit members">✏️</button>
@@ -40,6 +40,7 @@
           <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
             <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
           </div>
+          <button class="btn-icon" @click="showEditMembers = true" title="Edit members" style="margin-left:8px">✏️</button>
         </div>
       </div>
 
