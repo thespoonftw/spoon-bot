@@ -138,17 +138,18 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
     const singleLocation = (a.locations?.length ?? 0) <= 1;
     const locPhotos = singleLocation ? a.photos : a.photos.filter(p => p.locationId === loc.id);
     const topPhotos = [...locPhotos].sort((x, y) => (y.score ?? 0) - (x.score ?? 0)).slice(0, 3);
+    const albumUrl = singleLocation ? `/album/${a.channelId}?back=/map` : `/album/${a.channelId}?back=/map&sort=location`;
     const smallThumbs = topPhotos.slice(1).map(p =>
-      `<a href="/album/${a.channelId}?back=/map"><img src="${thumbUrl(p.url)}" class="map-popup-thumb-sm" /></a>`
+      `<a href="${albumUrl}"><img src="${thumbUrl(p.url)}" class="map-popup-thumb-sm" /></a>`
     ).join("");
     const thumbsHtml = topPhotos.length ? `<div class="map-popup-thumbs">
-      <a href="/album/${a.channelId}?back=/map"><img src="${thumbUrl(topPhotos[0].url)}" class="map-popup-thumb-lg" /></a>
+      <a href="${albumUrl}"><img src="${thumbUrl(topPhotos[0].url)}" class="map-popup-thumb-lg" /></a>
       ${smallThumbs ? `<div class="map-popup-thumbs-stack">${smallThumbs}</div>` : ""}
     </div>` : "";
     const albumPhotoCount = singleLocation ? a.photos.length : locPhotos.length;
     const editBtn = i === 0 ? ` <button class="map-popup-move-btn" title="Move pin">✏️</button>` : "";
     return `<div class="map-popup-album">
-      <a href="/album/${a.channelId}?back=/map" class="map-popup-title">${loc.name}</a>
+      <a href="${albumUrl}" class="map-popup-title">${loc.name}</a>
       <div class="map-popup-meta"><span>${a.groupName}${year ? ` · ${year}` : ""}${editBtn}</span><span class="map-popup-photo-count">${albumPhotoCount} 📸</span></div>
       ${thumbsHtml}
     </div>`;

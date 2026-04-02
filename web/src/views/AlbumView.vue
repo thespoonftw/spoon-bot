@@ -16,7 +16,7 @@
           <button class="btn-icon" @click="showLocations = true" title="Edit locations">✏️</button>
         </div>
         <div class="album-locations-list">
-          <span v-for="loc in album.locations" :key="loc.id" class="location-tag">{{ loc.name }}</span>
+          <span v-for="loc in album.locations" :key="loc.id" class="location-tag location-tag-link" @click="jumpToPhotos">{{ loc.name }}</span>
         </div>
       </div>
 
@@ -38,7 +38,7 @@
       </div>
 
       <!-- 📷 Photos -->
-      <div class="album-section">
+      <div class="album-section" ref="photosSectionEl">
         <div class="album-section-header">
           <span class="album-section-label">📷</span>
           <span class="album-section-count">{{ totalSortedCount }}</span>
@@ -279,6 +279,15 @@ const displayedSections = computed(() => {
 const hasMore = computed(() => displayedSections.value.reduce((n, s) => n + s.photos.length, 0) < totalSortedCount.value);
 
 const showMoreEl = ref<HTMLElement | null>(null);
+const photosSectionEl = ref<HTMLElement | null>(null);
+
+function jumpToPhotos() {
+  if ((album.value?.locations?.length ?? 0) > 1) {
+    sortBy.value = 'location';
+    sessionStorage.setItem(SORT_KEY, 'location');
+  }
+  nextTick(() => photosSectionEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+}
 let observer: IntersectionObserver | null = null;
 
 watch(hasMore, async (val) => {
@@ -326,7 +335,10 @@ onMounted(async () => {
     album.value = { ...data, members: sortedMembers };
     allMembers.value = sortedMembers;
     const hasMultipleLocations = (data.locations?.length ?? 0) > 1;
-    if (hasMultipleLocations && !sessionStorage.getItem(SORT_KEY) && window.innerWidth >= 768) {
+    if (route.query.sort === 'location' && hasMultipleLocations) {
+      sortBy.value = 'location';
+      nextTick(() => photosSectionEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    } else if (hasMultipleLocations && !sessionStorage.getItem(SORT_KEY) && window.innerWidth >= 768) {
       sortBy.value = 'location';
     } else if (!hasMultipleLocations && sortBy.value === 'location') {
       sortBy.value = 'popular';
