@@ -6,7 +6,8 @@
 .pswp__button--delete-button { display: flex !important; align-items: center; justify-content: center; width: 50px; height: 60px; font-size: 1.3em; background: none !important; opacity: 0.75; color: #fff; }
 .pswp__button--delete-button:hover { opacity: 1; }
 
-body { font-family: sans-serif; background: #1e1e2e; color: #cdd6f4; }
+body { font-family: sans-serif; background: #1e1e2e; color: #cdd6f4; user-select: none; }
+input, textarea, select, .db-table td { user-select: text; }
 
 .page { padding: 32px; max-width: 1000px; margin: 0 auto; }
 
@@ -14,7 +15,7 @@ h1 { color: #cba6f7; margin-bottom: 24px; }
 h2 { color: #89b4fa; margin-bottom: 4px; }
 
 .date { color: #cdd6f4; margin-bottom: 4px; }
-.meta { color: #a6adc8; font-size: 0.85em; }
+.meta { color: #a6adc8; font-size: 1em; }
 .empty { color: #a6adc8; }
 
 .back { color: #89b4fa; text-decoration: none; display: inline-block; margin-bottom: 20px; background: #313244; border-radius: 20px; padding: 5px 14px; font-size: 0.9em; }
