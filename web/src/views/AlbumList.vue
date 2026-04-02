@@ -87,14 +87,18 @@ const form = ref({ name: "", startDate: "", endDate: "" });
 
 const albumsByYear = computed(() => {
   const groups = new Map<string, Album[]>();
+  const undated: Album[] = [];
   for (const album of albums.value) {
-    const year = album.startDate?.slice(0, 4) ?? album.createdAt.slice(0, 4);
+    if (!album.startDate) { undated.push(album); continue; }
+    const year = album.startDate.slice(0, 4);
     if (!groups.has(year)) groups.set(year, []);
     groups.get(year)!.push(album);
   }
-  return [...groups.entries()]
+  const result = [...groups.entries()]
     .sort(([a], [b]) => b.localeCompare(a))
-    .map(([year, items]) => ({ year, items: items.sort((a, b) => (b.startDate ?? b.createdAt).localeCompare(a.startDate ?? a.createdAt)) }));
+    .map(([year, items]) => ({ year, items: items.sort((a, b) => b.startDate!.localeCompare(a.startDate!)) }));
+  if (undated.length) result.unshift({ year: 'No date', items: undated.sort((a, b) => a.groupName.localeCompare(b.groupName)) });
+  return result;
 });
 
 function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumbnails/"); }
