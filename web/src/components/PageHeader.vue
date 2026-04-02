@@ -1,6 +1,6 @@
 <template>
   <div class="page-header">
-    <router-link :to="backTo" class="page-back">←</router-link>
+    <router-link :to="backTo" class="page-back">‹</router-link>
     <div class="page-header-title">
       <div class="page-header-title-row">
         <h1>{{ title }}</h1>
