@@ -1,8 +1,8 @@
 <template>
   <div class="page">
-    <PageHeader back-to="/" title="Albums" />
-
-    <button class="btn-primary" @click="showModal = true" style="margin-bottom:20px">New Album</button>
+    <PageHeader back-to="/" title="Albums">
+      <button class="btn-primary btn-small" @click="showModal = true">Create Album</button>
+    </PageHeader>
 
     <p v-if="loading" class="empty">Loading…</p>
     <p v-else-if="albums.length === 0" class="empty">No albums yet.</p>
@@ -48,7 +48,7 @@
   <div class="modal-overlay" v-if="showModal">
     <div class="modal">
       <button class="modal-close" @click="closeModal">✕</button>
-      <h2>New Album</h2>
+      <h2>Create Album</h2>
       <div class="form-group">
         <label>Name</label>
         <input v-model="form.name" type="text" placeholder="e.g. Summer Trip" />
