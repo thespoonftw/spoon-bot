@@ -4,6 +4,7 @@
       <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :editable="true" :mobile-stack="true"
         :location-line="album.locations?.length === 1 ? album.locations[0].name : undefined"
         :location-count="(album.locations?.length ?? 0) > 1 ? album.locations!.length : undefined"
+        :location-editable="true"
         @edit="showEdit = true" @location-edit="showLocations = true">
         <button class="btn-secondary btn-small" @click="openShare">Share</button>
         <button class="btn-primary btn-small" @click="openUpload">Upload</button>

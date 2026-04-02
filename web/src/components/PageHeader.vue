@@ -15,6 +15,9 @@
         📍 {{ locationCount }} Locations
         <button class="btn-icon page-header-edit-btn" @click="$emit('location-edit')" title="Edit locations">✏️</button>
       </div>
+      <div v-else-if="locationEditable" class="page-header-location">
+        <button class="btn-icon page-header-edit-btn" @click="$emit('location-edit')" title="Add location">📍 ✏️</button>
+      </div>
     </div>
     <div :class="['page-header-actions', { 'page-header-actions--stack': mobileStack }]">
       <slot />
@@ -23,6 +26,6 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ backTo: string; title: string; subtitle?: string; editable?: boolean; locationLine?: string; locationCount?: number; mobileStack?: boolean }>();
+defineProps<{ backTo: string; title: string; subtitle?: string; editable?: boolean; locationLine?: string; locationCount?: number; locationEditable?: boolean; mobileStack?: boolean }>();
 defineEmits<{ edit: []; 'location-edit': [] }>();
 </script>
