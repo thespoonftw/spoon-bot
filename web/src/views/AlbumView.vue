@@ -8,6 +8,32 @@
         <button class="btn-primary btn-small" @click="openUpload">Upload</button>
       </PageHeader>
 
+      <!-- 📷 Photos (first when sorting by location) -->
+      <template v-if="sortBy === 'location'">
+        <div class="album-section">
+          <div class="album-section-header">
+            <span class="album-section-label">📷</span>
+            <span class="album-section-count">{{ totalSortedCount }}</span>
+            <label class="sort-label" style="margin-left: auto">Sort By:</label>
+            <select v-model="sortBy" class="sort-select" @change="onSortChange">
+              <option value="popular">Most Popular</option>
+              <option value="location">Location</option>
+              <option value="tagging">Tagging</option>
+              <option value="uploader">Uploader</option>
+              <option value="newest">Newest Upload</option>
+              <option value="oldest">Oldest Upload</option>
+            </select>
+          </div>
+          <PhotoGallery :sections="displayedSections" :members="allMembers" :can-delete="true"
+            :can-load-more="hasMore" :total-count="totalSortedCount"
+            :album-locations="album?.locations ?? []"
+            @photo-deleted="onPhotoDeleted" @load-more="displayLimit += 40" />
+          <div class="search-show-more" v-if="hasMore" ref="showMoreEl">
+            <button class="btn-secondary" @click="displayLimit += 40">Show more</button>
+          </div>
+        </div>
+      </template>
+
       <!-- 📍 Locations (multi only) -->
       <div v-if="(album.locations?.length ?? 0) > 1" class="album-section">
         <div class="album-section-header">
@@ -38,7 +64,7 @@
       </div>
 
       <!-- 📷 Photos -->
-      <div class="album-section" ref="photosSectionEl">
+      <div v-if="sortBy !== 'location'" class="album-section">
         <div class="album-section-header">
           <span class="album-section-label">📷</span>
           <span class="album-section-count">{{ totalSortedCount }}</span>
@@ -279,14 +305,12 @@ const displayedSections = computed(() => {
 const hasMore = computed(() => displayedSections.value.reduce((n, s) => n + s.photos.length, 0) < totalSortedCount.value);
 
 const showMoreEl = ref<HTMLElement | null>(null);
-const photosSectionEl = ref<HTMLElement | null>(null);
 
 function jumpToPhotos() {
   if ((album.value?.locations?.length ?? 0) > 1) {
     sortBy.value = 'location';
     sessionStorage.setItem(SORT_KEY, 'location');
   }
-  nextTick(() => photosSectionEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 }
 let observer: IntersectionObserver | null = null;
 
@@ -337,7 +361,6 @@ onMounted(async () => {
     const hasMultipleLocations = (data.locations?.length ?? 0) > 1;
     if (route.query.sort === 'location' && hasMultipleLocations) {
       sortBy.value = 'location';
-      nextTick(() => photosSectionEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     } else if (hasMultipleLocations && !sessionStorage.getItem(SORT_KEY) && window.innerWidth >= 768) {
       sortBy.value = 'location';
     } else if (!hasMultipleLocations && sortBy.value === 'location') {
