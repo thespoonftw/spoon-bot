@@ -12,7 +12,7 @@
 
     <div class="landing-grid">
       <router-link to="/albums" class="feature-card">
-        <span class="feature-icon">📸</span>
+        <span class="feature-icon">📔</span>
         <h2>Albums</h2>
       </router-link>
       <router-link to="/map" class="feature-card">
@@ -29,7 +29,7 @@
       </router-link>
       <router-link to="/status" class="feature-card">
         <span class="feature-icon">📊</span>
-        <h2>Status</h2>
+        <h2>Stats</h2>
       </router-link>
       <router-link to="/database" class="feature-card">
         <span class="feature-icon">🗄️</span>

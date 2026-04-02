@@ -1,6 +1,6 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 .desktop-only { display: none !important; }
-@media (min-width: 768px) { .desktop-only { display: revert !important; } .mobile-only { display: none !important; } }
+@media (min-width: 768px) { .desktop-only { display: revert; } .mobile-only { display: none !important; } }
 
 :root { --pswp-root-z-index: 1500; --pswp-bg: #000; }
 .pswp__button--delete-button { display: flex !important; align-items: center; justify-content: center; width: 50px; height: 60px; font-size: 1.3em; background: none !important; opacity: 0.75; color: #fff; }
@@ -24,7 +24,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .year-header { font-size: 1.3em; font-weight: 700; color: #cba6f7; margin: 28px 0 12px 0; border-bottom: 1px solid #313244; padding-bottom: 8px; }
 .year-header:first-of-type { margin-top: 0; }
 .card { display: flex; flex-direction: row; background: #313244; border-radius: 10px; overflow: hidden; margin-bottom: 16px; text-decoration: none; color: inherit; }
-.card.card-multi-location { background: #383951; }
+.card.card-multi-location { background: #3d3f56; }
 .card:hover { background: #45475a; }
 .card-left { width: 300px; flex-shrink: 0; padding: 20px; min-width: 0; display: flex; flex-direction: column; }
 .card-right { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px; flex: 1; }
