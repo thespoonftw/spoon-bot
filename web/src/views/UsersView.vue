@@ -16,7 +16,7 @@
           <span class="user-row-login never" v-else>Never seen</span>
           <span class="user-row-stats" v-if="user.uploadCount !== undefined">
             📷 {{ user.uploadCount }} upload{{ user.uploadCount === 1 ? '' : 's' }}
-            <span class="user-row-stats-tagged">&nbsp;·&nbsp;👥 tagged {{ user.taggedCount }} time{{ user.taggedCount === 1 ? '' : 's' }}</span>
+            <span class="user-row-stats-sep desktop-only">&nbsp;·&nbsp;</span><span class="user-row-stats-tagged">👥 tagged {{ user.taggedCount }} time{{ user.taggedCount === 1 ? '' : 's' }}</span>
           </span>
         </div>
       </div>

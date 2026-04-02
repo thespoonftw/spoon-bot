@@ -141,6 +141,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .search-filters-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .search-filters select { background: #313244; border: 1px solid #45475a; border-radius: 8px; padding: 7px 12px; color: #cdd6f4; font-size: 0.9rem; cursor: pointer; }
 .search-filter-label { color: #a6adc8; font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
+.search-sort-group { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+@media (max-width: 767px) { .search-sort-group { margin-left: 0; width: 100%; } }
 .search-count { color: #a6adc8; font-size: 0.9rem; }
 .search-pagination-top { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 .search-pagination-top button { background: #313244; border: 1px solid #45475a; border-radius: 6px; padding: 5px 12px; color: #cdd6f4; font-size: 0.85rem; cursor: pointer; }

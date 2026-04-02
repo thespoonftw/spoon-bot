@@ -14,14 +14,16 @@
           <option v-for="u in users" :key="u.userId" :value="u.userId">{{ u.firstName || u.displayName }}</option>
         </select>
         <span class="search-count" v-if="total !== null">{{ total }} result{{ total === 1 ? '' : 's' }}</span>
-        <span class="search-filter-label" style="margin-left: auto">Sort By:</span>
-        <select v-model="sort" @change="resetAndFetch">
-          <option value="top">Highest rated</option>
-          <option value="newest">Newest upload</option>
-          <option value="oldest">Oldest upload</option>
-          <option value="newest_taken">Newest taken</option>
-          <option value="oldest_taken">Oldest taken</option>
-        </select>
+        <div class="search-sort-group">
+          <span class="search-filter-label">Sort By:</span>
+          <select v-model="sort" @change="resetAndFetch">
+            <option value="top">Highest rated</option>
+            <option value="newest">Newest upload</option>
+            <option value="oldest">Oldest upload</option>
+            <option value="newest_taken">Newest taken</option>
+            <option value="oldest_taken">Oldest taken</option>
+          </select>
+        </div>
       </div>
     </div>
 
