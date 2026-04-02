@@ -226,7 +226,7 @@ export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
         p.uploaded_by_id AS uploadedById,
         COALESCE(u.first_name, u.display_name) AS uploadedByName,
         p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption, p.location_id AS locationId,
-        COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
+        COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
         (SELECT vote_type FROM photo_votes WHERE photo_id = p.id AND user_id = ?) AS userVote,
         (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
       FROM photos p LEFT JOIN users u ON u.user_id = p.uploaded_by_id
@@ -239,7 +239,7 @@ export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
       p.uploaded_by_id AS uploadedById,
       COALESCE(u.first_name, u.display_name) AS uploadedByName,
       p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption, p.location_id AS locationId,
-      COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
+      COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
       NULL AS userVote,
       (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
     FROM photos p LEFT JOIN users u ON u.user_id = p.uploaded_by_id
@@ -437,7 +437,7 @@ export function dbGetPhotoVotes(photoId: number): { userId: string; displayName:
     SELECT pv.user_id as userId, u.display_name as displayName, u.first_name as firstName, u.avatar_url as avatarUrl, pv.vote_type as voteType
     FROM photo_votes pv LEFT JOIN users u ON u.user_id = pv.user_id
     WHERE pv.photo_id = ?
-    ORDER BY CASE pv.vote_type WHEN 'fav' THEN 1 WHEN 'up' THEN 2 WHEN 'down' THEN 3 END
+    ORDER BY CASE pv.vote_type WHEN 'fav' THEN 1 WHEN 'up' THEN 2 END
   `).all(photoId) as { userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; voteType: string }[];
 }
 
@@ -483,7 +483,7 @@ export function dbSearchPhotos(opts: {
       p.uploaded_by_id AS uploadedById,
       COALESCE(u.first_name, u.display_name) AS uploadedByName,
       p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption, p.location_id AS locationId,
-      COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
+      COALESCE((SELECT SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 ELSE 0 END) FROM photo_votes WHERE photo_id = p.id), 0) AS score,
       ${userVoteExpr}
       (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
     FROM photos p LEFT JOIN users u ON u.user_id = p.uploaded_by_id
@@ -501,7 +501,7 @@ export function dbVotePhoto(photoId: number, userId: string, voteType: string): 
     db.prepare("INSERT OR REPLACE INTO photo_votes (photo_id, user_id, vote_type) VALUES (?, ?, ?)").run(photoId, userId, voteType);
   }
   const scoreRow = db.prepare(
-    "SELECT COALESCE(SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 WHEN 'down' THEN -1 ELSE 0 END), 0) AS score FROM photo_votes WHERE photo_id = ?"
+    "SELECT COALESCE(SUM(CASE vote_type WHEN 'fav' THEN 3 WHEN 'up' THEN 1 ELSE 0 END), 0) AS score FROM photo_votes WHERE photo_id = ?"
   ).get(photoId) as { score: number };
   const voteRow = db.prepare("SELECT vote_type FROM photo_votes WHERE photo_id = ? AND user_id = ?").get(photoId, userId) as { vote_type: string } | undefined;
   return { score: scoreRow.score, userVote: voteRow?.vote_type ?? null };

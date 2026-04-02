@@ -15,7 +15,6 @@
             <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'fav')" title="Favourite">⭐</button>
             <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'up')" title="Upvote">👍</button>
             <button class="vote-btn vote-score" @click.stop="openVoteModal(photo)">{{ getVoteState(photo).score }}</button>
-            <button class="vote-btn vote-down" :class="{ active: getVoteState(photo).userVote === 'down' }" @click="handleVote($event, photo, 'down')" title="Downvote">👎</button>
             <button class="vote-btn vote-group" :class="{ active: photo.taggedIds?.length }" @click.stop="openTagging(photo, true)" title="Tagging">
               <span v-if="getTaggedMembers(photo).length >= 4" style="color:#fff"><span class="tag-count">{{ getTaggedMembers(photo).length }}</span>👥</span>
               <span v-else-if="getTaggedMembers(photo).length" class="tagging-avatars">
@@ -89,7 +88,7 @@
             <img v-if="v.avatarUrl" :src="v.avatarUrl" class="vote-modal-avatar" />
             <span v-else class="vote-modal-avatar vote-modal-initial">{{ (v.firstName || v.displayName)[0] }}</span>
             <span class="vote-modal-name">{{ v.firstName || v.displayName }}</span>
-            <span class="vote-modal-icon">{{ v.voteType === 'fav' ? '⭐' : v.voteType === 'up' ? '👍' : '👎' }}</span>
+            <span class="vote-modal-icon">{{ v.voteType === 'fav' ? '⭐' : '👍' }}</span>
           </div>
         </div>
       </div>
@@ -325,7 +324,7 @@ async function saveTagging() {
 }
 
 function spawnFloat(x: number, y: number, voteType: string, grey = false) {
-  const emoji = voteType === "fav" ? "⭐" : voteType === "up" ? "👍" : "👎";
+  const emoji = voteType === "fav" ? "⭐" : "👍";
   const span = document.createElement("span");
   span.className = grey ? "vote-float vote-float-grey" : "vote-float";
   span.textContent = emoji;
@@ -337,8 +336,7 @@ function spawnFloat(x: number, y: number, voteType: string, grey = false) {
 
 function isRemovingVote(currentVote: string | null | undefined, voteType: string) {
   return (voteType === "fav" && currentVote === "fav") ||
-    (voteType === "up" && (currentVote === "up" || currentVote === "fav")) ||
-    (voteType === "down" && currentVote === "down");
+    (voteType === "up" && (currentVote === "up" || currentVote === "fav"));
 }
 
 function handleVote(e: Event, photo: Photo, voteType: string) {
@@ -418,7 +416,7 @@ function openLightbox(index: number) {
   const onPopState = () => { closedByBack = true; pswp.close(); };
   window.addEventListener("popstate", onPopState, { once: true });
 
-  // Keyboard up/down to vote (up → fav → neutral cycle, down = downvote)
+  // Keyboard up to vote (up → fav → neutral cycle)
   const onKeyDown = (e: KeyboardEvent) => {
     const p = frozenPhotos![pswp.currIndex];
     if (e.key === "ArrowUp") {
@@ -427,10 +425,6 @@ function openLightbox(index: number) {
       const voteType = (currentVote === "up" || currentVote === "fav") ? "fav" : "up";
       spawnFloat(window.innerWidth / 2, window.innerHeight / 2, voteType);
       doVote(p.channelId, p.id, voteType);
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      spawnFloat(window.innerWidth / 2, window.innerHeight / 2, "down");
-      doVote(p.channelId, p.id, "down");
     }
   };
   window.addEventListener("keydown", onKeyDown);
@@ -691,7 +685,6 @@ function openLightbox(index: number) {
               <button data-vote="fav" class="pswp-vote-btn${userVote === "fav" ? " active-fav" : ""}">⭐</button>
               <button data-vote="up" class="pswp-vote-btn${upActive ? " active-up" : ""}">👍</button>
               <button data-action="score" class="pswp-vote-btn pswp-vote-score">${score}</button>
-              <button data-vote="down" class="pswp-vote-btn${userVote === "down" ? " active-down" : ""}">👎</button>
               <button data-action="tagged" class="pswp-vote-btn${taggedMs.length ? " active-fav" : ""}">${taggedBtnContent}</button>
             </div>
           `;
