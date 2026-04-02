@@ -446,28 +446,6 @@ function openLightbox(index: number) {
   window.addEventListener("keydown", onKeyDown);
 
   // Mobile single tap = upvote, double tap = favourite
-  (pswp as any).on("tapAction", (e: any) => {
-    e.preventDefault();
-    if (e.originalEvent?.pointerType === "touch") {
-      const x = e.originalEvent.clientX ?? window.innerWidth / 2;
-      const y = e.originalEvent.clientY ?? window.innerHeight / 2;
-      const p = frozenPhotos![pswp.currIndex];
-      const state = getVoteState(p);
-      spawnFloat(x, y, '👍', isRemovingVote(state, '👍', false));
-      doVote(p.channelId, p.id, '👍', false);
-    }
-  });
-  (pswp as any).on("doubleTapAction", (e: any) => {
-    e.preventDefault();
-    if (e.originalEvent?.pointerType === "touch") {
-      const x = e.originalEvent.clientX ?? window.innerWidth / 2;
-      const y = e.originalEvent.clientY ?? window.innerHeight / 2;
-      const p = frozenPhotos![pswp.currIndex];
-      const state = getVoteState(p);
-      spawnFloat(x, y, '⭐', isRemovingVote(state, '⭐', true));
-      doVote(p.channelId, p.id, '⭐', true);
-    }
-  });
 
   // Hide full image until loaded so thumbnail placeholder stays visible
   (pswp as any).on("contentAppend", (e: any) => {

@@ -101,6 +101,7 @@ export function initDb() {
     "ALTER TABLE users RENAME COLUMN last_login_at TO last_seen_at",
     "ALTER TABLE photo_votes ADD COLUMN react_type TEXT NOT NULL DEFAULT '👍'",
     "ALTER TABLE photo_votes ADD COLUMN is_super INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE photo_votes DROP COLUMN vote_type",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
