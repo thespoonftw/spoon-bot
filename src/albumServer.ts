@@ -376,7 +376,7 @@ export function startWebServer(): void {
       req.on("end", () => {
         try {
           const { voteType } = JSON.parse(body);
-          if (!["up", "fav"].includes(voteType)) {
+          if (!voteType || typeof voteType !== 'string' || voteType.length > 10) {
             sendJson(res, 400, { error: "Invalid vote type" }); return;
           }
           const result = dbVotePhoto(photoId, sessionUser.userId, voteType);

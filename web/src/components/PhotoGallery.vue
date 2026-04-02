@@ -13,7 +13,12 @@
           <button v-if="canDelete" class="photo-delete-btn" @click.stop="confirmDelete(photo)" title="Delete photo">🗑</button>
           <div class="photo-votes" @click.stop>
             <button class="vote-btn vote-fav" :class="{ active: getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'fav')" title="Favourite">⭐</button>
-            <button class="vote-btn vote-up" :class="{ active: getVoteState(photo).userVote === 'up' || getVoteState(photo).userVote === 'fav' }" @click="handleVote($event, photo, 'up')" title="Upvote">👍</button>
+            <div class="vote-up-wrapper" @mouseenter="emojiPickerPhotoId = photo.id" @mouseleave="emojiPickerPhotoId = null">
+              <button class="vote-btn vote-up" :class="{ active: !!getVoteState(photo).userVote }" @click.stop="handleVote($event, photo, 'up')" title="Vote">{{ getVoteLabel(getVoteState(photo).userVote) }}</button>
+              <div v-if="emojiPickerPhotoId === photo.id" class="emoji-picker" @click.stop>
+                <button v-for="emoji in VOTE_EMOJIS" :key="emoji" class="emoji-pick-btn" :class="{ active: getEmojiVoteType(emoji) === getVoteState(photo).userVote }" @click.stop="handleVote($event, photo, getEmojiVoteType(emoji)); emojiPickerPhotoId = null">{{ emoji }}</button>
+              </div>
+            </div>
             <button class="vote-btn vote-score" @click.stop="openVoteModal(photo)">{{ getVoteState(photo).score }}</button>
             <button class="vote-btn vote-group" :class="{ active: photo.taggedIds?.length }" @click.stop="openTagging(photo, true)" title="Tagging">
               <span v-if="getTaggedMembers(photo).length >= 4" style="color:#fff"><span class="tag-count">{{ getTaggedMembers(photo).length }}</span>👥</span>
@@ -88,7 +93,7 @@
             <img v-if="v.avatarUrl" :src="v.avatarUrl" class="vote-modal-avatar" />
             <span v-else class="vote-modal-avatar vote-modal-initial">{{ (v.firstName || v.displayName)[0] }}</span>
             <span class="vote-modal-name">{{ v.firstName || v.displayName }}</span>
-            <span class="vote-modal-icon">{{ v.voteType === 'fav' ? '⭐' : '👍' }}</span>
+            <span class="vote-modal-icon">{{ v.voteType === 'fav' ? '⭐' : v.voteType === 'up' ? '👍' : v.voteType }}</span>
           </div>
         </div>
       </div>
@@ -185,6 +190,14 @@ const dragDelete = useDraggable();
 
 const votes = ref<Record<number, { score: number; userVote: string | null }>>({});
 let refreshLightboxVotes: (() => void) | null = null;
+const emojiPickerPhotoId = ref<number | null>(null);
+const VOTE_EMOJIS = ['👍', '❤️', '😂', '🔥', '😮', '🥹', '⭐', '🤩'];
+function getEmojiVoteType(emoji: string): string { return emoji === '⭐' ? 'fav' : emoji; }
+function getVoteLabel(userVote: string | null | undefined): string {
+  if (!userVote || userVote === 'up') return '👍';
+  if (userVote === 'fav') return '⭐';
+  return userVote;
+}
 
 const showTagging = ref(false);
 const showTaggingPicker = ref(false);
@@ -324,7 +337,7 @@ async function saveTagging() {
 }
 
 function spawnFloat(x: number, y: number, voteType: string, grey = false) {
-  const emoji = voteType === "fav" ? "⭐" : "👍";
+  const emoji = voteType === "fav" ? "⭐" : voteType === "up" ? "👍" : voteType;
   const span = document.createElement("span");
   span.className = grey ? "vote-float vote-float-grey" : "vote-float";
   span.textContent = emoji;
@@ -336,7 +349,8 @@ function spawnFloat(x: number, y: number, voteType: string, grey = false) {
 
 function isRemovingVote(currentVote: string | null | undefined, voteType: string) {
   return (voteType === "fav" && currentVote === "fav") ||
-    (voteType === "up" && (currentVote === "up" || currentVote === "fav"));
+    (voteType === "up" && (currentVote === "up" || currentVote === "fav")) ||
+    (voteType !== "fav" && voteType !== "up" && currentVote === voteType);
 }
 
 function handleVote(e: Event, photo: Photo, voteType: string) {
