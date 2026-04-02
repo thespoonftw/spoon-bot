@@ -97,7 +97,7 @@ const albumsByYear = computed(() => {
   const result = [...groups.entries()]
     .sort(([a], [b]) => b.localeCompare(a))
     .map(([year, items]) => ({ year, items: items.sort((a, b) => b.startDate!.localeCompare(a.startDate!)) }));
-  if (undated.length) result.unshift({ year: 'No date', items: undated.sort((a, b) => a.groupName.localeCompare(b.groupName)) });
+  if (undated.length) result.push({ year: 'No date', items: undated.slice().sort((a, b) => a.groupName.localeCompare(b.groupName)) });
   return result;
 });
 
