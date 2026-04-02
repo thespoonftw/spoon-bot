@@ -8,32 +8,6 @@
         <button class="btn-primary btn-small" @click="openUpload">Upload</button>
       </PageHeader>
 
-      <!-- 📷 Photos (first when sorting by location) -->
-      <template v-if="sortBy === 'location'">
-        <div class="album-section">
-          <div class="album-section-header">
-            <span class="album-section-label">📷</span>
-            <span class="album-section-count">{{ totalSortedCount }}</span>
-            <label class="sort-label" style="margin-left: auto">Sort By:</label>
-            <select v-model="sortBy" class="sort-select" @change="onSortChange">
-              <option value="popular">Most Popular</option>
-              <option value="location">Location</option>
-              <option value="tagging">Tagging</option>
-              <option value="uploader">Uploader</option>
-              <option value="newest">Newest Upload</option>
-              <option value="oldest">Oldest Upload</option>
-            </select>
-          </div>
-          <PhotoGallery :sections="displayedSections" :members="allMembers" :can-delete="true"
-            :can-load-more="hasMore" :total-count="totalSortedCount"
-            :album-locations="album?.locations ?? []"
-            @photo-deleted="onPhotoDeleted" @load-more="displayLimit += 40" />
-          <div class="search-show-more" v-if="hasMore" ref="showMoreEl">
-            <button class="btn-secondary" @click="displayLimit += 40">Show more</button>
-          </div>
-        </div>
-      </template>
-
       <!-- 📍 Locations (multi only) -->
       <div v-if="(album.locations?.length ?? 0) > 1" class="album-section">
         <div class="album-section-header">
@@ -42,7 +16,7 @@
           <button class="btn-icon" @click="showLocations = true" title="Edit locations">✏️</button>
         </div>
         <div class="album-locations-list">
-          <span v-for="loc in album.locations" :key="loc.id" class="location-tag location-tag-link" @click="jumpToPhotos">{{ loc.name }}</span>
+          <span v-for="loc in album.locations" :key="loc.id" class="location-tag location-tag-link" @click="jumpToPhotos(loc.id)">{{ loc.name }}</span>
         </div>
       </div>
 
@@ -64,12 +38,12 @@
       </div>
 
       <!-- 📷 Photos -->
-      <div v-if="sortBy !== 'location'" class="album-section">
+      <div class="album-section">
         <div class="album-section-header">
           <span class="album-section-label">📷</span>
           <span class="album-section-count">{{ totalSortedCount }}</span>
           <template v-if="album.photos.length > 0">
-          <label class="sort-label" style="margin-left: auto">Sort By:</label>
+            <label class="sort-label" style="margin-left: auto">Sort By:</label>
             <select v-model="sortBy" class="sort-select" @change="onSortChange">
               <option value="popular">Most Popular</option>
               <option v-if="album.locations && album.locations.length > 1" value="location">Location</option>
@@ -283,7 +257,14 @@ const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
       const key = photo.locationId && groups.has(photo.locationId) ? photo.locationId : null;
       groups.get(key)!.photos.push(photo);
     }
-    const sections = [...groups.values()].filter(s => s.photos.length > 0);
+    let sections = [...groups.entries()]
+      .filter(([, s]) => s.photos.length > 0)
+      .sort(([a], [b]) => {
+        if (a === priorityLocId.value) return -1;
+        if (b === priorityLocId.value) return 1;
+        return 0;
+      })
+      .map(([, s]) => s);
     for (const s of sections) s.photos.sort(cmp);
     return sections;
   }
@@ -306,11 +287,12 @@ const hasMore = computed(() => displayedSections.value.reduce((n, s) => n + s.ph
 
 const showMoreEl = ref<HTMLElement | null>(null);
 
-function jumpToPhotos() {
-  if ((album.value?.locations?.length ?? 0) > 1) {
-    sortBy.value = 'location';
-    sessionStorage.setItem(SORT_KEY, 'location');
-  }
+const priorityLocId = ref<number | null>(null);
+
+function jumpToPhotos(locId: number) {
+  priorityLocId.value = locId;
+  sortBy.value = 'location';
+  sessionStorage.setItem(SORT_KEY, 'location');
 }
 let observer: IntersectionObserver | null = null;
 
@@ -361,6 +343,8 @@ onMounted(async () => {
     const hasMultipleLocations = (data.locations?.length ?? 0) > 1;
     if (route.query.sort === 'location' && hasMultipleLocations) {
       sortBy.value = 'location';
+      const locId = parseInt(route.query.loc as string);
+      if (!isNaN(locId)) priorityLocId.value = locId;
     } else if (hasMultipleLocations && !sessionStorage.getItem(SORT_KEY) && window.innerWidth >= 768) {
       sortBy.value = 'location';
     } else if (!hasMultipleLocations && sortBy.value === 'location') {

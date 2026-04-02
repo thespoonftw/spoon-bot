@@ -138,7 +138,7 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
     const singleLocation = (a.locations?.length ?? 0) <= 1;
     const locPhotos = singleLocation ? a.photos : a.photos.filter(p => p.locationId === loc.id);
     const topPhotos = [...locPhotos].sort((x, y) => (y.score ?? 0) - (x.score ?? 0)).slice(0, 3);
-    const albumUrl = singleLocation ? `/album/${a.channelId}?back=/map` : `/album/${a.channelId}?back=/map&sort=location`;
+    const albumUrl = singleLocation ? `/album/${a.channelId}?back=/map` : `/album/${a.channelId}?back=/map&sort=location&loc=${loc.id}`;
     const smallThumbs = topPhotos.slice(1).map(p =>
       `<a href="${albumUrl}"><img src="${thumbUrl(p.url)}" class="map-popup-thumb-sm" /></a>`
     ).join("");
