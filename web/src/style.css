@@ -1,6 +1,6 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
-.desktop-only { display: none; }
-@media (min-width: 768px) { .desktop-only { display: revert; } .mobile-only { display: none; } }
+.desktop-only { display: none !important; }
+@media (min-width: 768px) { .desktop-only { display: revert !important; } .mobile-only { display: none !important; } }
 
 :root { --pswp-root-z-index: 1500; --pswp-bg: #000; }
 .pswp__button--delete-button { display: flex !important; align-items: center; justify-content: center; width: 50px; height: 60px; font-size: 1.3em; background: none !important; opacity: 0.75; color: #fff; }
