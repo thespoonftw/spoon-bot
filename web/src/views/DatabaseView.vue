@@ -45,9 +45,7 @@
           </table>
         </div>
       </div>
-      <div class="db-main" v-else>
-        <p class="empty" style="padding:32px">Select a table</p>
-      </div>
+      <div class="db-main" v-else></div>
     </div>
   </div>
 </template>

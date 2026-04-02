@@ -68,7 +68,8 @@ export function startWebServer(): void {
     if (dbTableMatch && method === "GET") {
       if (!isValidSession(getTokenFromRequest(req))) { send401(res); return; }
       const table = decodeURIComponent(dbTableMatch[1]);
-      const params = new URLSearchParams(url.includes("?") ? url.slice(url.indexOf("?") + 1) : "");
+      const rawUrl = req.url ?? "";
+      const params = new URLSearchParams(rawUrl.includes("?") ? rawUrl.slice(rawUrl.indexOf("?") + 1) : "");
       const page = Math.max(0, parseInt(params.get("page") ?? "0") || 0);
       const pageSize = 50;
       try {
