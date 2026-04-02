@@ -5,17 +5,13 @@
     </PageHeader>
     <p v-if="status" class="empty map-status">{{ status }}</p>
     <div ref="mapEl" class="map-container"></div>
-    <div v-if="movingPinLoc || (activePinLoc && activePinPhotoCount === 0)" class="map-bottom-bar">
-      <template v-if="movingPinLoc">
-        <input class="popup-name-input" type="text" v-model="activeNameStr" placeholder="Location name" @change="saveActiveName" />
-        <input class="popup-coord-input" type="number" step="any" v-model="activeLatStr" placeholder="lat" readonly />
-        <input class="popup-coord-input" type="number" step="any" v-model="activeLonStr" placeholder="lon" readonly />
-        <button class="map-popup-save-btn" @click="saveDrag">Save</button>
-        <button class="map-popup-cancel-btn" @click="cancelDrag">Cancel</button>
-      </template>
-      <template v-else>
-        <button class="btn-danger btn-small" @click="deleteActiveLoc">🗑️ Delete</button>
-      </template>
+    <div v-if="movingPinLoc" class="map-bottom-bar">
+      <input class="popup-name-input" type="text" v-model="activeNameStr" placeholder="Location name" @change="saveActiveName" />
+      <input class="popup-coord-input" type="number" step="any" v-model="activeLatStr" placeholder="lat" readonly />
+      <input class="popup-coord-input" type="number" step="any" v-model="activeLonStr" placeholder="lon" readonly />
+      <button v-if="activePinPhotoCount === 0" class="btn-danger btn-small" @click="deleteActiveLoc">🗑️</button>
+      <button class="map-popup-save-btn" @click="saveDrag">Save</button>
+      <button class="map-popup-cancel-btn" @click="cancelDrag">Cancel</button>
     </div>
   </div>
 </template>
@@ -227,6 +223,7 @@ onMounted(async () => {
     const popupEl = buildPopupEl(loc, albumsHere, marker);
     marker.bindPopup(popupEl, { maxWidth: 340 });
     marker.on("popupopen", () => {
+      if (movingPinLoc.value && movingPinLoc.value.id !== loc.id) cancelDrag();
       activePinLoc.value = loc;
       activePinPhotoCount.value = photoCount;
       activePinAlbums.value = albumsHere;
