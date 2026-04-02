@@ -9,7 +9,7 @@
       <input class="popup-name-input" type="text" v-model="activeNameStr" placeholder="Location name" @change="saveActiveName" />
       <input class="popup-coord-input" type="number" step="any" v-model="activeLatStr" placeholder="lat" readonly />
       <input class="popup-coord-input" type="number" step="any" v-model="activeLonStr" placeholder="lon" readonly />
-      <button v-if="activePinPhotoCount === 0" class="btn-danger btn-small" @click="deleteActiveLoc">🗑️</button>
+      <button v-if="activePinPhotoCount === 0" class="map-popup-delete-btn" @click="deleteActiveLoc">Delete</button>
       <button class="map-popup-save-btn" @click="saveDrag">Save</button>
       <button class="map-popup-cancel-btn" @click="cancelDrag">Cancel</button>
     </div>
