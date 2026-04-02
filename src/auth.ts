@@ -4,7 +4,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
-import { dbUpsertUser, dbUpdateUserLastLogin, dbGetAllUsers, dbUpdateUserFirstName, dbGetUserById } from "./db";
+import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbUpdateUserFirstName, dbGetUserById } from "./db";
 
 export function sendJson(res: ServerResponse, status: number, data: unknown, extraHeaders: Record<string, string> = {}): void {
   res.writeHead(status, { "Content-Type": "application/json", ...extraHeaders });
@@ -129,7 +129,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     const sessionToken = crypto.randomBytes(32).toString("hex");
     sessions.set(sessionToken, magic.userId);
     persistSessions();
-    dbUpdateUserLastLogin(magic.userId);
+    dbUpdateUserLastSeen(magic.userId);
     const cookieHeader = `${SESSION_COOKIE}=${sessionToken}${SESSION_COOKIE_ATTRS}`;
     console.log(`[auth/verify] setting cookie: ${cookieHeader.slice(0, 80)}`);
     sendJson(res, 200, { sessionToken, userId: magic.userId }, { "Set-Cookie": cookieHeader });
@@ -142,6 +142,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     if (!userId) {
       sendJson(res, 401, { valid: false });
     } else {
+      dbUpdateUserLastSeen(userId);
       const user = userInfoCache.get(userId);
       const dbUser = dbGetUserById(userId);
       sendJson(res, 200, { valid: true, userId, displayName: user?.displayName ?? userId, avatarUrl: user?.avatarUrl ?? "", firstName: dbUser?.firstName ?? null });

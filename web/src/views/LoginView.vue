@@ -47,7 +47,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 
-interface UserInfo { userId: string; displayName: string; avatarUrl: string; lastLoginAt?: string }
+interface UserInfo { userId: string; displayName: string; avatarUrl: string; lastSeenAt?: string }
 
 const router = useRouter();
 const route = useRoute();
@@ -57,10 +57,10 @@ const error = ref("");
 const confirming = ref<UserInfo | null>(null);
 
 const regulars = computed(() =>
-  users.value.filter(u => !u.userId.startsWith("guest_") && u.lastLoginAt).sort((a, b) => b.lastLoginAt!.localeCompare(a.lastLoginAt!))
+  users.value.filter(u => !u.userId.startsWith("guest_") && u.lastSeenAt).sort((a, b) => b.lastSeenAt!.localeCompare(a.lastSeenAt!))
 );
 const newcomers = computed(() =>
-  users.value.filter(u => !u.userId.startsWith("guest_") && !u.lastLoginAt).sort((a, b) => a.displayName.localeCompare(b.displayName))
+  users.value.filter(u => !u.userId.startsWith("guest_") && !u.lastSeenAt).sort((a, b) => a.displayName.localeCompare(b.displayName))
 );
 
 onMounted(async () => {

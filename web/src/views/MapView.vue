@@ -91,6 +91,7 @@ async function deleteActiveLoc() {
   markerRegistry.delete(activePinLoc.value.id);
   pinCount.value = (pinCount.value ?? 1) - 1;
   activePinLoc.value = null;
+  endDragMode();
 }
 
 function startDragMode(loc: AlbumLocation, marker: L.Marker) {

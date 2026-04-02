@@ -17,7 +17,7 @@ export function initDb() {
       display_name  TEXT NOT NULL,
       first_name    TEXT,
       avatar_url    TEXT,
-      last_login_at TEXT,
+      last_seen_at TEXT,
       level         INTEGER NOT NULL DEFAULT 1
     );
     CREATE TABLE IF NOT EXISTS albums (
@@ -97,6 +97,7 @@ export function initDb() {
     "ALTER TABLE photos DROP COLUMN lon",
     "DROP TABLE IF EXISTS photo_featured",
     "ALTER TABLE albums DROP COLUMN location",
+    "ALTER TABLE users RENAME COLUMN last_login_at TO last_seen_at",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
@@ -300,7 +301,7 @@ export function dbAddPhoto(channelId: string, url: string) {
     .run(channelId, url, new Date().toISOString());
 }
 
-export type UserRow = { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastLoginAt?: string; level: number; uploadCount?: number; taggedCount?: number };
+export type UserRow = { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastSeenAt?: string; level: number; uploadCount?: number; taggedCount?: number };
 
 export function dbUpsertUser(userId: string, displayName: string, avatarUrl?: string) {
   db.prepare(`
@@ -309,14 +310,14 @@ export function dbUpsertUser(userId: string, displayName: string, avatarUrl?: st
   `).run(userId, displayName, avatarUrl ?? null);
 }
 
-export function dbUpdateUserLastLogin(userId: string) {
-  db.prepare("UPDATE users SET last_login_at=? WHERE user_id=?").run(new Date().toISOString(), userId);
+export function dbUpdateUserLastSeen(userId: string) {
+  db.prepare("UPDATE users SET last_seen_at=? WHERE user_id=?").run(new Date().toISOString(), userId);
 }
 
 export function dbGetAllUsers(): UserRow[] {
   return db.prepare(`
     SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName,
-      u.avatar_url AS avatarUrl, u.last_login_at AS lastLoginAt, u.level,
+      u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level,
       (SELECT COUNT(*) FROM photos p WHERE p.uploaded_by_id = u.user_id) AS uploadCount,
       (SELECT COUNT(*) FROM photo_tagged pt WHERE pt.user_id = u.user_id) AS taggedCount
     FROM users u WHERE u.level > 0 ORDER BY display_name ASC
@@ -341,7 +342,7 @@ export function dbUnhideAlbumMember(channelId: string, userId: string) {
 
 export function dbGetAlbumMembers(channelId: string): UserRow[] {
   return db.prepare(`
-    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.avatar_url AS avatarUrl, u.last_login_at AS lastLoginAt, u.level
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level
     FROM album_members am JOIN users u ON u.user_id = am.user_id
     WHERE am.channel_id = ? AND am.hidden = 0 AND u.level > 0 ORDER BY u.display_name ASC
   `).all(channelId) as UserRow[];
@@ -354,7 +355,7 @@ export function dbUpdateUserFirstName(userId: string, firstName: string | null) 
 }
 
 export function dbGetUserById(userId: string): UserRow | undefined {
-  return db.prepare("SELECT user_id AS userId, display_name AS displayName, first_name AS firstName, avatar_url AS avatarUrl, last_login_at AS lastLoginAt, level FROM users WHERE user_id = ?").get(userId) as UserRow | undefined;
+  return db.prepare("SELECT user_id AS userId, display_name AS displayName, first_name AS firstName, avatar_url AS avatarUrl, last_seen_at AS lastSeenAt, level FROM users WHERE user_id = ?").get(userId) as UserRow | undefined;
 }
 
 export function dbCreateGuestUser(name: string): UserRow {
@@ -370,7 +371,7 @@ export function dbDeleteUser(userId: string) {
 
 export function dbGetAllAlbumMembers(channelId: string): AlbumMemberRow[] {
   return db.prepare(`
-    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.avatar_url AS avatarUrl, u.last_login_at AS lastLoginAt, u.level, am.hidden
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level, am.hidden
     FROM album_members am JOIN users u ON u.user_id = am.user_id
     WHERE am.channel_id = ? AND u.level > 0 ORDER BY am.hidden ASC, u.display_name ASC
   `).all(channelId) as AlbumMemberRow[];

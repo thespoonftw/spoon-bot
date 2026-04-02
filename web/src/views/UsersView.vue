@@ -9,8 +9,8 @@
         <div class="user-row-info">
           <span class="user-row-name">{{ user.firstName || user.displayName }}</span>
           <span class="user-row-login">{{ user.displayName }}</span>
-          <span class="user-row-login" v-if="user.lastLoginAt">Last login: {{ formatDate(user.lastLoginAt) }}</span>
-          <span class="user-row-login never" v-else>Never logged in</span>
+          <span class="user-row-login" v-if="user.lastSeenAt">Last seen: {{ formatDate(user.lastSeenAt) }}</span>
+          <span class="user-row-login never" v-else>Never seen</span>
           <span class="user-row-stats" v-if="user.uploadCount !== undefined">
             📷 {{ user.uploadCount }} upload{{ user.uploadCount === 1 ? '' : 's' }}
             &nbsp;·&nbsp;
@@ -57,7 +57,7 @@ import { useCurrentUser } from "../composables/useCurrentUser";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 import PageHeader from "../components/PageHeader.vue";
 
-interface SiteUser { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastLoginAt?: string; uploadCount?: number; taggedCount?: number }
+interface SiteUser { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastSeenAt?: string; uploadCount?: number; taggedCount?: number }
 
 const users = ref<SiteUser[]>([]);
 const loading = ref(true);
@@ -74,9 +74,9 @@ onMounted(async () => {
   if (res.ok) {
     const data: SiteUser[] = await res.json();
     users.value = data.sort((a, b) => {
-      if (a.lastLoginAt && b.lastLoginAt) return b.lastLoginAt.localeCompare(a.lastLoginAt);
-      if (a.lastLoginAt) return -1;
-      if (b.lastLoginAt) return 1;
+      if (a.lastSeenAt && b.lastSeenAt) return b.lastSeenAt.localeCompare(a.lastSeenAt);
+      if (a.lastSeenAt) return -1;
+      if (b.lastSeenAt) return 1;
       return a.displayName.localeCompare(b.displayName);
     });
   }
