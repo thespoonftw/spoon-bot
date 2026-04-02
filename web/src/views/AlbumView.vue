@@ -28,7 +28,15 @@
           <span class="album-section-count">{{ album.members.length }}</span>
           <button class="btn-icon" @click="showEditMembers = true" title="Edit members">✏️</button>
         </div>
-        <div class="card-members">
+        <div class="members-rows desktop-only">
+          <div v-for="(row, i) in memberRows" :key="i" class="members-list">
+            <div v-for="member in row" :key="member.userId" class="member-chip" :title="member.firstName || member.displayName">
+              <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
+              <span class="member-name">{{ member.firstName || member.displayName }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-members mobile-only">
           <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
             <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
           </div>
