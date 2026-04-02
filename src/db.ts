@@ -23,7 +23,6 @@ export function initDb() {
     CREATE TABLE IF NOT EXISTS albums (
       channel_id  TEXT PRIMARY KEY,
       group_name  TEXT NOT NULL,
-      location    TEXT,
       start_date  TEXT,
       end_date    TEXT,
       created_at  TEXT NOT NULL
@@ -97,6 +96,7 @@ export function initDb() {
     "ALTER TABLE photos DROP COLUMN lat",
     "ALTER TABLE photos DROP COLUMN lon",
     "DROP TABLE IF EXISTS photo_featured",
+    "ALTER TABLE albums DROP COLUMN location",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
