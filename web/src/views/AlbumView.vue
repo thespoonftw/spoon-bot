@@ -252,7 +252,7 @@ const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
     const locs = album.value?.locations ?? [];
     const groups = new Map<number | null, { label: string; photos: Photo[] }>();
     for (const loc of locs) groups.set(loc.id, { label: loc.name, photos: [] });
-    groups.set(null, { label: 'No Location', photos: [] });
+    groups.set(null, { label: 'Others', photos: [] });
     for (const photo of photos) {
       const key = photo.locationId && groups.has(photo.locationId) ? photo.locationId : null;
       groups.get(key)!.photos.push(photo);
@@ -260,6 +260,8 @@ const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
     let sections = [...groups.entries()]
       .filter(([, s]) => s.photos.length > 0)
       .sort(([a], [b]) => {
+        if (a === null) return 1;
+        if (b === null) return -1;
         if (a === priorityLocId.value) return -1;
         if (b === priorityLocId.value) return 1;
         return 0;
