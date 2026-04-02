@@ -97,7 +97,7 @@ const albumsByYear = computed(() => {
   const result = [...groups.entries()]
     .sort(([a], [b]) => b.localeCompare(a))
     .map(([year, items]) => ({ year, items: items.sort((a, b) => b.startDate!.localeCompare(a.startDate!)) }));
-  if (undated.length) result.push({ year: 'No date', items: undated.slice().sort((a, b) => a.groupName.localeCompare(b.groupName)) });
+  if (undated.length) result.unshift({ year: 'No date', items: undated.slice().sort((a, b) => a.groupName.localeCompare(b.groupName)) });
   return result;
 });
 
@@ -111,6 +111,7 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   for (let i = eligible.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [eligible[i], eligible[j]] = [eligible[j], eligible[i]]; }
   const sorted = eligible.sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
   if (!sorted.length) return [];
+  const n = sorted.length;
 
   const s2 = H * 0.7, s3 = H * 0.49, s4 = H * 0.343;
   const OV = 5;
@@ -151,20 +152,20 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   type R = { photo: Photo; size: number; cx: number; cy: number; z: number };
   const raw: R[] = [];
   raw.push({ photo: sorted[0], size: H,  cx: 0,    cy: 0,    z: 100 });
-  if (count >= 2)  raw.push({ photo: sorted[1],  size: s2, cx:  gapR, cy: count >= 4 ?  dy : 0, z: 90 });
-  if (count >= 3)  raw.push({ photo: sorted[2],  size: s2, cx: -gapR, cy: count >= 5 ? -dy : 0, z: 90 });
-  if (count >= 4)  raw.push({ photo: sorted[3],  size: s3, cx:  cx4,  cy:  cy4,  z: 80 });
-  if (count >= 5)  raw.push({ photo: sorted[4],  size: s3, cx: -cx4,  cy: -cy4,  z: 80 });
-  if (count >= 6)  raw.push({ photo: sorted[5],  size: s4, cx:  cx6,  cy:  cy6,  z: 70 });
-  if (count >= 7)  raw.push({ photo: sorted[6],  size: s4, cx: -cx6,  cy: -cy6,  z: 70 });
-  if (count >= 8)  raw.push({ photo: sorted[7],  size: s4, cx:  cx8,  cy:  cy8,  z: 60 });
-  if (count >= 9)  raw.push({ photo: sorted[8],  size: s4, cx: -cx8,  cy: -cy8,  z: 60 });
-  if (count >= 10) raw.push({ photo: sorted[9],  size: s5, cx:  cx8,  cy:  cy10, z: 50 });
-  if (count >= 11) raw.push({ photo: sorted[10], size: s5, cx: -cx8,  cy: -cy10, z: 50 });
-  if (count >= 12) raw.push({ photo: sorted[11], size: s6, cx:  cx12, cy:  cy12, z: 40 });
-  if (count >= 13) raw.push({ photo: sorted[12], size: s6, cx: -cx12, cy: -cy12, z: 40 });
-  if (count >= 14) raw.push({ photo: sorted[13], size: s6, cx:  cx14, cy:  cy14, z: 30 });
-  if (count >= 15) raw.push({ photo: sorted[14], size: s6, cx:  cx15, cy:  cy15, z: 30 });
+  if (n >= 2)  raw.push({ photo: sorted[1],  size: s2, cx:  gapR, cy: n >= 4 ?  dy : 0, z: 90 });
+  if (n >= 3)  raw.push({ photo: sorted[2],  size: s2, cx: -gapR, cy: n >= 5 ? -dy : 0, z: 90 });
+  if (n >= 4)  raw.push({ photo: sorted[3],  size: s3, cx:  cx4,  cy:  cy4,  z: 80 });
+  if (n >= 5)  raw.push({ photo: sorted[4],  size: s3, cx: -cx4,  cy: -cy4,  z: 80 });
+  if (n >= 6)  raw.push({ photo: sorted[5],  size: s4, cx:  cx6,  cy:  cy6,  z: 70 });
+  if (n >= 7)  raw.push({ photo: sorted[6],  size: s4, cx: -cx6,  cy: -cy6,  z: 70 });
+  if (n >= 8)  raw.push({ photo: sorted[7],  size: s4, cx:  cx8,  cy:  cy8,  z: 60 });
+  if (n >= 9)  raw.push({ photo: sorted[8],  size: s4, cx: -cx8,  cy: -cy8,  z: 60 });
+  if (n >= 10) raw.push({ photo: sorted[9],  size: s5, cx:  cx8,  cy:  cy10, z: 50 });
+  if (n >= 11) raw.push({ photo: sorted[10], size: s5, cx: -cx8,  cy: -cy10, z: 50 });
+  if (n >= 12) raw.push({ photo: sorted[11], size: s6, cx:  cx12, cy:  cy12, z: 40 });
+  if (n >= 13) raw.push({ photo: sorted[12], size: s6, cx: -cx12, cy: -cy12, z: 40 });
+  if (n >= 14) raw.push({ photo: sorted[13], size: s6, cx:  cx14, cy:  cy14, z: 30 });
+  if (n >= 15) raw.push({ photo: sorted[14], size: s6, cx:  cx15, cy:  cy15, z: 30 });
 
   const minX = Math.min(...raw.map(p => p.cx - p.size / 2));
   const maxX = Math.max(...raw.map(p => p.cx + p.size / 2));
