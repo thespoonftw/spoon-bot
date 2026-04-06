@@ -34,7 +34,7 @@
                   <img v-if="v.avatarUrl" :src="v.avatarUrl" class="vote-hover-avatar" />
                   <span v-else class="vote-hover-avatar vote-hover-initial">{{ (v.firstName || v.displayName)[0] }}</span>
                   <span class="vote-hover-name">{{ v.firstName || v.displayName }}</span>
-                  <span class="vote-hover-icon" :class="{ 'is-super-glow': v.isSuper }"><span v-if="v.isSuper" class="super-side">{{ v.reactType }}</span>{{ v.reactType }}<span v-if="v.isSuper" class="super-side">{{ v.reactType }}</span></span>
+                  <span class="vote-hover-icon"><span class="super-side" :style="v.isSuper ? {} : { visibility: 'hidden' }">{{ v.reactType }}</span><span :class="{ 'is-super-glow': v.isSuper }">{{ v.reactType }}</span><span class="super-side" :style="v.isSuper ? {} : { visibility: 'hidden' }">{{ v.reactType }}</span></span>
                 </div>
               </div>
             </div>
@@ -120,7 +120,7 @@
             <img v-if="v.avatarUrl" :src="v.avatarUrl" class="vote-modal-avatar" />
             <span v-else class="vote-modal-avatar vote-modal-initial">{{ (v.firstName || v.displayName)[0] }}</span>
             <span class="vote-modal-name">{{ v.firstName || v.displayName }}</span>
-            <span class="vote-modal-icon"><span v-if="v.isSuper" class="super-side">{{ v.reactType }}</span>{{ v.reactType }}<span v-if="v.isSuper" class="super-side">{{ v.reactType }}</span></span>
+            <span class="vote-modal-icon"><span class="super-side" :style="v.isSuper ? {} : { visibility: 'hidden' }">{{ v.reactType }}</span><span :class="{ 'is-super-glow': v.isSuper }">{{ v.reactType }}</span><span class="super-side" :style="v.isSuper ? {} : { visibility: 'hidden' }">{{ v.reactType }}</span></span>
           </div>
         </div>
       </div>
@@ -875,7 +875,7 @@ function openLightbox(index: number) {
             <div class="pswp-meta-left">${dateHtml}</div>
             <div class="pswp-meta-right">${uploaderHtml}</div>
             <div class="pswp-votes">
-              <button data-action="emoji-toggle" class="pswp-vote-btn${voteActive ? (userIsSuper ? " active-fav" : " active-up") : ""}"><span${userIsSuper ? ' class="is-super-glow"' : ''}>${userIsSuper ? `<span class="super-side">${userVote || '👍'}</span>` : ''}${userVote || '👍'}${userIsSuper ? `<span class="super-side">${userVote || '👍'}</span>` : ''}</span></button>
+              <button data-action="emoji-toggle" class="pswp-vote-btn${voteActive ? (userIsSuper ? " active-fav" : " active-up") : ""}"><span class="super-side" style="visibility:${userIsSuper ? 'visible' : 'hidden'}">${userVote || '👍'}</span><span${userIsSuper ? ' class="is-super-glow"' : ''}>${userVote || '👍'}</span><span class="super-side" style="visibility:${userIsSuper ? 'visible' : 'hidden'}">${userVote || '👍'}</span></button>
               <button data-action="score" class="pswp-vote-btn pswp-vote-score">${score}</button>
               <button data-action="tagged" class="pswp-vote-btn${taggedMs.length ? " active-fav" : ""}">${taggedBtnContent}</button>
             </div>
@@ -892,7 +892,7 @@ function openLightbox(index: number) {
             if (scoreBtn && score > 0) {
               scoreBtn.addEventListener("mouseenter", async () => {
                 const mkRow = (avatarUrl: string | null, name: string, reactType: string, isSuper: number) =>
-                  `<div class="vote-hover-row">${avatarUrl ? `<img src="${avatarUrl}" class="vote-hover-avatar" />` : `<span class="vote-hover-avatar vote-hover-initial">${name[0]}</span>`}<span class="vote-hover-name">${name}</span><span class="vote-hover-icon${isSuper ? ' is-super-glow' : ''}">${isSuper ? `<span class="super-side">${reactType}</span>` : ''}${reactType}${isSuper ? `<span class="super-side">${reactType}</span>` : ''}</span></div>`;
+                  `<div class="vote-hover-row">${avatarUrl ? `<img src="${avatarUrl}" class="vote-hover-avatar" />` : `<span class="vote-hover-avatar vote-hover-initial">${name[0]}</span>`}<span class="vote-hover-name">${name}</span><span class="vote-hover-icon"><span class="super-side" style="visibility:${isSuper ? 'visible' : 'hidden'}">${reactType}</span><span class="${isSuper ? 'is-super-glow' : ''}">${reactType}</span><span class="super-side" style="visibility:${isSuper ? 'visible' : 'hidden'}">${reactType}</span></span></div>`;
                 if (hoverVoteCache.has(p.id)) {
                   const data = hoverVoteCache.get(p.id)!;
                   if (!data.length) return;
