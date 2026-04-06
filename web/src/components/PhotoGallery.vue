@@ -14,7 +14,7 @@
           <div class="photo-votes" @click.stop>
             <button class="vote-btn vote-fav" :class="{ active: !!getVoteState(photo).userIsSuper }" @click="handleVote($event, photo, '⭐', true)" title="Super vote">⭐</button>
             <div class="vote-up-wrapper" @mouseenter="showEmojiPicker(photo.id)" @mouseleave="hideEmojiPicker()">
-              <button class="vote-btn vote-up" :class="{ active: !!getVoteState(photo).userVote, 'is-super': !!getVoteState(photo).userIsSuper }" @click.stop="handleVote($event, photo, getVoteState(photo).userVote || '👍', !!getVoteState(photo).userIsSuper)" title="Vote">{{ getVoteLabel(getVoteState(photo).userVote) }}</button>
+              <button class="vote-btn vote-up" :class="{ active: !!getVoteState(photo).userVote, 'is-super': !!getVoteState(photo).userIsSuper }" @click.stop="handleVote($event, photo, getVoteState(photo).userVote || '👍', !!getVoteState(photo).userIsSuper)" title="Vote"><template v-if="getVoteState(photo).userIsSuper"><span class="super-side">{{ getVoteLabel(getVoteState(photo).userVote) }}</span>{{ getVoteLabel(getVoteState(photo).userVote) }}<span class="super-side">{{ getVoteLabel(getVoteState(photo).userVote) }}</span></template><template v-else>{{ getVoteLabel(getVoteState(photo).userVote) }}</template></button>
               <div v-if="emojiPickerPhotoId === photo.id" class="emoji-picker-wrap" @click.stop @mousedown.stop @mouseenter="cancelHideEmojiPicker()" @mouseleave="hideEmojiPicker()">
                 <div class="ep-search-row">
                   <input class="ep-search" v-model="emojiSearch" placeholder="Search emoji…" @click.stop @mousedown.stop @keydown.stop />
@@ -34,7 +34,7 @@
                   <img v-if="v.avatarUrl" :src="v.avatarUrl" class="vote-hover-avatar" />
                   <span v-else class="vote-hover-avatar vote-hover-initial">{{ (v.firstName || v.displayName)[0] }}</span>
                   <span class="vote-hover-name">{{ v.firstName || v.displayName }}</span>
-                  <span class="vote-hover-icon" :class="{ 'is-super-glow': v.isSuper }">{{ v.reactType }}</span>
+                  <span class="vote-hover-icon" :class="{ 'is-super-glow': v.isSuper }"><span v-if="v.isSuper" class="super-side">{{ v.reactType }}</span>{{ v.reactType }}<span v-if="v.isSuper" class="super-side">{{ v.reactType }}</span></span>
                 </div>
               </div>
             </div>
@@ -120,7 +120,7 @@
             <img v-if="v.avatarUrl" :src="v.avatarUrl" class="vote-modal-avatar" />
             <span v-else class="vote-modal-avatar vote-modal-initial">{{ (v.firstName || v.displayName)[0] }}</span>
             <span class="vote-modal-name">{{ v.firstName || v.displayName }}</span>
-            <span class="vote-modal-icon">{{ v.reactType }}{{ v.isSuper ? '✨' : '' }}</span>
+            <span class="vote-modal-icon"><span v-if="v.isSuper" class="super-side">{{ v.reactType }}</span>{{ v.reactType }}<span v-if="v.isSuper" class="super-side">{{ v.reactType }}</span></span>
           </div>
         </div>
       </div>
@@ -875,7 +875,7 @@ function openLightbox(index: number) {
             <div class="pswp-meta-left">${dateHtml}</div>
             <div class="pswp-meta-right">${uploaderHtml}</div>
             <div class="pswp-votes">
-              <button data-action="emoji-toggle" class="pswp-vote-btn${voteActive ? (userIsSuper ? " active-fav" : " active-up") : ""}"><span${userIsSuper ? ' class="is-super-glow"' : ''}>${userVote || '👍'}</span></button>
+              <button data-action="emoji-toggle" class="pswp-vote-btn${voteActive ? (userIsSuper ? " active-fav" : " active-up") : ""}"><span${userIsSuper ? ' class="is-super-glow"' : ''}>${userIsSuper ? `<span class="super-side">${userVote || '👍'}</span>` : ''}${userVote || '👍'}${userIsSuper ? `<span class="super-side">${userVote || '👍'}</span>` : ''}</span></button>
               <button data-action="score" class="pswp-vote-btn pswp-vote-score">${score}</button>
               <button data-action="tagged" class="pswp-vote-btn${taggedMs.length ? " active-fav" : ""}">${taggedBtnContent}</button>
             </div>
@@ -892,7 +892,7 @@ function openLightbox(index: number) {
             if (scoreBtn && score > 0) {
               scoreBtn.addEventListener("mouseenter", async () => {
                 const mkRow = (avatarUrl: string | null, name: string, reactType: string, isSuper: number) =>
-                  `<div class="vote-hover-row">${avatarUrl ? `<img src="${avatarUrl}" class="vote-hover-avatar" />` : `<span class="vote-hover-avatar vote-hover-initial">${name[0]}</span>`}<span class="vote-hover-name">${name}</span><span class="vote-hover-icon${isSuper ? ' is-super-glow' : ''}">${reactType}</span></div>`;
+                  `<div class="vote-hover-row">${avatarUrl ? `<img src="${avatarUrl}" class="vote-hover-avatar" />` : `<span class="vote-hover-avatar vote-hover-initial">${name[0]}</span>`}<span class="vote-hover-name">${name}</span><span class="vote-hover-icon${isSuper ? ' is-super-glow' : ''}">${isSuper ? `<span class="super-side">${reactType}</span>` : ''}${reactType}${isSuper ? `<span class="super-side">${reactType}</span>` : ''}</span></div>`;
                 if (hoverVoteCache.has(p.id)) {
                   const data = hoverVoteCache.get(p.id)!;
                   if (!data.length) return;
