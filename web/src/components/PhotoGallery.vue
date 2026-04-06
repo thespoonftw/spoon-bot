@@ -222,7 +222,7 @@ let refreshLightboxVotes: (() => void) | null = null;
 const emojiPickerPhotoId = ref<number | null>(null);
 const superMode = ref(false);
 const emojiSearch = ref('');
-const DEFAULT_EMOJIS = ['👍','❤','🔥','😂','😲','😢','🥰','🤔'];
+const DEFAULT_EMOJIS = ['👍','❤️','🔥','😂','😲','😢','🥰','🤔'];
 const emojiSearchResults = ref<string[]>(DEFAULT_EMOJIS);
 const emojiDb = new Database();
 let emojiPickerHideTimer: ReturnType<typeof setTimeout> | null = null;
@@ -260,6 +260,7 @@ const hoverVoteData = ref<VoteBreakdownRow[]>([]);
 const hoverVoteCache = new Map<number, VoteBreakdownRow[]>();
 let hoverVoteHideTimer: ReturnType<typeof setTimeout> | null = null;
 async function showVoteHover(photo: Photo) {
+  if (!getVoteState(photo).score) return;
   if (hoverVoteHideTimer) { clearTimeout(hoverVoteHideTimer); hoverVoteHideTimer = null; }
   hoverVotePhotoId.value = photo.id;
   if (hoverVoteCache.has(photo.id)) {
@@ -294,9 +295,7 @@ function cancelHideTagHover() {
   if (hoverTagHideTimer) { clearTimeout(hoverTagHideTimer); hoverTagHideTimer = null; }
 }
 
-function getEmojiReact(emoji: string): { reactType: string; isSuper: boolean } {
-  return emoji === '⭐' ? { reactType: '⭐', isSuper: true } : { reactType: emoji, isSuper: false };
-}
+
 function getVoteLabel(userVote: string | null | undefined): string {
   return userVote || '👍';
 }
@@ -538,11 +537,11 @@ function openLightbox(index: number) {
     if (e.key === "ArrowUp") {
       e.preventDefault();
       const state = getVoteState(p);
-      const isSuper = !!(state.userVote && state.userIsSuper);
       const wasUp = !!(state.userVote && !state.userIsSuper);
       const newIsSuper = wasUp;  // first press = up, second = super
-      spawnFloat(window.innerWidth / 2, window.innerHeight / 2, newIsSuper ? '⭐' : '👍');
-      doVote(p.channelId, p.id, newIsSuper ? '⭐' : '👍', newIsSuper);
+      const reactType = state.userVote || '👍';
+      spawnFloat(window.innerWidth / 2, window.innerHeight / 2, reactType);
+      doVote(p.channelId, p.id, reactType, newIsSuper);
     }
   };
   window.addEventListener("keydown", onKeyDown);
@@ -573,7 +572,24 @@ function openLightbox(index: number) {
     pendingReopenIndex = null;
     if (idx !== null) nextTick(() => openLightbox(idx));
   });
+  let lbPickerOpen = false;
+  let lbSuperMode = false;
+  let lbPickerEl: HTMLElement | null = null;
+  let lbSuperBtn: HTMLButtonElement | null = null;
+
+  function openLbPicker() {
+    if (lbPickerEl) { lbPickerEl.style.display = "block"; lbPickerOpen = true; }
+  }
+  function closeLbPicker() {
+    if (!lbPickerEl) return;
+    lbPickerEl.style.display = "none";
+    lbPickerOpen = false;
+    lbSuperMode = false;
+    if (lbSuperBtn) lbSuperBtn.className = "ep-super-toggle";
+  }
+
   pswp.on("change", () => {
+    closeLbPicker();
     if (showTagging.value) openTagging(frozenPhotos![pswp.currIndex]);
     if (voteModalPhoto.value) openVoteModal(frozenPhotos![pswp.currIndex]);
     // Trigger load more when within 5 of the end
@@ -747,25 +763,83 @@ function openLightbox(index: number) {
       appendTo: "root",
       onInit: (el) => {
         el.addEventListener("click", (e) => {
-          const btn = (e.target as Element).closest("[data-vote]") as HTMLElement | null;
           const featBtn = (e.target as Element).closest("[data-action='tagged']") as HTMLElement | null;
-          if (btn) {
-            const { reactType, isSuper } = getEmojiReact(btn.dataset.vote!);
-            const p = frozenPhotos![pswp.currIndex];
-            const rect = btn.getBoundingClientRect();
-            spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, btn.dataset.vote!, isRemovingVote(getVoteState(p), reactType, isSuper));
-            doVote(p.channelId, p.id, reactType, isSuper);
+          if ((e.target as Element).closest("[data-action='emoji-toggle']")) {
+            lbPickerOpen ? closeLbPicker() : openLbPicker();
           } else if (featBtn) {
+            closeLbPicker();
             openTagging(frozenPhotos![pswp.currIndex], true);
           } else if ((e.target as Element).closest("[data-action='score']")) {
+            closeLbPicker();
             openVoteModal(frozenPhotos![pswp.currIndex]);
           }
         });
+
+        // Register lightbox emoji picker
+        const pickerEl = document.createElement("div");
+        pickerEl.className = "emoji-picker-wrap";
+        pickerEl.style.cssText = "display:none;position:absolute;bottom:90px;left:50%;transform:translateX(-50%);z-index:20";
+        pickerEl.addEventListener("click", e => e.stopPropagation());
+
+        const searchRow = document.createElement("div");
+        searchRow.className = "ep-search-row";
+        const searchInput = document.createElement("input");
+        searchInput.className = "ep-search";
+        searchInput.placeholder = "Search emoji…";
+        searchInput.addEventListener("keydown", e => e.stopPropagation());
+        searchInput.addEventListener("mousedown", e => e.stopPropagation());
+        const superBtn = document.createElement("button");
+        superBtn.className = "ep-super-toggle";
+        superBtn.textContent = "⭐ Super";
+        lbSuperBtn = superBtn;
+        superBtn.addEventListener("click", e => {
+          e.stopPropagation();
+          lbSuperMode = !lbSuperMode;
+          superBtn.className = `ep-super-toggle${lbSuperMode ? " active" : ""}`;
+        });
+        searchRow.append(searchInput, superBtn);
+
+        const emojiGrid = document.createElement("div");
+        emojiGrid.className = "ep-emoji-grid";
+
+        const renderEmojis = (emojis: string[]) => {
+          emojiGrid.innerHTML = "";
+          for (const em of emojis) {
+            const btn = document.createElement("button");
+            btn.className = "ep-emoji-btn";
+            btn.textContent = em;
+            btn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              const p = frozenPhotos![pswp.currIndex];
+              const rect = btn.getBoundingClientRect();
+              spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, em, isRemovingVote(getVoteState(p), em, lbSuperMode));
+              doVote(p.channelId, p.id, em, lbSuperMode);
+              closeLbPicker();
+            });
+            emojiGrid.appendChild(btn);
+          }
+        };
+        renderEmojis(DEFAULT_EMOJIS);
+
+        let lbSearchTimer: ReturnType<typeof setTimeout> | null = null;
+        searchInput.addEventListener("input", () => {
+          if (lbSearchTimer) clearTimeout(lbSearchTimer);
+          const q = searchInput.value.trim();
+          if (!q) { renderEmojis(DEFAULT_EMOJIS); return; }
+          lbSearchTimer = setTimeout(async () => {
+            const results = await emojiDb.getEmojiBySearchQuery(q);
+            renderEmojis((results as any[]).map((e: any) => e.unicode).filter(Boolean).slice(0, 8));
+          }, 150);
+        });
+
+        pickerEl.append(searchRow, emojiGrid);
+        el.parentElement!.appendChild(pickerEl);
+        lbPickerEl = pickerEl;
+
         const update = () => {
           const p = frozenPhotos![pswp.currIndex];
           const { score, userVote, userIsSuper } = getVoteState(p);
-          const upActive = !!userVote && !userIsSuper;
-          const favActive = !!userVote && !!userIsSuper;
+          const voteActive = !!userVote;
           const taggedMs = props.members.filter(m => p.taggedIds?.includes(m.userId));
           const avStyle = (i: number) => `width:1.4em;height:1.4em;border-radius:50%;object-fit:cover;pointer-events:none;border:1.5px solid rgba(0,0,0,0.4);flex-shrink:0;${i > 0 ? "margin-left:-0.5em;" : ""}`;
           const taggedBtnContent = taggedMs.length >= 4
@@ -781,8 +855,7 @@ function openLightbox(index: number) {
             <div class="pswp-meta-left">${dateHtml}</div>
             <div class="pswp-meta-right">${uploaderHtml}</div>
             <div class="pswp-votes">
-              <button data-vote="⭐" class="pswp-vote-btn${favActive ? " active-fav" : ""}">⭐</button>
-              <button data-vote="👍" class="pswp-vote-btn${upActive ? " active-up" : ""}">${userVote && !userIsSuper ? userVote : '👍'}</button>
+              <button data-action="emoji-toggle" class="pswp-vote-btn${voteActive ? (userIsSuper ? " active-fav" : " active-up") : ""}">${userVote || '👍'}${userIsSuper ? ' ✨' : ''}</button>
               <button data-action="score" class="pswp-vote-btn pswp-vote-score">${score}</button>
               <button data-action="tagged" class="pswp-vote-btn${taggedMs.length ? " active-fav" : ""}">${taggedBtnContent}</button>
             </div>
