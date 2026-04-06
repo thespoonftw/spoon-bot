@@ -14,7 +14,7 @@
           <div class="photo-votes" @click.stop>
             <button class="vote-btn vote-fav" :class="{ active: !!getVoteState(photo).userIsSuper }" @click="handleVote($event, photo, '⭐', true)" title="Super vote">⭐</button>
             <div class="vote-up-wrapper" @mouseenter="showEmojiPicker(photo.id)" @mouseleave="hideEmojiPicker()">
-              <button class="vote-btn vote-up" :class="{ active: !!getVoteState(photo).userVote, 'is-super': !!getVoteState(photo).userIsSuper }" @click.stop="handleVote($event, photo, '👍', false)" title="Vote">{{ getVoteLabel(getVoteState(photo).userVote) }}</button>
+              <button class="vote-btn vote-up" :class="{ active: !!getVoteState(photo).userVote, 'is-super': !!getVoteState(photo).userIsSuper }" @click.stop="handleVote($event, photo, getVoteState(photo).userVote || '👍', !!getVoteState(photo).userIsSuper)" title="Vote">{{ getVoteLabel(getVoteState(photo).userVote) }}</button>
               <div v-if="emojiPickerPhotoId === photo.id" class="emoji-picker-wrap" @click.stop @mousedown.stop @mouseenter="cancelHideEmojiPicker()" @mouseleave="hideEmojiPicker()">
                 <div class="ep-search-row">
                   <input class="ep-search" v-model="emojiSearch" placeholder="Search emoji…" @click.stop @mousedown.stop @keydown.stop />
