@@ -10,7 +10,7 @@
       <div class="gallery">
         <div v-for="photo in section.photos" :key="photo.id" class="photo-item" @click="openLightbox(allPhotos.indexOf(photo))">
           <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
-          <button v-if="canDelete" class="photo-delete-btn" @click.stop="confirmDelete(photo)" title="Delete photo">🗑</button>
+
           <div class="photo-votes" @click.stop>
             <button class="vote-btn vote-fav" :class="{ active: !!getVoteState(photo).userIsSuper }" @click="handleVote($event, photo, '⭐', true)" title="Super vote">⭐</button>
             <div class="vote-up-wrapper" @mouseenter="showEmojiPicker(photo.id)" @mouseleave="hideEmojiPicker()">
@@ -18,7 +18,7 @@
               <div v-if="emojiPickerPhotoId === photo.id" class="emoji-picker-wrap" @click.stop @mousedown.stop @mouseenter="cancelHideEmojiPicker()" @mouseleave="hideEmojiPicker()">
                 <div class="ep-search-row">
                   <input class="ep-search" v-model="emojiSearch" placeholder="Search emoji…" @click.stop @mousedown.stop @keydown.stop />
-                  <button class="ep-super-toggle" :class="{ active: superMode }" @click.stop="superMode = !superMode">⭐ Super</button>
+                  <button class="ep-super-toggle" :class="{ active: superMode }" @click.stop="superMode = !superMode">Super</button>
                 </div>
                 <div class="ep-emoji-grid">
                   <button v-for="em in emojiSearchResults" :key="em" class="ep-emoji-btn" @click.stop="pickEmoji($event, photo, em)">{{ em }}</button>
@@ -241,6 +241,9 @@ function showEmojiPicker(photoId: number) {
   emojiPickerPhotoId.value = photoId;
   emojiSearch.value = '';
   emojiSearchResults.value = DEFAULT_EMOJIS;
+  const photo = allPhotos.value.find(p => p.id === photoId);
+  const state = photo ? getVoteState(photo) : null;
+  superMode.value = !!(state?.userVote && state?.userIsSuper);
 }
 function hideEmojiPicker() {
   emojiPickerHideTimer = setTimeout(() => { emojiPickerPhotoId.value = null; }, 150);
@@ -582,7 +585,13 @@ function openLightbox(index: number) {
 
   function openLbPicker() {
     if (lbPickerHideTimer) { clearTimeout(lbPickerHideTimer); lbPickerHideTimer = null; }
-    if (lbPickerEl) { lbPickerEl.style.display = "block"; lbPickerOpen = true; }
+    if (!lbPickerEl) return;
+    const p = frozenPhotos?.[pswp.currIndex];
+    const state = p ? getVoteState(p) : null;
+    lbSuperMode = !!(state?.userVote && state?.userIsSuper);
+    if (lbSuperBtn) lbSuperBtn.className = `ep-super-toggle${lbSuperMode ? " active" : ""}`;
+    lbPickerEl.style.display = "block";
+    lbPickerOpen = true;
   }
   function scheduledCloseLbPicker() {
     lbPickerHideTimer = setTimeout(closeLbPicker, 150);
@@ -946,7 +955,7 @@ function openLightbox(index: number) {
         searchInput.addEventListener("mousedown", e => e.stopPropagation());
         const superBtn = document.createElement("button");
         superBtn.className = "ep-super-toggle";
-        superBtn.textContent = "⭐ Super";
+        superBtn.textContent = "Super";
         lbSuperBtn = superBtn;
         superBtn.addEventListener("click", e => {
           e.stopPropagation();
