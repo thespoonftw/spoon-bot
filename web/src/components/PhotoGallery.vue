@@ -204,7 +204,7 @@ let refreshLightboxVotes: (() => void) | null = null;
 const emojiPickerPhotoId = ref<number | null>(null);
 const superMode = ref(false);
 const emojiSearch = ref('');
-const DEFAULT_EMOJIS = ['👍','❤️','😂','😮','😢','🔥','🎉','👏','😍','🤩','💯','✨','🥳','😎','💪','🙌'];
+const DEFAULT_EMOJIS = ['👍','😂','😲','😢','❤','🔥'];
 const emojiSearchResults = ref<string[]>(DEFAULT_EMOJIS);
 const emojiDb = new Database();
 let emojiPickerHideTimer: ReturnType<typeof setTimeout> | null = null;
