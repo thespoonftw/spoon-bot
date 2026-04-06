@@ -265,8 +265,19 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .gallery .vote-fav { display: none; }
 .vote-up-wrapper { position: relative; flex: 1; display: flex; align-items: center; }
 .vote-up-wrapper .vote-btn { width: 100%; flex: unset; }
-.emoji-picker-wrap { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); z-index: 100; box-shadow: 0 4px 24px rgba(0,0,0,0.7); border-radius: 12px; overflow: hidden; }
-.emoji-picker-wrap emoji-picker { --num-columns: 7; --emoji-size: 1.4rem; --emoji-padding: 0.3rem; width: 280px; height: 320px; }
+.emoji-picker-wrap { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); z-index: 100; box-shadow: 0 4px 24px rgba(0,0,0,0.7); border-radius: 12px; overflow: hidden; background: #1e1e2e; border: 1px solid #313244; width: 280px; }
+.ep-search-row { padding: 8px 8px 4px; }
+.ep-search { width: 100%; background: #313244; border: 1px solid #45475a; border-radius: 8px; padding: 6px 10px; color: #cdd6f4; font-size: 0.9rem; outline: none; }
+.ep-search:focus { border-color: #cba6f7; }
+.ep-emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; padding: 4px 8px; max-height: 180px; overflow-y: auto; min-height: 48px; }
+.ep-emoji-btn { background: none; border: none; cursor: pointer; font-size: 1.4rem; padding: 4px 2px; border-radius: 6px; line-height: 1; }
+.ep-emoji-btn:hover { background: #45475a; }
+.ep-no-results { color: #6c7086; font-size: 0.85rem; grid-column: 1/-1; text-align: center; padding: 8px; }
+.ep-footer { padding: 6px 8px 8px; border-top: 1px solid #313244; display: flex; justify-content: center; }
+.ep-super-toggle { background: #313244; border: 1px solid #45475a; border-radius: 8px; padding: 5px 14px; color: #a6adc8; cursor: pointer; font-size: 0.85rem; }
+.ep-super-toggle:hover { background: #45475a; color: #cdd6f4; }
+.ep-super-toggle.active { background: #3d2a5a; border-color: #cba6f7; color: #cba6f7; box-shadow: 0 0 8px rgba(203,166,247,0.4); }
+.vote-btn.vote-up.is-super { box-shadow: 0 0 10px 4px rgba(203,166,247,0.6); filter: none !important; border-radius: 4px; }
 
 .pswp__top-meta { display: none; position: absolute; top: 20px; left: 0; right: 0; padding: 0 16px; text-shadow: 0 1px 3px rgba(0,0,0,0.6); pointer-events: none; }
 .pswp__top-meta .pswp-meta-left { flex: 1; display: flex; flex-direction: column; gap: 2px; }

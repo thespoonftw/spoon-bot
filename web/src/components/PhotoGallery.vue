@@ -14,9 +14,18 @@
           <div class="photo-votes" @click.stop>
             <button class="vote-btn vote-fav" :class="{ active: !!getVoteState(photo).userIsSuper }" @click="handleVote($event, photo, '⭐', true)" title="Super vote">⭐</button>
             <div class="vote-up-wrapper" @mouseenter="showEmojiPicker(photo.id)" @mouseleave="hideEmojiPicker()">
-              <button class="vote-btn vote-up" :class="{ active: !!getVoteState(photo).userVote }" @click.stop="handleVote($event, photo, '👍', false)" title="Vote">{{ getVoteLabel(getVoteState(photo).userVote) }}</button>
+              <button class="vote-btn vote-up" :class="{ active: !!getVoteState(photo).userVote, 'is-super': !!getVoteState(photo).userIsSuper }" @click.stop="handleVote($event, photo, '👍', false)" title="Vote">{{ getVoteLabel(getVoteState(photo).userVote) }}</button>
               <div v-if="emojiPickerPhotoId === photo.id" class="emoji-picker-wrap" @click.stop @mousedown.stop @mouseenter="cancelHideEmojiPicker()" @mouseleave="hideEmojiPicker()">
-                <emoji-picker class="dark" @emoji-click="(e: any) => { const { reactType, isSuper } = getEmojiReact(e.detail.unicode); handleVote(e, photo, reactType, isSuper); emojiPickerPhotoId = null }" />
+                <div class="ep-search-row">
+                  <input class="ep-search" v-model="emojiSearch" placeholder="Search emoji…" @click.stop @mousedown.stop @keydown.stop />
+                </div>
+                <div class="ep-emoji-grid">
+                  <button v-for="em in emojiSearchResults" :key="em" class="ep-emoji-btn" @click.stop="pickEmoji($event, photo, em)">{{ em }}</button>
+                  <span v-if="emojiSearchResults.length === 0" class="ep-no-results">No results</span>
+                </div>
+                <div class="ep-footer">
+                  <button class="ep-super-toggle" :class="{ active: superMode }" @click.stop="superMode = !superMode">⭐ Super</button>
+                </div>
               </div>
             </div>
             <button class="vote-btn vote-score" @click.stop="openVoteModal(photo)">{{ getVoteState(photo).score }}</button>
@@ -141,7 +150,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
-import "emoji-picker-element";
+import { Database } from 'emoji-picker-element';
 import MemberAvatar from "./MemberAvatar.vue";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
@@ -193,16 +202,39 @@ const dragDelete = useDraggable();
 const votes = ref<Record<number, { score: number; userVote: string | null; userIsSuper: number }>>({});
 let refreshLightboxVotes: (() => void) | null = null;
 const emojiPickerPhotoId = ref<number | null>(null);
+const superMode = ref(false);
+const emojiSearch = ref('');
+const DEFAULT_EMOJIS = ['👍','❤️','😂','😮','😢','🔥','🎉','👏','😍','🤩','💯','✨','🥳','😎','💪','🙌'];
+const emojiSearchResults = ref<string[]>(DEFAULT_EMOJIS);
+const emojiDb = new Database();
 let emojiPickerHideTimer: ReturnType<typeof setTimeout> | null = null;
+let emojiSearchTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(emojiSearch, (q) => {
+  if (emojiSearchTimer) clearTimeout(emojiSearchTimer);
+  if (!q.trim()) { emojiSearchResults.value = DEFAULT_EMOJIS; return; }
+  emojiSearchTimer = setTimeout(async () => {
+    const results = await emojiDb.getEmojiBySearchQuery(q.trim());
+    emojiSearchResults.value = (results as any[]).map(e => e.unicode).filter(Boolean).slice(0, 32);
+  }, 150);
+});
 function showEmojiPicker(photoId: number) {
   if (emojiPickerHideTimer) { clearTimeout(emojiPickerHideTimer); emojiPickerHideTimer = null; }
   emojiPickerPhotoId.value = photoId;
+  emojiSearch.value = '';
+  emojiSearchResults.value = DEFAULT_EMOJIS;
 }
 function hideEmojiPicker() {
   emojiPickerHideTimer = setTimeout(() => { emojiPickerPhotoId.value = null; }, 150);
 }
 function cancelHideEmojiPicker() {
   if (emojiPickerHideTimer) { clearTimeout(emojiPickerHideTimer); emojiPickerHideTimer = null; }
+}
+function pickEmoji(e: MouseEvent, photo: Photo, emoji: string) {
+  handleVote(e as Event, photo, emoji, superMode.value);
+  emojiPickerPhotoId.value = null;
+  superMode.value = false;
+  emojiSearch.value = '';
 }
 function getEmojiReact(emoji: string): { reactType: string; isSuper: boolean } {
   return emoji === '⭐' ? { reactType: '⭐', isSuper: true } : { reactType: emoji, isSuper: false };

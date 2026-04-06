@@ -45,5 +45,4 @@ router.beforeEach(async (to) => {
 });
 
 const app = createApp(App);
-app.config.compilerOptions.isCustomElement = (tag) => tag === 'emoji-picker';
 app.use(router).mount("#app");
