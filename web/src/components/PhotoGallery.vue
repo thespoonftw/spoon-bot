@@ -794,7 +794,18 @@ function openLightbox(index: number) {
         el.addEventListener("click", (e) => {
           const featBtn = (e.target as Element).closest("[data-action='tagged']") as HTMLElement | null;
           if ((e.target as Element).closest("[data-action='emoji-toggle']")) {
-            if (window.innerWidth < 768) { lbPickerOpen ? closeLbPicker() : openLbPicker(); }
+            if (window.innerWidth < 768) {
+              lbPickerOpen ? closeLbPicker() : openLbPicker();
+            } else {
+              const p = frozenPhotos![pswp.currIndex];
+              const state = getVoteState(p);
+              if (state.userVote) {
+                const btn = (e.target as Element).closest("[data-action='emoji-toggle']") as HTMLElement;
+                const rect = btn.getBoundingClientRect();
+                spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, state.userVote, true);
+                doVote(p.channelId, p.id, state.userVote, !!state.userIsSuper);
+              }
+            }
           } else if (featBtn) {
             closeLbPicker();
             const hp = lbHoverPopupEl as HTMLElement | null; if (hp) hp.style.display = "none";
