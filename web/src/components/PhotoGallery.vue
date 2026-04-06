@@ -775,67 +775,6 @@ function openLightbox(index: number) {
           }
         });
 
-        // Register lightbox emoji picker
-        const pickerEl = document.createElement("div");
-        pickerEl.className = "emoji-picker-wrap";
-        pickerEl.style.cssText = "display:none;position:absolute;bottom:90px;left:50%;transform:translateX(-50%);z-index:20";
-        pickerEl.addEventListener("click", e => e.stopPropagation());
-
-        const searchRow = document.createElement("div");
-        searchRow.className = "ep-search-row";
-        const searchInput = document.createElement("input");
-        searchInput.className = "ep-search";
-        searchInput.placeholder = "Search emoji…";
-        searchInput.addEventListener("keydown", e => e.stopPropagation());
-        searchInput.addEventListener("mousedown", e => e.stopPropagation());
-        const superBtn = document.createElement("button");
-        superBtn.className = "ep-super-toggle";
-        superBtn.textContent = "⭐ Super";
-        lbSuperBtn = superBtn;
-        superBtn.addEventListener("click", e => {
-          e.stopPropagation();
-          lbSuperMode = !lbSuperMode;
-          superBtn.className = `ep-super-toggle${lbSuperMode ? " active" : ""}`;
-        });
-        searchRow.append(searchInput, superBtn);
-
-        const emojiGrid = document.createElement("div");
-        emojiGrid.className = "ep-emoji-grid";
-
-        const renderEmojis = (emojis: string[]) => {
-          emojiGrid.innerHTML = "";
-          for (const em of emojis) {
-            const btn = document.createElement("button");
-            btn.className = "ep-emoji-btn";
-            btn.textContent = em;
-            btn.addEventListener("click", (e) => {
-              e.stopPropagation();
-              const p = frozenPhotos![pswp.currIndex];
-              const rect = btn.getBoundingClientRect();
-              spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, em, isRemovingVote(getVoteState(p), em, lbSuperMode));
-              doVote(p.channelId, p.id, em, lbSuperMode);
-              closeLbPicker();
-            });
-            emojiGrid.appendChild(btn);
-          }
-        };
-        renderEmojis(DEFAULT_EMOJIS);
-
-        let lbSearchTimer: ReturnType<typeof setTimeout> | null = null;
-        searchInput.addEventListener("input", () => {
-          if (lbSearchTimer) clearTimeout(lbSearchTimer);
-          const q = searchInput.value.trim();
-          if (!q) { renderEmojis(DEFAULT_EMOJIS); return; }
-          lbSearchTimer = setTimeout(async () => {
-            const results = await emojiDb.getEmojiBySearchQuery(q);
-            renderEmojis((results as any[]).map((e: any) => e.unicode).filter(Boolean).slice(0, 8));
-          }, 150);
-        });
-
-        pickerEl.append(searchRow, emojiGrid);
-        el.parentElement!.appendChild(pickerEl);
-        lbPickerEl = pickerEl;
-
         const update = () => {
           const p = frozenPhotos![pswp.currIndex];
           const { score, userVote, userIsSuper } = getVoteState(p);
@@ -874,6 +813,72 @@ function openLightbox(index: number) {
         refreshLightboxVotes = update;
         pswp.on("change", update);
         update();
+      },
+    });
+
+    pswp.ui!.registerElement({
+      name: "lb-emoji-picker",
+      order: 16,
+      isButton: false,
+      appendTo: "root",
+      onInit: (el) => {
+        lbPickerEl = el;
+        el.className = "emoji-picker-wrap";
+        el.style.cssText = "display:none;position:absolute;bottom:90px;left:50%;transform:translateX(-50%);z-index:20";
+        el.addEventListener("click", e => e.stopPropagation());
+
+        const searchRow = document.createElement("div");
+        searchRow.className = "ep-search-row";
+        const searchInput = document.createElement("input");
+        searchInput.className = "ep-search";
+        searchInput.placeholder = "Search emoji…";
+        searchInput.addEventListener("keydown", e => e.stopPropagation());
+        searchInput.addEventListener("mousedown", e => e.stopPropagation());
+        const superBtn = document.createElement("button");
+        superBtn.className = "ep-super-toggle";
+        superBtn.textContent = "⭐ Super";
+        lbSuperBtn = superBtn;
+        superBtn.addEventListener("click", e => {
+          e.stopPropagation();
+          lbSuperMode = !lbSuperMode;
+          superBtn.className = `ep-super-toggle${lbSuperMode ? " active" : ""}`;
+        });
+        searchRow.append(searchInput, superBtn);
+
+        const emojiGrid = document.createElement("div");
+        emojiGrid.className = "ep-emoji-grid";
+
+        const renderEmojis = (emojis: string[]) => {
+          emojiGrid.innerHTML = "";
+          for (const em of emojis) {
+            const btn = document.createElement("button");
+            btn.className = "ep-emoji-btn";
+            btn.textContent = em;
+            btn.addEventListener("click", (ev) => {
+              ev.stopPropagation();
+              const p = frozenPhotos![pswp.currIndex];
+              const rect = btn.getBoundingClientRect();
+              spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, em, isRemovingVote(getVoteState(p), em, lbSuperMode));
+              doVote(p.channelId, p.id, em, lbSuperMode);
+              closeLbPicker();
+            });
+            emojiGrid.appendChild(btn);
+          }
+        };
+        renderEmojis(DEFAULT_EMOJIS);
+
+        let lbSearchTimer: ReturnType<typeof setTimeout> | null = null;
+        searchInput.addEventListener("input", () => {
+          if (lbSearchTimer) clearTimeout(lbSearchTimer);
+          const q = searchInput.value.trim();
+          if (!q) { renderEmojis(DEFAULT_EMOJIS); return; }
+          lbSearchTimer = setTimeout(async () => {
+            const results = await emojiDb.getEmojiBySearchQuery(q);
+            renderEmojis((results as any[]).map((r: any) => r.unicode).filter(Boolean).slice(0, 8));
+          }, 150);
+        });
+
+        el.append(searchRow, emojiGrid);
       },
     });
   });
