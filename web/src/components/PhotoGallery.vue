@@ -791,11 +791,41 @@ function openLightbox(index: number) {
       isButton: false,
       appendTo: "root",
       onInit: (el) => {
+        // Mobile: short tap = vote, long press = open picker
+        let lbTouchTimer: ReturnType<typeof setTimeout> | null = null;
+        let lbTouchIsLong = false;
+        el.addEventListener("touchstart", (e) => {
+          const emojiBtn = (e.target as Element).closest("[data-action='emoji-toggle']");
+          if (!emojiBtn) return;
+          lbTouchIsLong = false;
+          lbTouchTimer = setTimeout(() => {
+            lbTouchIsLong = true;
+            lbPickerOpen ? closeLbPicker() : openLbPicker();
+          }, 500);
+        }, { passive: true });
+        el.addEventListener("touchmove", () => {
+          if (lbTouchTimer) { clearTimeout(lbTouchTimer); lbTouchTimer = null; }
+        }, { passive: true });
+        el.addEventListener("touchend", (e) => {
+          if (lbTouchTimer) { clearTimeout(lbTouchTimer); lbTouchTimer = null; }
+          const emojiBtn = (e.target as Element).closest("[data-action='emoji-toggle']");
+          if (!emojiBtn) return;
+          e.preventDefault(); // suppress subsequent click
+          if (lbTouchIsLong) return;
+          const p = frozenPhotos![pswp.currIndex];
+          const state = getVoteState(p);
+          const reactType = state.userVote || '👍';
+          const isSuper = !!state.userIsSuper;
+          const rect = (emojiBtn as HTMLElement).getBoundingClientRect();
+          spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, reactType, isRemovingVote(state, reactType, isSuper));
+          doVote(p.channelId, p.id, reactType, isSuper);
+        });
+
         el.addEventListener("click", (e) => {
           const featBtn = (e.target as Element).closest("[data-action='tagged']") as HTMLElement | null;
           if ((e.target as Element).closest("[data-action='emoji-toggle']")) {
             if (window.innerWidth < 768) {
-              lbPickerOpen ? closeLbPicker() : openLbPicker();
+              // handled by touchend
             } else {
               const p = frozenPhotos![pswp.currIndex];
               const state = getVoteState(p);
