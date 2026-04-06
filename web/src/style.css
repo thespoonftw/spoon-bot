@@ -277,6 +277,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .ep-super-toggle:hover { background: #45475a; color: #cdd6f4; }
 .ep-super-toggle.active { background: #3d2a5a; border-color: #cba6f7; color: #cba6f7; box-shadow: 0 0 6px rgba(203,166,247,0.35); }
 .vote-btn.vote-up.is-super { filter: none !important; background: radial-gradient(circle at center, rgba(203,166,247,0.22) 0%, transparent 55%) !important; border-radius: 4px; }
+.is-super-glow { background: radial-gradient(circle at center, rgba(203,166,247,0.32) 0%, transparent 58%); border-radius: 4px; display: inline-block; }
 .vote-hover-wrapper { position: relative; flex: 1; display: flex; align-items: center; }
 .vote-hover-wrapper .vote-btn { width: 100%; flex: unset; }
 .vote-hover-popup { position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%); z-index: 200; background: #1e1e2e; border: 1px solid #313244; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.7); padding: 8px; min-width: 140px; max-width: 200px; }

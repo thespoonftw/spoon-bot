@@ -29,12 +29,12 @@
             <div class="vote-hover-wrapper">
               <button class="vote-btn vote-score" @mouseenter="showVoteHover(photo)" @mouseleave="hideVoteHover()" @click.stop="openVoteModal(photo)">{{ getVoteState(photo).score }}</button>
               <div v-if="hoverVotePhotoId === photo.id" class="vote-hover-popup" @mouseenter="cancelHideVoteHover()" @mouseleave="hideVoteHover()">
-                <div v-if="hoverVoteData.length === 0" class="vote-hover-empty">No votes yet</div>
+                <div v-if="hoverVoteData.length === 0" class="vote-hover-empty">Fetching…</div>
                 <div v-for="v in hoverVoteData" :key="v.userId" class="vote-hover-row">
                   <img v-if="v.avatarUrl" :src="v.avatarUrl" class="vote-hover-avatar" />
                   <span v-else class="vote-hover-avatar vote-hover-initial">{{ (v.firstName || v.displayName)[0] }}</span>
                   <span class="vote-hover-name">{{ v.firstName || v.displayName }}</span>
-                  <span class="vote-hover-icon">{{ v.reactType }}{{ v.isSuper ? '✨' : '' }}</span>
+                  <span class="vote-hover-icon" :class="{ 'is-super-glow': v.isSuper }">{{ v.reactType }}</span>
                 </div>
               </div>
             </div>
@@ -576,16 +576,45 @@ function openLightbox(index: number) {
   let lbSuperMode = false;
   let lbPickerEl: HTMLElement | null = null;
   let lbSuperBtn: HTMLButtonElement | null = null;
+  let lbPickerHideTimer: ReturnType<typeof setTimeout> | null = null;
+  let lbHoverPopupEl: HTMLElement | null = null;
+  let lbHoverHideTimer: ReturnType<typeof setTimeout> | null = null;
 
   function openLbPicker() {
+    if (lbPickerHideTimer) { clearTimeout(lbPickerHideTimer); lbPickerHideTimer = null; }
     if (lbPickerEl) { lbPickerEl.style.display = "block"; lbPickerOpen = true; }
   }
+  function scheduledCloseLbPicker() {
+    lbPickerHideTimer = setTimeout(closeLbPicker, 150);
+  }
+  function cancelScheduledCloseLbPicker() {
+    if (lbPickerHideTimer) { clearTimeout(lbPickerHideTimer); lbPickerHideTimer = null; }
+  }
   function closeLbPicker() {
+    if (lbPickerHideTimer) { clearTimeout(lbPickerHideTimer); lbPickerHideTimer = null; }
     if (!lbPickerEl) return;
     lbPickerEl.style.display = "none";
     lbPickerOpen = false;
     lbSuperMode = false;
     if (lbSuperBtn) lbSuperBtn.className = "ep-super-toggle";
+  }
+
+  function showLbHoverPopup(anchorBtn: HTMLElement, content: string) {
+    if (!lbHoverPopupEl) return;
+    if (lbHoverHideTimer) { clearTimeout(lbHoverHideTimer); lbHoverHideTimer = null; }
+    lbHoverPopupEl.innerHTML = content;
+    lbHoverPopupEl.style.display = "block";
+    const anchor = anchorBtn.getBoundingClientRect();
+    const pr = (lbHoverPopupEl.offsetParent as HTMLElement)?.getBoundingClientRect() ?? { left: 0, top: 0, height: window.innerHeight };
+    lbHoverPopupEl.style.left = `${anchor.left + anchor.width / 2 - pr.left}px`;
+    lbHoverPopupEl.style.bottom = `${pr.height - (anchor.top - pr.top) + 6}px`;
+    lbHoverPopupEl.style.transform = "translateX(-50%)";
+  }
+  function hideLbHoverPopup() {
+    lbHoverHideTimer = setTimeout(() => { if (lbHoverPopupEl) lbHoverPopupEl.style.display = "none"; }, 150);
+  }
+  function cancelHideLbHoverPopup() {
+    if (lbHoverHideTimer) { clearTimeout(lbHoverHideTimer); lbHoverHideTimer = null; }
   }
 
   pswp.on("change", () => {
@@ -765,12 +794,14 @@ function openLightbox(index: number) {
         el.addEventListener("click", (e) => {
           const featBtn = (e.target as Element).closest("[data-action='tagged']") as HTMLElement | null;
           if ((e.target as Element).closest("[data-action='emoji-toggle']")) {
-            lbPickerOpen ? closeLbPicker() : openLbPicker();
+            if (window.innerWidth < 768) { lbPickerOpen ? closeLbPicker() : openLbPicker(); }
           } else if (featBtn) {
             closeLbPicker();
+            const hp = lbHoverPopupEl as HTMLElement | null; if (hp) hp.style.display = "none";
             openTagging(frozenPhotos![pswp.currIndex], true);
           } else if ((e.target as Element).closest("[data-action='score']")) {
             closeLbPicker();
+            const hp = lbHoverPopupEl as HTMLElement | null; if (hp) hp.style.display = "none";
             openVoteModal(frozenPhotos![pswp.currIndex]);
           }
         });
@@ -794,11 +825,47 @@ function openLightbox(index: number) {
             <div class="pswp-meta-left">${dateHtml}</div>
             <div class="pswp-meta-right">${uploaderHtml}</div>
             <div class="pswp-votes">
-              <button data-action="emoji-toggle" class="pswp-vote-btn${voteActive ? (userIsSuper ? " active-fav" : " active-up") : ""}">${userVote || '👍'}${userIsSuper ? ' ✨' : ''}</button>
+              <button data-action="emoji-toggle" class="pswp-vote-btn${voteActive ? (userIsSuper ? " active-fav" : " active-up") : ""}"><span${userIsSuper ? ' class="is-super-glow"' : ''}>${userVote || '👍'}</span></button>
               <button data-action="score" class="pswp-vote-btn pswp-vote-score">${score}</button>
               <button data-action="tagged" class="pswp-vote-btn${taggedMs.length ? " active-fav" : ""}">${taggedBtnContent}</button>
             </div>
           `;
+          // Desktop hover behaviours — listeners attached fresh each update (buttons are recreated by innerHTML)
+          if (window.innerWidth >= 768) {
+            const emojiBtn = el.querySelector("[data-action='emoji-toggle']") as HTMLElement | null;
+            const scoreBtn = el.querySelector("[data-action='score']") as HTMLElement | null;
+            const taggedBtn2 = el.querySelector("[data-action='tagged']") as HTMLElement | null;
+            if (emojiBtn) {
+              emojiBtn.addEventListener("mouseenter", openLbPicker);
+              emojiBtn.addEventListener("mouseleave", scheduledCloseLbPicker);
+            }
+            if (scoreBtn && score > 0) {
+              scoreBtn.addEventListener("mouseenter", async () => {
+                const mkRow = (avatarUrl: string | null, name: string, reactType: string, isSuper: number) =>
+                  `<div class="vote-hover-row">${avatarUrl ? `<img src="${avatarUrl}" class="vote-hover-avatar" />` : `<span class="vote-hover-avatar vote-hover-initial">${name[0]}</span>`}<span class="vote-hover-name">${name}</span><span class="vote-hover-icon${isSuper ? ' is-super-glow' : ''}">${reactType}</span></div>`;
+                if (hoverVoteCache.has(p.id)) {
+                  const data = hoverVoteCache.get(p.id)!;
+                  if (!data.length) return;
+                  showLbHoverPopup(scoreBtn!, data.map(v => mkRow(v.avatarUrl, v.firstName || v.displayName, v.reactType, v.isSuper)).join(""));
+                } else {
+                  showLbHoverPopup(scoreBtn!, '<div class="vote-hover-empty">Fetching…</div>');
+                  const data = await fetchVoteBreakdown(p);
+                  hoverVoteCache.set(p.id, data);
+                  if (!data.length) { hideLbHoverPopup(); return; }
+                  const hpEl = lbHoverPopupEl as HTMLElement | null;
+                  if (hpEl?.style.display === "block") showLbHoverPopup(scoreBtn!, data.map((v: VoteBreakdownRow) => mkRow(v.avatarUrl, v.firstName || v.displayName, v.reactType, v.isSuper)).join(""));
+                }
+              });
+              scoreBtn.addEventListener("mouseleave", hideLbHoverPopup);
+            }
+            if (taggedBtn2 && taggedMs.length) {
+              taggedBtn2.addEventListener("mouseenter", () => {
+                const html = taggedMs.map(m => `<div class="vote-hover-row">${m.avatarUrl ? `<img src="${m.avatarUrl}" class="vote-hover-avatar" />` : `<span class="vote-hover-avatar vote-hover-initial">${(m.firstName || m.displayName)[0]}</span>`}<span class="vote-hover-name">${m.firstName || m.displayName}</span></div>`).join("");
+                showLbHoverPopup(taggedBtn2, html);
+              });
+              taggedBtn2.addEventListener("mouseleave", hideLbHoverPopup);
+            }
+          }
           if (topMetaEl) topMetaEl.innerHTML = `<div class="pswp-meta-left">${dateHtml}</div><div class="pswp-meta-right">${uploaderHtml}</div>`;
           if (captionDisplayEl) {
             const caption = p.caption || "";
@@ -826,6 +893,8 @@ function openLightbox(index: number) {
         el.className = "emoji-picker-wrap";
         el.style.cssText = "display:none;position:absolute;bottom:90px;left:50%;transform:translateX(-50%);z-index:20";
         el.addEventListener("click", e => e.stopPropagation());
+        el.addEventListener("mouseenter", cancelScheduledCloseLbPicker);
+        el.addEventListener("mouseleave", scheduledCloseLbPicker);
 
         const searchRow = document.createElement("div");
         searchRow.className = "ep-search-row";
@@ -879,6 +948,20 @@ function openLightbox(index: number) {
         });
 
         el.append(searchRow, emojiGrid);
+      },
+    });
+
+    pswp.ui!.registerElement({
+      name: "lb-hover-popup",
+      order: 17,
+      isButton: false,
+      appendTo: "root",
+      onInit: (el) => {
+        lbHoverPopupEl = el;
+        el.className = "vote-hover-popup";
+        el.style.cssText = "display:none;position:absolute;z-index:20;min-width:140px;max-width:200px";
+        el.addEventListener("mouseenter", cancelHideLbHoverPopup);
+        el.addEventListener("mouseleave", hideLbHoverPopup);
       },
     });
   });
