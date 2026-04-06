@@ -799,12 +799,12 @@ function openLightbox(index: number) {
             } else {
               const p = frozenPhotos![pswp.currIndex];
               const state = getVoteState(p);
-              if (state.userVote) {
-                const btn = (e.target as Element).closest("[data-action='emoji-toggle']") as HTMLElement;
-                const rect = btn.getBoundingClientRect();
-                spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, state.userVote, true);
-                doVote(p.channelId, p.id, state.userVote, !!state.userIsSuper);
-              }
+              const reactType = state.userVote || '👍';
+              const isSuper = !!state.userIsSuper;
+              const btn = (e.target as Element).closest("[data-action='emoji-toggle']") as HTMLElement;
+              const rect = btn.getBoundingClientRect();
+              spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, reactType, isRemovingVote(state, reactType, isSuper));
+              doVote(p.channelId, p.id, reactType, isSuper);
             }
           } else if (featBtn) {
             closeLbPicker();
