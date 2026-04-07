@@ -11,7 +11,7 @@
             <button class="btn-secondary btn-small" @click="openShare">Share</button>
             <button class="btn-primary btn-small" @click="openUpload">Upload</button>
           </div>
-          <div class="album-header-members">
+          <div class="album-header-members desktop-only">
             <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
               <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
             </div>

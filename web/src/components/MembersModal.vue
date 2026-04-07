@@ -83,6 +83,7 @@ const addableUsers = computed(() => {
 });
 
 watch(() => props.modelValue, async (v) => {
+  document.body.style.overflow = v ? "hidden" : "";
   if (!v) return;
   drag.reset();
   deletedMemberIds.value = new Set();
