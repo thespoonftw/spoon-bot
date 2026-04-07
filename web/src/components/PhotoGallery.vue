@@ -628,6 +628,7 @@ function openLightbox(index: number) {
 
   pswp.on("change", () => {
     closeLbPicker();
+    const hp = lbHoverPopupEl as HTMLElement | null; if (hp) hp.style.display = "none";
     if (showTagging.value) openTagging(frozenPhotos![pswp.currIndex]);
     // Trigger load more when within 5 of the end
     if (props.canLoadMore && !lightboxLoadingMore && pswp.currIndex >= dsArray.length - 5) {
@@ -679,7 +680,8 @@ function openLightbox(index: number) {
         ? `<img src="${uploaderMember.avatarUrl}" style="width:1.4em;height:1.4em;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:5px" />`
         : "";
       const uploadedAtHtml = p?.uploadedAt ? `<span class="pswp-upload-date">${formatDateTime(p.uploadedAt)}</span>` : "";
-      const uploaderHtml = p?.uploadedByName ? `<span class="pswp-caption-uploader">By: ${avatarHtml}${p.uploadedByName}</span>${uploadedAtHtml}` : "";
+      const uploaderLabel = window.innerWidth >= 768 ? "Uploader:" : "By:";
+      const uploaderHtml = p?.uploadedByName ? `<span class="pswp-caption-uploader">${uploaderLabel} ${avatarHtml}${p.uploadedByName}</span>${uploadedAtHtml}` : "";
       return { dateHtml, uploaderHtml };
     };
     pswp.ui!.registerElement({
@@ -835,6 +837,8 @@ function openLightbox(index: number) {
           const scoreBtn2 = (e.target as Element).closest("[data-action='score']") as HTMLElement | null;
           if (scoreBtn2) {
             e.preventDefault();
+            const hpEl2 = lbHoverPopupEl as HTMLElement | null;
+            if (hpEl2?.style.display === "block") { hpEl2.style.display = "none"; return; }
             const p2 = frozenPhotos![pswp.currIndex];
             if (!getVoteState(p2).score) return;
             const mkRow = (avatarUrl: string | null, name: string, reactType: string, isSuper: number) =>
