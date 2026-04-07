@@ -19,6 +19,7 @@
                 <div class="ep-search-row">
                   <input class="ep-search" v-model="emojiSearch" placeholder="Search emoji…" @click.stop @mousedown.stop @keydown.stop />
                   <button class="ep-super-toggle" :class="{ active: superMode }" @click.stop="superMode = !superMode">Super</button>
+                  <button class="ep-close-btn" @click.stop="closeEmojiPicker()">✕</button>
                 </div>
                 <div class="ep-emoji-grid">
                   <button v-for="em in emojiSearchResults" :key="em" class="ep-emoji-btn" @click.stop="pickEmoji($event, photo, em)">{{ em }}</button>
@@ -27,7 +28,7 @@
               </div>
             </div>
             <div class="vote-hover-wrapper">
-              <button class="vote-btn vote-score" @mouseenter="showVoteHover(photo)" @mouseleave="hideVoteHover()" @click.stop="openVoteModal(photo)">{{ getVoteState(photo).score }}</button>
+              <button class="vote-btn vote-score" @mouseenter="showVoteHover(photo)" @mouseleave="hideVoteHover()" @click.stop>{{ getVoteState(photo).score }}</button>
               <div v-if="hoverVotePhotoId === photo.id" class="vote-hover-popup" @mouseenter="cancelHideVoteHover()" @mouseleave="hideVoteHover()">
                 <div v-if="hoverVoteData.length === 0" class="vote-hover-empty">Fetching…</div>
                 <div v-for="v in hoverVoteData" :key="v.userId" class="vote-hover-row">
@@ -109,22 +110,6 @@
   </Teleport>
 
   <Teleport to="body">
-    <!-- Vote Breakdown Modal -->
-    <div class="modal-overlay" v-if="voteModalPhoto" style="z-index:200000;pointer-events:none;background:none">
-      <div class="modal" :style="dragVotes.style.value" style="pointer-events:auto">
-        <button class="modal-close" @click="voteModalPhoto = null">✕</button>
-        <h2 class="modal-drag-handle" @mousedown="dragVotes.onMouseDown">Votes</h2>
-        <div v-if="voteModalData.length === 0" style="color:#6c7086;margin-top:12px">No votes yet</div>
-        <div v-else class="vote-modal-list">
-          <div v-for="v in voteModalData" :key="v.userId" class="vote-modal-row">
-            <img v-if="v.avatarUrl" :src="v.avatarUrl" class="vote-modal-avatar" />
-            <span v-else class="vote-modal-avatar vote-modal-initial">{{ (v.firstName || v.displayName)[0] }}</span>
-            <span class="vote-modal-name">{{ v.firstName || v.displayName }}</span>
-            <span class="vote-modal-icon"><span class="super-side" :style="v.isSuper ? {} : { visibility: 'hidden' }">{{ v.reactType }}</span><span :class="{ 'is-super-glow': v.isSuper }">{{ v.reactType }}</span><span class="super-side" :style="v.isSuper ? {} : { visibility: 'hidden' }">{{ v.reactType }}</span></span>
-          </div>
-        </div>
-      </div>
-    </div>
     <!-- Delete Photo Confirmation Modal -->
     <div class="modal-overlay" v-if="canDelete && deletingPhoto" style="z-index:200000">
       <div class="modal" :style="dragDelete.style.value">
@@ -214,7 +199,6 @@ const emit = defineEmits<{
 }>();
 
 const dragTagging = useDraggable();
-const dragVotes = useDraggable();
 const dragDelete = useDraggable();
 
 const votes = ref<Record<number, { score: number; userVote: string | null; userIsSuper: number }>>({});
@@ -254,6 +238,10 @@ function hideEmojiPicker() {
 }
 function cancelHideEmojiPicker() {
   if (emojiPickerHideTimer) { clearTimeout(emojiPickerHideTimer); emojiPickerHideTimer = null; }
+}
+function closeEmojiPicker() {
+  if (emojiPickerHideTimer) { clearTimeout(emojiPickerHideTimer); emojiPickerHideTimer = null; }
+  emojiPickerPhotoId.value = null;
 }
 function pickEmoji(e: MouseEvent, photo: Photo, emoji: string) {
   handleVote(e as Event, photo, emoji, superMode.value);
@@ -312,8 +300,6 @@ const showTaggingPicker = ref(false);
 const taggingPhoto = ref<Photo | null>(null);
 const taggingSelection = ref(new Set<string>());
 
-const voteModalPhoto = ref<Photo | null>(null);
-const voteModalData = ref<{ userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; reactType: string; isSuper: number }[]>([]);
 
 const deletingPhoto = ref<Photo | null>(null);
 const deleting = ref(false);
@@ -358,17 +344,6 @@ async function fetchVoteBreakdown(photo: Photo) {
   return res.ok ? await res.json() : [];
 }
 
-async function openVoteModal(photo: Photo) {
-  if (!voteModalPhoto.value) {
-    dragVotes.reset();
-    if (window.innerWidth >= 768) {
-      const modalW = Math.min(380, window.innerWidth);
-      dragVotes.setPosition(-(window.innerWidth / 2 - modalW / 2 - 80), 0);
-    }
-  }
-  voteModalPhoto.value = photo;
-  voteModalData.value = await fetchVoteBreakdown(photo);
-}
 
 function getVoteState(photo: Photo) {
   return votes.value[photo.id] ?? { score: photo.score ?? 0, userVote: photo.userVote ?? null, userIsSuper: photo.userIsSuper ?? 0 };
@@ -473,8 +448,7 @@ function handleEscape(e: KeyboardEvent) {
   if (e.key !== "Escape") return;
   if (showTaggingPicker.value) { showTaggingPicker.value = false; e.stopImmediatePropagation(); return; }
   if (showTagging.value)       { showTagging.value = false;       e.stopImmediatePropagation(); return; }
-  if (voteModalPhoto.value)    { voteModalPhoto.value = null;     e.stopImmediatePropagation(); return; }
-  if (deletingPhoto.value)     { deletingPhoto.value = null;      e.stopImmediatePropagation(); return; }
+if (deletingPhoto.value)     { deletingPhoto.value = null;      e.stopImmediatePropagation(); return; }
 }
 onMounted(() => window.addEventListener("keydown", handleEscape, true));
 onUnmounted(() => window.removeEventListener("keydown", handleEscape, true));
@@ -574,7 +548,6 @@ function openLightbox(index: number) {
     if (!closedByBack) history.back();
     showTagging.value = false;
     showTaggingPicker.value = false;
-    voteModalPhoto.value = null;
     const idx = pendingReopenIndex;
     pendingReopenIndex = null;
     if (idx !== null) nextTick(() => openLightbox(idx));
@@ -635,7 +608,6 @@ function openLightbox(index: number) {
   pswp.on("change", () => {
     closeLbPicker();
     if (showTagging.value) openTagging(frozenPhotos![pswp.currIndex]);
-    if (voteModalPhoto.value) openVoteModal(frozenPhotos![pswp.currIndex]);
     // Trigger load more when within 5 of the end
     if (props.canLoadMore && !lightboxLoadingMore && pswp.currIndex >= dsArray.length - 5) {
       lightboxLoadingMore = true;
@@ -855,10 +827,6 @@ function openLightbox(index: number) {
             closeLbPicker();
             const hp = lbHoverPopupEl as HTMLElement | null; if (hp) hp.style.display = "none";
             openTagging(frozenPhotos![pswp.currIndex], true);
-          } else if ((e.target as Element).closest("[data-action='score']")) {
-            closeLbPicker();
-            const hp = lbHoverPopupEl as HTMLElement | null; if (hp) hp.style.display = "none";
-            openVoteModal(frozenPhotos![pswp.currIndex]);
           }
         });
 
