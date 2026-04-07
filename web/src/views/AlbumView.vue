@@ -15,7 +15,7 @@
             <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
               <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
             </div>
-            <button class="btn-icon" @click="showEditMembers = true" title="Edit members" style="margin-left:4px;opacity:0.45" @mouseenter="$event.currentTarget.style.opacity='1'" @mouseleave="$event.currentTarget.style.opacity='0.45'">✏️</button>
+            <button class="btn-icon album-members-edit" @click="showEditMembers = true" title="Edit members">✏️</button>
           </div>
         </div>
       </PageHeader>
@@ -33,8 +33,7 @@
       <!-- 📍 Locations (multi only, desktop only) -->
       <div v-if="(album.locations?.length ?? 0) > 1" class="album-section desktop-only">
         <div class="album-section-header">
-          <span class="album-section-label">📍</span>
-          <span class="album-section-count">{{ album.locations!.length }}</span>
+          <span class="album-section-count">📍 {{ album.locations!.length }}</span>
         </div>
         <div class="album-locations-list">
           <span v-for="loc in album.locations" :key="loc.id" class="location-tag location-tag-link" @click="jumpToPhotos(loc.id)">{{ loc.name }}</span>
@@ -45,8 +44,7 @@
       <!-- 📷 Photos -->
       <div class="album-section">
         <div class="album-section-header">
-          <span class="album-section-label">📷</span>
-          <span class="album-section-count">{{ totalSortedCount }}</span>
+          <span class="album-section-count">📷 {{ totalSortedCount }}</span>
           <template v-if="album.photos.length > 0">
             <label class="sort-label" style="margin-left: auto">Sort By:</label>
             <select v-model="sortBy" class="sort-select" @change="onSortChange">
