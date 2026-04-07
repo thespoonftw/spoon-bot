@@ -1015,7 +1015,7 @@ function openLightbox(index: number) {
       onInit: (el) => {
         lbPickerEl = el;
         el.className = "emoji-picker-wrap";
-        el.style.cssText = "display:none;position:absolute;bottom:90px;left:50%;transform:translateX(-50%);z-index:20";
+        el.style.cssText = "display:none;position:absolute;bottom:90px;left:50%;transform:translateX(-50%);z-index:20;width:320px";
         el.addEventListener("click", e => e.stopPropagation());
         el.addEventListener("mouseenter", cancelScheduledCloseLbPicker);
         el.addEventListener("mouseleave", scheduledCloseLbPicker);
