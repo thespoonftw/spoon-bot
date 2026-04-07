@@ -267,6 +267,17 @@ const hoverVotePhotoId = ref<number | null>(null);
 const hoverVoteData = ref<VoteBreakdownRow[]>([]);
 const hoverVoteCache = new Map<number, VoteBreakdownRow[]>();
 let hoverVoteHideTimer: ReturnType<typeof setTimeout> | null = null;
+
+function getTopSideEmojis(photoId: number): [string | null, string | null] {
+  const data = hoverVoteCache.get(photoId);
+  if (!data) return [null, null];
+  const counts = new Map<string, number>();
+  for (const v of data) {
+    if (v.reactType !== '👍') counts.set(v.reactType, (counts.get(v.reactType) ?? 0) + 1);
+  }
+  const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  return [sorted[1]?.[0] ?? null, sorted[0]?.[0] ?? null]; // [left=2nd, right=1st]
+}
 async function showVoteHover(photo: Photo) {
   if (!getVoteState(photo).score) return;
   if (hoverVoteHideTimer) { clearTimeout(hoverVoteHideTimer); hoverVoteHideTimer = null; }
@@ -568,6 +579,7 @@ function openLightbox(index: number) {
   let lbPickerOpen = false;
   let lbSuperMode = false;
   let lbCurrentVote: string | null = null;
+  const lbSideFetching = new Set<number>();
   let lbBaseEmojis: string[] = DEFAULT_EMOJIS;
   let lbPickerEl: HTMLElement | null = null;
   let lbSuperBtn: HTMLButtonElement | null = null;
@@ -915,12 +927,21 @@ function openLightbox(index: number) {
               ).join("")}</span>`
             : "👥";
           const { dateHtml, uploaderHtml } = buildMetaHtml(p);
+          const [leftEmoji, rightEmoji] = getTopSideEmojis(p.id);
+          if (!hoverVoteCache.has(p.id) && score > 0 && !lbSideFetching.has(p.id)) {
+            lbSideFetching.add(p.id);
+            fetchVoteBreakdown(p).then(data => {
+              lbSideFetching.delete(p.id);
+              hoverVoteCache.set(p.id, data);
+              if (frozenPhotos?.[pswp.currIndex]?.id === p.id) update();
+            });
+          }
           el.innerHTML = `
             <div class="pswp-meta-left">${dateHtml}</div>
             <div class="pswp-meta-right">${uploaderHtml}</div>
             <div class="pswp-votes">
               <button data-action="emoji-toggle" class="pswp-vote-btn${voteActive ? (userIsSuper ? " active-fav" : " active-up") : ""}"><span class="super-side" style="visibility:${userIsSuper ? 'visible' : 'hidden'}">${userVote || '👍'}</span><span${userIsSuper ? ' class="is-super-glow"' : ''}>${userVote || '👍'}</span><span class="super-side" style="visibility:${userIsSuper ? 'visible' : 'hidden'}">${userVote || '👍'}</span></button>
-              <button data-action="score" class="pswp-vote-btn pswp-vote-score">${score}</button>
+              <button data-action="score" class="pswp-vote-btn pswp-vote-score"><span class="score-side-emoji" style="visibility:${leftEmoji ? 'visible' : 'hidden'}">${leftEmoji || '?'}</span><span>${score}</span><span class="score-side-emoji" style="visibility:${rightEmoji ? 'visible' : 'hidden'}">${rightEmoji || '?'}</span></button>
               <button data-action="tagged" class="pswp-vote-btn${taggedMs.length ? " active-fav" : ""}">${taggedBtnContent}</button>
             </div>
           `;
