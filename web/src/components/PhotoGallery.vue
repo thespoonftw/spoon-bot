@@ -633,7 +633,7 @@ function openLightbox(index: number) {
     });
     const buildMetaHtml = (p: Photo) => {
       const album = props.albumMap?.[p.channelId];
-      const locs = album?.locations ?? [];
+      const locs = album?.locations?.length ? album.locations : (props.albumLocations ?? []);
       let locationStr: string | undefined;
       if (locs.length === 0) {
         locationStr = undefined;
@@ -796,16 +796,40 @@ function openLightbox(index: number) {
         el.addEventListener("touchend", (e) => {
           if (lbTouchTimer) { clearTimeout(lbTouchTimer); lbTouchTimer = null; }
           const emojiBtn = (e.target as Element).closest("[data-action='emoji-toggle']");
-          if (!emojiBtn) return;
-          e.preventDefault(); // suppress subsequent click
-          if (lbTouchIsLong) return;
-          const p = frozenPhotos![pswp.currIndex];
-          const state = getVoteState(p);
-          const reactType = state.userVote || '👍';
-          const isSuper = !!state.userIsSuper;
-          const rect = (emojiBtn as HTMLElement).getBoundingClientRect();
-          spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, reactType, isRemovingVote(state, reactType, isSuper));
-          doVote(p.channelId, p.id, reactType, isSuper);
+          if (emojiBtn) {
+            e.preventDefault();
+            if (lbTouchIsLong) return;
+            const p = frozenPhotos![pswp.currIndex];
+            const state = getVoteState(p);
+            const reactType = state.userVote || '👍';
+            const isSuper = !!state.userIsSuper;
+            const rect = (emojiBtn as HTMLElement).getBoundingClientRect();
+            spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, reactType, isRemovingVote(state, reactType, isSuper));
+            doVote(p.channelId, p.id, reactType, isSuper);
+            return;
+          }
+          const scoreBtn2 = (e.target as Element).closest("[data-action='score']") as HTMLElement | null;
+          if (scoreBtn2) {
+            e.preventDefault();
+            const p2 = frozenPhotos![pswp.currIndex];
+            if (!getVoteState(p2).score) return;
+            const mkRow = (avatarUrl: string | null, name: string, reactType: string, isSuper: number) =>
+              `<div class="vote-hover-row">${avatarUrl ? `<img src="${avatarUrl}" class="vote-hover-avatar" />` : `<span class="vote-hover-avatar vote-hover-initial">${name[0]}</span>`}<span class="vote-hover-name">${name}</span><span class="vote-hover-icon"><span class="super-side" style="visibility:${isSuper ? 'visible' : 'hidden'}">${reactType}</span><span class="${isSuper ? 'is-super-glow' : ''}">${reactType}</span><span class="super-side" style="visibility:${isSuper ? 'visible' : 'hidden'}">${reactType}</span></span></div>`;
+            (async () => {
+              if (hoverVoteCache.has(p2.id)) {
+                const data = hoverVoteCache.get(p2.id)!;
+                if (!data.length) return;
+                showLbHoverPopup(scoreBtn2, data.map(v => mkRow(v.avatarUrl, v.firstName || v.displayName, v.reactType, v.isSuper)).join(""));
+              } else {
+                showLbHoverPopup(scoreBtn2, '<div class="vote-hover-empty">Fetching…</div>');
+                const data: VoteBreakdownRow[] = await fetchVoteBreakdown(p2);
+                hoverVoteCache.set(p2.id, data);
+                if (!data.length) { hideLbHoverPopup(); return; }
+                const hpEl = lbHoverPopupEl as HTMLElement | null;
+                if (hpEl?.style.display === "block") showLbHoverPopup(scoreBtn2, data.map(v => mkRow(v.avatarUrl, v.firstName || v.displayName, v.reactType, v.isSuper)).join(""));
+              }
+            })();
+          }
         });
 
         el.addEventListener("click", (e) => {
@@ -936,7 +960,11 @@ function openLightbox(index: number) {
           lbSuperMode = !lbSuperMode;
           superBtn.className = `ep-super-toggle${lbSuperMode ? " active" : ""}`;
         });
-        searchRow.append(searchInput, superBtn);
+        const closeBtn = document.createElement("button");
+        closeBtn.className = "ep-close-btn";
+        closeBtn.textContent = "✕";
+        closeBtn.addEventListener("click", (e) => { e.stopPropagation(); closeLbPicker(); });
+        searchRow.append(searchInput, superBtn, closeBtn);
 
         const emojiGrid = document.createElement("div");
         emojiGrid.className = "ep-emoji-grid";

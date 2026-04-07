@@ -69,7 +69,7 @@
         <p v-if="album.photos.length === 0" class="empty">No photos yet.</p>
         <PhotoGallery v-else :sections="displayedSections" :members="allMembers" :can-delete="true"
           :can-load-more="hasMore" :total-count="totalSortedCount"
-          :album-locations="(album?.locations?.length ?? 0) > 1 ? (album?.locations ?? []) : []"
+          :album-locations="album?.locations ?? []"
           @photo-deleted="onPhotoDeleted" @load-more="displayLimit += 40" />
         <div class="search-show-more" v-if="hasMore" ref="showMoreEl">
           <button class="btn-secondary" @click="displayLimit += 40">Show more</button>
