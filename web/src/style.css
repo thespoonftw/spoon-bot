@@ -263,7 +263,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .vote-btn { flex: 1; background: none; border: none; cursor: pointer; padding: 0; border-radius: 4px; font-size: 0.8em; line-height: 1; filter: grayscale(1) opacity(0.4); display: flex; align-items: center; justify-content: center; height: 20px; }
 .vote-btn:hover { filter: grayscale(0.2) opacity(0.85); background: #45475a; }
 .vote-btn.active { filter: none; }
-.vote-score { flex: 1; color: #a6adc8; font-size: 0.8em; font-weight: 600; text-align: center; filter: none !important; cursor: pointer; }
+.vote-score { flex: 1; color: #a6adc8; font-size: 0.8em; font-weight: 600; filter: none !important; cursor: pointer; }
 .gallery .vote-fav { display: none; }
 .vote-up-wrapper { position: relative; flex: 1; display: flex; align-items: center; }
 .vote-up-wrapper .vote-btn { width: 100%; flex: unset; }
@@ -302,7 +302,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .pswp-vote-btn:hover { filter: grayscale(0.2) opacity(0.9); background: rgba(255,255,255,0.1); }
 .pswp-vote-btn.active-up, .pswp-vote-btn.active-fav { filter: none; }
 .pswp-vote-score { flex: 1; color: rgba(255,255,255,0.8); font-weight: 600; font-size: 1.6em; display: flex; align-items: center; justify-content: center; filter: none !important; cursor: pointer; }
-.score-side-emoji { font-size: 0.5em; opacity: 0.7; flex-shrink: 0; }
+.score-side-emoji { font-size: 0.6em; opacity: 0.7; flex-shrink: 0; width: 1.5em; text-align: center; }
+.vote-score .score-side-emoji { font-size: 1em; }
 @media (max-width: 767px) {
   .pswp-vote-btn { font-size: 1.45em; padding: 0px 2px; height: 40px; min-width: 0; }
   .pswp-vote-score { font-size: 1.45em; min-width: 2ch; }

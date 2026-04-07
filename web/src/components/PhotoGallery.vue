@@ -28,7 +28,11 @@
               </div>
             </div>
             <div class="vote-hover-wrapper">
-              <button class="vote-btn vote-score" @mouseenter="showVoteHover(photo)" @mouseleave="hideVoteHover()" @click.stop>{{ getVoteState(photo).score }}</button>
+              <button class="vote-btn vote-score" @mouseenter="showVoteHover(photo)" @mouseleave="hideVoteHover()" @click.stop>
+                <span class="score-side-emoji" :style="sideEmojisCache[photo.id]?.[0] ? {} : { visibility: 'hidden' }">{{ sideEmojisCache[photo.id]?.[0] || '?' }}</span>
+                <span>{{ getVoteState(photo).score }}</span>
+                <span class="score-side-emoji" :style="sideEmojisCache[photo.id]?.[1] ? {} : { visibility: 'hidden' }">{{ sideEmojisCache[photo.id]?.[1] || '?' }}</span>
+              </button>
               <div v-if="hoverVotePhotoId === photo.id" class="vote-hover-popup" @mouseenter="cancelHideVoteHover()" @mouseleave="hideVoteHover()">
                 <div v-if="hoverVoteData.length === 0" class="vote-hover-empty">Fetching…</div>
                 <div v-for="v in hoverVoteData" :key="v.userId" class="vote-hover-row">
@@ -266,6 +270,7 @@ type VoteBreakdownRow = { userId: string; displayName: string; firstName: string
 const hoverVotePhotoId = ref<number | null>(null);
 const hoverVoteData = ref<VoteBreakdownRow[]>([]);
 const hoverVoteCache = new Map<number, VoteBreakdownRow[]>();
+const sideEmojisCache = ref<Record<number, [string | null, string | null]>>({});
 let hoverVoteHideTimer: ReturnType<typeof setTimeout> | null = null;
 
 function getTopSideEmojis(photoId: number): [string | null, string | null] {
@@ -276,7 +281,9 @@ function getTopSideEmojis(photoId: number): [string | null, string | null] {
     if (v.reactType !== '👍') counts.set(v.reactType, (counts.get(v.reactType) ?? 0) + 1);
   }
   const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  return [sorted[1]?.[0] ?? null, sorted[0]?.[0] ?? null]; // [left=2nd, right=1st]
+  const result: [string | null, string | null] = [sorted[1]?.[0] ?? null, sorted[0]?.[0] ?? null];
+  sideEmojisCache.value = { ...sideEmojisCache.value, [photoId]: result };
+  return result;
 }
 async function showVoteHover(photo: Photo) {
   if (!getVoteState(photo).score) return;
@@ -289,6 +296,7 @@ async function showVoteHover(photo: Photo) {
     setTimeout(async () => {
       const data = await fetchVoteBreakdown(photo);
       hoverVoteCache.set(photo.id, data);
+      getTopSideEmojis(photo.id);
       if (hoverVotePhotoId.value === photo.id) hoverVoteData.value = data;
     }, 200);
   }
@@ -966,6 +974,7 @@ function openLightbox(index: number) {
                   showLbHoverPopup(scoreBtn!, '<div class="vote-hover-empty">Fetching…</div>');
                   const data = await fetchVoteBreakdown(p);
                   hoverVoteCache.set(p.id, data);
+                  getTopSideEmojis(p.id);
                   if (!data.length) { hideLbHoverPopup(); return; }
                   const hpEl = lbHoverPopupEl as HTMLElement | null;
                   if (hpEl?.style.display === "block") showLbHoverPopup(scoreBtn!, data.map((v: VoteBreakdownRow) => mkRow(v.avatarUrl, v.firstName || v.displayName, v.reactType, v.isSuper)).join(""));
