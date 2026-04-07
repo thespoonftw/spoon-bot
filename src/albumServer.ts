@@ -14,7 +14,7 @@ import type { Client, Guild } from "discord.js";
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbHasAlbum, dbUpdateAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbSetPhotoCaption, dbListTables, dbTablePage, dbSearchPhotos, dbGetAlbumLocations, dbAddAlbumLocation, dbDeleteAlbumLocation, dbReorderAlbumLocations, dbSetLocationCoords, dbRenameAlbumLocation, dbSetPhotoLocation } from "./db";
+import { dbHasAlbum, dbUpdateAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbGetAlbumVotes, dbSetPhotoCaption, dbListTables, dbTablePage, dbSearchPhotos, dbGetAlbumLocations, dbAddAlbumLocation, dbDeleteAlbumLocation, dbReorderAlbumLocations, dbSetLocationCoords, dbRenameAlbumLocation, dbSetPhotoLocation } from "./db";
 
 const PHOTO_STORAGE_PATH = process.env.PHOTO_STORAGE_PATH ?? path.join(DATA_DIR, "photos");
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
@@ -352,6 +352,15 @@ export function startWebServer(): void {
           sendJson(res, 200, { ok: true });
         } catch { sendJson(res, 500, { error: "Failed" }); }
       });
+      return;
+    }
+
+    // GET /api/album/:channelId/votes — get all vote breakdowns for an album
+    if (url.match(/^\/api\/album\/[^/]+\/votes$/) && method === "GET") {
+      const channelId = url.split("/")[3];
+      const token = getTokenFromRequest(req);
+      if (!isValidSession(token)) { send401(res); return; }
+      sendJson(res, 200, dbGetAlbumVotes(channelId));
       return;
     }
 

@@ -352,17 +352,17 @@ let lightboxLoadingMore = false;
 
 const allPhotos = computed(() => props.sections.flatMap(s => s.photos));
 
-// Prefetch vote breakdowns for side emojis on all scored photos
+// Prefetch all vote breakdowns in one request per album so side emojis appear on load
 watch(allPhotos, async (photos) => {
-  const toFetch = photos.filter(p => (p.score ?? 0) > 0 && !hoverVoteCache.has(p.id));
-  for (let i = 0; i < toFetch.length; i++) {
-    if (i > 0 && i % 4 === 0) await new Promise(r => setTimeout(r, 200));
-    const p = toFetch[i];
-    if (hoverVoteCache.has(p.id)) continue;
-    fetchVoteBreakdown(p).then(data => {
-      hoverVoteCache.set(p.id, data);
-      getTopSideEmojis(p.id);
-    });
+  const channelIds = [...new Set(photos.map(p => p.channelId))];
+  for (const channelId of channelIds) {
+    const res = await fetch(`/api/album/${channelId}/votes`, { headers: authHeaders() });
+    if (!res.ok) continue;
+    const bulk: Record<number, VoteBreakdownRow[]> = await res.json();
+    for (const [id, data] of Object.entries(bulk)) {
+      hoverVoteCache.set(Number(id), data);
+      getTopSideEmojis(Number(id));
+    }
   }
 }, { immediate: true });
 

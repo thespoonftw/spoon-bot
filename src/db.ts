@@ -450,6 +450,22 @@ export function dbGetPhotoVotes(photoId: number): { userId: string; displayName:
   `).all(photoId) as { userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; reactType: string; isSuper: number }[];
 }
 
+export function dbGetAlbumVotes(channelId: string): Record<number, { userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; reactType: string; isSuper: number }[]> {
+  const rows = db.prepare(`
+    SELECT pv.photo_id as photoId, pv.user_id as userId, u.display_name as displayName, u.first_name as firstName, u.avatar_url as avatarUrl, pv.react_type as reactType, pv.is_super as isSuper
+    FROM photo_votes pv
+    JOIN photos p ON p.id = pv.photo_id
+    LEFT JOIN users u ON u.user_id = pv.user_id
+    WHERE p.channel_id = ?
+    ORDER BY pv.is_super DESC, pv.photo_id
+  `).all(channelId) as { photoId: number; userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; reactType: string; isSuper: number }[];
+  const result: Record<number, { userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; reactType: string; isSuper: number }[]> = {};
+  for (const { photoId, ...rest } of rows) {
+    (result[photoId] ??= []).push(rest);
+  }
+  return result;
+}
+
 export function dbListTables(): string[] {
   return (db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as { name: string }[]).map(r => r.name);
 }
