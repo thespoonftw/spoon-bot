@@ -35,10 +35,10 @@
         <div class="album-section-header">
           <span class="album-section-label">📍</span>
           <span class="album-section-count">{{ album.locations!.length }}</span>
-          <button class="btn-icon" @click="showLocations = true" title="Edit locations">✏️</button>
         </div>
         <div class="album-locations-list">
           <span v-for="loc in album.locations" :key="loc.id" class="location-tag location-tag-link" @click="jumpToPhotos(loc.id)">{{ loc.name }}</span>
+          <button class="btn-icon" @click="showLocations = true" title="Edit locations">✏️</button>
         </div>
       </div>
 
