@@ -62,7 +62,7 @@
       </div>
       <div class="gallery-mobile">
         <div v-for="photo in section.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(allPhotos.indexOf(photo))">
-          <img :src="thumbUrl(photo.url)" loading="lazy" @load="loadFull($event, photo.url)" />
+          <img :src="thumbUrl(photo.url)" loading="lazy" />
         </div>
       </div>
     </template>
