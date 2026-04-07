@@ -352,6 +352,20 @@ let lightboxLoadingMore = false;
 
 const allPhotos = computed(() => props.sections.flatMap(s => s.photos));
 
+// Prefetch vote breakdowns for side emojis on all scored photos
+watch(allPhotos, async (photos) => {
+  const toFetch = photos.filter(p => (p.score ?? 0) > 0 && !hoverVoteCache.has(p.id));
+  for (let i = 0; i < toFetch.length; i++) {
+    if (i > 0 && i % 4 === 0) await new Promise(r => setTimeout(r, 200));
+    const p = toFetch[i];
+    if (hoverVoteCache.has(p.id)) continue;
+    fetchVoteBreakdown(p).then(data => {
+      hoverVoteCache.set(p.id, data);
+      getTopSideEmojis(p.id);
+    });
+  }
+}, { immediate: true });
+
 // When new photos are appended (e.g. "load more"), push them into the live PhotoSwipe datasource
 watch(() => allPhotos.value.length, (newLen, oldLen) => {
   if (!activeDsArray || !activePswp || newLen <= oldLen) return;
