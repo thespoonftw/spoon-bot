@@ -229,6 +229,7 @@ watch(emojiSearch, (q) => {
 });
 function showEmojiPicker(photoId: number) {
   if (emojiPickerHideTimer) { clearTimeout(emojiPickerHideTimer); emojiPickerHideTimer = null; }
+  if (emojiPickerPhotoId.value === photoId) return;
   emojiPickerPhotoId.value = photoId;
   emojiSearch.value = '';
   const photo = allPhotos.value.find(p => p.id === photoId);
