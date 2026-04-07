@@ -18,11 +18,11 @@
               <div v-if="emojiPickerPhotoId === photo.id" class="emoji-picker-wrap" @click.stop @mousedown.stop @mouseenter="cancelHideEmojiPicker()" @mouseleave="hideEmojiPicker()">
                 <div class="ep-search-row">
                   <input class="ep-search" v-model="emojiSearch" placeholder="Search emoji…" @click.stop @mousedown.stop @keydown.stop />
-                  <button class="ep-super-toggle" :class="{ active: superMode }" @click.stop="superMode = !superMode">Super</button>
+                  <button class="ep-super-toggle" :class="{ active: superMode }" @click.stop="toggleSuperMode(photo)">Super</button>
                   <button class="ep-close-btn" @click.stop="closeEmojiPicker()">✕</button>
                 </div>
                 <div class="ep-emoji-grid">
-                  <button v-for="em in emojiSearchResults" :key="em" class="ep-emoji-btn" @click.stop="pickEmoji($event, photo, em)">{{ em }}</button>
+                  <button v-for="em in emojiSearchResults" :key="em" class="ep-emoji-btn" :class="{ 'ep-emoji-active': em === pickerCurrentVote }" @click.stop="pickEmoji($event, photo, em)">{{ em }}</button>
                   <span v-if="emojiSearchResults.length === 0" class="ep-no-results">No results</span>
                 </div>
               </div>
@@ -208,13 +208,15 @@ const superMode = ref(false);
 const emojiSearch = ref('');
 const DEFAULT_EMOJIS = ['👍','❤️','🔥','😂','😲','😢','🥰','🤔'];
 const emojiSearchResults = ref<string[]>(DEFAULT_EMOJIS);
+const pickerCurrentVote = ref<string | null>(null);
+let pickerBaseEmojis: string[] = DEFAULT_EMOJIS;
 const emojiDb = new Database();
 let emojiPickerHideTimer: ReturnType<typeof setTimeout> | null = null;
 let emojiSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
 watch(emojiSearch, (q) => {
   if (emojiSearchTimer) clearTimeout(emojiSearchTimer);
-  if (!q.trim()) { emojiSearchResults.value = DEFAULT_EMOJIS; return; }
+  if (!q.trim()) { emojiSearchResults.value = pickerBaseEmojis; return; }
   emojiSearchTimer = setTimeout(async () => {
     const results = await emojiDb.getEmojiBySearchQuery(q.trim());
     emojiSearchResults.value = (results as any[]).map(e => e.unicode).filter(Boolean).slice(0, 8);
@@ -224,14 +226,24 @@ function showEmojiPicker(photoId: number) {
   if (emojiPickerHideTimer) { clearTimeout(emojiPickerHideTimer); emojiPickerHideTimer = null; }
   emojiPickerPhotoId.value = photoId;
   emojiSearch.value = '';
-  emojiSearchResults.value = DEFAULT_EMOJIS;
   const photo = allPhotos.value.find(p => p.id === photoId);
   const state = photo ? getVoteState(photo) : null;
   superMode.value = !!(state?.userVote && state?.userIsSuper);
+  const currentVote = state?.userVote ?? null;
+  pickerCurrentVote.value = currentVote;
+  pickerBaseEmojis = currentVote && !DEFAULT_EMOJIS.includes(currentVote)
+    ? [currentVote, ...DEFAULT_EMOJIS.slice(1)]
+    : DEFAULT_EMOJIS;
+  emojiSearchResults.value = pickerBaseEmojis;
   nextTick(() => {
     const input = document.querySelector<HTMLInputElement>('.emoji-picker-wrap .ep-search');
     input?.focus();
   });
+}
+function toggleSuperMode(photo: Photo) {
+  superMode.value = !superMode.value;
+  const state = getVoteState(photo);
+  if (state.userVote) doVote(photo.channelId, photo.id, state.userVote, superMode.value);
 }
 function hideEmojiPicker() {
   emojiPickerHideTimer = setTimeout(() => { emojiPickerPhotoId.value = null; }, 150);
@@ -554,8 +566,11 @@ function openLightbox(index: number) {
   });
   let lbPickerOpen = false;
   let lbSuperMode = false;
+  let lbCurrentVote: string | null = null;
+  let lbBaseEmojis: string[] = DEFAULT_EMOJIS;
   let lbPickerEl: HTMLElement | null = null;
   let lbSuperBtn: HTMLButtonElement | null = null;
+  let lbRenderEmojis: ((emojis: string[], active?: string | null) => void) | null = null;
   let lbPickerHideTimer: ReturnType<typeof setTimeout> | null = null;
   let lbHoverPopupEl: HTMLElement | null = null;
   let lbHoverHideTimer: ReturnType<typeof setTimeout> | null = null;
@@ -566,6 +581,11 @@ function openLightbox(index: number) {
     const p = frozenPhotos?.[pswp.currIndex];
     const state = p ? getVoteState(p) : null;
     lbSuperMode = !!(state?.userVote && state?.userIsSuper);
+    lbCurrentVote = state?.userVote ?? null;
+    lbBaseEmojis = lbCurrentVote && !DEFAULT_EMOJIS.includes(lbCurrentVote)
+      ? [lbCurrentVote, ...DEFAULT_EMOJIS.slice(1)]
+      : DEFAULT_EMOJIS;
+    if (lbRenderEmojis) lbRenderEmojis(lbBaseEmojis, lbCurrentVote);
     if (lbSuperBtn) lbSuperBtn.className = `ep-super-toggle${lbSuperMode ? " active" : ""}`;
     lbPickerEl.style.display = "block";
     lbPickerOpen = true;
@@ -959,6 +979,8 @@ function openLightbox(index: number) {
           e.stopPropagation();
           lbSuperMode = !lbSuperMode;
           superBtn.className = `ep-super-toggle${lbSuperMode ? " active" : ""}`;
+          const p = frozenPhotos?.[pswp.currIndex];
+          if (p && lbCurrentVote) doVote(p.channelId, p.id, lbCurrentVote, lbSuperMode);
         });
         const closeBtn = document.createElement("button");
         closeBtn.className = "ep-close-btn";
@@ -969,11 +991,11 @@ function openLightbox(index: number) {
         const emojiGrid = document.createElement("div");
         emojiGrid.className = "ep-emoji-grid";
 
-        const renderEmojis = (emojis: string[]) => {
+        const renderEmojis = (emojis: string[], active?: string | null) => {
           emojiGrid.innerHTML = "";
           for (const em of emojis) {
             const btn = document.createElement("button");
-            btn.className = "ep-emoji-btn";
+            btn.className = "ep-emoji-btn" + (em === active ? " ep-emoji-active" : "");
             btn.textContent = em;
             btn.addEventListener("click", (ev) => {
               ev.stopPropagation();
@@ -986,16 +1008,17 @@ function openLightbox(index: number) {
             emojiGrid.appendChild(btn);
           }
         };
+        lbRenderEmojis = renderEmojis;
         renderEmojis(DEFAULT_EMOJIS);
 
         let lbSearchTimer: ReturnType<typeof setTimeout> | null = null;
         searchInput.addEventListener("input", () => {
           if (lbSearchTimer) clearTimeout(lbSearchTimer);
           const q = searchInput.value.trim();
-          if (!q) { renderEmojis(DEFAULT_EMOJIS); return; }
+          if (!q) { renderEmojis(lbBaseEmojis, lbCurrentVote); return; }
           lbSearchTimer = setTimeout(async () => {
             const results = await emojiDb.getEmojiBySearchQuery(q);
-            renderEmojis((results as any[]).map((r: any) => r.unicode).filter(Boolean).slice(0, 8));
+            renderEmojis((results as any[]).map((r: any) => r.unicode).filter(Boolean).slice(0, 8), lbCurrentVote);
           }, 150);
         });
 
