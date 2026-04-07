@@ -64,6 +64,7 @@
       <div class="gallery-mobile">
         <div v-for="photo in section.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(allPhotos.indexOf(photo))">
           <img :src="thumbUrl(photo.url)" loading="lazy" />
+          <span v-if="getVoteState(photo).score > 0" class="mobile-vote-badge">{{ getVoteState(photo).score }}</span>
         </div>
       </div>
     </template>
