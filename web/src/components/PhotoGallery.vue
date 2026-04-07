@@ -801,9 +801,10 @@ function openLightbox(index: number) {
       isButton: false,
       appendTo: "root",
       onInit: (el) => {
-        // Mobile: short tap = vote, long press = open picker
+        // Mobile: single tap = vote, double tap = super 👍, long press = open picker
         let lbTouchTimer: ReturnType<typeof setTimeout> | null = null;
         let lbTouchIsLong = false;
+        let lbLastTapTime = 0;
         el.addEventListener("touchstart", (e) => {
           const emojiBtn = (e.target as Element).closest("[data-action='emoji-toggle']");
           if (!emojiBtn) return;
@@ -825,13 +826,21 @@ function openLightbox(index: number) {
           if (emojiBtn) {
             e.preventDefault();
             if (lbTouchIsLong) return;
+            const now = Date.now();
+            const isDoubleTap = now - lbLastTapTime < 300;
+            lbLastTapTime = isDoubleTap ? 0 : now;
             const p = frozenPhotos![pswp.currIndex];
             const state = getVoteState(p);
-            const reactType = state.userVote || '👍';
-            const isSuper = !!state.userIsSuper;
             const rect = (emojiBtn as HTMLElement).getBoundingClientRect();
-            spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, reactType, isRemovingVote(state, reactType, isSuper));
-            doVote(p.channelId, p.id, reactType, isSuper);
+            if (isDoubleTap) {
+              spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, '👍', isRemovingVote(state, '👍', true));
+              doVote(p.channelId, p.id, '👍', true);
+            } else {
+              const reactType = state.userVote || '👍';
+              const isSuper = !!state.userIsSuper;
+              spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, reactType, isRemovingVote(state, reactType, isSuper));
+              doVote(p.channelId, p.id, reactType, isSuper);
+            }
             return;
           }
           const scoreBtn2 = (e.target as Element).closest("[data-action='score']") as HTMLElement | null;
