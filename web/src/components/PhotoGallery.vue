@@ -869,20 +869,29 @@ function openLightbox(index: number) {
           }
         });
 
+        let lbDesktopLastClick = 0;
         el.addEventListener("click", (e) => {
           const featBtn = (e.target as Element).closest("[data-action='tagged']") as HTMLElement | null;
           if ((e.target as Element).closest("[data-action='emoji-toggle']")) {
             if (window.innerWidth < 768) {
               // handled by touchend
             } else {
+              const now = Date.now();
+              const isDoubleClick = now - lbDesktopLastClick < 300;
+              lbDesktopLastClick = isDoubleClick ? 0 : now;
               const p = frozenPhotos![pswp.currIndex];
               const state = getVoteState(p);
-              const reactType = state.userVote || '👍';
-              const isSuper = !!state.userIsSuper;
               const btn = (e.target as Element).closest("[data-action='emoji-toggle']") as HTMLElement;
               const rect = btn.getBoundingClientRect();
-              spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, reactType, isRemovingVote(state, reactType, isSuper));
-              doVote(p.channelId, p.id, reactType, isSuper);
+              if (isDoubleClick) {
+                spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, '👍', isRemovingVote(state, '👍', true));
+                doVote(p.channelId, p.id, '👍', true);
+              } else {
+                const reactType = state.userVote || '👍';
+                const isSuper = !!state.userIsSuper;
+                spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, reactType, isRemovingVote(state, reactType, isSuper));
+                doVote(p.channelId, p.id, reactType, isSuper);
+              }
             }
           } else if (featBtn) {
             closeLbPicker();
