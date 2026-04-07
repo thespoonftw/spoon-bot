@@ -108,7 +108,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
 .photo-item-mobile { cursor: pointer; position: relative; }
 .photo-item-mobile img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
-.mobile-vote-badge { position: absolute; bottom: 5px; left: 5px; background: rgba(0,0,0,0.5); color: #fff; font-size: 0.7rem; font-weight: 600; height: 18px; border-radius: 9px; display: flex; align-items: center; padding: 0 6px; gap: 2px; pointer-events: none; }
+.mobile-vote-badge { position: absolute; bottom: 5px; left: 5px; background: rgba(0,0,0,0.5); color: #a6adc8; font-size: 0.7rem; font-weight: 600; height: 18px; border-radius: 9px; display: flex; align-items: center; padding: 0 6px; gap: 2px; pointer-events: none; }
 .photo-meta { display: flex; flex-direction: column; width: 220px; }
 .photo-item-mobile .photo-meta { width: 100%; padding: 4px 0; }
 .photo-item-mobile .photo-votes { width: 100%; }
