@@ -267,7 +267,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .gallery .vote-fav { display: none; }
 .vote-up-wrapper { position: relative; flex: 1; display: flex; align-items: center; }
 .vote-up-wrapper .vote-btn { width: 100%; flex: unset; }
-.emoji-picker-wrap { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); z-index: 100; box-shadow: 0 4px 24px rgba(0,0,0,0.7); border-radius: 12px; overflow: hidden; background: #1e1e2e; border: 1px solid #313244; width: 260px; }
+.emoji-picker-wrap { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); z-index: 100; box-shadow: 0 4px 24px rgba(0,0,0,0.7); border-radius: 12px; overflow: hidden; background: #1e1e2e; border: 1px solid #313244; width: 260px; font-size: 1rem; }
 .ep-search-row { padding: 7px 7px 4px; display: flex; align-items: center; gap: 5px; }
 .ep-search { flex: 1; min-width: 0; background: #313244; border: 1px solid #45475a; border-radius: 8px; padding: 5px 8px; color: #cdd6f4; font-size: 0.82rem; outline: none; }
 .ep-search:focus { border-color: #cba6f7; }
