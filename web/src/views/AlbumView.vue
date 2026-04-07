@@ -6,26 +6,23 @@
         :location-count="(album.locations?.length ?? 0) > 1 ? album.locations!.length : undefined"
         :location-editable="true"
         @edit="showEdit = true" @location-edit="showLocations = true">
-        <button class="btn-secondary btn-small" @click="openShare">Share</button>
-        <button class="btn-primary btn-small" @click="openUpload">Upload</button>
-      </PageHeader>
-
-      <!-- 👥 Attendees -->
-      <div class="album-section">
-        <div class="album-section-header desktop-only">
-          <span class="album-section-label">👥</span>
-          <span class="album-section-count">{{ album.members.length }}</span>
-          <button class="btn-icon" @click="showEditMembers = true" title="Edit members">✏️</button>
-        </div>
-        <div class="members-rows desktop-only">
-          <div v-for="(row, i) in memberRows" :key="i" class="members-list">
-            <div v-for="member in row" :key="member.userId" class="member-chip" :title="member.firstName || member.displayName">
+        <div class="album-header-right">
+          <div class="album-header-btns">
+            <button class="btn-secondary btn-small" @click="openShare">Share</button>
+            <button class="btn-primary btn-small" @click="openUpload">Upload</button>
+          </div>
+          <div class="album-header-members">
+            <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
               <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
-              <span class="member-name">{{ member.firstName || member.displayName }}</span>
             </div>
+            <button class="btn-icon" @click="showEditMembers = true" title="Edit members" style="margin-left:4px;opacity:0.45" @mouseenter="$event.currentTarget.style.opacity='1'" @mouseleave="$event.currentTarget.style.opacity='0.45'">✏️</button>
           </div>
         </div>
-        <div class="card-members mobile-only">
+      </PageHeader>
+
+      <!-- 👥 Attendees (mobile only) -->
+      <div class="album-section mobile-only">
+        <div class="card-members">
           <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
             <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
           </div>
@@ -323,23 +320,6 @@ watch(hasMore, async (val) => {
 
 const byName = (a: Member, b: Member) => (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName);
 
-const windowWidth = ref(window.innerWidth);
-const onWindowResize = () => { windowWidth.value = window.innerWidth; };
-
-const memberRows = computed(() => {
-  const m = album.value?.members ?? [];
-  if (m.length <= 3) return [m];
-  // Estimate container width: page has 32px padding each side, max ~868px usable
-  const containerWidth = Math.min(windowWidth.value - 64, 868);
-  // Average chip: avatar(24) + gap(6) + ~52px name + padding(14) + chip-gap(8) ≈ 104px
-  const maxPerRow = Math.max(3, Math.floor(containerWidth / 104));
-  const numRows = Math.ceil(m.length / maxPerRow);
-  const cols = Math.ceil(m.length / numRows);
-  const rows: Member[][] = [];
-  for (let i = 0; i < m.length; i += cols) rows.push(m.slice(i, i + cols));
-  return rows;
-});
-
 onMounted(async () => {
   const [albumRes, checkRes] = await Promise.all([
     fetch(`/api/album/${route.params.channelId}`, { headers: authHeaders() }),
@@ -383,8 +363,8 @@ function handleEscape(e: KeyboardEvent) {
   if (e.key !== "Escape") return;
   if (showShare.value) { showShare.value = false; e.stopImmediatePropagation(); return; }
 }
-onMounted(() => { window.addEventListener("keydown", handleEscape, true); window.addEventListener("resize", onWindowResize); });
-onUnmounted(() => { window.removeEventListener("keydown", handleEscape, true); window.removeEventListener("resize", onWindowResize); observer?.disconnect(); });
+onMounted(() => { window.addEventListener("keydown", handleEscape, true); });
+onUnmounted(() => { window.removeEventListener("keydown", handleEscape, true); observer?.disconnect(); });
 
 function onPhotoDeleted(id: number) {
   if (album.value) album.value.photos = album.value.photos.filter(p => p.id !== id);
