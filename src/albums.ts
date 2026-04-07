@@ -102,7 +102,8 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
       const photos = dbGetPhotosByDiscordMessageId(message.id);
       if (photos.length === 1) {
         dbUpsertUser(user.id, user.displayName ?? user.username, user.avatarURL() ?? undefined);
-        dbVotePhoto(photos[0].id, user.id, "👍", false);
+        const emojiChar = reaction.emoji.id ? "👍" : (reaction.emoji.name ?? "👍");
+        dbVotePhoto(photos[0].id, user.id, emojiChar, false);
       }
     }
     return;
@@ -165,7 +166,8 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
             for (const [, reactUser] of reactors) {
               if (reactUser.bot) continue;
               dbUpsertUser(reactUser.id, reactUser.displayName ?? reactUser.username, reactUser.avatarURL() ?? undefined);
-              dbVotePhoto(photo.id, reactUser.id, "👍", false);
+              const backfillEmoji = msgReaction.emoji.id ? "👍" : (msgReaction.emoji.name ?? "👍");
+              dbVotePhoto(photo.id, reactUser.id, backfillEmoji, false);
             }
           } catch (e) { console.error("Failed to backfill reaction votes:", e); }
         }
