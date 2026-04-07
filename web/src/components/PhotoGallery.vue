@@ -679,7 +679,7 @@ function openLightbox(index: number) {
         ? `<img src="${uploaderMember.avatarUrl}" style="width:1.4em;height:1.4em;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:5px" />`
         : "";
       const uploadedAtHtml = p?.uploadedAt ? `<span class="pswp-upload-date">${formatDateTime(p.uploadedAt)}</span>` : "";
-      const uploaderHtml = p?.uploadedByName ? `<span class="pswp-caption-uploader">Uploader: ${avatarHtml}${p.uploadedByName}</span>${uploadedAtHtml}` : "";
+      const uploaderHtml = p?.uploadedByName ? `<span class="pswp-caption-uploader">By: ${avatarHtml}${p.uploadedByName}</span>${uploadedAtHtml}` : "";
       return { dateHtml, uploaderHtml };
     };
     pswp.ui!.registerElement({
@@ -809,13 +809,16 @@ function openLightbox(index: number) {
           lbTouchTimer = setTimeout(() => {
             lbTouchIsLong = true;
             lbPickerOpen ? closeLbPicker() : openLbPicker();
-          }, 500);
+          }, 320);
         }, { passive: true });
         el.addEventListener("touchmove", () => {
           if (lbTouchTimer) { clearTimeout(lbTouchTimer); lbTouchTimer = null; }
+          const hp = lbHoverPopupEl as HTMLElement | null; if (hp) hp.style.display = "none";
         }, { passive: true });
         el.addEventListener("touchend", (e) => {
           if (lbTouchTimer) { clearTimeout(lbTouchTimer); lbTouchTimer = null; }
+          const isScore = !!(e.target as Element).closest("[data-action='score']");
+          if (!isScore) { const hp = lbHoverPopupEl as HTMLElement | null; if (hp) hp.style.display = "none"; }
           const emojiBtn = (e.target as Element).closest("[data-action='emoji-toggle']");
           if (emojiBtn) {
             e.preventDefault();
