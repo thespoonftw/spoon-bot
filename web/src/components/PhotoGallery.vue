@@ -244,6 +244,10 @@ function showEmojiPicker(photoId: number) {
   const photo = allPhotos.value.find(p => p.id === photoId);
   const state = photo ? getVoteState(photo) : null;
   superMode.value = !!(state?.userVote && state?.userIsSuper);
+  nextTick(() => {
+    const input = document.querySelector<HTMLInputElement>('.emoji-picker-wrap .ep-search');
+    input?.focus();
+  });
 }
 function hideEmojiPicker() {
   emojiPickerHideTimer = setTimeout(() => { emojiPickerPhotoId.value = null; }, 150);
@@ -514,7 +518,7 @@ function openLightbox(index: number) {
     dataSource: dsArray,
     index,
     bgOpacity: 1,
-    zoom: true,
+    zoom: false,
     close: true,
     counter: false,
     arrowKeys: true,
@@ -592,6 +596,8 @@ function openLightbox(index: number) {
     if (lbSuperBtn) lbSuperBtn.className = `ep-super-toggle${lbSuperMode ? " active" : ""}`;
     lbPickerEl.style.display = "block";
     lbPickerOpen = true;
+    const lbSearchInput = lbPickerEl.querySelector<HTMLInputElement>('.ep-search');
+    lbSearchInput?.focus();
   }
   function scheduledCloseLbPicker() {
     lbPickerHideTimer = setTimeout(closeLbPicker, 150);
