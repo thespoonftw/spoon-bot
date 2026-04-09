@@ -109,8 +109,8 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
     return;
   }
 
-  // Fetch full message if partial
-  const message = reaction.message.partial ? await reaction.message.fetch() : reaction.message;
+  // Always re-fetch the message to get fresh CDN URLs (cached URLs expire)
+  const message = await reaction.message.fetch(true);
   const imageAttachments = [...message.attachments.values()].filter(a => a.contentType?.startsWith("image/"));
   if (imageAttachments.length === 0) return;
 
