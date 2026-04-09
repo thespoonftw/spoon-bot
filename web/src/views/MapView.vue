@@ -216,11 +216,12 @@ onMounted(async () => {
 
   let placed = 0;
   for (const { albums: albumsHere, loc } of byName.values()) {
-    if (loc.lat == null || loc.lon == null) continue;
     placed++;
+    const lat = loc.lat ?? 0;
+    const lon = loc.lon ?? 0;
     const photoCount = albumsHere.reduce((n, a) =>
       n + ((a.locations?.length ?? 0) <= 1 ? a.photos.length : a.photos.filter(p => p.locationId === loc.id).length), 0);
-    const marker = L.marker([loc.lat, loc.lon], { icon: pinIcon }).addTo(map!);
+    const marker = L.marker([lat, lon], { icon: pinIcon }).addTo(map!);
     const popupEl = buildPopupEl(loc, albumsHere, marker);
     marker.bindPopup(popupEl, { maxWidth: 340 });
     marker.on("popupopen", () => {
@@ -228,8 +229,8 @@ onMounted(async () => {
       activePinLoc.value = loc;
       activePinPhotoCount.value = photoCount;
       activePinAlbums.value = albumsHere;
-      activeLatStr.value = loc.lat?.toFixed(5) ?? "";
-      activeLonStr.value = loc.lon?.toFixed(5) ?? "";
+      activeLatStr.value = (loc.lat ?? 0).toFixed(5);
+      activeLonStr.value = (loc.lon ?? 0).toFixed(5);
       activeNameStr.value = loc.name;
     });
     marker.on("popupclose", () => {
@@ -242,7 +243,7 @@ onMounted(async () => {
     });
     markerRegistry.set(loc.id, marker);
   }
-  pinCount.value = placed;
+  pinCount.value = [...byName.values()].filter(e => e.loc.lat != null).length;
 });
 
 onUnmounted(() => {
