@@ -135,6 +135,13 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
       if (fs.existsSync(filePath)) { console.log(`Skipping duplicate attachment: ${name}`); continue; }
       await downloadFile(attachment.url, filePath);
 
+      // Auto-rotate based on EXIF orientation and write back in-place so stored file and dimensions are correct
+      try {
+        const tmpPath = filePath + ".tmp";
+        await sharp(filePath).rotate().toFile(tmpPath);
+        fs.renameSync(tmpPath, filePath);
+      } catch {}
+
       let width = 0, height = 0;
       try { const meta = await sharp(filePath).metadata(); width = meta.width ?? 0; height = meta.height ?? 0; } catch {}
 
