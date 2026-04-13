@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const sharp = require("sharp") as (input: string) => { resize(w: number, h: number, opts?: object): { toFile(p: string): Promise<void> }; metadata(): Promise<{ width?: number; height?: number }> };
+const sharp = require("sharp") as (input: string) => { rotate(): { toFile(p: string): Promise<void> }; resize(w: number, h: number, opts?: object): { toFile(p: string): Promise<void> }; metadata(): Promise<{ width?: number; height?: number }> };
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const exifr = require("exifr") as { parse(file: string, opts: unknown): Promise<Record<string, unknown> | null> };
 type BusboyFile = { filename: string; encoding: string; mimeType: string };
@@ -269,6 +269,11 @@ export function startWebServer(): void {
           const thumbDir = path.join(PHOTO_STORAGE_PATH, channelId, "thumbs");
           fs.mkdirSync(thumbDir, { recursive: true });
           const thumbPath = path.join(thumbDir, name);
+          try {
+            const tmpPath = filePath + ".tmp";
+            await sharp(filePath).rotate().toFile(tmpPath);
+            fs.renameSync(tmpPath, filePath);
+          } catch (e) { console.error("Auto-rotate failed:", e); }
           let width = 0, height = 0;
           try {
             const meta = await sharp(filePath).metadata();
