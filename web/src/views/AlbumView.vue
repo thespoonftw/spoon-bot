@@ -333,8 +333,6 @@ onMounted(async () => {
       sortBy.value = 'location';
       const locId = parseInt(route.query.loc as string);
       if (!isNaN(locId)) priorityLocId.value = locId;
-    } else if (hasMultipleLocations && !sessionStorage.getItem(SORT_KEY) && window.innerWidth >= 768) {
-      sortBy.value = 'location';
     } else if (!hasMultipleLocations && sortBy.value === 'location') {
       sortBy.value = 'popular';
     }
