@@ -37,21 +37,6 @@ const client = new Client({
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Logged in as ${readyClient.user.tag}`);
 
-  // TEMP: grant archive access on Worcester Gamers
-  try {
-    const wcGuild = await readyClient.guilds.fetch("1325197744830418944");
-    await wcGuild.roles.fetch();
-    const archiveRole = wcGuild.roles.cache.find(r => r.name.toLowerCase().includes("archive"));
-    if (archiveRole) {
-      const member = await wcGuild.members.fetch("148516020007600128");
-      await member.roles.add(archiveRole);
-      console.log(`TEMP: granted role "${archiveRole.name}" to ${member.displayName}`);
-    } else {
-      console.log("TEMP: no archive role found. Roles:", [...wcGuild.roles.cache.values()].map(r => `${r.id} "${r.name}"`).join(", "));
-    }
-  } catch (e) { console.error("TEMP: archive grant failed:", e); }
-  // END TEMP
-
   loadState();
   loadGroupState();
   loadBirthdays();
