@@ -2,8 +2,21 @@
   <div class="page">
     <PageHeader back-to="/" title="Users" />
 
+    <div class="user-controls-row">
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:0.85em;color:#a6adc8">Sort:</label>
+        <select v-model="sortBy" class="sort-select">
+          <option value="tags">Most Tags</option>
+          <option value="uploads">Most Uploads</option>
+          <option value="lastSeen">Last Seen</option>
+          <option value="alpha">Alphabetical</option>
+        </select>
+      </div>
+      <button v-if="canEditGroups" class="btn-secondary btn-small" @click="addingUser = true">+ Add User</button>
+    </div>
+
     <div class="user-list">
-      <div v-for="user in discordUsers" :key="user.userId" class="user-row">
+      <div v-for="user in sortedDiscordUsers" :key="user.userId" class="user-row">
         <img v-if="user.avatarUrl" :src="user.avatarUrl" class="avatar" />
         <div class="avatar placeholder" v-else>{{ (user.firstName || user.displayName)[0] }}</div>
         <div class="user-row-info">
@@ -24,7 +37,7 @@
         </div>
       </div>
       <p v-if="loading" class="empty">Loading…</p>
-      <p v-else-if="discordUsers.length === 0" class="empty">No users yet.</p>
+      <p v-else-if="sortedDiscordUsers.length === 0" class="empty">No users yet.</p>
       <template v-if="guestUsers.length > 0">
         <p class="user-category" style="margin-top:20px">Not on Discord</p>
         <div v-for="user in guestUsers" :key="user.userId" class="user-row">
@@ -37,6 +50,21 @@
           </div>
         </div>
       </template>
+    </div>
+  </div>
+
+  <div class="modal-overlay" v-if="addingUser">
+    <div class="modal">
+      <button class="modal-close" @click="addingUser = false; addUserId = ''; addUserError = ''">✕</button>
+      <h2>Add User</h2>
+      <div class="form-group">
+        <label>Discord User ID</label>
+        <input v-model="addUserId" type="text" placeholder="e.g. 368680768832143362" @keydown.enter="addUser" />
+      </div>
+      <div v-if="addUserError" class="error">{{ addUserError }}</div>
+      <div class="modal-actions">
+        <button class="btn-primary" @click="addUser" :disabled="!addUserId.trim() || addUserLoading">{{ addUserLoading ? 'Adding…' : 'Add' }}</button>
+      </div>
     </div>
   </div>
 
@@ -81,8 +109,27 @@ const allGroups = ref<SiteGroup[]>([]);
 
 const users = ref<SiteUser[]>([]);
 const loading = ref(true);
-const discordUsers = computed(() => users.value.filter(u => !u.userId.startsWith("guest_")));
+const sortBy = ref<'tags' | 'uploads' | 'lastSeen' | 'alpha'>('tags');
+const sortedDiscordUsers = computed(() => {
+  const list = users.value.filter(u => !u.userId.startsWith("guest_"));
+  return [...list].sort((a, b) => {
+    switch (sortBy.value) {
+      case 'tags': return (b.taggedCount ?? 0) - (a.taggedCount ?? 0);
+      case 'uploads': return (b.uploadCount ?? 0) - (a.uploadCount ?? 0);
+      case 'lastSeen':
+        if (a.lastSeenAt && b.lastSeenAt) return b.lastSeenAt.localeCompare(a.lastSeenAt);
+        if (a.lastSeenAt) return -1;
+        if (b.lastSeenAt) return 1;
+        return 0;
+      case 'alpha': return (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName);
+    }
+  });
+});
 const guestUsers = computed(() => users.value.filter(u => u.userId.startsWith("guest_")));
+const addingUser = ref(false);
+const addUserId = ref('');
+const addUserError = ref('');
+const addUserLoading = ref(false);
 const { currentUser } = useCurrentUser();
 const canEditGroups = computed(() => (users.value.find(u => u.userId === currentUser.value?.userId)?.level ?? 0) >= 2);
 const editingUser = ref<SiteUser | null>(null);
@@ -95,17 +142,31 @@ onMounted(async () => {
   const gres = await fetch("/api/groups", { headers: authHeaders() });
   if (gres.ok) allGroups.value = await gres.json();
   const res = await fetch("/api/site-users", { headers: authHeaders() });
-  if (res.ok) {
-    const data: SiteUser[] = await res.json();
-    users.value = data.sort((a, b) => {
-      if (a.lastSeenAt && b.lastSeenAt) return b.lastSeenAt.localeCompare(a.lastSeenAt);
-      if (a.lastSeenAt) return -1;
-      if (b.lastSeenAt) return 1;
-      return a.displayName.localeCompare(b.displayName);
-    });
-  }
+  if (res.ok) users.value = await res.json();
   loading.value = false;
 });
+
+async function addUser() {
+  const id = addUserId.value.trim();
+  if (!id) return;
+  addUserLoading.value = true;
+  addUserError.value = '';
+  const res = await fetch('/api/site-users', {
+    method: 'POST',
+    headers: authJsonHeaders(),
+    body: JSON.stringify({ userId: id }),
+  });
+  addUserLoading.value = false;
+  if (res.ok) {
+    const user: SiteUser = await res.json();
+    users.value.push(user);
+    addUserId.value = '';
+    addingUser.value = false;
+  } else {
+    const err = await res.json().catch(() => ({}));
+    addUserError.value = (err as any).error || 'Failed to add user';
+  }
+}
 
 function openEdit(user: SiteUser) {
   editingUser.value = user;

@@ -4,7 +4,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
-import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbUpdateUserFirstName, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetUserGroups } from "./db";
+import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbUpdateUserFirstName, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetUserGroups, dbAddDiscordUser } from "./db";
 
 export function sendJson(res: ServerResponse, status: number, data: unknown, extraHeaders: Record<string, string> = {}): void {
   res.writeHead(status, { "Content-Type": "application/json", ...extraHeaders });
@@ -160,6 +160,26 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
   if (url === "/api/site-users" && method === "GET") {
     if (!sessions.has(getTokenFromRequest(req))) { send401(res); return true; }
     sendJson(res, 200, dbGetAllUsers());
+    return true;
+  }
+
+  if (url === "/api/site-users" && method === "POST") {
+    if (!sessions.has(getTokenFromRequest(req))) { send401(res); return true; }
+    let body = "";
+    req.on("data", chunk => body += chunk);
+    req.on("end", async () => {
+      try {
+        const { userId } = JSON.parse(body);
+        if (!userId || typeof userId !== "string") { sendJson(res, 400, { error: "Invalid userId" }); return; }
+        const discordUser = await discordClient!.users.fetch(userId);
+        const displayName = discordUser.displayName ?? discordUser.username;
+        const avatarUrl = discordUser.displayAvatarURL({ extension: "png", size: 128 });
+        dbAddDiscordUser(userId, displayName, avatarUrl);
+        sendJson(res, 200, dbGetAllUsers().find(u => u.userId === userId));
+      } catch {
+        sendJson(res, 404, { error: "User not found on Discord" });
+      }
+    });
     return true;
   }
 

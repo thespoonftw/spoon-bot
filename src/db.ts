@@ -363,6 +363,13 @@ export function dbUpsertUser(userId: string, displayName: string, avatarUrl?: st
   `).run(userId, displayName, avatarUrl ?? null);
 }
 
+export function dbAddDiscordUser(userId: string, displayName: string, avatarUrl: string) {
+  db.prepare(`
+    INSERT INTO users (user_id, display_name, avatar_url, level) VALUES (?, ?, ?, 1)
+    ON CONFLICT(user_id) DO UPDATE SET display_name=excluded.display_name, avatar_url=excluded.avatar_url
+  `).run(userId, displayName, avatarUrl);
+}
+
 export function dbUpdateUserLastSeen(userId: string) {
   db.prepare("UPDATE users SET last_seen_at=? WHERE user_id=?").run(new Date().toISOString(), userId);
 }
