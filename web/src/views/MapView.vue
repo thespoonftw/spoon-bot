@@ -61,10 +61,21 @@ async function geocodeAndSave(loc: AlbumLocation): Promise<[number, number] | nu
   return lat != null && lon != null ? [lat, lon] : null;
 }
 
-const pinIcon = L.divIcon({ html: "📍", iconSize: [28, 28], iconAnchor: [14, 28], popupAnchor: [0, -28], className: "map-emoji-pin" });
-const editingIcon = L.divIcon({ html: "📍", iconSize: [36, 36], iconAnchor: [18, 36], className: "map-emoji-pin map-emoji-pin-editing" });
+const DEFAULT_PIN_COLOR = '#6c7086';
+
+function makeIcon(color: string, editing = false) {
+  const size = editing ? 26 : 18;
+  return L.divIcon({
+    html: `<div style="width:${size}px;height:${size}px;background:${color};border-radius:50%;border:2px solid rgba(255,255,255,0.7);box-shadow:0 1px 6px rgba(0,0,0,0.6)"></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size],
+    className: "",
+  });
+}
 
 const { currentUser } = useCurrentUser();
+const siteGroups = ref<{ id: number; name: string; color: string }[]>([]);
 const allAlbums = ref<Album[]>([]);
 const filterMode = ref<'me' | 'all' | number>('me');
 const filteredAlbums = computed(() => {
@@ -76,9 +87,18 @@ const filteredAlbums = computed(() => {
   return allAlbums.value.filter(a => a.members.some(m => m.userId === uid));
 });
 
+function pinColor(albumsHere: Album[]): string {
+  const counts = new Map<number, number>();
+  for (const a of albumsHere) if (a.groupId) counts.set(a.groupId, (counts.get(a.groupId) ?? 0) + 1);
+  if (!counts.size) return DEFAULT_PIN_COLOR;
+  const gid = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  return siteGroups.value.find(g => g.id === gid)?.color ?? DEFAULT_PIN_COLOR;
+}
+
 const mapEl = ref<HTMLElement | null>(null);
 const status = ref("Loading albums…");
 const pinCount = ref<number | null>(null);
+const markerColors = new Map<number, string>();
 
 // Active popup state (drives the bottom bar)
 const activePinLoc = ref<AlbumLocation | null>(null);
@@ -125,7 +145,7 @@ function startDragMode(loc: AlbumLocation, marker: L.Marker) {
   movingOrigLatLng = marker.getLatLng();
   marker.closePopup();
   marker.dragging?.enable();
-  marker.setIcon(editingIcon);
+  marker.setIcon(makeIcon(markerColors.get(loc.id) ?? DEFAULT_PIN_COLOR, true));
 }
 
 async function saveDrag() {
@@ -144,8 +164,9 @@ function cancelDrag() {
 }
 
 function endDragMode() {
+  if (movingMarker && movingPinLoc.value)
+    movingMarker.setIcon(makeIcon(markerColors.get(movingPinLoc.value.id) ?? DEFAULT_PIN_COLOR));
   movingMarker?.dragging?.disable();
-  movingMarker?.setIcon(pinIcon);
   movingPinLoc.value = null;
   movingMarker = null;
   movingOrigLatLng = null;
@@ -307,6 +328,7 @@ function applyFilter() {
   if (!map) return;
   for (const marker of markerRegistry.values()) marker.remove();
   markerRegistry.clear();
+  markerColors.clear();
   activePinLoc.value = null;
 
   const byName = new Map<string, { albums: Album[]; loc: AlbumLocation }>();
@@ -321,7 +343,9 @@ function applyFilter() {
   for (const { albums: albumsHere, loc } of byName.values()) {
     const photoCount = albumsHere.reduce((n, a) =>
       n + ((a.locations?.length ?? 0) <= 1 ? a.photos.length : a.photos.filter(p => p.locationId === loc.id).length), 0);
-    const marker = L.marker([loc.lat!, loc.lon!], { icon: pinIcon }).addTo(map!);
+    const color = pinColor(albumsHere);
+    const marker = L.marker([loc.lat!, loc.lon!], { icon: makeIcon(color) }).addTo(map!);
+    markerColors.set(loc.id, color);
     const popupEl = buildPopupEl(loc, albumsHere, marker);
     marker.bindPopup(popupEl, { maxWidth: 340 });
     marker.on("popupopen", () => {
@@ -354,8 +378,9 @@ onMounted(async () => {
   fitMapHeight();
   window.addEventListener("resize", fitMapHeight);
 
-  const res = await fetch("/api/albums");
-  allAlbums.value = await res.json();
+  const [albumRes, groupRes] = await Promise.all([fetch("/api/albums"), fetch("/api/groups", { headers: authHeaders() })]);
+  allAlbums.value = await albumRes.json();
+  if (groupRes.ok) siteGroups.value = await groupRes.json();
 
   if (!mapEl.value) return;
   map = L.map(mapEl.value).setView([54, -2], 6);
@@ -394,6 +419,7 @@ onUnmounted(() => {
   map?.remove();
   map = null;
   markerRegistry.clear();
+  markerColors.clear();
   window.removeEventListener("resize", fitMapHeight);
 });
 </script>
