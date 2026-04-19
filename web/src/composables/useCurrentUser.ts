@@ -4,14 +4,14 @@ import { getSession, clearSession } from "../utils/session";
 
 export function useCurrentUser() {
   const router = useRouter();
-  const currentUser = ref<{ displayName: string; firstName?: string; avatarUrl: string } | null>(null);
+  const currentUser = ref<{ userId: string; displayName: string; firstName?: string; avatarUrl: string } | null>(null);
 
   onMounted(async () => {
     const session = getSession();
     const res = await fetch("/api/auth/check", { headers: { Authorization: `Bearer ${session}` } });
     if (res.ok) {
       const data = await res.json();
-      if (data.valid) currentUser.value = { displayName: data.displayName, firstName: data.firstName ?? undefined, avatarUrl: data.avatarUrl };
+      if (data.valid) currentUser.value = { userId: data.userId, displayName: data.displayName, firstName: data.firstName ?? undefined, avatarUrl: data.avatarUrl };
     }
   });
 

@@ -135,6 +135,7 @@
     :show="showEdit"
     :channel-id="album?.channelId ?? ''"
     :album="album ?? { groupName: '' }"
+    :groups="siteGroups"
     @close="showEdit = false"
     @saved="onAlbumSaved"
   />
@@ -171,7 +172,8 @@ const dragShare = useDraggable();
 interface Photo { id: number; channelId: string; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; caption?: string; score?: number; userVote?: string | null; taggedIds?: string[]; locationId?: number | null }
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string; rsvpStatus?: string }
 interface AlbumLocation { id: number; name: string }
-interface Album { channelId: string; groupName: string; dateText?: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; photos: Photo[]; members: Member[] }
+interface SiteGroup { id: number; name: string; color: string }
+interface Album { channelId: string; groupName: string; dateText?: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; groupId?: number | null; photos: Photo[]; members: Member[] }
 
 const route = useRoute();
 
@@ -193,6 +195,7 @@ const shareCopied = ref(false);
 const showEdit = ref(false);
 const showEditMembers = ref(false);
 const showLocations = ref(false);
+const siteGroups = ref<SiteGroup[]>([]);
 
 
 // allMembers is populated by MembersModal when it opens; used for getTaggedMembers
@@ -319,10 +322,12 @@ watch(hasMore, async (val) => {
 const byName = (a: Member, b: Member) => (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName);
 
 onMounted(async () => {
-  const [albumRes, checkRes] = await Promise.all([
+  const [albumRes, checkRes, groupsRes] = await Promise.all([
     fetch(`/api/album/${route.params.channelId}`, { headers: authHeaders() }),
     fetch(`/api/auth/check`, { headers: authHeaders() }),
+    fetch(`/api/groups`, { headers: authHeaders() }),
   ]);
+  if (groupsRes.ok) siteGroups.value = await groupsRes.json();
   if (albumRes.ok) {
     const data = await albumRes.json();
     const sortedMembers = (data.members ?? []).slice().sort(byName);

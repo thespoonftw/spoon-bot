@@ -135,9 +135,9 @@ export function startWebServer(): void {
       req.on("data", chunk => body += chunk);
       req.on("end", async () => {
         try {
-          const { name, startDate, endDate } = JSON.parse(body);
+          const { name, startDate, endDate, groupId } = JSON.parse(body);
           if (!name?.trim()) { sendJson(res, 400, { error: "name is required" }); return; }
-          const updated = dbUpdateAlbum(channelId, name, startDate || undefined, endDate || undefined);
+          const updated = dbUpdateAlbum(channelId, name, startDate || undefined, endDate || undefined, groupId ?? null);
           // Sync to Discord if this is a real event channel
           if (!channelId.startsWith("web_") && albumDiscordClient) {
             const state = eventStates.get(channelId);

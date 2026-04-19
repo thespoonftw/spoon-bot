@@ -112,6 +112,7 @@ export function initDb() {
     "ALTER TABLE photo_votes ADD COLUMN react_type TEXT NOT NULL DEFAULT '👍'",
     "ALTER TABLE photo_votes ADD COLUMN is_super INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE photo_votes DROP COLUMN vote_type",
+    "ALTER TABLE albums ADD COLUMN group_id INTEGER",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
@@ -208,6 +209,7 @@ export type AlbumRow = {
   channelId: string; groupName: string;
   locations?: AlbumLocation[];
   startDate?: string; endDate?: string; createdAt: string;
+  groupId?: number | null;
   readonly dateText?: string;
 };
 
@@ -260,7 +262,7 @@ export function dbHasAlbum(channelId: string): boolean {
 
 export function dbGetAlbum(channelId: string): AlbumRow | undefined {
   const raw = db.prepare(
-    "SELECT channel_id AS channelId, group_name AS groupName, start_date AS startDate, end_date AS endDate, created_at AS createdAt FROM albums WHERE channel_id = ?"
+    "SELECT channel_id AS channelId, group_name AS groupName, start_date AS startDate, end_date AS endDate, created_at AS createdAt, group_id AS groupId FROM albums WHERE channel_id = ?"
   ).get(channelId) as Omit<AlbumRow, "dateText"> | undefined;
   if (!raw) return undefined;
   return { ...toAlbumRow(raw), locations: dbGetAlbumLocations(channelId) };
@@ -306,7 +308,7 @@ export function dbGetAlbumWithPhotos(channelId: string, userId?: string): AlbumW
 
 export function dbGetAllAlbumsWithPhotos(): AlbumWithPhotos[] {
   const albums = (db.prepare(
-    "SELECT channel_id AS channelId, group_name AS groupName, start_date AS startDate, end_date AS endDate, created_at AS createdAt FROM albums ORDER BY created_at DESC"
+    "SELECT channel_id AS channelId, group_name AS groupName, start_date AS startDate, end_date AS endDate, created_at AS createdAt, group_id AS groupId FROM albums ORDER BY created_at DESC"
   ).all() as Omit<AlbumRow, "dateText">[]).map(toAlbumRow);
   const allLocs = db.prepare("SELECT channel_id AS channelId, id, name, lat, lon, geocode_attempted AS geocodeAttempted FROM album_locations ORDER BY sort_order, id").all() as (AlbumLocation & { channelId: string })[];
   const locMap = new Map<string, AlbumLocation[]>();
@@ -335,9 +337,9 @@ export function dbSyncAlbumFromEvent(channelId: string, eventName: string) {
     .run(eventName, channelId);
 }
 
-export function dbUpdateAlbum(channelId: string, name: string, startDate?: string, endDate?: string): AlbumRow | undefined {
-  db.prepare("UPDATE albums SET group_name=?, start_date=?, end_date=? WHERE channel_id=?")
-    .run(name, startDate ?? null, endDate ?? null, channelId);
+export function dbUpdateAlbum(channelId: string, name: string, startDate?: string, endDate?: string, groupId?: number | null): AlbumRow | undefined {
+  db.prepare("UPDATE albums SET group_name=?, start_date=?, end_date=?, group_id=? WHERE channel_id=?")
+    .run(name, startDate ?? null, endDate ?? null, groupId ?? null, channelId);
   return dbGetAlbum(channelId);
 }
 

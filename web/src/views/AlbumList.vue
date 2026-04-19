@@ -4,8 +4,16 @@
       <button class="btn-primary btn-small" @click="showModal = true">Create Album</button>
     </PageHeader>
 
+    <div class="search-filters-row" style="margin-bottom:16px" v-if="!loading">
+      <label class="search-filter-label">Show:</label>
+      <select v-model="filterMode" class="sort-select">
+        <option value="me">Including Me</option>
+        <option value="all">All Albums</option>
+      </select>
+    </div>
+
     <p v-if="loading" class="empty">Loading…</p>
-    <p v-else-if="albums.length === 0" class="empty">No albums yet.</p>
+    <p v-else-if="filteredAlbums.length === 0" class="empty">No albums found.</p>
     <template v-for="group in albumsByYear" :key="group.year">
       <h2 class="year-header">{{ group.year }}</h2>
       <router-link v-for="album in group.items" :key="album.channelId" :to="`/album/${album.channelId}`" :class="['card', { 'card-multi-location': (album.locations?.length ?? 0) > 1 }]">
@@ -74,11 +82,19 @@ import { formatAlbumDate } from "../utils/formatDate";
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Photo { id: number; url: string; score?: number }
 interface AlbumLocation { id: number; name: string }
-interface Album { channelId: string; groupName: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; createdAt: string; photos: Photo[]; members: Member[] }
+interface Album { channelId: string; groupName: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; createdAt: string; photos: Photo[]; members: Member[]; groupId?: number | null }
 
 const albums = ref<Album[]>([]);
 const loading = ref(true);
-useCurrentUser();
+const filterMode = ref<'me' | 'all'>('me');
+const { currentUser } = useCurrentUser();
+
+const filteredAlbums = computed(() => {
+  if (filterMode.value === 'all') return albums.value;
+  const uid = currentUser.value?.userId;
+  if (!uid) return albums.value;
+  return albums.value.filter(a => a.members.some(m => m.userId === uid));
+});
 
 const showModal = ref(false);
 const creating = ref(false);
@@ -88,7 +104,7 @@ const form = ref({ name: "", startDate: "", endDate: "" });
 const albumsByYear = computed(() => {
   const groups = new Map<string, Album[]>();
   const undated: Album[] = [];
-  for (const album of albums.value) {
+  for (const album of filteredAlbums.value) {
     if (!album.startDate) { undated.push(album); continue; }
     const year = album.startDate.slice(0, 4);
     if (!groups.has(year)) groups.set(year, []);
