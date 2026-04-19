@@ -203,24 +203,24 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
     const year = a.startDate ? new Date(a.startDate).getUTCFullYear() : "";
     const meta = document.createElement("div");
     meta.className = "map-popup-meta";
-    const metaLink = document.createElement("a");
-    metaLink.href = albumUrl;
-    metaLink.className = "map-popup-title";
-    metaLink.textContent = a.groupName + (year ? ` · ${year}` : "");
+    const metaTitle = document.createElement("span");
+    metaTitle.className = "map-popup-title";
+    metaTitle.textContent = a.groupName + (year ? ` · ${year}` : "");
     const photoCountEl = document.createElement("span");
     photoCountEl.className = "map-popup-photo-count";
     photoCountEl.textContent = `${albumPhotoCount} 📸`;
-    meta.appendChild(metaLink);
+    meta.appendChild(metaTitle);
     meta.appendChild(photoCountEl);
     el.appendChild(meta);
     el.appendChild(buildPhotosEl(a));
   } else {
-    // Accordion: one row per album, first expanded
+    // Accordion: one row per album, first expanded, only one open at a time
+    const allPhotosEls: HTMLElement[] = [];
+
     sorted.forEach((a, i) => {
       const singleLocation = (a.locations?.length ?? 0) <= 1;
       const locPhotos = singleLocation ? a.photos : a.photos.filter(p => p.locationId === loc.id);
       const albumPhotoCount = singleLocation ? a.photos.length : locPhotos.length;
-      const albumUrl = singleLocation ? `/album/${a.channelId}?back=/map` : `/album/${a.channelId}?back=/map&sort=location&loc=${loc.id}`;
       const year = a.startDate ? new Date(a.startDate).getUTCFullYear() : "";
 
       const item = document.createElement("div");
@@ -229,32 +229,27 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
       const hdr = document.createElement("div");
       hdr.className = "map-popup-accordion-header";
 
-      const arrow = document.createElement("span");
-      arrow.className = "map-popup-accordion-arrow";
-
-      const titleLink = document.createElement("a");
-      titleLink.href = albumUrl;
-      titleLink.className = "map-popup-accordion-title";
-      titleLink.textContent = a.groupName + (year ? ` · ${year}` : "");
+      const titleEl = document.createElement("span");
+      titleEl.className = "map-popup-accordion-title";
+      titleEl.textContent = a.groupName + (year ? ` · ${year}` : "");
 
       const countEl = document.createElement("span");
       countEl.className = "map-popup-photo-count";
       countEl.textContent = `${albumPhotoCount} 📸`;
 
-      hdr.appendChild(arrow);
-      hdr.appendChild(titleLink);
+      hdr.appendChild(titleEl);
       hdr.appendChild(countEl);
 
       const photosEl = buildPhotosEl(a);
-      const open = i === 0;
-      arrow.textContent = open ? "▼" : "▶";
-      photosEl.style.display = open ? "" : "none";
+      allPhotosEls.push(photosEl);
+      photosEl.style.display = i === 0 ? "" : "none";
 
-      hdr.addEventListener("click", (e) => {
-        if ((e.target as HTMLElement).closest("a")) return;
+      hdr.addEventListener("click", () => {
         const isOpen = photosEl.style.display !== "none";
-        photosEl.style.display = isOpen ? "none" : "";
-        arrow.textContent = isOpen ? "▶" : "▼";
+        // Close all
+        allPhotosEls.forEach(p => { p.style.display = "none"; });
+        // Open this one unless it was already open
+        if (!isOpen) photosEl.style.display = "";
       });
 
       item.appendChild(hdr);
