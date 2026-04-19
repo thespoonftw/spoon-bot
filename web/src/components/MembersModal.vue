@@ -79,7 +79,9 @@ const showMemberPicker = ref(false);
 
 const addableUsers = computed(() => {
   const memberIds = new Set(allMembers.value.map(m => m.userId));
-  return allUsers.value.filter(u => !memberIds.has(u.userId));
+  return allUsers.value
+    .filter(u => !memberIds.has(u.userId))
+    .sort((a, b) => (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName));
 });
 
 watch(() => props.modelValue, async (v) => {
