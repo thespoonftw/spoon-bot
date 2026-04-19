@@ -4,7 +4,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
-import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbUpdateUserFirstName, dbGetUserById, dbSetUserGroups } from "./db";
+import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbUpdateUserFirstName, dbGetUserById, dbSetUserGroups, dbGetAllGroups } from "./db";
 
 export function sendJson(res: ServerResponse, status: number, data: unknown, extraHeaders: Record<string, string> = {}): void {
   res.writeHead(status, { "Content-Type": "application/json", ...extraHeaders });
@@ -147,6 +147,12 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
       const dbUser = dbGetUserById(userId);
       sendJson(res, 200, { valid: true, userId, displayName: user?.displayName ?? userId, avatarUrl: user?.avatarUrl ?? "", firstName: dbUser?.firstName ?? null });
     }
+    return true;
+  }
+
+  if (url === "/api/groups" && method === "GET") {
+    if (!sessions.has(getTokenFromRequest(req))) { send401(res); return true; }
+    sendJson(res, 200, dbGetAllGroups());
     return true;
   }
 

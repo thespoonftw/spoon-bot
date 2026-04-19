@@ -71,10 +71,15 @@ export function initDb() {
       lon        REAL,
       UNIQUE(channel_id, name)
     );
+    CREATE TABLE IF NOT EXISTS site_groups (
+      id    INTEGER PRIMARY KEY,
+      name  TEXT NOT NULL UNIQUE,
+      color TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS user_groups (
-      user_id    TEXT NOT NULL,
-      group_name TEXT NOT NULL,
-      PRIMARY KEY (user_id, group_name)
+      user_id  TEXT NOT NULL,
+      group_id INTEGER NOT NULL REFERENCES site_groups(id),
+      PRIMARY KEY (user_id, group_id)
     );
   `);
   // Add new columns to existing DBs (safe to run repeatedly — fails silently if column exists)
@@ -118,10 +123,35 @@ export function initDb() {
   try {
     db.exec("INSERT OR IGNORE INTO album_locations (channel_id, name) SELECT channel_id, location FROM albums WHERE location IS NOT NULL AND location != ''");
   } catch { }
-  // Seed user groups: all users → Brunch; Mike → all 4
-  db.exec(`INSERT OR IGNORE INTO user_groups (user_id, group_name) SELECT user_id, 'Brunch' FROM users WHERE level > 0`);
-  for (const g of ['Brunch', 'Void', 'UoB', 'Wright']) {
-    db.prepare("INSERT OR IGNORE INTO user_groups (user_id, group_name) VALUES (?, ?)").run('148516020007600128', g);
+  // Seed site_groups (fixed definitions)
+  db.exec(`
+    INSERT OR IGNORE INTO site_groups (id, name, color) VALUES
+      (1, 'Brunch', '#e8950f'),
+      (2, 'Void',   '#00aff0'),
+      (3, 'UoB',    '#b5331e'),
+      (4, 'Wright', '#1a5f9e');
+  `);
+  // Migrate user_groups from name-based to id-based if needed
+  try {
+    const cols = (db.prepare("PRAGMA table_info(user_groups)").all() as { name: string }[]).map(c => c.name);
+    if (cols.includes('group_name')) {
+      db.exec(`
+        CREATE TABLE user_groups_new (
+          user_id  TEXT NOT NULL,
+          group_id INTEGER NOT NULL,
+          PRIMARY KEY (user_id, group_id)
+        );
+        INSERT OR IGNORE INTO user_groups_new (user_id, group_id)
+          SELECT ug.user_id, sg.id FROM user_groups ug JOIN site_groups sg ON sg.name = ug.group_name;
+        DROP TABLE user_groups;
+        ALTER TABLE user_groups_new RENAME TO user_groups;
+      `);
+    }
+  } catch { }
+  // Seed memberships: all users → Brunch (1); Mike → all 4
+  db.exec(`INSERT OR IGNORE INTO user_groups (user_id, group_id) SELECT user_id, 1 FROM users WHERE level > 0`);
+  for (const gid of [1, 2, 3, 4]) {
+    db.prepare("INSERT OR IGNORE INTO user_groups (user_id, group_id) VALUES (?, ?)").run('148516020007600128', gid);
   }
 
   migrateFromJson();
@@ -321,7 +351,8 @@ export function dbAddPhoto(channelId: string, url: string) {
     .run(channelId, url, new Date().toISOString());
 }
 
-export type UserRow = { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastSeenAt?: string; level: number; uploadCount?: number; taggedCount?: number; groups?: string[] };
+export type SiteGroup = { id: number; name: string; color: string };
+export type UserRow = { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastSeenAt?: string; level: number; uploadCount?: number; taggedCount?: number; groups?: SiteGroup[] };
 
 export function dbUpsertUser(userId: string, displayName: string, avatarUrl?: string) {
   db.prepare(`
@@ -334,17 +365,28 @@ export function dbUpdateUserLastSeen(userId: string) {
   db.prepare("UPDATE users SET last_seen_at=? WHERE user_id=?").run(new Date().toISOString(), userId);
 }
 
+export function dbGetAllGroups(): SiteGroup[] {
+  return db.prepare("SELECT id, name, color FROM site_groups ORDER BY id").all() as SiteGroup[];
+}
+
 export function dbGetAllUsers(): UserRow[] {
-  type RawRow = Omit<UserRow, 'groups'> & { groups: string | null };
   const rows = db.prepare(`
     SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName,
       u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level,
       (SELECT COUNT(*) FROM photos p WHERE p.uploaded_by_id = u.user_id) AS uploadCount,
-      (SELECT COUNT(*) FROM photo_tagged pt WHERE pt.user_id = u.user_id) AS taggedCount,
-      (SELECT GROUP_CONCAT(ug.group_name, ',') FROM user_groups ug WHERE ug.user_id = u.user_id) AS groups
+      (SELECT COUNT(*) FROM photo_tagged pt WHERE pt.user_id = u.user_id) AS taggedCount
     FROM users u WHERE u.level > 0 ORDER BY display_name ASC
-  `).all() as RawRow[];
-  return rows.map(r => ({ ...r, groups: r.groups ? r.groups.split(',') : [] }));
+  `).all() as Omit<UserRow, 'groups'>[];
+  const memberships = db.prepare(`
+    SELECT ug.user_id AS userId, sg.id, sg.name, sg.color
+    FROM user_groups ug JOIN site_groups sg ON sg.id = ug.group_id
+  `).all() as ({ userId: string } & SiteGroup)[];
+  const byUser = new Map<string, SiteGroup[]>();
+  for (const m of memberships) {
+    if (!byUser.has(m.userId)) byUser.set(m.userId, []);
+    byUser.get(m.userId)!.push({ id: m.id, name: m.name, color: m.color });
+  }
+  return rows.map(r => ({ ...r, groups: byUser.get(r.userId) ?? [] }));
 }
 
 export function dbAddAlbumMember(channelId: string, userId: string) {
@@ -377,11 +419,12 @@ export function dbUpdateUserFirstName(userId: string, firstName: string | null) 
   db.prepare("UPDATE users SET first_name=? WHERE user_id=?").run(firstName || null, userId);
 }
 
-export function dbSetUserGroups(userId: string, groups: string[]) {
-  const VALID = new Set(['Brunch', 'Void', 'UoB', 'Wright']);
-  const valid = groups.filter(g => VALID.has(g));
+export function dbSetUserGroups(userId: string, groupIds: number[]) {
+  const validIds = new Set((db.prepare("SELECT id FROM site_groups").all() as { id: number }[]).map(r => r.id));
   db.prepare("DELETE FROM user_groups WHERE user_id=?").run(userId);
-  for (const g of valid) db.prepare("INSERT OR IGNORE INTO user_groups (user_id, group_name) VALUES (?, ?)").run(userId, g);
+  for (const id of groupIds) {
+    if (validIds.has(id)) db.prepare("INSERT OR IGNORE INTO user_groups (user_id, group_id) VALUES (?, ?)").run(userId, id);
+  }
 }
 
 export function dbGetUserById(userId: string): UserRow | undefined {
