@@ -12,10 +12,7 @@
         <template v-if="locationLine">📍 {{ locationLine }}
           <button class="btn-icon page-header-edit-btn" @click="$emit('location-edit')" title="Edit location">✏️</button>
         </template>
-        <template v-else-if="locationCount">📍 {{ locationCount }} Locations
-          <button class="btn-icon page-header-edit-btn" @click="$emit('location-edit')" title="Edit locations">✏️</button>
-        </template>
-        <template v-else-if="locationEditable">
+        <template v-else-if="locationEditable && !locationCount">
           <button class="btn-icon page-header-edit-btn" @click="$emit('location-edit')" title="Add location">📍 ✏️</button>
         </template>
       </div>
