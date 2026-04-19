@@ -149,11 +149,6 @@ export function initDb() {
       `);
     }
   } catch { }
-  // Seed memberships: all users → Brunch (1); Mike → all 4
-  db.exec(`INSERT OR IGNORE INTO user_groups (user_id, group_id) SELECT user_id, 1 FROM users WHERE level > 0`);
-  for (const gid of [1, 2, 3, 4]) {
-    db.prepare("INSERT OR IGNORE INTO user_groups (user_id, group_id) VALUES (?, ?)").run('148516020007600128', gid);
-  }
 
   migrateFromJson();
   const cleaned = {
