@@ -73,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, defineOptions } from "vue";
+import { ref, computed, onMounted, onUnmounted, onActivated, onDeactivated, defineOptions } from "vue";
 defineOptions({ name: 'AlbumList' });
 import { useCurrentUser } from "../composables/useCurrentUser";
 import { authJsonHeaders } from "../utils/session";
@@ -219,6 +219,10 @@ onMounted(async () => {
   loading.value = false;
 });
 onUnmounted(() => window.removeEventListener("resize", onResize));
+
+let savedScroll = 0;
+onDeactivated(() => { savedScroll = window.scrollY; });
+onActivated(() => { requestAnimationFrame(() => window.scrollTo(0, savedScroll)); });
 
 function closeModal() {
   showModal.value = false;
