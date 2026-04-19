@@ -377,6 +377,13 @@ export function dbUpdateUserFirstName(userId: string, firstName: string | null) 
   db.prepare("UPDATE users SET first_name=? WHERE user_id=?").run(firstName || null, userId);
 }
 
+export function dbSetUserGroups(userId: string, groups: string[]) {
+  const VALID = new Set(['Brunch', 'Void', 'UoB', 'Wright']);
+  const valid = groups.filter(g => VALID.has(g));
+  db.prepare("DELETE FROM user_groups WHERE user_id=?").run(userId);
+  for (const g of valid) db.prepare("INSERT OR IGNORE INTO user_groups (user_id, group_name) VALUES (?, ?)").run(userId, g);
+}
+
 export function dbGetUserById(userId: string): UserRow | undefined {
   return db.prepare("SELECT user_id AS userId, display_name AS displayName, first_name AS firstName, avatar_url AS avatarUrl, last_seen_at AS lastSeenAt, level FROM users WHERE user_id = ?").get(userId) as UserRow | undefined;
 }

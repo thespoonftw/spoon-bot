@@ -4,7 +4,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
-import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbUpdateUserFirstName, dbGetUserById } from "./db";
+import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbUpdateUserFirstName, dbGetUserById, dbSetUserGroups } from "./db";
 
 export function sendJson(res: ServerResponse, status: number, data: unknown, extraHeaders: Record<string, string> = {}): void {
   res.writeHead(status, { "Content-Type": "application/json", ...extraHeaders });
@@ -163,8 +163,9 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     req.on("data", chunk => body += chunk);
     req.on("end", () => {
       try {
-        const { firstName } = JSON.parse(body);
+        const { firstName, groups } = JSON.parse(body);
         dbUpdateUserFirstName(userId, firstName ?? null);
+        if (Array.isArray(groups)) dbSetUserGroups(userId, groups);
         sendJson(res, 200, { ok: true });
       } catch {
         sendJson(res, 500, { error: "Failed to update" });

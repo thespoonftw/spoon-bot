@@ -49,6 +49,17 @@
         <label>Display Name</label>
         <input v-model="editFirstName" type="text" :placeholder="editingUser.displayName" />
       </div>
+      <div class="form-group">
+        <label>Groups</label>
+        <div class="user-row-groups" style="margin-top:6px">
+          <button v-for="g in ALL_GROUPS" :key="g"
+            class="user-group-tag"
+            :style="{ background: editGroups.has(g) ? GROUP_COLORS[g] : '#45475a', cursor: 'pointer', border: 'none', fontSize: '0.82em', padding: '4px 12px' }"
+            @click="editGroups.has(g) ? editGroups.delete(g) : editGroups.add(g)">
+            {{ g }}
+          </button>
+        </div>
+      </div>
       <div v-if="saveError" class="error">{{ saveError }}</div>
       <div class="modal-actions">
         <button class="btn-primary" @click="saveEdit" :disabled="saving">{{ saving ? 'Saving…' : 'Save' }}</button>
@@ -71,6 +82,7 @@ const GROUP_COLORS: Record<string, string> = {
   UoB:    '#b5331e',
   Wright: '#1a5f9e',
 };
+const ALL_GROUPS = ['Brunch', 'Void', 'UoB', 'Wright'];
 
 const users = ref<SiteUser[]>([]);
 const loading = ref(true);
@@ -79,6 +91,7 @@ const guestUsers = computed(() => users.value.filter(u => u.userId.startsWith("g
 useCurrentUser();
 const editingUser = ref<SiteUser | null>(null);
 const editFirstName = ref("");
+const editGroups = ref(new Set<string>());
 const saving = ref(false);
 const saveError = ref("");
 
@@ -99,6 +112,7 @@ onMounted(async () => {
 function openEdit(user: SiteUser) {
   editingUser.value = user;
   editFirstName.value = user.firstName ?? "";
+  editGroups.value = new Set(user.groups ?? []);
   saveError.value = "";
 }
 
@@ -117,14 +131,16 @@ async function saveEdit() {
     }
   }
   saving.value = true;
+  const groups = [...editGroups.value];
   const res = await fetch(`/api/site-users/${editingUser.value.userId}`, {
     method: "PUT",
     headers: authJsonHeaders(),
-    body: JSON.stringify({ firstName: trimmed || null }),
+    body: JSON.stringify({ firstName: trimmed || null, groups }),
   });
   saving.value = false;
   if (res.ok) {
     editingUser.value.firstName = trimmed || undefined;
+    editingUser.value.groups = groups;
     editingUser.value = null;
   }
 }
