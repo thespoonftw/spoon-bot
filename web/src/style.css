@@ -389,26 +389,30 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .map-emoji-pin { background: none !important; border: none !important; font-size: 24px; line-height: 1; }
 .map-container { border-radius: 12px; overflow: hidden; }
 .map-status { margin: 0 0 8px; text-align: center; }
-.leaflet-popup-content-wrapper { padding: 0 !important; border-radius: 8px !important; }
+.leaflet-popup-content-wrapper { padding: 0 !important; border-radius: 8px !important; background: #313244 !important; border: 1px solid #45475a !important; box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important; }
 .leaflet-popup-content { margin: 0 !important; }
-.leaflet-popup-close-button { font-size: 22px !important; width: 28px !important; height: 28px !important; top: 4px !important; right: 4px !important; line-height: 26px !important; }
-.map-popup { font-family: inherit; font-size: 0.9rem; color: #1e1e2e; min-width: 200px; padding: 14px 12px; }
-.map-popup-header { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
-.map-popup-loc-name { font-weight: 700; font-size: 1rem; color: #1e1e2e; flex: 1; }
-.map-popup-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
-.map-popup-tab { background: #e8e8e8; border: none; border-radius: 12px; padding: 3px 10px; font-size: 0.78rem; cursor: pointer; color: #444; font-family: inherit; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.map-popup-tab:hover:not(.active) { background: #d4d4d4; }
-.map-popup-tab.active { background: #1e66f5; color: #fff; }
-.map-popup-title { font-weight: 600; color: #1e66f5; text-decoration: none; display: block; font-size: 0.9rem; }
+.leaflet-popup-tip { background: #313244 !important; }
+.leaflet-popup-close-button { font-size: 22px !important; width: 28px !important; height: 28px !important; top: 4px !important; right: 4px !important; line-height: 26px !important; color: #6c7086 !important; }
+.leaflet-popup-close-button:hover { color: #cdd6f4 !important; }
+.map-popup { font-family: inherit; font-size: 0.9rem; color: #cdd6f4; min-width: 200px; padding: 14px 12px; }
+.map-popup-header { display: flex; align-items: center; gap: 0; margin-bottom: 8px; }
+.map-popup-loc-name { font-weight: 700; font-size: 1rem; color: #cba6f7; }
+.map-popup-title { font-weight: 600; color: #89b4fa; text-decoration: none; display: block; font-size: 0.9rem; }
 .map-popup-title:hover { text-decoration: underline; }
-.map-popup-meta { font-size: 0.8rem; color: #555; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.map-popup-photo-count { color: #888; font-size: 0.75rem; }
-.map-popup-thumbs { display: flex; gap: 4px; margin-top: 6px; align-items: flex-start; }
+.map-popup-meta { font-size: 0.8rem; color: #a6adc8; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.map-popup-photo-count { color: #6c7086; font-size: 0.75rem; white-space: nowrap; }
+.map-popup-accordion-item { border-top: 1px solid #45475a; margin-top: 4px; }
+.map-popup-accordion-header { display: flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer; user-select: none; }
+.map-popup-accordion-header:hover { opacity: 0.85; }
+.map-popup-accordion-arrow { font-size: 0.6em; color: #6c7086; flex-shrink: 0; width: 10px; }
+.map-popup-accordion-title { flex: 1; font-weight: 600; color: #89b4fa; text-decoration: none; font-size: 0.9rem; }
+.map-popup-accordion-title:hover { text-decoration: underline; }
+.map-popup-accordion-content { padding-bottom: 8px; }
+.map-popup-thumbs { display: flex; gap: 4px; align-items: flex-start; }
 .map-popup-thumb-lg { width: 162px; height: 162px; object-fit: cover; border-radius: 4px; display: block; }
 .map-popup-thumbs-stack { display: flex; flex-direction: column; gap: 4px; }
 .map-popup-thumb-sm { width: 79px; height: 79px; object-fit: cover; border-radius: 4px; display: block; }
-.map-popup-divider { border: none; border-top: 1px solid #ccc; margin: 8px 0; }
-.map-popup-move-btn { background: none; border: none; padding: 0 0 0 4px; font-size: 0.75rem; cursor: pointer; filter: grayscale(1); vertical-align: middle; line-height: 1; }
+.map-popup-move-btn { background: none; border: none; padding: 0 0 0 4px; font-size: 0.75rem; cursor: pointer; filter: grayscale(1) opacity(0.6); line-height: 1; flex-shrink: 0; }
 .map-popup-move-btn:hover { filter: none; }
 .map-emoji-pin-editing { filter: hue-rotate(200deg); }
 .map-popup-save-btn { background: #1e66f5; color: #fff; border: none; border-radius: 4px; padding: 5px 12px; cursor: pointer; font-size: 0.85rem; }
