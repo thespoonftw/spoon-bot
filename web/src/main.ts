@@ -17,6 +17,10 @@ import "./style.css";
 
 const router = createRouter({
   history: createWebHistory(),
+  scrollBehavior(_to, _from, savedPosition) {
+    if (savedPosition) return savedPosition;
+    return { top: 0 };
+  },
   routes: [
     { path: "/login", component: LoginView, meta: { public: true } },
     { path: "/login/sent", component: MagicLinkSent, meta: { public: true } },
