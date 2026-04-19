@@ -32,11 +32,11 @@
             <p v-if="album.members.length > 0" class="meta mobile-only">{{ album.members.length }} 👥</p>
           </div>
           <div class="card-members-area">
+            <span v-if="siteGroups.find(g => g.id === album.groupId)" class="user-group-tag" style="margin-bottom:8px;display:inline-block" :style="{ background: siteGroups.find(g => g.id === album.groupId)!.color }">{{ siteGroups.find(g => g.id === album.groupId)!.name }}</span>
             <div class="card-counts">
               <span class="meta">📷 {{ album.photos.length }}</span>
               <span v-if="album.members.length > 0" class="meta">👥 {{ album.members.length }}</span>
             </div>
-            <span v-if="siteGroups.find(g => g.id === album.groupId)" class="user-group-tag" style="margin-bottom:8px;display:inline-block" :style="{ background: siteGroups.find(g => g.id === album.groupId)!.color }">{{ siteGroups.find(g => g.id === album.groupId)!.name }}</span>
             <div v-if="album.members.length > 0" class="card-members">
               <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
                 <img v-if="member.avatarUrl" :src="member.avatarUrl" />
