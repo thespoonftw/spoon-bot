@@ -31,8 +31,8 @@
         </div>
       </div>
 
-      <!-- 📍 Locations (multi only, desktop only) -->
-      <div v-if="(album.locations?.length ?? 0) > 1" class="album-section desktop-only">
+      <!-- 📍 Locations (multi only) -->
+      <div v-if="(album.locations?.length ?? 0) > 1" class="album-section">
         <div class="album-section-header">
           <span class="album-section-count">📍 {{ album.locations!.length }}</span>
         </div>
