@@ -130,35 +130,109 @@ function endDragMode() {
 
 function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker): HTMLElement {
   const thumbUrl = (url: string) => url.replace("/uploads/", "/thumbnails/");
-  const albumsHtml = albumsHere.map((a, i) => {
-    const year = a.startDate ? new Date(a.startDate).getUTCFullYear() : "";
+
+  function buildAlbumContent(a: Album): HTMLElement {
     const singleLocation = (a.locations?.length ?? 0) <= 1;
     const locPhotos = singleLocation ? a.photos : a.photos.filter(p => p.locationId === loc.id);
     const topPhotos = [...locPhotos].sort((x, y) => (y.score ?? 0) - (x.score ?? 0)).slice(0, 3);
     const albumUrl = singleLocation ? `/album/${a.channelId}?back=/map` : `/album/${a.channelId}?back=/map&sort=location&loc=${loc.id}`;
-    const smallThumbs = topPhotos.slice(1).map(p =>
-      `<a href="${albumUrl}"><img src="${thumbUrl(p.url)}" class="map-popup-thumb-sm" /></a>`
-    ).join("");
-    const thumbsHtml = topPhotos.length ? `<div class="map-popup-thumbs">
-      <a href="${albumUrl}"><img src="${thumbUrl(topPhotos[0].url)}" class="map-popup-thumb-lg" /></a>
-      ${smallThumbs ? `<div class="map-popup-thumbs-stack">${smallThumbs}</div>` : ""}
-    </div>` : "";
     const albumPhotoCount = singleLocation ? a.photos.length : locPhotos.length;
-    const editBtn = i === 0 ? ` <button class="map-popup-move-btn" title="Move pin">✏️</button>` : "";
-    return `<div class="map-popup-album">
-      <a href="${albumUrl}" class="map-popup-title">${loc.name}</a>
-      <div class="map-popup-meta"><span>${a.groupName}${year ? ` · ${year}` : ""}${editBtn}</span><span class="map-popup-photo-count">${albumPhotoCount} 📸</span></div>
-      ${thumbsHtml}
-    </div>`;
-  }).join('<hr class="map-popup-divider">');
+    const year = a.startDate ? new Date(a.startDate).getUTCFullYear() : "";
+
+    const content = document.createElement("div");
+
+    const meta = document.createElement("div");
+    meta.className = "map-popup-meta";
+    const metaLink = document.createElement("a");
+    metaLink.href = albumUrl;
+    metaLink.className = "map-popup-title";
+    metaLink.textContent = a.groupName + (year ? ` · ${year}` : "");
+    const photoCountEl = document.createElement("span");
+    photoCountEl.className = "map-popup-photo-count";
+    photoCountEl.textContent = `${albumPhotoCount} 📸`;
+    meta.appendChild(metaLink);
+    meta.appendChild(photoCountEl);
+    content.appendChild(meta);
+
+    if (topPhotos.length) {
+      const thumbsDiv = document.createElement("div");
+      thumbsDiv.className = "map-popup-thumbs";
+      const mainLink = document.createElement("a");
+      mainLink.href = albumUrl;
+      const mainImg = document.createElement("img");
+      mainImg.src = thumbUrl(topPhotos[0].url);
+      mainImg.className = "map-popup-thumb-lg";
+      mainLink.appendChild(mainImg);
+      thumbsDiv.appendChild(mainLink);
+      if (topPhotos.length > 1) {
+        const stack = document.createElement("div");
+        stack.className = "map-popup-thumbs-stack";
+        for (const p of topPhotos.slice(1)) {
+          const link = document.createElement("a");
+          link.href = albumUrl;
+          const img = document.createElement("img");
+          img.src = thumbUrl(p.url);
+          img.className = "map-popup-thumb-sm";
+          link.appendChild(img);
+          stack.appendChild(link);
+        }
+        thumbsDiv.appendChild(stack);
+      }
+      content.appendChild(thumbsDiv);
+    }
+    return content;
+  }
 
   const el = document.createElement("div");
   el.className = "map-popup";
-  el.innerHTML = albumsHtml;
 
-  (el.querySelector(".map-popup-move-btn") as HTMLButtonElement | null)
-    ?.addEventListener("click", () => startDragMode(loc, marker));
+  // Header: location name + pencil button
+  const header = document.createElement("div");
+  header.className = "map-popup-header";
+  const nameSpan = document.createElement("span");
+  nameSpan.className = "map-popup-loc-name";
+  nameSpan.textContent = loc.name;
+  const moveBtn = document.createElement("button");
+  moveBtn.className = "map-popup-move-btn";
+  moveBtn.title = "Move pin";
+  moveBtn.textContent = "✏️";
+  moveBtn.addEventListener("click", () => startDragMode(loc, marker));
+  header.appendChild(nameSpan);
+  header.appendChild(moveBtn);
+  el.appendChild(header);
 
+  const contentArea = document.createElement("div");
+
+  if (albumsHere.length === 1) {
+    contentArea.appendChild(buildAlbumContent(albumsHere[0]));
+  } else {
+    // Tabs to switch between albums
+    const tabs = document.createElement("div");
+    tabs.className = "map-popup-tabs";
+    const albumContents = albumsHere.map(a => buildAlbumContent(a));
+
+    function showAlbum(idx: number) {
+      contentArea.innerHTML = "";
+      contentArea.appendChild(albumContents[idx]);
+      tabs.querySelectorAll(".map-popup-tab").forEach((btn, i) => {
+        btn.classList.toggle("active", i === idx);
+      });
+    }
+
+    albumsHere.forEach((a, i) => {
+      const tab = document.createElement("button");
+      tab.className = "map-popup-tab" + (i === 0 ? " active" : "");
+      const year = a.startDate ? new Date(a.startDate).getUTCFullYear() : "";
+      tab.textContent = year ? `${a.groupName} · ${year}` : a.groupName;
+      tab.addEventListener("click", () => showAlbum(i));
+      tabs.appendChild(tab);
+    });
+
+    el.appendChild(tabs);
+    contentArea.appendChild(albumContents[0]);
+  }
+
+  el.appendChild(contentArea);
   return el;
 }
 

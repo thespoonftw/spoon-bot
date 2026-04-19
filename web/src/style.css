@@ -393,10 +393,15 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .leaflet-popup-content { margin: 0 !important; }
 .leaflet-popup-close-button { font-size: 22px !important; width: 28px !important; height: 28px !important; top: 4px !important; right: 4px !important; line-height: 26px !important; }
 .map-popup { font-family: inherit; font-size: 0.9rem; color: #1e1e2e; min-width: 200px; padding: 14px 12px; }
-.map-popup-album { padding: 4px 0; }
-.map-popup-title { font-weight: 700; color: #1e66f5; text-decoration: none; display: block; font-size: 1rem; }
+.map-popup-header { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
+.map-popup-loc-name { font-weight: 700; font-size: 1rem; color: #1e1e2e; flex: 1; }
+.map-popup-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.map-popup-tab { background: #e8e8e8; border: none; border-radius: 12px; padding: 3px 10px; font-size: 0.78rem; cursor: pointer; color: #444; font-family: inherit; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-popup-tab:hover:not(.active) { background: #d4d4d4; }
+.map-popup-tab.active { background: #1e66f5; color: #fff; }
+.map-popup-title { font-weight: 600; color: #1e66f5; text-decoration: none; display: block; font-size: 0.9rem; }
 .map-popup-title:hover { text-decoration: underline; }
-.map-popup-meta { font-size: 0.8rem; color: #555; margin-top: 2px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+.map-popup-meta { font-size: 0.8rem; color: #555; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .map-popup-photo-count { color: #888; font-size: 0.75rem; }
 .map-popup-thumbs { display: flex; gap: 4px; margin-top: 6px; align-items: flex-start; }
 .map-popup-thumb-lg { width: 162px; height: 162px; object-fit: cover; border-radius: 4px; display: block; }
