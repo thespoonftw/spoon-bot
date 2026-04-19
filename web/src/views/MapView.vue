@@ -139,15 +139,20 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
     return a.startDate.localeCompare(b.startDate);
   });
 
+  function getLocPhotos(a: Album): { id: number; url: string; score?: number }[] {
+    if ((a.locations?.length ?? 0) <= 1) return a.photos;
+    const filtered = a.photos.filter(p => p.locationId === loc.id);
+    return filtered.length > 0 ? filtered : a.photos;
+  }
+
   function locPhotoCount(a: Album): number {
-    const singleLocation = (a.locations?.length ?? 0) <= 1;
-    return singleLocation ? a.photos.length : a.photos.filter(p => p.locationId === loc.id).length;
+    return getLocPhotos(a).length;
   }
   const defaultOpenIdx = sorted.reduce((best, a, i) => locPhotoCount(a) > locPhotoCount(sorted[best]) ? i : best, 0);
 
   function buildPhotosEl(a: Album): HTMLElement {
     const singleLocation = (a.locations?.length ?? 0) <= 1;
-    const locPhotos = singleLocation ? a.photos : a.photos.filter(p => p.locationId === loc.id);
+    const locPhotos = getLocPhotos(a);
     const topPhotos = [...locPhotos].sort((x, y) => (y.score ?? 0) - (x.score ?? 0)).slice(0, 3);
     const albumUrl = singleLocation ? `/album/${a.channelId}?back=/map` : `/album/${a.channelId}?back=/map&sort=location&loc=${loc.id}`;
     const content = document.createElement("div");
@@ -203,8 +208,7 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
     // Single album: just show title link + photo count + photos
     const a = sorted[0];
     const singleLocation = (a.locations?.length ?? 0) <= 1;
-    const locPhotos = singleLocation ? a.photos : a.photos.filter(p => p.locationId === loc.id);
-    const albumPhotoCount = singleLocation ? a.photos.length : locPhotos.length;
+    const albumPhotoCount = locPhotoCount(a);
     const albumUrl = singleLocation ? `/album/${a.channelId}?back=/map` : `/album/${a.channelId}?back=/map&sort=location&loc=${loc.id}`;
     const year = a.startDate ? new Date(a.startDate).getUTCFullYear() : "";
     const meta = document.createElement("div");
@@ -225,8 +229,7 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
 
     sorted.forEach((a, i) => {
       const singleLocation = (a.locations?.length ?? 0) <= 1;
-      const locPhotos = singleLocation ? a.photos : a.photos.filter(p => p.locationId === loc.id);
-      const albumPhotoCount = singleLocation ? a.photos.length : locPhotos.length;
+      const albumPhotoCount = locPhotoCount(a);
       const year = a.startDate ? new Date(a.startDate).getUTCFullYear() : "";
 
       const item = document.createElement("div");
