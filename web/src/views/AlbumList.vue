@@ -17,10 +17,11 @@
     <p v-if="loading" class="empty">Loading…</p>
     <p v-else-if="filteredAlbums.length === 0" class="empty">No albums found.</p>
     <template v-for="group in albumsByYear" :key="group.year">
-      <div class="year-header" @click="toggleYear(group.year)">
-        <span class="year-header-chevron">{{ collapsedYears.has(group.year) ? '▸' : '▾' }}</span>
-        <span class="year-header-label">{{ group.year }}</span>
-        <span class="album-section-count">{{ group.items.length }}</span>
+      <div class="year-header gallery-section-header" @click="toggleYear(group.year)">
+        <span class="section-collapse-icon">{{ collapsedYears.has(group.year) ? '▶' : '▼' }}</span>
+        {{ group.year }}
+        <span class="section-photo-count">{{ group.items.length }}</span>
+        <span class="section-collapse-spacer"></span>
       </div>
       <router-link v-if="!collapsedYears.has(group.year)" v-for="album in group.items" :key="album.channelId" :to="`/album/${album.channelId}`" :class="['card', { 'card-multi-location': (album.locations?.length ?? 0) > 1 }]">
         <div class="card-left">
