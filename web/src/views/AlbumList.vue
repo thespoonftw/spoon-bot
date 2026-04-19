@@ -25,7 +25,6 @@
             <p v-if="album.startDate" class="date">{{ formatAlbumDate(album.startDate, album.endDate) }}</p>
             <p v-if="album.locations?.length === 1" class="meta">📍 {{ album.locations[0].name }}</p>
             <p v-else-if="(album.locations?.length ?? 0) > 1" class="meta">📍 {{ album.locations!.length }} locations</p>
-            <span v-if="siteGroups.find(g => g.id === album.groupId)" class="user-group-tag desktop-only" :style="{ background: siteGroups.find(g => g.id === album.groupId)!.color }">{{ siteGroups.find(g => g.id === album.groupId)!.name }}</span>
           </div>
           <div class="card-left-details">
             <span v-if="siteGroups.find(g => g.id === album.groupId)" class="user-group-tag mobile-only" :style="{ background: siteGroups.find(g => g.id === album.groupId)!.color }">{{ siteGroups.find(g => g.id === album.groupId)!.name }}</span>
@@ -43,6 +42,7 @@
                 <span v-else>{{ (member.firstName || member.displayName)[0] }}</span>
               </div>
             </div>
+            <span v-if="siteGroups.find(g => g.id === album.groupId)" class="user-group-tag" style="margin-top:10px;display:inline-block" :style="{ background: siteGroups.find(g => g.id === album.groupId)!.color }">{{ siteGroups.find(g => g.id === album.groupId)!.name }}</span>
           </div>
         </div>
         <div class="card-right" v-if="buildCollage(album, heroSize).length">
