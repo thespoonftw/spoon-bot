@@ -125,12 +125,21 @@ const albumsByYear = computed(() => {
 
 function thumbUrl(url: string): string { return url.replace("/uploads/", "/thumbnails/"); }
 
+const PAGE_SEED = Math.floor(Math.random() * 0xffffffff);
+function albumRng(channelId: string): () => number {
+  let s = PAGE_SEED;
+  for (const c of channelId) s = (Math.imul(31, s) + c.charCodeAt(0)) | 0;
+  s = s >>> 0;
+  return () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 0xffffffff; };
+}
+
 interface CollageItem { photo: Photo; size: number; cssLeft: number; cssTop: number; zIndex: number; }
 
 function buildCollage(album: Album, H = 160): CollageItem[] {
   const count = Math.min(Math.floor(Math.sqrt(album.photos.length)), 15);
   const eligible = album.photos.filter(p => (p.score ?? 0) >= 1);
-  for (let i = eligible.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [eligible[i], eligible[j]] = [eligible[j], eligible[i]]; }
+  const rng = albumRng(album.channelId);
+  for (let i = eligible.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [eligible[i], eligible[j]] = [eligible[j], eligible[i]]; }
   const sorted = eligible.sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
   if (!sorted.length) return [];
   const n = sorted.length;
