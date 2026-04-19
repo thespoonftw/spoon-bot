@@ -49,7 +49,7 @@
         <label>Display Name</label>
         <input v-model="editFirstName" type="text" :placeholder="editingUser.displayName" />
       </div>
-      <div class="form-group" v-if="editingUser.level >= 2">
+      <div class="form-group" v-if="canEditGroups">
         <label>Groups</label>
         <div class="user-row-groups" style="margin-top:6px">
           <button v-for="g in allGroups" :key="g.id"
@@ -83,7 +83,8 @@ const users = ref<SiteUser[]>([]);
 const loading = ref(true);
 const discordUsers = computed(() => users.value.filter(u => !u.userId.startsWith("guest_")));
 const guestUsers = computed(() => users.value.filter(u => u.userId.startsWith("guest_")));
-useCurrentUser();
+const { currentUser } = useCurrentUser();
+const canEditGroups = computed(() => (users.value.find(u => u.userId === currentUser.value?.userId)?.level ?? 0) >= 2);
 const editingUser = ref<SiteUser | null>(null);
 const editFirstName = ref("");
 const editGroups = ref<number[]>([]);
