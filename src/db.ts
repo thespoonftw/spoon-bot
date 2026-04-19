@@ -433,6 +433,14 @@ export function dbGetUserById(userId: string): UserRow | undefined {
   return db.prepare("SELECT user_id AS userId, display_name AS displayName, first_name AS firstName, avatar_url AS avatarUrl, last_seen_at AS lastSeenAt, level FROM users WHERE user_id = ?").get(userId) as UserRow | undefined;
 }
 
+export function dbGetUserGroups(userId: string): SiteGroup[] {
+  return db.prepare(`
+    SELECT sg.id, sg.name, sg.color FROM user_groups ug
+    JOIN site_groups sg ON sg.id = ug.group_id
+    WHERE ug.user_id = ? ORDER BY sg.id
+  `).all(userId) as SiteGroup[];
+}
+
 export function dbCreateGuestUser(name: string): UserRow {
   const userId = "guest_" + crypto.randomBytes(8).toString("hex");
   db.prepare("INSERT INTO users (user_id, display_name, level) VALUES (?, ?, 1)").run(userId, name);

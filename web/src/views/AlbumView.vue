@@ -5,6 +5,7 @@
         :location-line="album.locations?.length === 1 ? album.locations[0].name : undefined"
         :location-count="(album.locations?.length ?? 0) > 1 ? album.locations!.length : undefined"
         :location-editable="true"
+        :group-tag="album.groupId ? siteGroups.find(g => g.id === album!.groupId) ?? null : null"
         @edit="showEdit = true" @location-edit="showLocations = true">
         <div class="album-header-right">
           <div class="album-header-btns">

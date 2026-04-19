@@ -5,9 +5,10 @@
     </PageHeader>
 
     <div class="search-filters-row" style="margin-bottom:16px" v-if="!loading">
-      <label class="search-filter-label">Show:</label>
+      <label class="search-filter-label">Filter:</label>
       <select v-model="filterMode" class="sort-select">
         <option value="me">Including Me</option>
+        <option v-for="g in currentUser?.groups ?? []" :key="g.id" :value="g.id">{{ g.name }}</option>
         <option value="all">All Albums</option>
       </select>
     </div>
@@ -86,11 +87,13 @@ interface Album { channelId: string; groupName: string; locations?: AlbumLocatio
 
 const albums = ref<Album[]>([]);
 const loading = ref(true);
-const filterMode = ref<'me' | 'all'>('me');
+const filterMode = ref<'me' | 'all' | number>('me');
 const { currentUser } = useCurrentUser();
 
 const filteredAlbums = computed(() => {
-  if (filterMode.value === 'all') return albums.value;
+  const mode = filterMode.value;
+  if (mode === 'all') return albums.value;
+  if (typeof mode === 'number') return albums.value.filter(a => a.groupId === mode);
   const uid = currentUser.value?.userId;
   if (!uid) return albums.value;
   return albums.value.filter(a => a.members.some(m => m.userId === uid));

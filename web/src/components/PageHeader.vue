@@ -7,7 +7,19 @@
         <button v-if="editable" class="btn-icon page-header-edit-btn" @click="$emit('edit')" title="Edit">✏️</button>
       </div>
       <span v-if="subtitle" class="page-header-subtitle">{{ subtitle }}</span>
-      <div v-if="locationLine" class="page-header-location">
+      <div v-if="groupTag" class="page-header-location" style="gap:6px">
+        <span class="user-group-tag" :style="{ background: groupTag.color }">{{ groupTag.name }}</span>
+        <template v-if="locationLine">📍 {{ locationLine }}
+          <button class="btn-icon page-header-edit-btn" @click="$emit('location-edit')" title="Edit location">✏️</button>
+        </template>
+        <template v-else-if="locationCount">📍 {{ locationCount }} Locations
+          <button class="btn-icon page-header-edit-btn" @click="$emit('location-edit')" title="Edit locations">✏️</button>
+        </template>
+        <template v-else-if="locationEditable">
+          <button class="btn-icon page-header-edit-btn" @click="$emit('location-edit')" title="Add location">📍 ✏️</button>
+        </template>
+      </div>
+      <div v-else-if="locationLine" class="page-header-location">
         📍 {{ locationLine }}
         <button class="btn-icon page-header-edit-btn" @click="$emit('location-edit')" title="Edit location">✏️</button>
       </div>
@@ -26,6 +38,6 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ backTo: string; title: string; subtitle?: string; editable?: boolean; locationLine?: string; locationCount?: number; locationEditable?: boolean; mobileStack?: boolean }>();
+defineProps<{ backTo: string; title: string; subtitle?: string; editable?: boolean; locationLine?: string; locationCount?: number; locationEditable?: boolean; mobileStack?: boolean; groupTag?: { name: string; color: string } | null }>();
 defineEmits<{ edit: []; 'location-edit': [] }>();
 </script>
