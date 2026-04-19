@@ -17,8 +17,9 @@ import "./style.css";
 
 const router = createRouter({
   history: createWebHistory(),
-  scrollBehavior(_to, _from, savedPosition) {
+  scrollBehavior(to, _from, savedPosition) {
     if (savedPosition) return savedPosition;
+    if (to.path === '/albums') return false;
     return { top: 0 };
   },
   routes: [
