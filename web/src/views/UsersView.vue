@@ -12,6 +12,9 @@
             <button class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
           </div>
           <span class="user-row-login">{{ user.displayName }}</span>
+          <div v-if="user.groups?.length" class="user-row-groups">
+            <span v-for="g in user.groups" :key="g" class="user-group-tag" :style="{ background: GROUP_COLORS[g] ?? '#585b70' }">{{ g }}</span>
+          </div>
           <span class="user-row-login" v-if="user.lastSeenAt">Last seen: {{ formatDate(user.lastSeenAt) }}</span>
           <span class="user-row-login never" v-else>Never seen</span>
           <span class="user-row-stats" v-if="user.uploadCount !== undefined">
@@ -60,7 +63,14 @@ import { useCurrentUser } from "../composables/useCurrentUser";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 import PageHeader from "../components/PageHeader.vue";
 
-interface SiteUser { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastSeenAt?: string; uploadCount?: number; taggedCount?: number }
+interface SiteUser { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastSeenAt?: string; uploadCount?: number; taggedCount?: number; groups?: string[] }
+
+const GROUP_COLORS: Record<string, string> = {
+  Brunch: '#e8950f',
+  Void:   '#00aff0',
+  UoB:    '#b5331e',
+  Wright: '#1a5f9e',
+};
 
 const users = ref<SiteUser[]>([]);
 const loading = ref(true);

@@ -71,6 +71,11 @@ export function initDb() {
       lon        REAL,
       UNIQUE(channel_id, name)
     );
+    CREATE TABLE IF NOT EXISTS user_groups (
+      user_id    TEXT NOT NULL,
+      group_name TEXT NOT NULL,
+      PRIMARY KEY (user_id, group_name)
+    );
   `);
   // Add new columns to existing DBs (safe to run repeatedly — fails silently if column exists)
   for (const sql of [
@@ -113,6 +118,12 @@ export function initDb() {
   try {
     db.exec("INSERT OR IGNORE INTO album_locations (channel_id, name) SELECT channel_id, location FROM albums WHERE location IS NOT NULL AND location != ''");
   } catch { }
+  // Seed user groups: all users → Brunch; Mike → all 4
+  db.exec(`INSERT OR IGNORE INTO user_groups (user_id, group_name) SELECT user_id, 'Brunch' FROM users WHERE level > 0`);
+  for (const g of ['Brunch', 'Void', 'UoB', 'Wright']) {
+    db.prepare("INSERT OR IGNORE INTO user_groups (user_id, group_name) VALUES (?, ?)").run('148516020007600128', g);
+  }
+
   migrateFromJson();
   const cleaned = {
     votes: db.prepare("DELETE FROM photo_votes WHERE photo_id NOT IN (SELECT id FROM photos)").run().changes,
@@ -310,7 +321,7 @@ export function dbAddPhoto(channelId: string, url: string) {
     .run(channelId, url, new Date().toISOString());
 }
 
-export type UserRow = { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastSeenAt?: string; level: number; uploadCount?: number; taggedCount?: number };
+export type UserRow = { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastSeenAt?: string; level: number; uploadCount?: number; taggedCount?: number; groups?: string[] };
 
 export function dbUpsertUser(userId: string, displayName: string, avatarUrl?: string) {
   db.prepare(`
@@ -324,13 +335,16 @@ export function dbUpdateUserLastSeen(userId: string) {
 }
 
 export function dbGetAllUsers(): UserRow[] {
-  return db.prepare(`
+  type RawRow = Omit<UserRow, 'groups'> & { groups: string | null };
+  const rows = db.prepare(`
     SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName,
       u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level,
       (SELECT COUNT(*) FROM photos p WHERE p.uploaded_by_id = u.user_id) AS uploadCount,
-      (SELECT COUNT(*) FROM photo_tagged pt WHERE pt.user_id = u.user_id) AS taggedCount
+      (SELECT COUNT(*) FROM photo_tagged pt WHERE pt.user_id = u.user_id) AS taggedCount,
+      (SELECT GROUP_CONCAT(ug.group_name, ',') FROM user_groups ug WHERE ug.user_id = u.user_id) AS groups
     FROM users u WHERE u.level > 0 ORDER BY display_name ASC
-  `).all() as UserRow[];
+  `).all() as RawRow[];
+  return rows.map(r => ({ ...r, groups: r.groups ? r.groups.split(',') : [] }));
 }
 
 export function dbAddAlbumMember(channelId: string, userId: string) {
