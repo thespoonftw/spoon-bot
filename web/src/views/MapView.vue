@@ -139,6 +139,12 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
     return a.startDate.localeCompare(b.startDate);
   });
 
+  function locPhotoCount(a: Album): number {
+    const singleLocation = (a.locations?.length ?? 0) <= 1;
+    return singleLocation ? a.photos.length : a.photos.filter(p => p.locationId === loc.id).length;
+  }
+  const defaultOpenIdx = sorted.reduce((best, a, i) => locPhotoCount(a) > locPhotoCount(sorted[best]) ? i : best, 0);
+
   function buildPhotosEl(a: Album): HTMLElement {
     const singleLocation = (a.locations?.length ?? 0) <= 1;
     const locPhotos = singleLocation ? a.photos : a.photos.filter(p => p.locationId === loc.id);
@@ -242,7 +248,7 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
 
       const photosEl = buildPhotosEl(a);
       allPhotosEls.push(photosEl);
-      photosEl.style.display = i === 0 ? "" : "none";
+      photosEl.style.display = i === defaultOpenIdx ? "" : "none";
 
       hdr.addEventListener("click", () => {
         if (photosEl.style.display !== "none") return; // already open, do nothing
