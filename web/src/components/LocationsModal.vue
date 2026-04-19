@@ -1,6 +1,7 @@
 <template>
-  <div class="modal-overlay">
-    <div class="modal" :style="drag.style.value">
+  <Teleport to="body">
+  <div class="modal-overlay locations-modal-overlay" style="pointer-events:none;background:none">
+    <div class="modal" :style="drag.style.value" style="pointer-events:auto">
       <button class="modal-close" @click="emit('close')">✕</button>
       <h2 class="modal-drag-handle" @mousedown="drag.onMouseDown">Locations</h2>
 
@@ -33,6 +34,7 @@
       <div v-if="error" class="error">{{ error }}</div>
     </div>
   </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
