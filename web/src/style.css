@@ -391,7 +391,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .location-tag { background: #313244; border: 1px solid #45475a; border-radius: 20px; padding: 3px 12px; font-size: 0.85rem; color: #cdd6f4; }
 .location-tag-link { cursor: pointer; }
 .location-tag-link:hover { background: #45475a; border-color: #89b4fa; color: #89b4fa; }
-.map-pin-count { background: #313244; border: 1px solid #45475a; border-radius: 10px; padding: 6px 14px; font-size: 1rem; font-weight: 700; color: #cdd6f4; flex-shrink: 0; }
+.map-pin-count { background: #313244; border: 1px solid #1e1e2e; border-radius: 10px; padding: 6px 0; font-size: 1rem; font-weight: 700; color: #cdd6f4; flex-shrink: 0; width: 80px; text-align: center; }
 .map-emoji-pin { background: none !important; border: none !important; font-size: 24px; line-height: 1; }
 .map-container { border-radius: 12px; overflow: hidden; }
 .map-status { margin: 0 0 8px; text-align: center; }
