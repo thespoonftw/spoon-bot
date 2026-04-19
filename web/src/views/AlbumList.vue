@@ -34,7 +34,7 @@
           </div>
         </div>
         <div class="card-right" v-if="buildCollage(album, heroSize).length">
-          <div class="card-collage" :style="{ width: collageWidth(album, heroSize), height: collageHeight(album, heroSize), position: 'relative', flexShrink: '0' }">
+          <div class="card-collage" :style="{ width: collageWidth(album, heroSize), height: collageHeight(album, heroSize), position: 'relative' }">
             <img v-for="item in buildCollage(album, heroSize)" :key="item.photo.id"
               :src="thumbUrl(item.photo.url)" @error="($event.target as HTMLImageElement).src = item.photo.url"
               :style="{ position: 'absolute', left: item.cssLeft + 'px', top: item.cssTop + 'px', width: item.size + 'px', height: item.size + 'px', objectFit: 'cover', borderRadius: '4px', boxShadow: '1px 1px 6px rgba(0,0,0,0.6)', zIndex: item.zIndex, outline: '1px solid rgba(255,255,255,0.12)' }" />

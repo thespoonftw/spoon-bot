@@ -26,8 +26,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .card { display: flex; flex-direction: row; background: #313244; border-radius: 10px; overflow: hidden; margin-bottom: 16px; text-decoration: none; color: inherit; }
 .card.card-multi-location { box-shadow: 0 0 0 1px rgba(203,166,247,0.25), 0 0 12px rgba(203,166,247,0.12); }
 .card:hover { background: #45475a; }
-.card-left { width: 300px; flex-shrink: 0; padding: 20px; min-width: 0; display: flex; flex-direction: column; }
-.card-right { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px; flex: 1; }
+.card-left { flex: 1; padding: 20px; min-width: 0; display: flex; flex-direction: column; }
+.card-right { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px; width: 462px; flex-shrink: 0; }
 .card-collage { overflow: visible; }
 .share-link-input { flex: 1; background: #313244; border: 1px solid #45475a; border-radius: 8px; padding: 8px 10px; color: #cdd6f4; font-size: 0.85rem; outline: none; }
 .card-meta-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
