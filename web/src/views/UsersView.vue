@@ -49,7 +49,7 @@
         <label>Display Name</label>
         <input v-model="editFirstName" type="text" :placeholder="editingUser.displayName" />
       </div>
-      <div class="form-group">
+      <div class="form-group" v-if="editingUser.level >= 2">
         <label>Groups</label>
         <div class="user-row-groups" style="margin-top:6px">
           <button v-for="g in ALL_GROUPS" :key="g"
@@ -74,7 +74,7 @@ import { useCurrentUser } from "../composables/useCurrentUser";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 import PageHeader from "../components/PageHeader.vue";
 
-interface SiteUser { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastSeenAt?: string; uploadCount?: number; taggedCount?: number; groups?: string[] }
+interface SiteUser { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastSeenAt?: string; uploadCount?: number; taggedCount?: number; groups?: string[]; level: number }
 
 const GROUP_COLORS: Record<string, string> = {
   Brunch: '#e8950f',
