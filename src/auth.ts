@@ -169,12 +169,14 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     req.on("data", chunk => body += chunk);
     req.on("end", async () => {
       try {
-        const { userId } = JSON.parse(body);
+        const { userId, firstName, groups } = JSON.parse(body);
         if (!userId || typeof userId !== "string") { sendJson(res, 400, { error: "Invalid userId" }); return; }
         const discordUser = await discordClient!.users.fetch(userId);
         const displayName = discordUser.displayName ?? discordUser.username;
         const avatarUrl = discordUser.displayAvatarURL({ extension: "png", size: 128 });
         dbAddDiscordUser(userId, displayName, avatarUrl);
+        if (firstName) dbUpdateUserFirstName(userId, firstName.trim() || null);
+        if (Array.isArray(groups)) dbSetUserGroups(userId, groups);
         sendJson(res, 200, dbGetAllUsers().find(u => u.userId === userId));
       } catch {
         sendJson(res, 404, { error: "User not found on Discord" });

@@ -55,11 +55,26 @@
 
   <div class="modal-overlay" v-if="addingUser">
     <div class="modal">
-      <button class="modal-close" @click="addingUser = false; addUserId = ''; addUserError = ''">✕</button>
+      <button class="modal-close" @click="addingUser = false; addUserId = ''; addFirstName = ''; addGroups = []; addUserError = ''">✕</button>
       <h2>Add User</h2>
       <div class="form-group">
         <label>Discord User ID</label>
-        <input v-model="addUserId" type="text" placeholder="e.g. 368680768832143362" @keydown.enter="addUser" />
+        <input v-model="addUserId" type="text" placeholder="e.g. 368680768832143362" />
+      </div>
+      <div class="form-group">
+        <label>Display Name <span style="color:#6c7086;font-weight:400">(optional)</span></label>
+        <input v-model="addFirstName" type="text" placeholder="Leave blank to use Discord name" />
+      </div>
+      <div class="form-group" v-if="canEditGroups">
+        <label>Groups</label>
+        <div class="user-row-groups" style="margin-top:6px">
+          <button v-for="g in allGroups" :key="g.id"
+            class="user-group-tag"
+            :style="{ background: addGroups.includes(g.id) ? g.color : '#45475a', cursor: 'pointer', border: 'none', fontSize: '0.82em', padding: '4px 12px' }"
+            @click="addGroups.includes(g.id) ? addGroups.splice(addGroups.indexOf(g.id), 1) : addGroups.push(g.id)">
+            {{ g.name }}
+          </button>
+        </div>
       </div>
       <div v-if="addUserError" class="error">{{ addUserError }}</div>
       <div class="modal-actions">
@@ -128,6 +143,8 @@ const sortedDiscordUsers = computed(() => {
 const guestUsers = computed(() => users.value.filter(u => u.userId.startsWith("guest_")));
 const addingUser = ref(false);
 const addUserId = ref('');
+const addFirstName = ref('');
+const addGroups = ref<number[]>([]);
 const addUserError = ref('');
 const addUserLoading = ref(false);
 const { currentUser } = useCurrentUser();
@@ -154,13 +171,15 @@ async function addUser() {
   const res = await fetch('/api/site-users', {
     method: 'POST',
     headers: authJsonHeaders(),
-    body: JSON.stringify({ userId: id }),
+    body: JSON.stringify({ userId: id, firstName: addFirstName.value.trim() || null, groups: addGroups.value }),
   });
   addUserLoading.value = false;
   if (res.ok) {
     const user: SiteUser = await res.json();
     users.value.push(user);
     addUserId.value = '';
+    addFirstName.value = '';
+    addGroups.value = [];
     addingUser.value = false;
   } else {
     const err = await res.json().catch(() => ({}));
