@@ -21,8 +21,10 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .back { color: #89b4fa; text-decoration: none; display: inline-block; margin-bottom: 20px; background: #313244; border-radius: 20px; padding: 5px 14px; font-size: 0.9em; }
 .back:hover { background: #45475a; text-decoration: none; }
 
-.year-header { font-size: 1.3em; font-weight: 700; color: #cba6f7; margin: 28px 0 12px 0; border-bottom: 1px solid #313244; padding-bottom: 8px; }
+.year-header { display: flex; align-items: center; gap: 10px; font-size: 1.3em; font-weight: 700; color: #cba6f7; margin: 28px 0 12px 0; border-bottom: 1px solid #313244; padding-bottom: 8px; cursor: pointer; user-select: none; }
 .year-header:first-of-type { margin-top: 0; }
+.year-header .album-section-count { font-size: 0.62em; }
+.year-header-chevron { margin-left: auto; font-size: 0.8em; color: #6c7086; }
 .card { display: flex; flex-direction: row; background: #313244; border-radius: 10px; overflow: hidden; margin-bottom: 16px; text-decoration: none; color: inherit; }
 .card.card-multi-location { box-shadow: 0 0 0 1px rgba(203,166,247,0.25), 0 0 12px rgba(203,166,247,0.12); }
 .card:hover { background: #45475a; }

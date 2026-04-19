@@ -17,8 +17,12 @@
     <p v-if="loading" class="empty">Loading…</p>
     <p v-else-if="filteredAlbums.length === 0" class="empty">No albums found.</p>
     <template v-for="group in albumsByYear" :key="group.year">
-      <h2 class="year-header">{{ group.year }}</h2>
-      <router-link v-for="album in group.items" :key="album.channelId" :to="`/album/${album.channelId}`" :class="['card', { 'card-multi-location': (album.locations?.length ?? 0) > 1 }]">
+      <div class="year-header" @click="toggleYear(group.year)">
+        <span>{{ group.year }}</span>
+        <span class="album-section-count">{{ group.items.length }}</span>
+        <span class="year-header-chevron">{{ collapsedYears.has(group.year) ? '▸' : '▾' }}</span>
+      </div>
+      <router-link v-if="!collapsedYears.has(group.year)" v-for="album in group.items" :key="album.channelId" :to="`/album/${album.channelId}`" :class="['card', { 'card-multi-location': (album.locations?.length ?? 0) > 1 }]">
         <div class="card-left">
           <div class="card-left-title">
             <h2>{{ album.groupName }}</h2>
@@ -100,6 +104,12 @@ interface SiteGroup { id: number; name: string; color: string }
 interface Album { channelId: string; groupName: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; createdAt: string; photos: Photo[]; members: Member[]; groupId?: number | null }
 
 const router = useRouter();
+const collapsedYears = ref(new Set<string>());
+function toggleYear(year: string) {
+  const s = new Set(collapsedYears.value);
+  s.has(year) ? s.delete(year) : s.add(year);
+  collapsedYears.value = s;
+}
 const { albumsDirty, markAlbumsDirty, clearDirty } = useAlbumsCache();
 const albums = ref<Album[]>([]);
 const siteGroups = ref<SiteGroup[]>([]);
