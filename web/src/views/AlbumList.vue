@@ -27,6 +27,7 @@
             <p v-else-if="(album.locations?.length ?? 0) > 1" class="meta">📍 {{ album.locations!.length }} locations</p>
           </div>
           <div class="card-left-details">
+            <span v-if="siteGroups.find(g => g.id === album.groupId)" class="user-group-tag mobile-only" :style="{ background: siteGroups.find(g => g.id === album.groupId)!.color }">{{ siteGroups.find(g => g.id === album.groupId)!.name }}</span>
             <p class="meta mobile-only">{{ album.photos.length }} 📷</p>
             <p v-if="album.members.length > 0" class="meta mobile-only">{{ album.members.length }} 👥</p>
           </div>
@@ -34,6 +35,7 @@
             <div class="card-counts">
               <span class="meta">📷 {{ album.photos.length }}</span>
               <span v-if="album.members.length > 0" class="meta">👥 {{ album.members.length }}</span>
+              <span v-if="siteGroups.find(g => g.id === album.groupId)" class="user-group-tag" :style="{ background: siteGroups.find(g => g.id === album.groupId)!.color }">{{ siteGroups.find(g => g.id === album.groupId)!.name }}</span>
             </div>
             <div v-if="album.members.length > 0" class="card-members">
               <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
@@ -86,9 +88,11 @@ import { formatAlbumDate } from "../utils/formatDate";
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Photo { id: number; url: string; score?: number }
 interface AlbumLocation { id: number; name: string }
+interface SiteGroup { id: number; name: string; color: string }
 interface Album { channelId: string; groupName: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; createdAt: string; photos: Photo[]; members: Member[]; groupId?: number | null }
 
 const albums = ref<Album[]>([]);
+const siteGroups = ref<SiteGroup[]>([]);
 const loading = ref(true);
 const filterMode = ref<'me' | 'all' | number>('me');
 const { currentUser } = useCurrentUser();
@@ -223,7 +227,8 @@ const onResize = () => { heroSize.value = window.innerWidth < 768 ? 120 : 160; }
 
 onMounted(async () => {
   window.addEventListener("resize", onResize);
-  const res = await fetch("/api/albums");
+  const [res, gres] = await Promise.all([fetch("/api/albums"), fetch("/api/groups", { headers: authJsonHeaders() })]);
+  if (gres.ok) siteGroups.value = await gres.json();
   const data: Album[] = await res.json();
   const byName = (a: Member, b: Member) => (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName);
   albums.value = data.map(a => ({ ...a, members: a.members.slice().sort(byName) }));
