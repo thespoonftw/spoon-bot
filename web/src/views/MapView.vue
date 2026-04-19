@@ -245,11 +245,9 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
       photosEl.style.display = i === 0 ? "" : "none";
 
       hdr.addEventListener("click", () => {
-        const isOpen = photosEl.style.display !== "none";
-        // Close all
+        if (photosEl.style.display !== "none") return; // already open, do nothing
         allPhotosEls.forEach(p => { p.style.display = "none"; });
-        // Open this one unless it was already open
-        if (!isOpen) photosEl.style.display = "";
+        photosEl.style.display = "";
       });
 
       item.appendChild(hdr);

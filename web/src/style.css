@@ -401,7 +401,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .map-popup-accordion-item { border-top: 1px solid #ddd; margin-top: 4px; }
 .map-popup-accordion-header { display: flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer; user-select: none; }
 .map-popup-accordion-header:hover { opacity: 0.75; }
-.map-popup-accordion-title { flex: 1; font-weight: 600; color: #333; font-size: 0.9rem; }
+.map-popup-accordion-title { flex: 1; font-weight: 500; color: #666; font-size: 0.9rem; }
 .map-popup-accordion-content { padding-bottom: 8px; }
 .map-popup-thumbs { display: flex; gap: 4px; align-items: flex-start; }
 .map-popup-thumb-lg { width: 162px; height: 162px; object-fit: cover; border-radius: 4px; display: block; }
