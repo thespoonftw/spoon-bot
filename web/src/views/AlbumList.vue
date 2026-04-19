@@ -25,6 +25,7 @@
             <p v-if="album.startDate" class="date">{{ formatAlbumDate(album.startDate, album.endDate) }}</p>
             <p v-if="album.locations?.length === 1" class="meta">📍 {{ album.locations[0].name }}</p>
             <p v-else-if="(album.locations?.length ?? 0) > 1" class="meta">📍 {{ album.locations!.length }} locations</p>
+            <span v-if="siteGroups.find(g => g.id === album.groupId)" class="user-group-tag desktop-only" :style="{ background: siteGroups.find(g => g.id === album.groupId)!.color }">{{ siteGroups.find(g => g.id === album.groupId)!.name }}</span>
           </div>
           <div class="card-left-details">
             <span v-if="siteGroups.find(g => g.id === album.groupId)" class="user-group-tag mobile-only" :style="{ background: siteGroups.find(g => g.id === album.groupId)!.color }">{{ siteGroups.find(g => g.id === album.groupId)!.name }}</span>
@@ -35,7 +36,6 @@
             <div class="card-counts">
               <span class="meta">📷 {{ album.photos.length }}</span>
               <span v-if="album.members.length > 0" class="meta">👥 {{ album.members.length }}</span>
-              <span v-if="siteGroups.find(g => g.id === album.groupId)" class="user-group-tag" :style="{ background: siteGroups.find(g => g.id === album.groupId)!.color }">{{ siteGroups.find(g => g.id === album.groupId)!.name }}</span>
             </div>
             <div v-if="album.members.length > 0" class="card-members">
               <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
