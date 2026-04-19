@@ -36,13 +36,13 @@
               <span class="meta">📷 {{ album.photos.length }}</span>
               <span v-if="album.members.length > 0" class="meta">👥 {{ album.members.length }}</span>
             </div>
+            <span v-if="siteGroups.find(g => g.id === album.groupId)" class="user-group-tag" style="margin-bottom:8px;display:inline-block" :style="{ background: siteGroups.find(g => g.id === album.groupId)!.color }">{{ siteGroups.find(g => g.id === album.groupId)!.name }}</span>
             <div v-if="album.members.length > 0" class="card-members">
               <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
                 <img v-if="member.avatarUrl" :src="member.avatarUrl" />
                 <span v-else>{{ (member.firstName || member.displayName)[0] }}</span>
               </div>
             </div>
-            <span v-if="siteGroups.find(g => g.id === album.groupId)" class="user-group-tag" style="margin-top:10px;display:inline-block" :style="{ background: siteGroups.find(g => g.id === album.groupId)!.color }">{{ siteGroups.find(g => g.id === album.groupId)!.name }}</span>
           </div>
         </div>
         <div class="card-right" v-if="buildCollage(album, heroSize).length">
