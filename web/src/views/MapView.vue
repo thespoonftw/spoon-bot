@@ -61,16 +61,28 @@ async function geocodeAndSave(loc: AlbumLocation): Promise<[number, number] | nu
   return lat != null && lon != null ? [lat, lon] : null;
 }
 
-const DEFAULT_PIN_COLOR = '#6c7086';
+const DEFAULT_PIN_COLOR = '';
+const EMOJI_BASE_HUE = 5; // 📍 is approximately red at ~5°
+
+function hexToHue(hex: string): number {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  if (d === 0) return 0;
+  let h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
+}
 
 function makeIcon(color: string, editing = false) {
-  const size = editing ? 26 : 18;
+  const size = editing ? 36 : 28;
+  const filter = color ? `hue-rotate(${Math.round((hexToHue(color) - EMOJI_BASE_HUE + 360) % 360)}deg)` : '';
   return L.divIcon({
-    html: `<div style="width:${size}px;height:${size}px;background:${color};border-radius:50%;border:2px solid rgba(255,255,255,0.7);box-shadow:0 1px 6px rgba(0,0,0,0.6)"></div>`,
+    html: `<div style="font-size:${size}px;line-height:1;${filter ? `filter:${filter};` : ''}">📍</div>`,
     iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+    iconAnchor: [size / 2, size],
     popupAnchor: [0, -size],
-    className: "",
+    className: "map-emoji-pin",
   });
 }
 
