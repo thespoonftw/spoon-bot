@@ -1,7 +1,15 @@
 <template>
   <div class="map-page">
     <PageHeader back-to="/" title="Map">
-      <div class="map-pin-count" v-if="pinCount !== null">{{ pinCount }} 📍</div>
+      <template v-if="pinCount !== null">
+        <label class="search-filter-label">Filter:</label>
+        <select v-model="filterMode" class="sort-select">
+          <option value="me">Including Me</option>
+          <option v-for="g in currentUser?.groups ?? []" :key="g.id" :value="g.id">{{ g.name }}</option>
+          <option value="all">All Albums</option>
+        </select>
+        <div class="map-pin-count">{{ pinCount }} 📍</div>
+      </template>
     </PageHeader>
     <p v-if="status" class="empty map-status">{{ status }}</p>
     <div ref="mapEl" class="map-container"></div>
@@ -17,19 +25,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import PageHeader from "../components/PageHeader.vue";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { authJsonHeaders, authHeaders } from "../utils/session";
+import { useCurrentUser } from "../composables/useCurrentUser";
 
 interface AlbumLocation { id: number; name: string; lat?: number | null; lon?: number | null; geocodeAttempted?: number }
 interface Album {
   channelId: string;
   groupName: string;
+  groupId?: number | null;
   locations?: AlbumLocation[];
   startDate?: string;
   endDate?: string;
+  members: { userId: string }[];
   photos: { id: number; url: string; score?: number; locationId?: number | null }[];
 }
 
@@ -52,6 +63,18 @@ async function geocodeAndSave(loc: AlbumLocation): Promise<[number, number] | nu
 
 const pinIcon = L.divIcon({ html: "📍", iconSize: [28, 28], iconAnchor: [14, 28], popupAnchor: [0, -28], className: "map-emoji-pin" });
 const editingIcon = L.divIcon({ html: "📍", iconSize: [36, 36], iconAnchor: [18, 36], className: "map-emoji-pin map-emoji-pin-editing" });
+
+const { currentUser } = useCurrentUser();
+const allAlbums = ref<Album[]>([]);
+const filterMode = ref<'me' | 'all' | number>('me');
+const filteredAlbums = computed(() => {
+  const mode = filterMode.value;
+  if (mode === 'all') return allAlbums.value;
+  if (typeof mode === 'number') return allAlbums.value.filter(a => a.groupId === mode);
+  const uid = currentUser.value?.userId;
+  if (!uid) return allAlbums.value;
+  return allAlbums.value.filter(a => a.members.some(m => m.userId === uid));
+});
 
 const mapEl = ref<HTMLElement | null>(null);
 const status = ref("Loading albums…");
@@ -280,54 +303,25 @@ function fitMapHeight() {
 
 watch(status, () => nextTick(fitMapHeight));
 
-onMounted(async () => {
-  document.body.style.overflow = "hidden";
-  await nextTick();
-  fitMapHeight();
-  window.addEventListener("resize", fitMapHeight);
-
-  const res = await fetch("/api/albums");
-  const albums: Album[] = await res.json();
-
-  if (!mapEl.value) return;
-  map = L.map(mapEl.value).setView([54, -2], 6);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    maxZoom: 18,
-  }).addTo(map);
+function applyFilter() {
+  if (!map) return;
+  for (const marker of markerRegistry.values()) marker.remove();
+  markerRegistry.clear();
+  activePinLoc.value = null;
 
   const byName = new Map<string, { albums: Album[]; loc: AlbumLocation }>();
-  for (const album of albums) {
+  for (const album of filteredAlbums.value) {
     for (const loc of album.locations ?? []) {
+      if (loc.lat == null) continue;
       if (!byName.has(loc.name)) byName.set(loc.name, { albums: [], loc });
       byName.get(loc.name)!.albums.push(album);
     }
   }
 
-  if (byName.size === 0) { status.value = "No albums have a location set."; return; }
-
-  const needsGeocode = [...byName.values()].filter(e => e.loc.id >= 0 && !e.loc.geocodeAttempted && e.loc.lat == null);
-  const total = needsGeocode.length;
-  if (total > 0) status.value = `Locating ${total} new location${total > 1 ? "s" : ""}… 0/${total}`;
-  let done = 0;
-  for (const entry of needsGeocode) {
-    const coords = await geocodeAndSave(entry.loc);
-    if (coords) { entry.loc.lat = coords[0]; entry.loc.lon = coords[1]; }
-    done++;
-    if (done < total) status.value = `Locating… ${done}/${total}`;
-    else status.value = "";
-    if (done < total) await new Promise(r => setTimeout(r, 1100));
-  }
-  status.value = "";
-
-  let placed = 0;
   for (const { albums: albumsHere, loc } of byName.values()) {
-    placed++;
-    const lat = loc.lat ?? 0;
-    const lon = loc.lon ?? 0;
     const photoCount = albumsHere.reduce((n, a) =>
       n + ((a.locations?.length ?? 0) <= 1 ? a.photos.length : a.photos.filter(p => p.locationId === loc.id).length), 0);
-    const marker = L.marker([lat, lon], { icon: pinIcon }).addTo(map!);
+    const marker = L.marker([loc.lat!, loc.lon!], { icon: pinIcon }).addTo(map!);
     const popupEl = buildPopupEl(loc, albumsHere, marker);
     marker.bindPopup(popupEl, { maxWidth: 340 });
     marker.on("popupopen", () => {
@@ -349,7 +343,50 @@ onMounted(async () => {
     });
     markerRegistry.set(loc.id, marker);
   }
-  pinCount.value = [...byName.values()].filter(e => e.loc.lat != null).length;
+  pinCount.value = markerRegistry.size;
+}
+
+watch(filteredAlbums, applyFilter);
+
+onMounted(async () => {
+  document.body.style.overflow = "hidden";
+  await nextTick();
+  fitMapHeight();
+  window.addEventListener("resize", fitMapHeight);
+
+  const res = await fetch("/api/albums");
+  allAlbums.value = await res.json();
+
+  if (!mapEl.value) return;
+  map = L.map(mapEl.value).setView([54, -2], 6);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 18,
+  }).addTo(map);
+
+  // Geocode any locations that don't yet have coords (one-time, uses all albums)
+  const allByName = new Map<string, AlbumLocation>();
+  for (const album of allAlbums.value)
+    for (const loc of album.locations ?? [])
+      if (!allByName.has(loc.name)) allByName.set(loc.name, loc);
+
+  if (allByName.size === 0) { status.value = "No albums have a location set."; return; }
+
+  const needsGeocode = [...allByName.values()].filter(e => e.id >= 0 && !e.geocodeAttempted && e.lat == null);
+  const total = needsGeocode.length;
+  if (total > 0) status.value = `Locating ${total} new location${total > 1 ? "s" : ""}… 0/${total}`;
+  let done = 0;
+  for (const loc of needsGeocode) {
+    const coords = await geocodeAndSave(loc);
+    if (coords) { loc.lat = coords[0]; loc.lon = coords[1]; }
+    done++;
+    if (done < total) status.value = `Locating… ${done}/${total}`;
+    else status.value = "";
+    if (done < total) await new Promise(r => setTimeout(r, 1100));
+  }
+  status.value = "";
+
+  applyFilter();
 });
 
 onUnmounted(() => {

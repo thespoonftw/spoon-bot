@@ -4,13 +4,14 @@
       <button class="btn-primary btn-small" @click="showModal = true">Create Album</button>
     </PageHeader>
 
-    <div class="search-filters-row" style="margin-bottom:16px" v-if="!loading">
+    <div class="search-filters-row" style="margin-bottom:16px; justify-content:flex-end" v-if="!loading">
       <label class="search-filter-label">Filter:</label>
       <select v-model="filterMode" class="sort-select">
         <option value="me">Including Me</option>
         <option v-for="g in currentUser?.groups ?? []" :key="g.id" :value="g.id">{{ g.name }}</option>
         <option value="all">All Albums</option>
       </select>
+      <div class="map-pin-count">{{ filteredAlbums.length }} 📔</div>
     </div>
 
     <p v-if="loading" class="empty">Loading…</p>
