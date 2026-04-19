@@ -127,7 +127,7 @@
       </div>
     </div>
     <!-- Location Picker Modal -->
-    <div class="modal-overlay locations-modal-overlay" v-if="showLocationPicker" style="z-index:200000;pointer-events:none;background:none">
+    <div class="modal-overlay" v-if="showLocationPicker" style="z-index:200000;pointer-events:none;background:none">
       <div class="modal" :style="dragLocation.style.value" style="pointer-events:auto">
         <button class="modal-close" @click="showLocationPicker = false; locationPickerPhoto = null">✕</button>
         <h2 class="modal-drag-handle" @mousedown="dragLocation.onMouseDown">Set Location</h2>
@@ -815,7 +815,15 @@ function openLightbox(index: number) {
         appendTo: "bar",
         onClick: () => {
           const photo = frozenPhotos![pswp.currIndex];
-          if (photo) { locationPickerPhoto.value = photo; dragLocation.reset(); showLocationPicker.value = true; }
+          if (photo) {
+            locationPickerPhoto.value = photo;
+            dragLocation.reset();
+            if (window.innerWidth >= 768) {
+              const modalW = Math.min(380, window.innerWidth);
+              dragLocation.setPosition(window.innerWidth / 2 - modalW / 2 - 80, 0);
+            }
+            showLocationPicker.value = true;
+          }
         },
       });
     }
