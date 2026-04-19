@@ -324,12 +324,12 @@ export function dbInsertAlbum(album: AlbumRow) {
     .run(album.channelId, album.groupName, album.startDate ?? null, album.endDate ?? null, album.createdAt);
 }
 
-export function dbCreateAlbum(name: string, startDate: string, endDate?: string): AlbumRow {
+export function dbCreateAlbum(name: string, startDate: string, endDate?: string, groupId?: number | null): AlbumRow {
   const channelId = "web_" + crypto.randomBytes(8).toString("hex");
   const createdAt = new Date().toISOString();
-  db.prepare("INSERT INTO albums (channel_id, group_name, start_date, end_date, created_at) VALUES (?, ?, ?, ?, ?)")
-    .run(channelId, name, startDate, endDate ?? null, createdAt);
-  return toAlbumRow({ channelId, groupName: name, startDate, endDate, createdAt });
+  db.prepare("INSERT INTO albums (channel_id, group_name, start_date, end_date, created_at, group_id) VALUES (?, ?, ?, ?, ?, ?)")
+    .run(channelId, name, startDate, endDate ?? null, createdAt, groupId ?? null);
+  return toAlbumRow({ channelId, groupName: name, startDate, endDate, createdAt, groupId: groupId ?? null });
 }
 
 export function dbSyncAlbumFromEvent(channelId: string, eventName: string) {

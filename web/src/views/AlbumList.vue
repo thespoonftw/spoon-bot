@@ -66,6 +66,13 @@
         <input v-model="form.name" type="text" placeholder="e.g. Summer Trip" />
       </div>
       <DateRangePicker v-model:start-date="form.startDate" v-model:end-date="form.endDate" />
+      <div class="form-group" v-if="siteGroups.length">
+        <label>Group</label>
+        <div class="album-group-picker">
+          <button class="album-group-btn" :class="{ active: form.groupId === null }" @click="form.groupId = null">None</button>
+          <button v-for="g in siteGroups" :key="g.id" class="album-group-btn" :class="{ active: form.groupId === g.id }" :style="{ background: form.groupId === g.id ? g.color : '' }" @click="form.groupId = g.id">{{ g.name }}</button>
+        </div>
+      </div>
       <div v-if="formError" class="error">{{ formError }}</div>
       <div class="modal-actions">
         <button class="btn-primary" @click="createAlbum" :disabled="creating">{{ creating ? "Creating…" : "Create" }}</button>
@@ -77,7 +84,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, onActivated, defineOptions, nextTick } from "vue";
-import { onBeforeRouteLeave } from "vue-router";
+import { onBeforeRouteLeave, useRouter } from "vue-router";
+import { useAlbumsCache } from "../composables/useAlbumsCache";
 defineOptions({ name: 'AlbumList' });
 import { useCurrentUser } from "../composables/useCurrentUser";
 import { authJsonHeaders } from "../utils/session";
@@ -91,6 +99,8 @@ interface AlbumLocation { id: number; name: string }
 interface SiteGroup { id: number; name: string; color: string }
 interface Album { channelId: string; groupName: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; createdAt: string; photos: Photo[]; members: Member[]; groupId?: number | null }
 
+const router = useRouter();
+const { albumsDirty, markAlbumsDirty, clearDirty } = useAlbumsCache();
 const albums = ref<Album[]>([]);
 const siteGroups = ref<SiteGroup[]>([]);
 const loading = ref(true);
@@ -109,7 +119,7 @@ const filteredAlbums = computed(() => {
 const showModal = ref(false);
 const creating = ref(false);
 const formError = ref("");
-const form = ref({ name: "", startDate: "", endDate: "" });
+const form = ref({ name: "", startDate: "", endDate: "", groupId: null as number | null });
 
 const albumsByYear = computed(() => {
   const groups = new Map<string, Album[]>();
@@ -238,12 +248,22 @@ onUnmounted(() => window.removeEventListener("resize", onResize));
 
 let savedScroll = 0;
 onBeforeRouteLeave(() => { savedScroll = window.scrollY; });
-onActivated(() => { nextTick(() => window.scrollTo(0, savedScroll)); });
+onActivated(async () => {
+  nextTick(() => window.scrollTo(0, savedScroll));
+  if (albumsDirty.value) {
+    clearDirty();
+    const [res, gres] = await Promise.all([fetch("/api/albums"), fetch("/api/groups", { headers: authJsonHeaders() })]);
+    if (gres.ok) siteGroups.value = await gres.json();
+    const data: Album[] = await res.json();
+    const byName = (a: Member, b: Member) => (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName);
+    albums.value = data.map(a => ({ ...a, members: a.members.slice().sort(byName) }));
+  }
+});
 
 function closeModal() {
   showModal.value = false;
   formError.value = "";
-  form.value = { name: "", startDate: "", endDate: "" };
+  form.value = { name: "", startDate: "", endDate: "", groupId: null };
 }
 
 async function createAlbum() {
@@ -258,13 +278,15 @@ async function createAlbum() {
       name: form.value.name.trim(),
       startDate: form.value.startDate,
       endDate: form.value.endDate || undefined,
+      groupId: form.value.groupId,
     }),
   });
   creating.value = false;
   if (res.ok) {
     const album = await res.json();
-    albums.value.unshift(album);
+    markAlbumsDirty();
     closeModal();
+    router.push(`/album/${album.channelId}`);
   } else {
     formError.value = "Failed to create album. Try again.";
   }

@@ -159,6 +159,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
+import { useAlbumsCache } from "../composables/useAlbumsCache";
 import MemberAvatar from "../components/MemberAvatar.vue";
 import EditAlbumModal from "../components/EditAlbumModal.vue";
 import MembersModal from "../components/MembersModal.vue";
@@ -177,6 +178,7 @@ interface SiteGroup { id: number; name: string; color: string }
 interface Album { channelId: string; groupName: string; dateText?: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; groupId?: number | null; photos: Photo[]; members: Member[] }
 
 const route = useRoute();
+const { markAlbumsDirty } = useAlbumsCache();
 
 const album = ref<Album | null>(null);
 const loading = ref(true);
@@ -354,11 +356,13 @@ onMounted(async () => {
 
 function onAlbumSaved(updated: object) {
   if (album.value) album.value = { ...album.value, ...updated };
+  markAlbumsDirty();
 }
 
 function onMembersUpdated(visible: Member[], all: Member[]) {
   if (album.value) album.value.members = visible.slice().sort(byName);
   allMembers.value = all.slice().sort(byName);
+  markAlbumsDirty();
 }
 
 function handleEscape(e: KeyboardEvent) {
@@ -370,6 +374,7 @@ onUnmounted(() => { window.removeEventListener("keydown", handleEscape, true); o
 
 function onPhotoDeleted(id: number) {
   if (album.value) album.value.photos = album.value.photos.filter(p => p.id !== id);
+  markAlbumsDirty();
 }
 
 function openShare() {
@@ -434,7 +439,7 @@ async function startUpload(files: File[]) {
     const res = await fetch(`/api/album/${album.value.channelId}/photos`, {
       method: "POST", headers: authHeaders(), body: fd,
     });
-    if (res.ok) { album.value.photos.push(await res.json()); item.status = "done"; }
+    if (res.ok) { album.value.photos.push(await res.json()); item.status = "done"; markAlbumsDirty(); }
     else item.status = "failed";
   }
 }

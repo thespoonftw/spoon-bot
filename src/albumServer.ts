@@ -109,15 +109,18 @@ export function startWebServer(): void {
       req.on("data", chunk => body += chunk);
       req.on("end", () => {
         try {
-          const { name, location, startDate, endDate } = JSON.parse(body);
+          const { name, location, startDate, endDate, groupId } = JSON.parse(body);
           if (!name || !startDate) {
             sendJson(res, 400, { error: "name and startDate are required" }); return;
           }
-          const album = dbCreateAlbum(name, startDate, endDate || undefined);
+          const album = dbCreateAlbum(name, startDate, endDate || undefined, groupId ?? null);
           if (location?.trim()) dbAddAlbumLocation(album.channelId, location.trim());
           const creator = getSessionUser(token);
-          if (creator) dbUpsertUser(creator.userId, creator.displayName, creator.avatarUrl);
-          sendJson(res, 201, { ...album, photos: [] });
+          if (creator) {
+            dbUpsertUser(creator.userId, creator.displayName, creator.avatarUrl);
+            dbAddAlbumMember(album.channelId, creator.userId);
+          }
+          sendJson(res, 201, { ...album, photos: [], members: creator ? [{ userId: creator.userId, displayName: creator.displayName, avatarUrl: creator.avatarUrl }] : [] });
         } catch (e) {
           sendJson(res, 500, { error: "Failed to create album" });
         }
