@@ -127,10 +127,10 @@
       </div>
     </div>
     <!-- Location Picker Modal -->
-    <div class="modal-overlay" v-if="showLocationPicker" style="z-index:200000">
-      <div class="modal">
+    <div class="modal-overlay locations-modal-overlay" v-if="showLocationPicker" style="z-index:200000;pointer-events:none;background:none">
+      <div class="modal" :style="dragLocation.style.value" style="pointer-events:auto">
         <button class="modal-close" @click="showLocationPicker = false; locationPickerPhoto = null">✕</button>
-        <h2>Set Location</h2>
+        <h2 class="modal-drag-handle" @mousedown="dragLocation.onMouseDown">Set Location</h2>
         <div class="members-modal-list">
           <div
             v-for="loc in albumLocations"
@@ -205,6 +205,7 @@ const emit = defineEmits<{
 
 const dragTagging = useDraggable();
 const dragDelete = useDraggable();
+const dragLocation = useDraggable();
 
 const votes = ref<Record<number, { score: number; userVote: string | null; userIsSuper: number }>>({});
 let refreshLightboxVotes: (() => void) | null = null;
@@ -814,7 +815,7 @@ function openLightbox(index: number) {
         appendTo: "bar",
         onClick: () => {
           const photo = frozenPhotos![pswp.currIndex];
-          if (photo) { locationPickerPhoto.value = photo; showLocationPicker.value = true; }
+          if (photo) { locationPickerPhoto.value = photo; dragLocation.reset(); showLocationPicker.value = true; }
         },
       });
     }

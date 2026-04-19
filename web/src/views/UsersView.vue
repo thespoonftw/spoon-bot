@@ -12,7 +12,7 @@
           <option value="alpha">Alphabetical</option>
         </select>
       </div>
-      <button v-if="canEditGroups" class="btn-secondary btn-small" @click="addingUser = true">+ Add User</button>
+      <button v-if="canEditGroups" class="btn-primary btn-small" @click="addingUser = true">Add User</button>
     </div>
 
     <div class="user-list">
