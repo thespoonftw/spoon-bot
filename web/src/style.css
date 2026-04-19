@@ -395,7 +395,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .map-popup { font-family: inherit; font-size: 0.9rem; color: #1e1e2e; min-width: 200px; padding: 14px 12px; }
 .map-popup-header { display: flex; align-items: center; gap: 0; margin-bottom: 8px; }
 .map-popup-loc-name { font-weight: 700; font-size: 1rem; color: #5c4a8a; }
-.map-popup-title { font-weight: 600; color: #333; text-decoration: none; display: block; font-size: 0.9rem; }
+.map-popup-title { font-weight: 500; color: #666; text-decoration: none; display: block; font-size: 0.9rem; }
 .map-popup-meta { font-size: 0.8rem; color: #555; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .map-popup-photo-count { color: #888; font-size: 0.75rem; white-space: nowrap; }
 .map-popup-accordion-item { border-top: 1px solid #ddd; margin-top: 4px; }
