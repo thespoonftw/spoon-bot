@@ -371,7 +371,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .page-header-edit-btn { font-size: 0.9rem; opacity: 0.45; padding: 2px 4px; flex-shrink: 0; }
 .page-header-edit-btn:hover { opacity: 1; }
 .page-header-subtitle { color: #a6adc8; font-size: 0.85rem; display: block; margin-top: 2px; }
-.page-header-location { display: flex; align-items: center; gap: 4px; color: #a6adc8; font-size: 0.85rem; margin-top: 3px; }
+.page-header-location { display: flex; align-items: center; gap: 4px; color: #a6adc8; font-size: 0.85rem; margin-top: 3px; min-height: 1.4em; }
 .page-header-location--mobile { display: none; }
 @media (max-width: 767px) { .page-header-location--mobile { display: flex; } }
 .album-photo-count-badge { color: #a6adc8; font-size: 0.85rem; white-space: nowrap; }
