@@ -279,11 +279,11 @@ const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
 const totalSortedCount = computed(() => sortedSections.value.reduce((n, s) => n + s.photos.length, 0));
 const displayedSections = computed(() => {
   let remaining = displayLimit.value;
-  const result: { label: string; photos: Photo[] }[] = [];
+  const result: { label: string; photos: Photo[]; total: number }[] = [];
   for (const section of sortedSections.value) {
     if (remaining <= 0) break;
     const photos = section.photos.slice(0, remaining);
-    result.push({ ...section, photos });
+    result.push({ ...section, photos, total: section.photos.length });
     remaining -= photos.length;
   }
   return result;

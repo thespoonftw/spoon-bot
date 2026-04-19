@@ -3,7 +3,7 @@
     <h3 v-if="section.label" class="gallery-section-header" @click="toggleSection(section.label)">
       <span class="section-collapse-icon">{{ collapsedSections.has(section.label) ? '▶' : '▼' }}</span>
       {{ section.label }}
-      <span class="section-photo-count">{{ section.photos.length }}</span>
+      <span class="section-photo-count">{{ (section as any).total ?? section.photos.length }}</span>
       <span class="section-collapse-spacer"></span>
     </h3>
     <template v-if="!section.label || !collapsedSections.has(section.label)">
