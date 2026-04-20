@@ -1128,8 +1128,6 @@ async function setPhotoLocation(locationId: number | null) {
     method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ locationId }),
   });
   photo.locationId = locationId;
-  showLocationPicker.value = false;
-  locationPickerPhoto.value = null;
   refreshLightboxVotes?.();
 }
 
