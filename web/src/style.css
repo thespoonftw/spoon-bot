@@ -161,7 +161,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .search-pagination span { color: #a6adc8; font-size: 0.9rem; }
 
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 100; }
-@media (min-width: 768px) { .locations-modal-overlay { align-items: flex-start; justify-content: flex-start; padding: 120px 0 0 20px; } }
+@media (min-width: 768px) { .locations-modal-overlay { align-items: center; justify-content: flex-start; padding-left: 40px; } }
 .modal { background: #181825; border-radius: 12px; padding: 32px; width: 100%; max-width: 380px; position: relative; }
 .modal h2 { color: #cba6f7; margin-bottom: 24px; }
 .modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: #6c7086; font-size: 1.1rem; cursor: pointer; line-height: 1; padding: 4px; }
