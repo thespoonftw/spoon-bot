@@ -1117,7 +1117,7 @@ function openLightbox(index: number) {
       },
     });
   });
-  pswp.on("close", () => { refreshLightboxVotes = null; activeDsArray = null; lightboxLoadingMore = false; });
+  pswp.on("close", () => { refreshLightboxVotes = null; activeDsArray = null; lightboxLoadingMore = false; showLocationPicker.value = false; locationPickerPhoto.value = null; });
   pswp.init();
 }
 
