@@ -132,7 +132,7 @@
         <button class="modal-close" @click="showDatePicker = false; datePickerPhoto = null">✕</button>
         <h2 class="modal-drag-handle" @mousedown="dragDate.onMouseDown">Set Date</h2>
         <div class="form-group" style="margin-top:8px">
-          <input type="date" v-model="datePickerValue" />
+          <input type="text" v-model="datePickerValue" placeholder="YYYY-MM-DD" />
         </div>
         <div class="modal-actions" style="margin-top:12px">
           <button class="btn-secondary btn-small" @click="setPhotoTakenAt(null)">Clear</button>
@@ -1173,7 +1173,9 @@ async function setPhotoLocation(locationId: number | null) {
 async function setPhotoTakenAt(value: string | null) {
   const photo = datePickerPhoto.value;
   if (!photo) return;
-  const takenAt = value ? new Date(value + 'T12:00:00').toISOString() : null;
+  const parsed = value ? new Date(value + 'T12:00:00') : null;
+  if (parsed && isNaN(parsed.getTime())) return;
+  const takenAt = parsed ? parsed.toISOString() : null;
   await fetch(`/api/photo/${photo.id}/taken`, {
     method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ takenAt }),
   });
