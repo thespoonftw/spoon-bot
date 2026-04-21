@@ -161,6 +161,9 @@
       <div class="modal" :style="dragDate.style.value" style="pointer-events:auto;max-width:280px">
         <button class="modal-close" @click="showDatePicker = false; datePickerPhoto = null">✕</button>
         <h2 class="modal-drag-handle" @mousedown="dragDate.onMouseDown">Set Date</h2>
+        <p style="color:#a6adc8;font-size:0.85em;margin:4px 0 8px">
+          Current: <span :style="datePickerPhoto?.takenAt ? 'color:#cdd6f4' : 'color:#6c7086'">{{ datePickerPhoto?.takenAt ? datePickerPhoto.takenAt.slice(0, 10) : 'not set' }}</span>
+        </p>
         <div class="form-group" style="margin-top:8px">
           <input type="date" v-model="datePickerValue" @keydown.stop />
         </div>
@@ -360,6 +363,7 @@ const showLocationPicker = ref(false);
 const showDatePicker = ref(false);
 const datePickerPhoto = ref<Photo | null>(null);
 const datePickerValue = ref('');
+const lastSetDate = ref('');
 const collapsedSections = ref(new Set<string>());
 function toggleSection(label: string) {
   const s = new Set(collapsedSections.value);
@@ -693,7 +697,7 @@ function openLightbox(index: number) {
     if (showDatePicker.value) {
       const photo = frozenPhotos![pswp.currIndex];
       datePickerPhoto.value = photo;
-      datePickerValue.value = photo?.takenAt ? photo.takenAt.slice(0, 10) : (props.albumStartDate ?? '');
+      datePickerValue.value = photo?.takenAt ? photo.takenAt.slice(0, 10) : (lastSetDate.value || props.albumStartDate || '');
     }
     // Trigger load more when within 5 of the end
     if (props.canLoadMore && !lightboxLoadingMore && pswp.currIndex >= dsArray.length - 5) {
@@ -1183,6 +1187,7 @@ async function setPhotoTakenAt(value: string | null) {
   });
   photo.takenAt = takenAt ?? undefined;
   datePickerValue.value = takenAt ? takenAt.slice(0, 10) : '';
+  if (takenAt) lastSetDate.value = takenAt.slice(0, 10);
 }
 
 function loadFull(e: Event, fullUrl: string) {
