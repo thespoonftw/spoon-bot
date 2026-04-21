@@ -132,7 +132,7 @@
         <button class="modal-close" @click="showDatePicker = false; datePickerPhoto = null">✕</button>
         <h2 class="modal-drag-handle" @mousedown="dragDate.onMouseDown">Set Date</h2>
         <div class="form-group" style="margin-top:8px">
-          <input type="date" v-model="datePickerValue" />
+          <input type="date" v-model="datePickerValue" @keydown.stop @click.stop @pointerdown.stop />
         </div>
         <div class="modal-actions" style="margin-top:12px">
           <button class="btn-secondary btn-small" @click="setPhotoTakenAt(null)">Clear</button>
