@@ -294,6 +294,14 @@ export function startWebServer(): void {
               if (!isNaN(d.getTime())) takenAt = d.toISOString();
             }
           } catch (e) { console.error("[upload] EXIF parse failed:", e); }
+          if (!takenAt) {
+            const m = filename.match(/(20\d{6})_(\d{6})/);
+            if (m) {
+              const ds = `${m[1].slice(0,4)}-${m[1].slice(4,6)}-${m[1].slice(6,8)}T${m[2].slice(0,2)}:${m[2].slice(2,4)}:${m[2].slice(4,6)}`;
+              const d = new Date(ds);
+              if (!isNaN(d.getTime())) takenAt = d.toISOString();
+            }
+          }
           try {
             await sharp(filePath).resize(256, 256, { fit: "outside", withoutEnlargement: true }).toFile(thumbPath);
           } catch (e) { console.error("Thumbnail generation failed:", e); }
