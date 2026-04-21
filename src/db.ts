@@ -250,6 +250,10 @@ export type PhotoRow = {
 export function dbSetPhotoLocation(photoId: number, locationId: number | null) {
   db.prepare("UPDATE photos SET location_id = ? WHERE id = ?").run(locationId, photoId);
 }
+
+export function dbSetPhotoTakenAt(photoId: number, takenAt: string | null) {
+  db.prepare("UPDATE photos SET taken_at = ? WHERE id = ?").run(takenAt, photoId);
+}
 export type AlbumWithPhotos = AlbumRow & { photos: PhotoRow[]; members: UserRow[] };
 
 export function dbHasAlbum(channelId: string): boolean {

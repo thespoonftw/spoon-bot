@@ -126,6 +126,20 @@
         </div>
       </div>
     </div>
+    <!-- Date Picker Modal -->
+    <div class="modal-overlay locations-modal-overlay" v-if="showDatePicker" style="z-index:200000;pointer-events:none;background:none">
+      <div class="modal" :style="dragDate.style.value" style="pointer-events:auto;max-width:300px">
+        <button class="modal-close" @click="showDatePicker = false; datePickerPhoto = null">✕</button>
+        <h2 class="modal-drag-handle" @mousedown="dragDate.onMouseDown">Set Date</h2>
+        <div class="form-group" style="margin-top:8px">
+          <input type="datetime-local" v-model="datePickerValue" style="width:100%;background:#313244;border:1px solid #45475a;border-radius:6px;padding:8px;color:#cdd6f4;font-size:0.9em" />
+        </div>
+        <div class="modal-actions" style="margin-top:12px">
+          <button class="btn-secondary btn-small" @click="setPhotoTakenAt(null)">Clear</button>
+          <button class="btn-primary btn-small" @click="setPhotoTakenAt(datePickerValue)" :disabled="!datePickerValue">Save</button>
+        </div>
+      </div>
+    </div>
     <!-- Location Picker Modal -->
     <div class="modal-overlay locations-modal-overlay" v-if="showLocationPicker" style="z-index:200000;pointer-events:none;background:none">
       <div class="modal" :style="dragLocation.style.value" style="pointer-events:auto">
@@ -206,6 +220,7 @@ const emit = defineEmits<{
 const dragTagging = useDraggable();
 const dragDelete = useDraggable();
 const dragLocation = useDraggable();
+const dragDate = useDraggable();
 
 const votes = ref<Record<number, { score: number; userVote: string | null; userIsSuper: number }>>({});
 let refreshLightboxVotes: (() => void) | null = null;
@@ -338,6 +353,9 @@ const taggingSelection = ref(new Set<string>());
 const deletingPhoto = ref<Photo | null>(null);
 const deleting = ref(false);
 const showLocationPicker = ref(false);
+const showDatePicker = ref(false);
+const datePickerPhoto = ref<Photo | null>(null);
+const datePickerValue = ref('');
 const collapsedSections = ref(new Set<string>());
 function toggleSection(label: string) {
   const s = new Set(collapsedSections.value);
@@ -667,6 +685,11 @@ function openLightbox(index: number) {
     const hp = lbHoverPopupEl as HTMLElement | null; if (hp) hp.style.display = "none";
     if (showTagging.value) openTagging(frozenPhotos![pswp.currIndex]);
     if (showLocationPicker.value) locationPickerPhoto.value = frozenPhotos![pswp.currIndex];
+    if (showDatePicker.value) {
+      const photo = frozenPhotos![pswp.currIndex];
+      datePickerPhoto.value = photo;
+      datePickerValue.value = photo?.takenAt ? photo.takenAt.slice(0, 16) : '';
+    }
     // Trigger load more when within 5 of the end
     if (props.canLoadMore && !lightboxLoadingMore && pswp.currIndex >= dsArray.length - 5) {
       lightboxLoadingMore = true;
@@ -806,6 +829,21 @@ function openLightbox(index: number) {
       html: "💬",
       appendTo: "bar",
       onClick: () => { showCaptionEditor(); },
+    });
+    pswp.ui!.registerElement({
+      name: "date-button",
+      order: 6,
+      isButton: true,
+      html: "📅",
+      appendTo: "bar",
+      onClick: () => {
+        const photo = frozenPhotos![pswp.currIndex];
+        if (!photo) return;
+        datePickerPhoto.value = photo;
+        datePickerValue.value = photo.takenAt ? photo.takenAt.slice(0, 16) : '';
+        if (!showDatePicker.value) dragDate.reset();
+        showDatePicker.value = true;
+      },
     });
     if (props.albumLocations?.length) {
       pswp.ui!.registerElement({
@@ -1117,7 +1155,7 @@ function openLightbox(index: number) {
       },
     });
   });
-  pswp.on("close", () => { refreshLightboxVotes = null; activeDsArray = null; lightboxLoadingMore = false; showLocationPicker.value = false; locationPickerPhoto.value = null; });
+  pswp.on("close", () => { refreshLightboxVotes = null; activeDsArray = null; lightboxLoadingMore = false; showLocationPicker.value = false; locationPickerPhoto.value = null; showDatePicker.value = false; datePickerPhoto.value = null; });
   pswp.init();
 }
 
@@ -1129,6 +1167,17 @@ async function setPhotoLocation(locationId: number | null) {
   });
   photo.locationId = locationId;
   refreshLightboxVotes?.();
+}
+
+async function setPhotoTakenAt(value: string | null) {
+  const photo = datePickerPhoto.value;
+  if (!photo) return;
+  const takenAt = value ? new Date(value).toISOString() : null;
+  await fetch(`/api/photo/${photo.id}/taken`, {
+    method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ takenAt }),
+  });
+  photo.takenAt = takenAt ?? undefined;
+  datePickerValue.value = takenAt ? takenAt.slice(0, 16) : '';
 }
 
 function loadFull(e: Event, fullUrl: string) {
