@@ -127,12 +127,12 @@
       </div>
     </div>
     <!-- Date Picker Modal -->
-    <div class="modal-overlay locations-modal-overlay" v-if="showDatePicker" style="z-index:200000;pointer-events:none;background:none">
-      <div class="modal" :style="dragDate.style.value" style="pointer-events:auto;max-width:300px">
+    <div class="modal-overlay top-right-panel-overlay" v-if="showDatePicker" style="z-index:200000;pointer-events:none;background:none">
+      <div class="modal" :style="dragDate.style.value" style="pointer-events:auto;max-width:280px">
         <button class="modal-close" @click="showDatePicker = false; datePickerPhoto = null">✕</button>
         <h2 class="modal-drag-handle" @mousedown="dragDate.onMouseDown">Set Date</h2>
         <div class="form-group" style="margin-top:8px">
-          <input type="datetime-local" v-model="datePickerValue" style="width:100%;background:#313244;border:1px solid #45475a;border-radius:6px;padding:8px;color:#cdd6f4;font-size:0.9em" />
+          <input type="date" v-model="datePickerValue" />
         </div>
         <div class="modal-actions" style="margin-top:12px">
           <button class="btn-secondary btn-small" @click="setPhotoTakenAt(null)">Clear</button>
@@ -688,7 +688,7 @@ function openLightbox(index: number) {
     if (showDatePicker.value) {
       const photo = frozenPhotos![pswp.currIndex];
       datePickerPhoto.value = photo;
-      datePickerValue.value = photo?.takenAt ? photo.takenAt.slice(0, 16) : '';
+      datePickerValue.value = photo?.takenAt ? photo.takenAt.slice(0, 10) : '';
     }
     // Trigger load more when within 5 of the end
     if (props.canLoadMore && !lightboxLoadingMore && pswp.currIndex >= dsArray.length - 5) {
@@ -840,7 +840,7 @@ function openLightbox(index: number) {
         const photo = frozenPhotos![pswp.currIndex];
         if (!photo) return;
         datePickerPhoto.value = photo;
-        datePickerValue.value = photo.takenAt ? photo.takenAt.slice(0, 16) : '';
+        datePickerValue.value = photo.takenAt ? photo.takenAt.slice(0, 10) : '';
         if (!showDatePicker.value) dragDate.reset();
         showDatePicker.value = true;
       },
@@ -1172,12 +1172,12 @@ async function setPhotoLocation(locationId: number | null) {
 async function setPhotoTakenAt(value: string | null) {
   const photo = datePickerPhoto.value;
   if (!photo) return;
-  const takenAt = value ? new Date(value).toISOString() : null;
+  const takenAt = value ? new Date(value + 'T12:00:00').toISOString() : null;
   await fetch(`/api/photo/${photo.id}/taken`, {
     method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ takenAt }),
   });
   photo.takenAt = takenAt ?? undefined;
-  datePickerValue.value = takenAt ? takenAt.slice(0, 16) : '';
+  datePickerValue.value = takenAt ? takenAt.slice(0, 10) : '';
 }
 
 function loadFull(e: Event, fullUrl: string) {
