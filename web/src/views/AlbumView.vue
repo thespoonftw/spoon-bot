@@ -55,6 +55,8 @@
               <option value="uploader">Uploader</option>
               <option value="newest">Newest Upload</option>
               <option value="oldest">Oldest Upload</option>
+              <option value="newestTaken">Newest Taken</option>
+              <option value="oldestTaken">Oldest Taken</option>
             </select>
             <select v-if="sortBy === 'tagging'" v-model="tagFilterUserId" class="sort-select">
               <option v-for="m in album.members" :key="m.userId" :value="m.userId">{{ m.firstName || m.displayName }}</option>
@@ -205,7 +207,7 @@ const siteGroups = ref<SiteGroup[]>([]);
 const allMembers = ref<Member[]>([]);
 
 const SORT_KEY = 'snek_sort_by';
-const sortBy = ref<'popular' | 'tagging' | 'uploader' | 'newest' | 'oldest' | 'location'>(
+const sortBy = ref<'popular' | 'tagging' | 'uploader' | 'newest' | 'oldest' | 'newestTaken' | 'oldestTaken' | 'location'>(
   (sessionStorage.getItem(SORT_KEY) as any) ?? 'popular'
 );
 watch(sortBy, () => { displayLimit.value = 40; });
@@ -221,22 +223,43 @@ function cmp(a: Photo, b: Photo): number {
   return (b.uploadedAt ?? '').localeCompare(a.uploadedAt ?? '');
 }
 
+function dayLabel(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function groupByDate(photos: Photo[], getDate: (p: Photo) => string | undefined, newest: boolean, includeUnspecified: boolean) {
+  const groups = new Map<string, { label: string; photos: Photo[] }>();
+  const unspecified: Photo[] = [];
+  for (const photo of photos) {
+    const d = getDate(photo);
+    if (!d) { unspecified.push(photo); continue; }
+    const key = d.slice(0, 10);
+    if (!groups.has(key)) groups.set(key, { label: dayLabel(d), photos: [] });
+    groups.get(key)!.photos.push(photo);
+  }
+  const sections = [...groups.entries()]
+    .sort(([a], [b]) => newest ? b.localeCompare(a) : a.localeCompare(b))
+    .map(([, s]) => ({ label: s.label, photos: s.photos.sort(cmp) }));
+  if (includeUnspecified && unspecified.length > 0) sections.push({ label: 'Unspecified', photos: unspecified.sort(cmp) });
+  return sections;
+}
+
 const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
   const photos = album.value?.photos ?? [];
   if (sortBy.value === 'popular') {
     return [{ label: '', photos: [...photos].sort(cmp) }];
   }
   if (sortBy.value === 'newest') {
-    return [{ label: '', photos: [...photos].sort((a, b) => {
-      const t = (b.uploadedAt ?? '').localeCompare(a.uploadedAt ?? '');
-      return t !== 0 ? t : cmp(a, b);
-    }) }];
+    return groupByDate(photos, p => p.uploadedAt, true, false);
   }
   if (sortBy.value === 'oldest') {
-    return [{ label: '', photos: [...photos].sort((a, b) => {
-      const t = (a.uploadedAt ?? '').localeCompare(b.uploadedAt ?? '');
-      return t !== 0 ? t : cmp(a, b);
-    }) }];
+    return groupByDate(photos, p => p.uploadedAt, false, false);
+  }
+  if (sortBy.value === 'newestTaken') {
+    return groupByDate(photos, p => p.takenAt, true, true);
+  }
+  if (sortBy.value === 'oldestTaken') {
+    return groupByDate(photos, p => p.takenAt, false, true);
   }
   if (sortBy.value === 'tagging') {
     const target = tagFilterUserId.value;
