@@ -210,6 +210,7 @@ const props = defineProps<{
   canLoadMore?: boolean;
   totalCount?: number;
   albumLocations?: { id: number; name: string }[];
+  albumStartDate?: string;
 }>();
 
 const emit = defineEmits<{
@@ -688,7 +689,7 @@ function openLightbox(index: number) {
     if (showDatePicker.value) {
       const photo = frozenPhotos![pswp.currIndex];
       datePickerPhoto.value = photo;
-      datePickerValue.value = photo?.takenAt ? photo.takenAt.slice(0, 10) : '';
+      datePickerValue.value = photo?.takenAt ? photo.takenAt.slice(0, 10) : (props.albumStartDate ?? '');
     }
     // Trigger load more when within 5 of the end
     if (props.canLoadMore && !lightboxLoadingMore && pswp.currIndex >= dsArray.length - 5) {
@@ -840,7 +841,7 @@ function openLightbox(index: number) {
         const photo = frozenPhotos![pswp.currIndex];
         if (!photo) return;
         datePickerPhoto.value = photo;
-        datePickerValue.value = photo.takenAt ? photo.takenAt.slice(0, 10) : '';
+        datePickerValue.value = photo.takenAt ? photo.takenAt.slice(0, 10) : (props.albumStartDate ?? '');
         if (!showDatePicker.value) dragDate.reset();
         showDatePicker.value = true;
       },
