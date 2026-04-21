@@ -223,18 +223,24 @@ function cmp(a: Photo, b: Photo): number {
   return (b.uploadedAt ?? '').localeCompare(a.uploadedAt ?? '');
 }
 
-function dayLabel(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+function dayLabel(iso: string, hideYear: boolean): string {
+  return new Date(iso).toLocaleDateString('en-GB', hideYear
+    ? { day: 'numeric', month: 'short' }
+    : { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function groupByDate(photos: Photo[], getDate: (p: Photo) => string | undefined, newest: boolean, includeUnspecified: boolean) {
+  const startYear = album.value?.startDate?.slice(0, 4);
+  const endYear = album.value?.endDate?.slice(0, 4) ?? startYear;
+  const albumYear = startYear && startYear === endYear ? startYear : null;
+
   const groups = new Map<string, { label: string; photos: Photo[] }>();
   const unspecified: Photo[] = [];
   for (const photo of photos) {
     const d = getDate(photo);
     if (!d) { unspecified.push(photo); continue; }
     const key = d.slice(0, 10);
-    if (!groups.has(key)) groups.set(key, { label: dayLabel(d), photos: [] });
+    if (!groups.has(key)) groups.set(key, { label: dayLabel(d, albumYear !== null && key.slice(0, 4) === albumYear), photos: [] });
     groups.get(key)!.photos.push(photo);
   }
   const sections = [...groups.entries()]
