@@ -295,9 +295,14 @@ export function startWebServer(): void {
             }
           } catch (e) { console.error("[upload] EXIF parse failed:", e); }
           if (!takenAt) {
-            const m = filename.match(/(20\d{6})_(\d{6})/);
-            if (m) {
-              const ds = `${m[1].slice(0,4)}-${m[1].slice(4,6)}-${m[1].slice(6,8)}T${m[2].slice(0,2)}:${m[2].slice(2,4)}:${m[2].slice(4,6)}`;
+            const mFull = filename.match(/(20\d{6})[_-](\d{6})/);
+            const mDate = !mFull && filename.match(/(?<![0-9])(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?![0-9])/);
+            if (mFull) {
+              const ds = `${mFull[1].slice(0,4)}-${mFull[1].slice(4,6)}-${mFull[1].slice(6,8)}T${mFull[2].slice(0,2)}:${mFull[2].slice(2,4)}:${mFull[2].slice(4,6)}`;
+              const d = new Date(ds);
+              if (!isNaN(d.getTime())) takenAt = d.toISOString();
+            } else if (mDate) {
+              const ds = `${mDate[1]}-${mDate[2]}-${mDate[3]}T12:00:00`;
               const d = new Date(ds);
               if (!isNaN(d.getTime())) takenAt = d.toISOString();
             }
