@@ -127,7 +127,7 @@
       </div>
     </div>
     <!-- Date Picker Modal -->
-    <div class="modal-overlay top-right-panel-overlay" v-if="showDatePicker" style="z-index:200000;pointer-events:none;background:none">
+    <div class="modal-overlay locations-modal-overlay" v-if="showDatePicker" style="z-index:200000;pointer-events:none;background:none">
       <div class="modal" :style="dragDate.style.value" style="pointer-events:auto;max-width:280px">
         <button class="modal-close" @click="showDatePicker = false; datePickerPhoto = null">✕</button>
         <h2 class="modal-drag-handle" @mousedown="dragDate.onMouseDown">Set Date</h2>
@@ -824,7 +824,7 @@ function openLightbox(index: number) {
     });
     pswp.ui!.registerElement({
       name: "caption-button",
-      order: 8,
+      order: 9,
       isButton: true,
       html: "💬",
       appendTo: "bar",
@@ -832,7 +832,7 @@ function openLightbox(index: number) {
     });
     pswp.ui!.registerElement({
       name: "date-button",
-      order: 6,
+      order: 7,
       isButton: true,
       html: "📅",
       appendTo: "bar",
@@ -848,7 +848,7 @@ function openLightbox(index: number) {
     if (props.albumLocations?.length) {
       pswp.ui!.registerElement({
         name: "location-button",
-        order: 7,
+        order: 8,
         isButton: true,
         html: "📍",
         appendTo: "bar",
@@ -865,7 +865,7 @@ function openLightbox(index: number) {
     if (props.canDelete) {
       pswp.ui!.registerElement({
         name: "delete-button",
-        order: 9,
+        order: 10,
         isButton: true,
         html: "🗑",
         appendTo: "bar",
