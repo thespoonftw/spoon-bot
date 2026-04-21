@@ -126,20 +126,6 @@
         </div>
       </div>
     </div>
-    <!-- Date Picker Modal -->
-    <div class="modal-overlay locations-modal-overlay" v-if="showDatePicker" style="z-index:200000;pointer-events:none;background:none">
-      <div class="modal" :style="dragDate.style.value" style="pointer-events:auto;max-width:280px">
-        <button class="modal-close" @click="showDatePicker = false; datePickerPhoto = null">✕</button>
-        <h2 class="modal-drag-handle" @mousedown="dragDate.onMouseDown">Set Date</h2>
-        <div class="form-group" style="margin-top:8px">
-          <input type="date" v-model="datePickerValue" @keydown.stop @click.stop @pointerdown.stop />
-        </div>
-        <div class="modal-actions" style="margin-top:12px">
-          <button class="btn-secondary btn-small" @click="setPhotoTakenAt(null)">Clear</button>
-          <button class="btn-primary btn-small" @click="setPhotoTakenAt(datePickerValue)" :disabled="!datePickerValue">Save</button>
-        </div>
-      </div>
-    </div>
     <!-- Location Picker Modal -->
     <div class="modal-overlay locations-modal-overlay" v-if="showLocationPicker" style="z-index:200000;pointer-events:none;background:none">
       <div class="modal" :style="dragLocation.style.value" style="pointer-events:auto">
@@ -164,6 +150,23 @@
             <span style="color:#6c7086">— No location</span>
             <span v-if="!locationPickerPhoto?.locationId" style="color:#a6e3a1;font-size:0.85em">✓ current</span>
           </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <Teleport to="body">
+    <!-- Date Picker Modal -->
+    <div class="modal-overlay locations-modal-overlay" v-if="showDatePicker" style="z-index:200000;pointer-events:none;background:none">
+      <div class="modal" :style="dragDate.style.value" style="pointer-events:auto;max-width:280px">
+        <button class="modal-close" @click="showDatePicker = false; datePickerPhoto = null">✕</button>
+        <h2 class="modal-drag-handle" @mousedown="dragDate.onMouseDown">Set Date</h2>
+        <div class="form-group" style="margin-top:8px">
+          <input type="date" v-model="datePickerValue" />
+        </div>
+        <div class="modal-actions" style="margin-top:12px">
+          <button class="btn-secondary btn-small" @click="setPhotoTakenAt(null)">Clear</button>
+          <button class="btn-primary btn-small" @click="setPhotoTakenAt(datePickerValue)" :disabled="!datePickerValue">Save</button>
         </div>
       </div>
     </div>
@@ -567,6 +570,7 @@ function openLightbox(index: number) {
     closeOnVerticalDrag: false,
     bgClickAction: "none",
     loop: false,
+    trapFocus: false,
     paddingFn: (viewportSize: { x: number; y: number }) =>
       viewportSize.x >= 768 ? { top: 20, bottom: 110, left: 0, right: 0 } : { top: 0, bottom: 0, left: 0, right: 0 },
   });
