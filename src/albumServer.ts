@@ -298,7 +298,7 @@ export function startWebServer(): void {
             await sharp(filePath).resize(256, 256, { fit: "outside", withoutEnlargement: true }).toFile(thumbPath);
           } catch (e) { console.error("Thumbnail generation failed:", e); }
           const photoUrl = `/uploads/${channelId}/${name}`;
-          const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, width, height, takenAt);
+          const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, width, height, takenAt, undefined, undefined, filename);
           sendJson(res, 201, photo);
         });
         writeStream.on("error", () => {
