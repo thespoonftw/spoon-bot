@@ -49,14 +49,12 @@
           <template v-if="album.photos.length > 0">
             <label class="sort-label" style="margin-left: auto">Sort By:</label>
             <select v-model="sortBy" class="sort-select" @change="onSortChange">
-              <option value="popular">Most Popular</option>
+              <option value="popular">Popularity</option>
+              <option v-if="album.startDate" value="date">Date</option>
               <option v-if="album.locations && album.locations.length > 1" value="location">Location</option>
+              <option value="uploader">Author</option>
+              <option value="newest">Upload</option>
               <option value="tagging">Tagging</option>
-              <option value="uploader">Uploader</option>
-              <option value="newest">Newest Upload</option>
-              <option value="oldest">Oldest Upload</option>
-              <option value="newestTaken">Newest Taken</option>
-              <option value="oldestTaken">Oldest Taken</option>
             </select>
             <select v-if="sortBy === 'tagging'" v-model="tagFilterUserId" class="sort-select">
               <option v-for="m in album.members" :key="m.userId" :value="m.userId">{{ m.firstName || m.displayName }}</option>
@@ -208,8 +206,9 @@ const siteGroups = ref<SiteGroup[]>([]);
 const allMembers = ref<Member[]>([]);
 
 const SORT_KEY = 'snek_sort_by';
-const sortBy = ref<'popular' | 'tagging' | 'uploader' | 'newest' | 'oldest' | 'newestTaken' | 'oldestTaken' | 'location'>(
-  (sessionStorage.getItem(SORT_KEY) as any) ?? 'popular'
+const VALID_SORTS = new Set(['popular', 'date', 'location', 'uploader', 'newest', 'tagging']);
+const sortBy = ref<'popular' | 'date' | 'location' | 'uploader' | 'newest' | 'tagging'>(
+  (VALID_SORTS.has(sessionStorage.getItem(SORT_KEY) ?? '') ? sessionStorage.getItem(SORT_KEY) : 'popular') as any
 );
 watch(sortBy, () => { displayLimit.value = 40; });
 function onSortChange() { sessionStorage.setItem(SORT_KEY, sortBy.value); }
@@ -259,13 +258,7 @@ const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
   if (sortBy.value === 'newest') {
     return groupByDate(photos, p => p.uploadedAt, true, false);
   }
-  if (sortBy.value === 'oldest') {
-    return groupByDate(photos, p => p.uploadedAt, false, false);
-  }
-  if (sortBy.value === 'newestTaken') {
-    return groupByDate(photos, p => p.takenAt, true, true);
-  }
-  if (sortBy.value === 'oldestTaken') {
+  if (sortBy.value === 'date') {
     return groupByDate(photos, p => p.takenAt, false, true);
   }
   if (sortBy.value === 'tagging') {
@@ -371,7 +364,9 @@ onMounted(async () => {
       sortBy.value = 'location';
       const locId = parseInt(route.query.loc as string);
       if (!isNaN(locId)) priorityLocId.value = locId;
-    } else if (!hasMultipleLocations && sortBy.value === 'location') {
+    } else if (sortBy.value === 'location' && !hasMultipleLocations) {
+      sortBy.value = 'popular';
+    } else if (sortBy.value === 'date' && !data.startDate) {
       sortBy.value = 'popular';
     }
   }
