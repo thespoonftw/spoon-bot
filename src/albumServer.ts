@@ -272,16 +272,6 @@ export function startWebServer(): void {
           const thumbDir = path.join(PHOTO_STORAGE_PATH, channelId, "thumbs");
           fs.mkdirSync(thumbDir, { recursive: true });
           const thumbPath = path.join(thumbDir, name);
-          try {
-            const tmpPath = filePath + ".tmp";
-            await sharp(filePath).rotate().toFile(tmpPath);
-            fs.renameSync(tmpPath, filePath);
-          } catch (e) { console.error("Auto-rotate failed:", e); }
-          let width = 0, height = 0;
-          try {
-            const meta = await sharp(filePath).metadata();
-            width = meta.width ?? 0; height = meta.height ?? 0;
-          } catch (e) { console.error("Failed to read image dimensions:", e); }
           let takenAt: string | undefined;
           try {
             const exif = await exifr.parse(filePath, { exif: true });
@@ -293,8 +283,17 @@ export function startWebServer(): void {
               const d = new Date(normalized);
               if (!isNaN(d.getTime())) takenAt = d.toISOString();
             }
-            console.log("[upload] EXIF debug:", filename, JSON.stringify(exif));
           } catch (e) { console.error("[upload] EXIF parse failed:", e); }
+          try {
+            const tmpPath = filePath + ".tmp";
+            await sharp(filePath).rotate().toFile(tmpPath);
+            fs.renameSync(tmpPath, filePath);
+          } catch (e) { console.error("Auto-rotate failed:", e); }
+          let width = 0, height = 0;
+          try {
+            const meta = await sharp(filePath).metadata();
+            width = meta.width ?? 0; height = meta.height ?? 0;
+          } catch (e) { console.error("Failed to read image dimensions:", e); }
           if (!takenAt) {
             const mFull = filename.match(/(20\d{6})[_-](\d{6})/);
             const mDate = !mFull && filename.match(/(?<![0-9])(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?![0-9])/);
