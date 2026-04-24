@@ -223,8 +223,9 @@ function cmp(a: Photo, b: Photo): number {
   return (b.uploadedAt ?? '').localeCompare(a.uploadedAt ?? '');
 }
 
-function dayLabel(iso: string, hideYear: boolean): string {
-  return new Date(iso).toLocaleDateString('en-GB', hideYear
+function dayLabel(dateKey: string, hideYear: boolean): string {
+  const d = new Date(dateKey.slice(0, 10) + 'T12:00:00Z');
+  return d.toLocaleDateString('en-GB', hideYear
     ? { day: 'numeric', month: 'short' }
     : { day: 'numeric', month: 'short', year: 'numeric' });
 }
@@ -240,7 +241,7 @@ function groupByDate(photos: Photo[], getDate: (p: Photo) => string | undefined,
     const d = getDate(photo);
     if (!d) { unspecified.push(photo); continue; }
     const key = d.slice(0, 10);
-    if (!groups.has(key)) groups.set(key, { label: dayLabel(d, albumYear !== null && key.slice(0, 4) === albumYear), photos: [] });
+    if (!groups.has(key)) groups.set(key, { label: dayLabel(key, albumYear !== null && key.slice(0, 4) === albumYear), photos: [] });
     groups.get(key)!.photos.push(photo);
   }
   const sections = [...groups.entries()]

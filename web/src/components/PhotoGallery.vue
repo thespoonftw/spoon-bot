@@ -1205,7 +1205,7 @@ function thumbUrl(url: string): string {
 
 
 function formatTime(iso: string): string {
-  const d = new Date(iso);
+  const d = new Date(iso.slice(0, 10) + 'T12:00:00Z');
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
