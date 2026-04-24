@@ -293,6 +293,7 @@ export function startWebServer(): void {
               const d = new Date(normalized);
               if (!isNaN(d.getTime())) takenAt = d.toISOString();
             }
+            console.log("[upload] EXIF debug:", filename, JSON.stringify(exif));
           } catch (e) { console.error("[upload] EXIF parse failed:", e); }
           if (!takenAt) {
             const mFull = filename.match(/(20\d{6})[_-](\d{6})/);
