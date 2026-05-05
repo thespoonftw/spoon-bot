@@ -355,6 +355,7 @@ const showTagging = ref(false);
 const showTaggingPicker = ref(false);
 const taggingPhoto = ref<Photo | null>(null);
 const taggingSelection = ref(new Set<string>());
+let taggingSaveController: AbortController | null = null;
 
 
 const deletingPhoto = ref<Photo | null>(null);
@@ -479,18 +480,26 @@ function addEveryone() {
 
 async function saveTagging() {
   if (!taggingPhoto.value) return;
+  taggingSaveController?.abort();
+  taggingSaveController = new AbortController();
+  const { signal } = taggingSaveController;
   const userIds = [...taggingSelection.value];
-  const res = await fetch(`/api/album/${taggingPhoto.value.channelId}/photos/${taggingPhoto.value.id}/tagged`, {
-    method: "POST",
-    headers: authJsonHeaders(),
-    body: JSON.stringify({ userIds }),
-  });
-  if (res.ok) {
-    const photo = allPhotos.value.find(p => p.id === taggingPhoto.value!.id);
-    if (photo) {
-      photo.taggedIds = userIds;
-      refreshLightboxVotes?.();
+  try {
+    const res = await fetch(`/api/album/${taggingPhoto.value.channelId}/photos/${taggingPhoto.value.id}/tagged`, {
+      method: "POST",
+      headers: authJsonHeaders(),
+      body: JSON.stringify({ userIds }),
+      signal,
+    });
+    if (res.ok) {
+      const photo = allPhotos.value.find(p => p.id === taggingPhoto.value!.id);
+      if (photo) {
+        photo.taggedIds = userIds;
+        refreshLightboxVotes?.();
+      }
     }
+  } catch (e: any) {
+    if (e.name !== 'AbortError') console.error(e);
   }
 }
 
