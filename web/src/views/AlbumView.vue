@@ -230,7 +230,7 @@ function dayLabel(dateKey: string, hideYear: boolean): string {
     : { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function groupByDate(photos: Photo[], getDate: (p: Photo) => string | undefined, newest: boolean, includeUnspecified: boolean) {
+function groupByDate(photos: Photo[], getDate: (p: Photo) => string | undefined, newest: boolean, includeUnspecified: boolean, innerCmp: (a: Photo, b: Photo) => number = cmp) {
   const startYear = album.value?.startDate?.slice(0, 4);
   const endYear = album.value?.endDate?.slice(0, 4) ?? startYear;
   const albumYear = startYear && startYear === endYear ? startYear : null;
@@ -246,8 +246,8 @@ function groupByDate(photos: Photo[], getDate: (p: Photo) => string | undefined,
   }
   const sections = [...groups.entries()]
     .sort(([a], [b]) => newest ? b.localeCompare(a) : a.localeCompare(b))
-    .map(([, s]) => ({ label: s.label, photos: s.photos.sort(cmp) }));
-  if (includeUnspecified && unspecified.length > 0) sections.push({ label: 'Unspecified', photos: unspecified.sort(cmp) });
+    .map(([, s]) => ({ label: s.label, photos: s.photos.sort(innerCmp) }));
+  if (includeUnspecified && unspecified.length > 0) sections.push({ label: 'Unspecified', photos: unspecified.sort(innerCmp) });
   return sections;
 }
 
@@ -257,7 +257,8 @@ const sortedSections = computed((): { label: string; photos: Photo[] }[] => {
     return [{ label: '', photos: [...photos].sort(cmp) }];
   }
   if (sortBy.value === 'newest') {
-    return groupByDate(photos, p => p.uploadedAt, true, false);
+    const byTime = (a: Photo, b: Photo) => (b.uploadedAt ?? '').localeCompare(a.uploadedAt ?? '');
+    return groupByDate(photos, p => p.uploadedAt, true, false, byTime);
   }
   if (sortBy.value === 'date') {
     return groupByDate(photos, p => p.takenAt, false, true);
