@@ -15,6 +15,15 @@ import MagicLinkSent from "./views/MagicLinkSent.vue";
 import AuthVerify from "./views/AuthVerify.vue";
 import "./style.css";
 
+function applyMobileZoom() {
+  const breakpoint = 430;
+  document.documentElement.style.zoom = window.innerWidth < breakpoint
+    ? String(window.innerWidth / breakpoint)
+    : '';
+}
+applyMobileZoom();
+window.addEventListener('resize', applyMobileZoom);
+
 const router = createRouter({
   history: createWebHistory(),
   scrollBehavior(to, _from, savedPosition) {
