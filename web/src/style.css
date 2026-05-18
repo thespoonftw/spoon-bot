@@ -1,4 +1,5 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
+@media (max-width: 430px) { html { zoom: calc(100vw / 430); } }
 .desktop-only { display: none !important; }
 @media (min-width: 768px) { .desktop-only { display: revert !important; } .members-rows.desktop-only { display: flex !important; } .album-section-header.desktop-only { display: flex !important; } .mobile-only { display: none !important; } }
 
