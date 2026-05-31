@@ -222,7 +222,13 @@ export function dbAddAlbumLocation(channelId: string, name: string): AlbumLocati
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM album_locations WHERE channel_id = ?").get(channelId) as { m: number }).m;
   const result = db.prepare("INSERT OR IGNORE INTO album_locations (channel_id, name, sort_order) VALUES (?, ?, ?)").run(channelId, name.trim(), maxOrder + 1);
   if (!result.lastInsertRowid) return null;
-  return { id: Number(result.lastInsertRowid), name: name.trim() };
+  const id = Number(result.lastInsertRowid);
+  const existing = db.prepare("SELECT lat, lon FROM album_locations WHERE name = ? AND lat IS NOT NULL AND id != ?").get(name.trim(), id) as { lat: number; lon: number } | undefined;
+  if (existing) {
+    db.prepare("UPDATE album_locations SET lat = ?, lon = ?, geocode_attempted = 1 WHERE id = ?").run(existing.lat, existing.lon, id);
+    return { id, name: name.trim(), lat: existing.lat, lon: existing.lon, geocodeAttempted: 1 };
+  }
+  return { id, name: name.trim() };
 }
 export function dbDeleteAlbumLocation(id: number) {
   db.prepare("UPDATE photos SET location_id = NULL WHERE location_id = ?").run(id);
