@@ -7,11 +7,10 @@ import crypto from "crypto";
 const sharp = require("sharp") as (input: string) => { rotate(): { toFile(p: string): Promise<void> }; resize(w: number, h: number, opts?: object): { toFile(p: string): Promise<void> }; metadata(): Promise<{ width?: number; height?: number }> };
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const exifr = require("exifr") as { parse(file: string, opts: unknown): Promise<Record<string, unknown> | null> };
-import { eventStates, DATA_DIR } from "./state";
+import { eventStates } from "./state";
+import { ensureAlbumDirs, StorageUnavailableError } from "./photoStorage";
 import { initDb, dbHasAlbum, dbInsertAlbum, dbAddUploadedPhoto, dbUpsertUser, dbAddAlbumMember, dbDeleteAlbum, dbGetPhotosByDiscordMessageId, dbVotePhoto } from "./db";
 import type { Guild } from "discord.js";
-
-const PHOTO_STORAGE_PATH = process.env.PHOTO_STORAGE_PATH ?? path.join(DATA_DIR, "photos");
 
 export function loadAlbums() {
   initDb();
@@ -121,10 +120,13 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
   const displayName = authorMember?.displayName ?? author.displayName ?? author.username;
   dbUpsertUser(author.id, displayName, author.avatarURL() ?? undefined);
 
-  const albumDir = path.join(PHOTO_STORAGE_PATH, channelId);
-  fs.mkdirSync(albumDir, { recursive: true });
-  const thumbDir = path.join(albumDir, "thumbs");
-  fs.mkdirSync(thumbDir, { recursive: true });
+  let albumDir: string, thumbDir: string;
+  try {
+    ({ albumDir, thumbDir } = ensureAlbumDirs(channelId));
+  } catch (e) {
+    console.error("[album reaction] storage unavailable, skipping upload:", e);
+    return;
+  }
 
   let anySuccess = false;
   for (const attachment of imageAttachments) {
@@ -236,10 +238,7 @@ export async function handleAlbumMessageCreate(message: Message): Promise<void> 
 async function processUpload(pending: PendingUpload): Promise<number> {
   const { channelId, attachments, authorId, authorName, avatarUrl, caption, messageId } = pending;
   dbUpsertUser(authorId, authorName, avatarUrl);
-  const albumDir = path.join(PHOTO_STORAGE_PATH, channelId);
-  fs.mkdirSync(albumDir, { recursive: true });
-  const thumbDir = path.join(albumDir, "thumbs");
-  fs.mkdirSync(thumbDir, { recursive: true });
+  const { albumDir, thumbDir } = ensureAlbumDirs(channelId);
 
   let count = 0;
   for (const { url, name: attachName } of attachments) {
@@ -290,7 +289,16 @@ export async function handleAlbumUploadInteraction(interaction: Interaction): Pr
       return true;
     }
     await interaction.deferUpdate().catch(() => {});
-    await processUpload(pending);
+    try {
+      await processUpload(pending);
+    } catch (e) {
+      if (e instanceof StorageUnavailableError) {
+        console.error("[album upload] storage unavailable:", e);
+        await interaction.followUp({ content: "⚠️ Photo storage is temporarily unavailable. Please try again in a minute.", ephemeral: true }).catch(() => {});
+        return true;
+      }
+      throw e;
+    }
     await interaction.message.delete().catch(() => {});
     await pending.originalMessage.react("📸").catch(() => {});
     return true;

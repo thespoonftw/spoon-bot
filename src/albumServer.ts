@@ -12,11 +12,11 @@ type BusboyInstance = { on(e: "file", cb: (f: string, s: NodeJS.ReadableStream, 
 const Busboy = require("busboy") as (opts: { headers: Record<string, string | string[] | undefined>; limits?: { files?: number; fileSize?: number } }) => BusboyInstance;
 import type { Client, Guild } from "discord.js";
 import { eventStates, DATA_DIR, persistState } from "./state";
+import { PHOTO_STORAGE_PATH, ensureAlbumDirs, StorageUnavailableError } from "./photoStorage";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
 import { dbHasAlbum, dbUpdateAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbGetAlbumVotes, dbSetPhotoCaption, dbListTables, dbTablePage, dbSearchPhotos, dbGetAlbumLocations, dbAddAlbumLocation, dbDeleteAlbumLocation, dbReorderAlbumLocations, dbSetLocationCoords, dbRenameAlbumLocation, dbSetPhotoLocation, dbSetPhotoTakenAt } from "./db";
 
-const PHOTO_STORAGE_PATH = process.env.PHOTO_STORAGE_PATH ?? path.join(DATA_DIR, "photos");
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 
 type UpdateEventMessagesFn = (guild: Guild, channelId: string) => Promise<void>;
@@ -251,8 +251,14 @@ export function startWebServer(): void {
       const uploader = getSessionUser(token);
       if (!uploader) { send401(res); return; }
       if (!dbHasAlbum(channelId)) { sendJson(res, 404, { error: "Album not found" }); return; }
-      const albumDir = path.join(PHOTO_STORAGE_PATH, channelId);
-      fs.mkdirSync(albumDir, { recursive: true });
+      let albumDir: string, thumbDir: string;
+      try {
+        ({ albumDir, thumbDir } = ensureAlbumDirs(channelId));
+      } catch (e) {
+        console.error("[upload] storage unavailable:", e);
+        sendJson(res, 503, { error: "Photo storage is temporarily unavailable, please try again shortly" });
+        return;
+      }
       const bb = Busboy({ headers: req.headers, limits: { files: 1, fileSize: 50 * 1024 * 1024 } });
       let responded = false;
       bb.on("file", (_field, fileStream, { filename, mimeType }) => {
@@ -269,8 +275,6 @@ export function startWebServer(): void {
         writeStream.on("finish", async () => {
           if (responded) return;
           responded = true;
-          const thumbDir = path.join(PHOTO_STORAGE_PATH, channelId, "thumbs");
-          fs.mkdirSync(thumbDir, { recursive: true });
           const thumbPath = path.join(thumbDir, name);
           let takenAt: string | undefined;
           try {
