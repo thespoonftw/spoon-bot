@@ -23,13 +23,12 @@ const status = ref<"loading" | "ok" | "error">("loading");
 
 onMounted(async () => {
   const token = route.params.token as string;
+  // The server sets the HttpOnly snek_session cookie on this response; JS stores nothing.
+  // Note: the endpoint returns 200 with an { error } body for invalid/expired links, so a
+  // successful login requires a sessionToken in the payload, not just res.ok.
   const res = await fetch(`/api/auth/verify/${token}`);
-  if (res.ok) {
-    const { sessionToken } = await res.json();
-    if (sessionToken) {
-      localStorage.setItem("snek_session", sessionToken);
-      document.cookie = `snek_session=${sessionToken}; Max-Age=${365 * 24 * 60 * 60}; Path=/; SameSite=Lax`;
-    }
+  const data = res.ok ? await res.json().catch(() => ({})) : {};
+  if (data.sessionToken) {
     status.value = "ok";
     setTimeout(() => router.push("/"), 1000);
   } else {

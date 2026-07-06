@@ -50,11 +50,11 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   if (to.meta.public) return true;
   try {
-    const token = localStorage.getItem("snek_session") ?? "";
-    const res = await fetch("/api/auth/check", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    // Auth rides on the HttpOnly snek_session cookie, sent automatically same-origin.
+    const res = await fetch("/api/auth/check");
     const data = await res.json();
     if (data.valid) return true;
-  } catch { /* network error, let it through */ }
+  } catch { /* network error, fall through to login */ }
   return { path: "/login" };
 });
 
