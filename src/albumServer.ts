@@ -47,6 +47,15 @@ function serveFile(filePath: string, contentType: string, res: http.ServerRespon
   });
 }
 
+// Timestamped, attributed log line for a photo upload attempt so failures can be traced to a
+// specific user/time in snek.log (e.g. "a friend's upload failed around 3pm"). Failures include
+// the underlying error; successes and the start marker use console.log.
+function uploadLog(channelId: string, who: string, filename: string, outcome: string, err?: unknown): void {
+  const line = `[upload ${new Date().toISOString()}] ${who} "${filename}" album=${channelId} -> ${outcome}`;
+  if (err !== undefined) console.error(line, err);
+  else console.log(line);
+}
+
 export function startWebServer(): void {
   if (!config.albumsEnabled) return;
   const port = parseInt(process.env.ALBUM_PORT ?? "3000");
@@ -266,12 +275,13 @@ export function startWebServer(): void {
       const token = getTokenFromRequest(req);
       const uploader = getSessionUser(token);
       if (!uploader) { send401(res); return; }
+      const who = uploader.displayName;
       if (!dbHasAlbum(channelId)) { sendJson(res, 404, { error: "Album not found" }); return; }
       let albumDir: string, thumbDir: string;
       try {
         ({ albumDir, thumbDir } = ensureAlbumDirs(channelId));
       } catch (e) {
-        console.error("[upload] storage unavailable:", e);
+        uploadLog(channelId, who, "(unknown)", "FAILED: storage unavailable (drive mount)", e);
         sendJson(res, 503, { error: "Photo storage is temporarily unavailable, please try again shortly" });
         return;
       }
@@ -280,23 +290,24 @@ export function startWebServer(): void {
       bb.on("file", (_field, fileStream, { filename, mimeType }) => {
         if (!mimeType.startsWith("image/")) {
           fileStream.resume();
-          if (!responded) { responded = true; console.warn(`[upload] rejected non-image (${mimeType}) "${filename}" for ${channelId}`); sendJson(res, 400, { error: "Only images allowed" }); }
+          if (!responded) { responded = true; uploadLog(channelId, who, filename, `FAILED: not an image (${mimeType})`); sendJson(res, 400, { error: "Only images allowed" }); }
           return;
         }
+        uploadLog(channelId, who, filename, "started");
         const ext = path.extname(filename) || ".jpg";
         const name = crypto.randomBytes(16).toString("hex") + ext;
         const filePath = path.join(albumDir, name);
         const writeStream = fs.createWriteStream(filePath);
         // File exceeded busboy's 50MB limit — the stream is truncated, so discard rather than store a corrupt image.
         fileStream.on("limit", () => {
-          console.error(`[upload] file too large (>50MB) "${filename}" for ${channelId}`);
+          uploadLog(channelId, who, filename, "FAILED: file exceeds 50MB limit");
           writeStream.destroy();
           fs.unlink(filePath, () => {});
           if (!responded) { responded = true; sendJson(res, 413, { error: "Image exceeds the 50MB limit" }); }
         });
         // Read-side failure (e.g. client aborted, or EIO surfacing back through the pipe).
         fileStream.on("error", (e) => {
-          console.error(`[upload] read stream error for "${filename}" in ${channelId}:`, e);
+          uploadLog(channelId, who, filename, "FAILED: read/connection error", e);
           writeStream.destroy();
           fs.unlink(filePath, () => {});
           if (!responded) { responded = true; sendJson(res, 500, { error: "Upload failed" }); }
@@ -346,17 +357,18 @@ export function startWebServer(): void {
           } catch (e) { console.error("Thumbnail generation failed:", e); }
           const photoUrl = `/uploads/${channelId}/${name}`;
           const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, width, height, takenAt, undefined, undefined, filename);
+          uploadLog(channelId, who, filename, `ok (${width}x${height})`);
           sendJson(res, 201, photo);
         });
         // Write-side failure — most likely EIO from the photo drive dropping mid-upload.
         writeStream.on("error", (e) => {
-          console.error(`[upload] write failed for "${filename}" in ${channelId}:`, e);
+          uploadLog(channelId, who, filename, "FAILED: write error (storage may have dropped)", e);
           fs.unlink(filePath, () => {});
           if (!responded) { responded = true; sendJson(res, 500, { error: "Write failed — storage may be unavailable, please retry" }); }
         });
       });
       bb.on("error", (e) => {
-        console.error(`[upload] busboy parse error for ${channelId}:`, e);
+        uploadLog(channelId, who, "(unknown)", "FAILED: request/parse error", e);
         if (!responded) { responded = true; sendJson(res, 400, { error: "Upload failed" }); }
       });
       req.pipe(bb as unknown as NodeJS.WritableStream);
