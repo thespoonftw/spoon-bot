@@ -67,11 +67,17 @@ const SESSION_MAX_AGE = 365 * 24 * 60 * 60;
 const SESSION_COOKIE_ATTRS = `; Max-Age=${SESSION_MAX_AGE}; Path=/; SameSite=Lax; HttpOnly`;
 
 export function getTokenFromRequest(req: IncomingMessage): string {
-  const bearer = (req.headers["authorization"] ?? "").replace("Bearer ", "");
-  if (bearer && bearer !== "null" && bearer !== "undefined") return bearer;
+  const rawBearer = (req.headers["authorization"] ?? "").replace("Bearer ", "");
+  const bearer = (rawBearer && rawBearer !== "null" && rawBearer !== "undefined") ? rawBearer : "";
   const cookieHeader = req.headers["cookie"] ?? "";
   const match = cookieHeader.match(/(?:^|; )snek_session=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : "";
+  const cookie = match ? decodeURIComponent(match[1]) : "";
+  // A client may send a stale bearer token (read from document.cookie/localStorage) alongside a
+  // valid HttpOnly session cookie. Use whichever is an actual known session instead of blindly
+  // preferring the bearer — otherwise a stale bearer shadows the valid cookie and writes get 401.
+  if (bearer && sessions.has(bearer)) return bearer;
+  if (cookie && sessions.has(cookie)) return cookie;
+  return bearer || cookie;
 }
 
 export function isValidSession(token: string): boolean {
