@@ -13,6 +13,7 @@ const Busboy = require("busboy") as (opts: { headers: Record<string, string | st
 import type { Client, Guild } from "discord.js";
 import { eventStates, DATA_DIR, persistState } from "./state";
 import { PHOTO_STORAGE_PATH, ensureAlbumDirs, StorageUnavailableError } from "./photoStorage";
+import { getClientIp, anonRateLimit } from "./rateLimit";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
 import { dbHasAlbum, dbUpdateAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbGetAlbumVotes, dbSetPhotoCaption, dbListTables, dbTablePage, dbSearchPhotos, dbGetAlbumLocations, dbAddAlbumLocation, dbDeleteAlbumLocation, dbReorderAlbumLocations, dbSetLocationCoords, dbRenameAlbumLocation, dbSetPhotoLocation, dbSetPhotoTakenAt } from "./db";
@@ -64,6 +65,20 @@ export function startWebServer(): void {
   http.createServer((req, res) => {
     const url = (req.url ?? "/").split("?")[0];
     const method = req.method ?? "GET";
+
+    // Throttle anonymous clients on the public browsing endpoints to deter mass scraping.
+    // Logged-in users are exempt; login, the SPA shell and static assets are never limited.
+    const isBrowsePath = method === "GET" && (
+      url.startsWith("/thumbnails/") || url === "/api/albums" || /^\/api\/album\/[^/]+$/.test(url)
+    );
+    if (isBrowsePath && !isValidSession(getTokenFromRequest(req))) {
+      const wait = anonRateLimit(getClientIp(req));
+      if (wait > 0) {
+        res.writeHead(429, { "Retry-After": String(wait), "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Too many requests — please slow down." }));
+        return;
+      }
+    }
 
     if (handleAuthRoutes(req, res)) return;
 
