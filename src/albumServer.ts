@@ -31,6 +31,22 @@ const MIME: Record<string, string> = {
   ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2",
 };
 
+// Stream a file to the response, handling read errors (e.g. EIO from a failing drive / bad sector)
+// gracefully instead of letting the stream's unhandled "error" event crash the process. The 200
+// header is deferred until the file actually opens so an open-time failure can still return 500.
+function serveFile(filePath: string, contentType: string, res: http.ServerResponse): void {
+  const stream = fs.createReadStream(filePath);
+  stream.on("error", (e) => {
+    console.error("[serve] read failed for", filePath, e);
+    if (!res.headersSent) { res.writeHead(500); res.end("Read error"); }
+    else res.destroy();
+  });
+  stream.once("open", () => {
+    res.writeHead(200, { "Content-Type": contentType, "Cache-Control": "private, max-age=3600" });
+    stream.pipe(res);
+  });
+}
+
 export function startWebServer(): void {
   if (!config.albumsEnabled) return;
   const port = parseInt(process.env.ALBUM_PORT ?? "3000");
@@ -593,8 +609,7 @@ export function startWebServer(): void {
       }
       const ext = path.extname(filename).toLowerCase();
       const imgMime: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp", ".heic": "image/heic" };
-      res.writeHead(200, { "Content-Type": imgMime[ext] ?? "application/octet-stream", "Cache-Control": "private, max-age=3600" });
-      fs.createReadStream(servePath).pipe(res);
+      serveFile(servePath, imgMime[ext] ?? "application/octet-stream", res);
       return;
     }
 
@@ -611,8 +626,7 @@ export function startWebServer(): void {
       }
       const ext = path.extname(filename).toLowerCase();
       const imgMime: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp", ".heic": "image/heic" };
-      res.writeHead(200, { "Content-Type": imgMime[ext] ?? "application/octet-stream", "Cache-Control": "private, max-age=3600" });
-      fs.createReadStream(filePath).pipe(res);
+      serveFile(filePath, imgMime[ext] ?? "application/octet-stream", res);
       return;
     }
 
