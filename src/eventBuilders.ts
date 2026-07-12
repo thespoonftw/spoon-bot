@@ -90,7 +90,8 @@ export function buildInnerEmbed(state: EventState, thumbnailUrl?: string | null,
 export function joinMessageComponents(channelId: string, joiningEnabled: boolean) {
   if (!joiningEnabled) return [];
   return [new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`join_event_${channelId}`).setLabel(JOIN_LABEL).setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`join_event_${channelId}`).setLabel(HALF_JOIN_LABEL).setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`leave_event_${channelId}`).setLabel(HALF_LEAVE_LABEL).setStyle(ButtonStyle.Secondary),
   )];
 }
 

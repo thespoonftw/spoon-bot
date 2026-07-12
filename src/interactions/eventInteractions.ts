@@ -243,10 +243,15 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       return;
     }
 
+    const state = eventStates.get(channelId);
+    if (state && !state.members.has(interaction.user.id)) {
+      await interaction.reply({ content: "You haven't joined this event.", ephemeral: true });
+      return;
+    }
+
     await interaction.deferUpdate();
     await channel.permissionOverwrites.delete(interaction.user.id);
 
-    const state = eventStates.get(channelId);
     if (state) {
       state.members.delete(interaction.user.id);
       persistState();
