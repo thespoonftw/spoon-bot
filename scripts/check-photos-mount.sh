@@ -17,10 +17,14 @@ MARKER="$MOUNT/snek-photos"        # a dir that lives ON the drive
 TESTFILE="$MOUNT/.mount-watchdog"
 
 healthy() {
-  # Healthy only if the on-drive marker dir is visible AND the mount is writable.
-  # A clean unmount leaves an empty mountpoint (marker missing); a stale mount
-  # makes touch fail with EIO. Both cases are caught here.
-  [ -d "$MARKER" ] && touch "$TESTFILE" 2>/dev/null
+  # Must actually be a mountpoint first: /mnt/photos has a leftover empty
+  # snek-photos/ dir on the root filesystem itself (predates this guard), so
+  # after a clean unmount the marker dir "exists" and is writable even though
+  # the real drive is gone — that false-positive let the drive sit unmounted
+  # for a day undetected (2026-08-03). mountpoint -q is what actually
+  # distinguishes "the drive is attached here" from "this path is writable".
+  # A stale ntfs-3g mount still passes mountpoint but fails the touch (EIO).
+  mountpoint -q "$MOUNT" && [ -d "$MARKER" ] && touch "$TESTFILE" 2>/dev/null
 }
 
 if healthy; then
