@@ -4,7 +4,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
-import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbGetAssociatedUsers, dbUpdateUserFirstName, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetUserGroups, dbAddDiscordUser } from "./db";
+import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbGetAssociatedUsers, dbUpdateUserFirstName, dbUpdateUserSurname, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetUserGroups, dbAddDiscordUser, dbSearchLoginUsers } from "./db";
 
 export function sendJson(res: ServerResponse, status: number, data: unknown, extraHeaders: Record<string, string> = {}): void {
   res.writeHead(status, { "Content-Type": "application/json", ...extraHeaders });
@@ -122,6 +122,12 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     return true;
   }
 
+  if (url === "/api/users/search" && method === "GET") {
+    const q = new URL(req.url ?? "", "http://localhost").searchParams.get("q") ?? "";
+    sendJson(res, 200, dbSearchLoginUsers(q));
+    return true;
+  }
+
   if (url === "/api/auth/request" && method === "POST") {
     let body = "";
     req.on("data", chunk => body += chunk);
@@ -195,13 +201,14 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     req.on("data", chunk => body += chunk);
     req.on("end", async () => {
       try {
-        const { userId, firstName, groups } = JSON.parse(body);
+        const { userId, firstName, surname, groups } = JSON.parse(body);
         if (!userId || typeof userId !== "string") { sendJson(res, 400, { error: "Invalid userId" }); return; }
         const discordUser = await discordClient!.users.fetch(userId);
         const displayName = discordUser.displayName ?? discordUser.username;
         const avatarUrl = discordUser.displayAvatarURL({ extension: "png", size: 128 });
         dbAddDiscordUser(userId, displayName, avatarUrl);
         if (firstName) dbUpdateUserFirstName(userId, firstName.trim() || null);
+        if (surname) dbUpdateUserSurname(userId, surname.trim() || null);
         if (Array.isArray(groups)) dbSetUserGroups(userId, groups);
         sendJson(res, 200, dbGetAllUsers().find(u => u.userId === userId));
       } catch {
@@ -218,8 +225,9 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     req.on("data", chunk => body += chunk);
     req.on("end", () => {
       try {
-        const { firstName, groups } = JSON.parse(body);
+        const { firstName, surname, groups } = JSON.parse(body);
         dbUpdateUserFirstName(userId, firstName ?? null);
+        dbUpdateUserSurname(userId, surname ?? null);
         if (Array.isArray(groups)) dbSetUserGroups(userId, groups);
         sendJson(res, 200, { ok: true });
       } catch {

@@ -5,33 +5,24 @@
     <div v-if="error" class="error">{{ error }}</div>
 
     <template v-if="!confirming">
-      <template v-if="regulars.length">
-        <p class="user-category">Regulars</p>
-        <div class="login-grid">
-          <button v-for="user in regulars" :key="user.userId" class="user-card" @click="confirming = user">
-            <img v-if="user.avatarUrl" :src="user.avatarUrl" class="avatar" />
-            <div class="avatar placeholder" v-else>{{ user.displayName[0] }}</div>
-            <span>{{ user.displayName }}</span>
-          </button>
-        </div>
-      </template>
-      <template v-if="newcomers.length">
-        <p class="user-category">Newcomers</p>
-        <div class="login-grid">
-          <button v-for="user in newcomers" :key="user.userId" class="user-card" @click="confirming = user">
-            <img v-if="user.avatarUrl" :src="user.avatarUrl" class="avatar" />
-            <div class="avatar placeholder" v-else>{{ user.displayName[0] }}</div>
-            <span>{{ user.displayName }}</span>
-          </button>
-        </div>
-      </template>
+      <input v-model="query" class="login-search" type="text" placeholder="Search by name…" autocomplete="off" autofocus />
+      <div class="login-grid" v-if="results.length">
+        <button v-for="user in results" :key="user.userId" class="user-card" @click="confirming = user">
+          <img v-if="user.avatarUrl" :src="user.avatarUrl" class="avatar" />
+          <div class="avatar placeholder" v-else>{{ (user.firstName || user.displayName)[0] }}</div>
+          <span>{{ user.firstName || user.displayName }}</span>
+        </button>
+      </div>
+      <p v-else-if="query.trim().length > 0 && !searching" class="empty">
+        {{ query.trim().length < 3 ? "Keep typing, or enter the full name…" : "No matches found." }}
+      </p>
     </template>
 
     <template v-else>
       <div class="confirm-card">
         <img v-if="confirming.avatarUrl" :src="confirming.avatarUrl" class="avatar large" />
-        <div class="avatar placeholder large" v-else>{{ confirming.displayName[0] }}</div>
-        <p class="confirm-text">We'll send a login link to <strong>{{ confirming.displayName }}</strong> via Discord.</p>
+        <div class="avatar placeholder large" v-else>{{ (confirming.firstName || confirming.displayName)[0] }}</div>
+        <p class="confirm-text">We'll send a login link to <strong>{{ confirming.firstName || confirming.displayName }}</strong> via Discord.</p>
         <div class="confirm-actions">
           <button class="btn-secondary" @click="confirming = null">Cancel</button>
           <button class="btn-primary" @click="requestLogin(confirming.userId)" :disabled="loading">
@@ -44,28 +35,37 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, watch, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 
-interface UserInfo { userId: string; displayName: string; avatarUrl: string; lastSeenAt?: string }
+interface UserInfo { userId: string; displayName: string; firstName?: string; avatarUrl: string }
 
 const router = useRouter();
 const route = useRoute();
-const users = ref<UserInfo[]>([]);
+const query = ref("");
+const results = ref<UserInfo[]>([]);
+const searching = ref(false);
 const loading = ref(false);
 const error = ref("");
 const confirming = ref<UserInfo | null>(null);
 
-const regulars = computed(() =>
-  users.value.filter(u => !u.userId.startsWith("guest_") && u.lastSeenAt).sort((a, b) => b.lastSeenAt!.localeCompare(a.lastSeenAt!))
-);
-const newcomers = computed(() =>
-  users.value.filter(u => !u.userId.startsWith("guest_") && !u.lastSeenAt).sort((a, b) => a.displayName.localeCompare(b.displayName))
-);
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+watch(query, (q) => {
+  if (searchTimer) clearTimeout(searchTimer);
+  const trimmed = q.trim();
+  if (!trimmed) { results.value = []; searching.value = false; return; }
+  searching.value = true;
+  searchTimer = setTimeout(async () => {
+    try {
+      results.value = await fetch(`/api/users/search?q=${encodeURIComponent(trimmed)}`).then(r => r.json());
+    } finally {
+      searching.value = false;
+    }
+  }, 250);
+});
 
-onMounted(async () => {
+onMounted(() => {
   if (route.query.expired) error.value = "This login link has expired. Please request a new one.";
-  users.value = await fetch("/api/users").then(r => r.json());
 });
 
 async function requestLogin(userId: string) {

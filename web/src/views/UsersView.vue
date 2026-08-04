@@ -22,6 +22,7 @@
         <div class="user-row-info">
           <div class="user-row-name-row">
             <span class="user-row-name">{{ user.firstName || user.displayName }}</span>
+            <span class="user-row-surname" v-if="user.surname">{{ user.surname }}</span>
             <button class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
           </div>
           <span class="user-row-login">{{ user.displayName }}</span>
@@ -45,6 +46,7 @@
           <div class="user-row-info">
             <div class="user-row-name-row">
               <span class="user-row-name">{{ user.firstName || user.displayName }}</span>
+              <span class="user-row-surname" v-if="user.surname">{{ user.surname }}</span>
               <button class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
             </div>
           </div>
@@ -55,15 +57,19 @@
 
   <div class="modal-overlay" v-if="addingUser">
     <div class="modal">
-      <button class="modal-close" @click="addingUser = false; addUserId = ''; addFirstName = ''; addGroups = []; addUserError = ''">✕</button>
+      <button class="modal-close" @click="addingUser = false; addUserId = ''; addFirstName = ''; addSurname = ''; addGroups = []; addUserError = ''">✕</button>
       <h2>Add User</h2>
       <div class="form-group">
         <label>Discord User ID</label>
         <input v-model="addUserId" type="text" placeholder="e.g. 368680768832143362" />
       </div>
       <div class="form-group">
-        <label>Display Name <span style="color:#6c7086;font-weight:400">(optional)</span></label>
+        <label>First Name <span style="color:#6c7086;font-weight:400">(optional)</span></label>
         <input v-model="addFirstName" type="text" placeholder="Leave blank to use Discord name" />
+      </div>
+      <div class="form-group">
+        <label>Surname <span style="color:#6c7086;font-weight:400">(optional)</span></label>
+        <input v-model="addSurname" type="text" />
       </div>
       <div class="form-group" v-if="canEditGroups">
         <label>Groups</label>
@@ -89,8 +95,12 @@
       <h2>Edit User</h2>
       <p style="color:#a6adc8;font-size:0.85em;margin-bottom:20px">{{ editingUser.displayName }}</p>
       <div class="form-group">
-        <label>Display Name</label>
+        <label>First Name</label>
         <input v-model="editFirstName" type="text" :placeholder="editingUser.displayName" />
+      </div>
+      <div class="form-group">
+        <label>Surname</label>
+        <input v-model="editSurname" type="text" />
       </div>
       <div class="form-group" v-if="canEditGroups">
         <label>Groups</label>
@@ -118,7 +128,7 @@ import { authHeaders, authJsonHeaders } from "../utils/session";
 import PageHeader from "../components/PageHeader.vue";
 
 interface SiteGroup { id: number; name: string; color: string }
-interface SiteUser { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastSeenAt?: string; uploadCount?: number; taggedCount?: number; groups?: SiteGroup[]; level: number }
+interface SiteUser { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string; lastSeenAt?: string; uploadCount?: number; taggedCount?: number; groups?: SiteGroup[]; level: number }
 
 const allGroups = ref<SiteGroup[]>([]);
 
@@ -144,6 +154,7 @@ const guestUsers = computed(() => users.value.filter(u => u.userId.startsWith("g
 const addingUser = ref(false);
 const addUserId = ref('');
 const addFirstName = ref('');
+const addSurname = ref('');
 const addGroups = ref<number[]>([]);
 const addUserError = ref('');
 const addUserLoading = ref(false);
@@ -151,6 +162,7 @@ const { currentUser } = useCurrentUser();
 const canEditGroups = computed(() => (users.value.find(u => u.userId === currentUser.value?.userId)?.level ?? 0) >= 2);
 const editingUser = ref<SiteUser | null>(null);
 const editFirstName = ref("");
+const editSurname = ref("");
 const editGroups = ref<number[]>([]);
 const saving = ref(false);
 const saveError = ref("");
@@ -171,7 +183,7 @@ async function addUser() {
   const res = await fetch('/api/site-users', {
     method: 'POST',
     headers: authJsonHeaders(),
-    body: JSON.stringify({ userId: id, firstName: addFirstName.value.trim() || null, groups: addGroups.value }),
+    body: JSON.stringify({ userId: id, firstName: addFirstName.value.trim() || null, surname: addSurname.value.trim() || null, groups: addGroups.value }),
   });
   addUserLoading.value = false;
   if (res.ok) {
@@ -179,6 +191,7 @@ async function addUser() {
     users.value.push(user);
     addUserId.value = '';
     addFirstName.value = '';
+    addSurname.value = '';
     addGroups.value = [];
     addingUser.value = false;
   } else {
@@ -190,6 +203,7 @@ async function addUser() {
 function openEdit(user: SiteUser) {
   editingUser.value = user;
   editFirstName.value = user.firstName ?? "";
+  editSurname.value = user.surname ?? "";
   editGroups.value = (user.groups ?? []).map(g => g.id);
   saveError.value = "";
 }
@@ -210,14 +224,16 @@ async function saveEdit() {
   }
   saving.value = true;
   const groupIds = editGroups.value;
+  const trimmedSurname = editSurname.value.trim();
   const res = await fetch(`/api/site-users/${editingUser.value.userId}`, {
     method: "PUT",
     headers: authJsonHeaders(),
-    body: JSON.stringify({ firstName: trimmed || null, groups: groupIds }),
+    body: JSON.stringify({ firstName: trimmed || null, surname: trimmedSurname || null, groups: groupIds }),
   });
   saving.value = false;
   if (res.ok) {
     editingUser.value.firstName = trimmed || undefined;
+    editingUser.value.surname = trimmedSurname || undefined;
     editingUser.value.groups = allGroups.value.filter(g => groupIds.includes(g.id));
     editingUser.value = null;
   }

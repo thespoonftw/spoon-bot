@@ -114,6 +114,7 @@ export function initDb() {
     "ALTER TABLE photo_votes DROP COLUMN vote_type",
     "ALTER TABLE albums ADD COLUMN group_id INTEGER",
     "ALTER TABLE photos ADD COLUMN original_name TEXT",
+    "ALTER TABLE users ADD COLUMN surname TEXT",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
@@ -371,7 +372,7 @@ export function dbAddPhoto(channelId: string, url: string) {
 }
 
 export type SiteGroup = { id: number; name: string; color: string };
-export type UserRow = { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastSeenAt?: string; level: number; uploadCount?: number; taggedCount?: number; groups?: SiteGroup[] };
+export type UserRow = { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string; lastSeenAt?: string; level: number; uploadCount?: number; taggedCount?: number; groups?: SiteGroup[] };
 
 export function dbUpsertUser(userId: string, displayName: string, avatarUrl?: string) {
   db.prepare(`
@@ -397,7 +398,7 @@ export function dbGetAllGroups(): SiteGroup[] {
 
 export function dbGetAllUsers(): UserRow[] {
   const rows = db.prepare(`
-    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName,
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.surname AS surname,
       u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level,
       (SELECT COUNT(*) FROM photos p WHERE p.uploaded_by_id = u.user_id) AS uploadCount,
       (SELECT COUNT(*) FROM photo_tagged pt WHERE pt.user_id = u.user_id) AS taggedCount
@@ -417,7 +418,7 @@ export function dbGetAllUsers(): UserRow[] {
 
 export function dbGetAssociatedUsers(userId: string): UserRow[] {
   const rows = db.prepare(`
-    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName,
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.surname AS surname,
       u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level,
       (SELECT COUNT(*) FROM photos p WHERE p.uploaded_by_id = u.user_id) AS uploadCount,
       (SELECT COUNT(*) FROM photo_tagged pt WHERE pt.user_id = u.user_id) AS taggedCount
@@ -459,7 +460,7 @@ export function dbUnhideAlbumMember(channelId: string, userId: string) {
 
 export function dbGetAlbumMembers(channelId: string): UserRow[] {
   return db.prepare(`
-    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.surname AS surname, u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level
     FROM album_members am JOIN users u ON u.user_id = am.user_id
     WHERE am.channel_id = ? AND am.hidden = 0 AND u.level > 0 ORDER BY u.display_name ASC
   `).all(channelId) as UserRow[];
@@ -471,6 +472,10 @@ export function dbUpdateUserFirstName(userId: string, firstName: string | null) 
   db.prepare("UPDATE users SET first_name=? WHERE user_id=?").run(firstName || null, userId);
 }
 
+export function dbUpdateUserSurname(userId: string, surname: string | null) {
+  db.prepare("UPDATE users SET surname=? WHERE user_id=?").run(surname || null, userId);
+}
+
 export function dbSetUserGroups(userId: string, groupIds: number[]) {
   const validIds = new Set((db.prepare("SELECT id FROM site_groups").all() as { id: number }[]).map(r => r.id));
   db.prepare("DELETE FROM user_groups WHERE user_id=?").run(userId);
@@ -480,7 +485,7 @@ export function dbSetUserGroups(userId: string, groupIds: number[]) {
 }
 
 export function dbGetUserById(userId: string): UserRow | undefined {
-  return db.prepare("SELECT user_id AS userId, display_name AS displayName, first_name AS firstName, avatar_url AS avatarUrl, last_seen_at AS lastSeenAt, level FROM users WHERE user_id = ?").get(userId) as UserRow | undefined;
+  return db.prepare("SELECT user_id AS userId, display_name AS displayName, first_name AS firstName, surname AS surname, avatar_url AS avatarUrl, last_seen_at AS lastSeenAt, level FROM users WHERE user_id = ?").get(userId) as UserRow | undefined;
 }
 
 export function dbGetUserGroups(userId: string): SiteGroup[] {
@@ -489,6 +494,26 @@ export function dbGetUserGroups(userId: string): SiteGroup[] {
     JOIN site_groups sg ON sg.id = ug.group_id
     WHERE ug.user_id = ? ORDER BY sg.id
   `).all(userId) as SiteGroup[];
+}
+
+export type LoginUserRow = { userId: string; displayName: string; firstName?: string; avatarUrl?: string };
+
+// Used by the (unauthenticated) login screen. Requires >= 3 characters to avoid exposing the
+// full user roster to anonymous visitors via short/incremental queries; shorter queries only
+// match an exact (case-insensitive) name so a known name can still be typed in full quickly.
+export function dbSearchLoginUsers(query: string): LoginUserRow[] {
+  const q = query.trim();
+  if (!q) return [];
+  const exactOnly = q.length < 3;
+  const param = exactOnly ? q : `%${q}%`;
+  const op = exactOnly ? "=" : "LIKE";
+  return db.prepare(`
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.avatar_url AS avatarUrl
+    FROM users u
+    WHERE u.level > 0 AND u.user_id NOT LIKE 'guest\\_%' ESCAPE '\\'
+      AND (LOWER(u.display_name) ${op} LOWER(?) OR LOWER(u.first_name) ${op} LOWER(?))
+    ORDER BY u.display_name ASC
+  `).all(param, param) as LoginUserRow[];
 }
 
 export function dbCreateGuestUser(name: string): UserRow {
@@ -504,7 +529,7 @@ export function dbDeleteUser(userId: string) {
 
 export function dbGetAllAlbumMembers(channelId: string): AlbumMemberRow[] {
   return db.prepare(`
-    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level, am.hidden
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.surname AS surname, u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level, am.hidden
     FROM album_members am JOIN users u ON u.user_id = am.user_id
     WHERE am.channel_id = ? AND u.level > 0 ORDER BY am.hidden ASC, u.display_name ASC
   `).all(channelId) as AlbumMemberRow[];
