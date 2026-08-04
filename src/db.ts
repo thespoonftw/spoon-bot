@@ -312,10 +312,21 @@ export function dbGetAlbumWithPhotos(channelId: string, userId?: string): AlbumW
   return { ...album, photos: dbGetPhotos(album.channelId, userId), members: dbGetAlbumMembers(channelId) };
 }
 
-export function dbGetAllAlbumsWithPhotos(): AlbumWithPhotos[] {
-  const albums = (db.prepare(
-    "SELECT channel_id AS channelId, group_name AS groupName, start_date AS startDate, end_date AS endDate, created_at AS createdAt, group_id AS groupId FROM albums ORDER BY created_at DESC"
-  ).all() as Omit<AlbumRow, "dateText">[]).map(toAlbumRow);
+export function dbGetAllAlbumsWithPhotos(accessCheckUserId?: string): AlbumWithPhotos[] {
+  const rawAlbums = accessCheckUserId
+    ? db.prepare(`
+        SELECT channel_id AS channelId, group_name AS groupName, start_date AS startDate, end_date AS endDate, created_at AS createdAt, group_id AS groupId
+        FROM albums a WHERE a.channel_id IN (
+          SELECT channel_id FROM album_members WHERE user_id = ?
+          UNION
+          SELECT a2.channel_id FROM albums a2 JOIN user_groups ug ON ug.group_id = a2.group_id WHERE ug.user_id = ?
+        )
+        ORDER BY created_at DESC
+      `).all(accessCheckUserId, accessCheckUserId)
+    : db.prepare(
+        "SELECT channel_id AS channelId, group_name AS groupName, start_date AS startDate, end_date AS endDate, created_at AS createdAt, group_id AS groupId FROM albums ORDER BY created_at DESC"
+      ).all();
+  const albums = (rawAlbums as Omit<AlbumRow, "dateText">[]).map(toAlbumRow);
   const allLocs = db.prepare("SELECT channel_id AS channelId, id, name, lat, lon, geocode_attempted AS geocodeAttempted FROM album_locations ORDER BY sort_order, id").all() as (AlbumLocation & { channelId: string })[];
   const locMap = new Map<string, AlbumLocation[]>();
   for (const l of allLocs) {

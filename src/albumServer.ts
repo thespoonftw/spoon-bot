@@ -135,7 +135,11 @@ export function startWebServer(): void {
     }
 
     if (url === "/api/albums" && method === "GET") {
-      const albums = dbGetAllAlbumsWithPhotos().map(a => {
+      const token = getTokenFromRequest(req);
+      const sessionUserId = isValidSession(token) ? getSessionUser(token)?.userId : undefined;
+      if (!sessionUserId) { sendJson(res, 200, []); return; }
+      const isAdmin = (dbGetUserById(sessionUserId)?.level ?? 0) >= 2;
+      const albums = dbGetAllAlbumsWithPhotos(isAdmin ? undefined : sessionUserId).map(a => {
         const state = eventStates.get(a.channelId);
         const members = a.members.filter(m => (state?.members.get(m.userId)?.status ?? null) !== "decline");
         return { ...a, members };
