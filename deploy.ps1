@@ -26,10 +26,10 @@ Write-Host "Building TypeScript..."
 Write-Host "Building web app..."
 & $plink @conn "cd /home/spoon/spoon-bot/web && npm install --silent && npm run build"
 
-Write-Host "Restarting bots..."
-& $plink @conn "systemctl --user restart himiko snek"
+Write-Host "Restarting snek..."
+& $plink @conn "systemctl --user restart snek"
 
 Write-Host "Waiting for startup..."
 Start-Sleep 6
 
-& $plink @conn "echo '=== himiko ===' && tail -4 /home/spoon/spoon-bot/bot.log && echo '=== snek ===' && tail -4 /home/spoon/spoon-bot/snek.log"
+& $plink @conn "tail -4 /home/spoon/spoon-bot/snek.log"
