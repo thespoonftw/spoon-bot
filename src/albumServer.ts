@@ -16,7 +16,7 @@ import { PHOTO_STORAGE_PATH, ensureAlbumDirs, StorageUnavailableError } from "./
 import { getClientIp, anonRateLimit } from "./rateLimit";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbHasAlbum, dbUpdateAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbGetAlbumVotes, dbSetPhotoCaption, dbListTables, dbTablePage, dbSearchPhotos, dbGetAlbumLocations, dbAddAlbumLocation, dbDeleteAlbumLocation, dbReorderAlbumLocations, dbSetLocationCoords, dbRenameAlbumLocation, dbSetPhotoLocation, dbSetPhotoTakenAt } from "./db";
+import { dbHasAlbum, dbUpdateAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbGetUserById, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbGetAlbumVotes, dbSetPhotoCaption, dbListTables, dbTablePage, dbSearchPhotos, dbGetAlbumLocations, dbAddAlbumLocation, dbDeleteAlbumLocation, dbReorderAlbumLocations, dbSetLocationCoords, dbRenameAlbumLocation, dbSetPhotoLocation, dbSetPhotoTakenAt } from "./db";
 
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 
@@ -128,7 +128,9 @@ export function startWebServer(): void {
       const sort = (params.get("sort") ?? "top") as "newest" | "oldest" | "top" | "newest_taken" | "oldest_taken";
       const page = Math.max(0, parseInt(params.get("page") ?? "0") || 0);
       const pageSize = Math.min(200, Math.max(1, parseInt(params.get("pageSize") ?? "40") || 40));
-      sendJson(res, 200, dbSearchPhotos({ uploadedById, taggedUserId, sort, page, pageSize, userId: sessionUser?.userId }));
+      const isAdmin = sessionUser ? (dbGetUserById(sessionUser.userId)?.level ?? 0) >= 2 : false;
+      const accessCheckUserId = isAdmin ? undefined : sessionUser?.userId;
+      sendJson(res, 200, dbSearchPhotos({ uploadedById, taggedUserId, sort, page, pageSize, userId: sessionUser?.userId, accessCheckUserId }));
       return;
     }
 

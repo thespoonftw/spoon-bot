@@ -599,12 +599,21 @@ export function dbSetPhotoCaption(photoId: number, caption: string): void {
 export function dbSearchPhotos(opts: {
   uploadedById?: string; taggedUserId?: string;
   sort: "newest" | "oldest" | "top" | "newest_taken" | "oldest_taken"; page: number; pageSize: number; userId?: string;
+  accessCheckUserId?: string;
 }): { photos: PhotoRow[]; total: number } {
-  const { uploadedById, taggedUserId, sort, page, pageSize, userId } = opts;
+  const { uploadedById, taggedUserId, sort, page, pageSize, userId, accessCheckUserId } = opts;
   const where: string[] = [];
   const params: unknown[] = [];
   if (uploadedById) { where.push("p.uploaded_by_id = ?"); params.push(uploadedById); }
   if (taggedUserId) { where.push("EXISTS (SELECT 1 FROM photo_tagged pt WHERE pt.photo_id = p.id AND pt.user_id = ?)"); params.push(taggedUserId); }
+  if (accessCheckUserId) {
+    where.push(`p.channel_id IN (
+      SELECT channel_id FROM album_members WHERE user_id = ?
+      UNION
+      SELECT a.channel_id FROM albums a JOIN user_groups ug ON ug.group_id = a.group_id WHERE ug.user_id = ?
+    )`);
+    params.push(accessCheckUserId, accessCheckUserId);
+  }
   const whereClause = where.length ? "WHERE " + where.join(" AND ") : "";
   const orderClause = sort === "oldest" ? "ORDER BY p.id ASC"
     : sort === "top" ? "ORDER BY score DESC, p.id DESC"
