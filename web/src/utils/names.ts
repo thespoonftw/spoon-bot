@@ -17,5 +17,9 @@ export function dropdownName(user: Nameable, allInList: Nameable[]): string {
   const dupes = allInList.filter(u => baseName(u) === base).length;
   if (dupes <= 1) return base;
   const suffix = user.surname || user.displayName;
-  return suffix ? `${base} (${suffix})` : base;
+  return suffix ? `${base} ${suffix}` : base;
+}
+
+export function sortByName<T extends Nameable>(list: T[]): T[] {
+  return [...list].sort((a, b) => baseName(a).localeCompare(baseName(b)));
 }

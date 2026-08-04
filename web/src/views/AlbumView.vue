@@ -57,7 +57,7 @@
               <option value="tagging">Tagging</option>
             </select>
             <select v-if="sortBy === 'tagging'" v-model="tagFilterUserId" class="sort-select">
-              <option v-for="m in album.members" :key="m.userId" :value="m.userId">{{ dropdownName(m, album.members) }}</option>
+              <option v-for="m in sortedTagFilterMembers" :key="m.userId" :value="m.userId">{{ dropdownName(m, album.members) }}</option>
               <option value="__nobody__">Nobody</option>
             </select>
           </template>
@@ -167,7 +167,7 @@ import MembersModal from "../components/MembersModal.vue";
 import PhotoGallery from "../components/PhotoGallery.vue";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 import { useDraggable } from "../utils/draggable";
-import { dropdownName } from "../utils/names";
+import { dropdownName, sortByName } from "../utils/names";
 import PageHeader from "../components/PageHeader.vue";
 import LocationsModal from "../components/LocationsModal.vue";
 
@@ -216,6 +216,7 @@ function onSortChange() { sessionStorage.setItem(SORT_KEY, sortBy.value); }
 const displayLimit = ref(40);
 const currentUserId = ref<string | null>(null);
 const tagFilterUserId = ref<string>('__nobody__');
+const sortedTagFilterMembers = computed(() => sortByName(album.value?.members ?? []));
 watch(tagFilterUserId, () => { displayLimit.value = 40; });
 
 function cmp(a: Photo, b: Photo): number {
