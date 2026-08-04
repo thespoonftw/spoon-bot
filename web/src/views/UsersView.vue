@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <PageHeader back-to="/" title="Users" />
+    <PageHeader back-to="/" title="Directory" />
 
     <div class="user-controls-row">
       <div style="display:flex;align-items:center;gap:8px">

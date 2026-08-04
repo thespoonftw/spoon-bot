@@ -1,6 +1,6 @@
 <template>
   <div class="page center">
-    <h1>Snek</h1>
+    <h1>Spoon Bot Photos</h1>
     <p class="subtitle">Select your account to log in</p>
     <div v-if="error" class="error">{{ error }}</div>
 
@@ -10,7 +10,10 @@
         <button v-for="user in results" :key="user.userId" class="user-card" @click="confirming = user">
           <img v-if="user.avatarUrl" :src="user.avatarUrl" class="avatar" />
           <div class="avatar placeholder" v-else>{{ (user.firstName || user.displayName)[0] }}</div>
-          <span>{{ user.firstName || user.displayName }}</span>
+          <div class="user-card-info">
+            <span class="user-card-name">{{ user.firstName || user.displayName }}</span>
+            <span class="user-card-subname">{{ user.displayName }}</span>
+          </div>
         </button>
       </div>
       <p v-else-if="query.trim().length > 0 && !searching" class="empty">

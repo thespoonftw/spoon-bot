@@ -25,7 +25,7 @@
       </router-link>
       <router-link to="/users" class="feature-card">
         <span class="feature-icon">👥</span>
-        <h2>Users</h2>
+        <h2>Directory</h2>
       </router-link>
       <router-link to="/status" class="feature-card">
         <span class="feature-icon">📊</span>
