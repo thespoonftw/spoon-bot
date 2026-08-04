@@ -169,7 +169,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
       const user = userInfoCache.get(userId);
       const dbUser = dbGetUserById(userId);
       const groups = userId ? dbGetUserGroups(userId) : [];
-      sendJson(res, 200, { valid: true, userId, displayName: user?.displayName ?? userId, avatarUrl: user?.avatarUrl ?? "", firstName: dbUser?.firstName ?? null, groups });
+      sendJson(res, 200, { valid: true, userId, displayName: user?.displayName ?? dbUser?.displayName ?? userId, avatarUrl: user?.avatarUrl || dbUser?.avatarUrl || "", firstName: dbUser?.firstName ?? null, groups });
     }
     return true;
   }
