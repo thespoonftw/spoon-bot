@@ -365,7 +365,7 @@ export type UserRow = { userId: string; displayName: string; firstName?: string;
 export function dbUpsertUser(userId: string, displayName: string, avatarUrl?: string) {
   db.prepare(`
     INSERT INTO users (user_id, display_name, avatar_url) VALUES (?, ?, ?)
-    ON CONFLICT(user_id) DO UPDATE SET display_name=excluded.display_name, avatar_url=excluded.avatar_url
+    ON CONFLICT(user_id) DO UPDATE SET display_name=excluded.display_name, avatar_url=COALESCE(excluded.avatar_url, users.avatar_url)
   `).run(userId, displayName, avatarUrl ?? null);
 }
 

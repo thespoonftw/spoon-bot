@@ -39,7 +39,7 @@ export async function startAlbumForChannel(channelId: string, guild: Guild, albu
     if (ch && "members" in ch) {
       for (const [, member] of (ch as TextChannel).members) {
         if (!member.user.bot) {
-          dbUpsertUser(member.id, member.displayName, member.user.avatarURL() ?? undefined);
+          dbUpsertUser(member.id, member.displayName, member.user.displayAvatarURL({ extension: "png", size: 128 }));
           dbAddAlbumMember(channelId, member.id);
         }
       }
@@ -100,7 +100,7 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
     if (imageAttachments.length === 1) {
       const photos = dbGetPhotosByDiscordMessageId(message.id);
       if (photos.length === 1) {
-        dbUpsertUser(user.id, user.displayName ?? user.username, user.avatarURL() ?? undefined);
+        dbUpsertUser(user.id, user.displayName ?? user.username, user.displayAvatarURL({ extension: "png", size: 128 }));
         const emojiChar = reaction.emoji.id ? "👍" : (reaction.emoji.name ?? "👍");
         dbVotePhoto(photos[0].id, user.id, emojiChar, false);
       }
@@ -118,7 +118,7 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
   if (!author) return;
   const authorMember = reaction.message.guild?.members.cache.get(author.id);
   const displayName = authorMember?.displayName ?? author.displayName ?? author.username;
-  dbUpsertUser(author.id, displayName, author.avatarURL() ?? undefined);
+  dbUpsertUser(author.id, displayName, author.displayAvatarURL({ extension: "png", size: 128 }));
 
   let albumDir: string, thumbDir: string;
   try {
@@ -176,7 +176,7 @@ export async function handleAlbumReaction(reaction: MessageReaction, user: User)
             const reactors = await msgReaction.users.fetch();
             for (const [, reactUser] of reactors) {
               if (reactUser.bot) continue;
-              dbUpsertUser(reactUser.id, reactUser.displayName ?? reactUser.username, reactUser.avatarURL() ?? undefined);
+              dbUpsertUser(reactUser.id, reactUser.displayName ?? reactUser.username, reactUser.displayAvatarURL({ extension: "png", size: 128 }));
               const backfillEmoji = msgReaction.emoji.id ? "👍" : (msgReaction.emoji.name ?? "👍");
               dbVotePhoto(photo.id, reactUser.id, backfillEmoji, false);
             }
@@ -221,7 +221,7 @@ export async function handleAlbumMessageCreate(message: Message): Promise<void> 
     attachments: imageAttachments.map(a => ({ url: a.url, name: a.name || "photo.jpg" })),
     authorId: message.author.id,
     authorName: displayName,
-    avatarUrl: message.author.avatarURL() ?? undefined,
+    avatarUrl: message.author.displayAvatarURL({ extension: "png", size: 128 }),
     caption,
     messageId: message.id,
     originalMessage: message,
