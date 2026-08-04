@@ -11,7 +11,7 @@
           <option value="taggedIn">Tagging</option>
         </select>
         <select v-if="filterMode !== 'all'" v-model="filterUserId" @change="resetAndFetch">
-          <option v-for="u in users" :key="u.userId" :value="u.userId">{{ u.firstName || u.displayName }}</option>
+          <option v-for="u in users" :key="u.userId" :value="u.userId">{{ dropdownName(u, users) }}</option>
         </select>
         <span class="search-count" v-if="total !== null">{{ total }} result{{ total === 1 ? '' : 's' }}</span>
         <div class="search-sort-group">
@@ -44,10 +44,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { authHeaders } from "../utils/session";
+import { dropdownName } from "../utils/names";
 import PhotoGallery from "../components/PhotoGallery.vue";
 import PageHeader from "../components/PageHeader.vue";
 
-interface User { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
+interface User { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string }
 interface Photo { id: number; channelId: string; url: string; score?: number; userVote?: string | null }
 interface AlbumInfo { groupName?: string; locations?: { id: number; name: string }[]; startDate?: string; endDate?: string }
 

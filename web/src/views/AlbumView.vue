@@ -57,7 +57,7 @@
               <option value="tagging">Tagging</option>
             </select>
             <select v-if="sortBy === 'tagging'" v-model="tagFilterUserId" class="sort-select">
-              <option v-for="m in album.members" :key="m.userId" :value="m.userId">{{ m.firstName || m.displayName }}</option>
+              <option v-for="m in album.members" :key="m.userId" :value="m.userId">{{ dropdownName(m, album.members) }}</option>
               <option value="__nobody__">Nobody</option>
             </select>
           </template>
@@ -167,13 +167,14 @@ import MembersModal from "../components/MembersModal.vue";
 import PhotoGallery from "../components/PhotoGallery.vue";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 import { useDraggable } from "../utils/draggable";
+import { dropdownName } from "../utils/names";
 import PageHeader from "../components/PageHeader.vue";
 import LocationsModal from "../components/LocationsModal.vue";
 
 const dragShare = useDraggable();
 
 interface Photo { id: number; channelId: string; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; caption?: string; score?: number; userVote?: string | null; taggedIds?: string[]; locationId?: number | null }
-interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string; rsvpStatus?: string }
+interface Member { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string; rsvpStatus?: string }
 interface AlbumLocation { id: number; name: string }
 interface SiteGroup { id: number; name: string; color: string }
 interface Album { channelId: string; groupName: string; dateText?: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; groupId?: number | null; photos: Photo[]; members: Member[] }
