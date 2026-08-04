@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <div class="landing-header">
-      <h1>Brunch Projects</h1>
+      <h1>Directory</h1>
       <div class="user-info landing-user-info" v-if="currentUser">
         <img v-if="currentUser.avatarUrl" :src="currentUser.avatarUrl" class="avatar" />
         <div class="avatar placeholder" v-else>{{ (currentUser.firstName || currentUser.displayName)[0] }}</div>
@@ -25,7 +25,7 @@
       </router-link>
       <router-link to="/users" class="feature-card">
         <span class="feature-icon">👥</span>
-        <h2>Directory</h2>
+        <h2>Users</h2>
       </router-link>
       <router-link to="/status" class="feature-card">
         <span class="feature-icon">📊</span>

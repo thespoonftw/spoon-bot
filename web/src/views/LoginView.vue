@@ -1,7 +1,7 @@
 <template>
   <div class="page center">
     <h1>Spoon Bot Photos</h1>
-    <p class="subtitle">Select your account to log in</p>
+    <p class="subtitle">Search your name to log in</p>
     <div v-if="error" class="error">{{ error }}</div>
 
     <template v-if="!confirming">

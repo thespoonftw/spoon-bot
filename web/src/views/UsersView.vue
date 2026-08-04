@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <PageHeader back-to="/" title="Directory" />
+    <PageHeader back-to="/" title="Users" />
 
     <div class="user-controls-row">
       <div style="display:flex;align-items:center;gap:8px">
@@ -212,16 +212,6 @@ async function saveEdit() {
   if (!editingUser.value) return;
   saveError.value = "";
   const trimmed = editFirstName.value.trim();
-  if (trimmed) {
-    const duplicate = users.value.find(u =>
-      u.userId !== editingUser.value!.userId &&
-      u.firstName?.trim().toLowerCase() === trimmed.toLowerCase()
-    );
-    if (duplicate) {
-      saveError.value = `"${trimmed}" is already taken by ${duplicate.displayName}`;
-      return;
-    }
-  }
   saving.value = true;
   const groupIds = editGroups.value;
   const trimmedSurname = editSurname.value.trim();
