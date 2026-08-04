@@ -60,6 +60,23 @@ export async function initAuth(client: Client) {
       userInfoCache.set(userId, { userId, displayName: userId, avatarUrl: "" });
     }
   }
+  // Fire-and-forget: Discord avatar hashes go stale whenever a user changes their picture,
+  // so cached avatar_urls silently 404 over time. Refresh them all in the background rather
+  // than awaiting here, since awaiting would block the rest of startup (see the group-message
+  // refresh incident where a similar blocking bulk-fetch caused 2+ min startup delays).
+  refreshAllUserAvatars(client);
+}
+
+async function refreshAllUserAvatars(client: Client): Promise<void> {
+  const users = dbGetAllUsers().filter(u => !u.userId.startsWith("guest_"));
+  for (const u of users) {
+    try {
+      const discordUser = await client.users.fetch(u.userId);
+      dbUpsertUser(u.userId, discordUser.displayName ?? discordUser.username, discordUser.displayAvatarURL({ extension: "png", size: 128 }));
+    } catch (e) {
+      console.error(`[refreshAllUserAvatars] Failed to refresh ${u.userId}:`, e);
+    }
+  }
 }
 
 const SESSION_COOKIE = "snek_session";
