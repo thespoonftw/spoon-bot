@@ -106,7 +106,7 @@ async function loadMore() {
 
 onMounted(async () => {
   const [usersRes, authRes, albumsRes] = await Promise.all([
-    fetch("/api/site-users", { headers: authHeaders() }),
+    fetch("/api/site-users?associated=1", { headers: authHeaders() }),
     fetch("/api/auth/check", { headers: authHeaders() }),
     fetch("/api/albums"),
   ]);

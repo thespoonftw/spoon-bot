@@ -404,6 +404,32 @@ export function dbGetAllUsers(): UserRow[] {
   return rows.map(r => ({ ...r, groups: byUser.get(r.userId) ?? [] }));
 }
 
+export function dbGetAssociatedUsers(userId: string): UserRow[] {
+  const rows = db.prepare(`
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName,
+      u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level,
+      (SELECT COUNT(*) FROM photos p WHERE p.uploaded_by_id = u.user_id) AS uploadCount,
+      (SELECT COUNT(*) FROM photo_tagged pt WHERE pt.user_id = u.user_id) AS taggedCount
+    FROM users u
+    WHERE u.level > 0 AND u.user_id IN (
+      SELECT DISTINCT am2.user_id FROM album_members am1
+      JOIN album_members am2 ON am2.channel_id = am1.channel_id
+      WHERE am1.user_id = ?
+    )
+    ORDER BY display_name ASC
+  `).all(userId) as Omit<UserRow, 'groups'>[];
+  const memberships = db.prepare(`
+    SELECT ug.user_id AS userId, sg.id, sg.name, sg.color
+    FROM user_groups ug JOIN site_groups sg ON sg.id = ug.group_id
+  `).all() as ({ userId: string } & SiteGroup)[];
+  const byUser = new Map<string, SiteGroup[]>();
+  for (const m of memberships) {
+    if (!byUser.has(m.userId)) byUser.set(m.userId, []);
+    byUser.get(m.userId)!.push({ id: m.id, name: m.name, color: m.color });
+  }
+  return rows.map(r => ({ ...r, groups: byUser.get(r.userId) ?? [] }));
+}
+
 export function dbAddAlbumMember(channelId: string, userId: string) {
   db.prepare("INSERT OR IGNORE INTO album_members (channel_id, user_id) VALUES (?, ?)").run(channelId, userId);
 }
