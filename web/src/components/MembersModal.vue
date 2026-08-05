@@ -34,12 +34,13 @@
       <div class="modal" :style="dragPicker.style.value">
         <button class="modal-close" @click="showMemberPicker = false">✕</button>
         <h2 class="modal-drag-handle" @mousedown="dragPicker.onMouseDown">Add User</h2>
+        <input v-model="addUserSearch" class="members-add-input" type="text" placeholder="Search…" style="margin-bottom:8px" />
         <div class="members-modal-list">
-          <div v-for="u in addableUsers" :key="u.userId" class="members-modal-row tagging-row" @click="pickAndAddMember(u.userId)">
+          <div v-for="u in filteredAddableUsers" :key="u.userId" class="members-modal-row tagging-row" @click="pickAndAddMember(u.userId)">
             <MemberAvatar :avatar-url="u.avatarUrl" :name="u.firstName || u.displayName" />
-            <span class="members-modal-name">{{ u.firstName || u.displayName }}</span>
+            <span class="members-modal-name"><strong>{{ u.firstName || u.displayName }}</strong><template v-if="u.firstName && u.surname"> {{ u.surname }}</template></span>
           </div>
-          <p v-if="addableUsers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">No more users to add.</p>
+          <p v-if="filteredAddableUsers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">No more users to add.</p>
         </div>
       </div>
     </div>
@@ -52,7 +53,7 @@ import MemberAvatar from "./MemberAvatar.vue";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 import { useDraggable, useEscKey } from "../utils/draggable";
 
-interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
+interface Member { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string }
 interface AllMember extends Member { hidden: number; rsvpStatus?: string }
 
 const props = defineProps<{ modelValue: boolean; channelId: string }>();
@@ -76,12 +77,25 @@ const addMemberUserId = ref("");
 const addMemberName = ref("");
 const addMemberError = ref("");
 const showMemberPicker = ref(false);
+const addUserSearch = ref("");
+
+watch(showMemberPicker, (v) => { if (v) addUserSearch.value = ""; });
 
 const addableUsers = computed(() => {
   const memberIds = new Set(allMembers.value.map(m => m.userId));
   return allUsers.value
     .filter(u => !memberIds.has(u.userId))
     .sort((a, b) => (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName));
+});
+
+const filteredAddableUsers = computed(() => {
+  const q = addUserSearch.value.trim().toLowerCase();
+  if (!q) return addableUsers.value;
+  return addableUsers.value.filter(u =>
+    (u.firstName ?? "").toLowerCase().includes(q) ||
+    (u.surname ?? "").toLowerCase().includes(q) ||
+    u.displayName.toLowerCase().includes(q)
+  );
 });
 
 watch(() => props.modelValue, async (v) => {
@@ -94,7 +108,7 @@ watch(() => props.modelValue, async (v) => {
   addMemberUserId.value = "";
   const [membersRes, usersRes] = await Promise.all([
     fetch(`/api/album/${props.channelId}/members`, { headers: authHeaders() }),
-    fetch("/api/users"),
+    fetch("/api/site-users?associated=1", { headers: authHeaders() }),
   ]);
   if (membersRes.ok) {
     const raw: AllMember[] = await membersRes.json();
