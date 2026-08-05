@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onUnmounted } from "vue";
+import { ref, nextTick, onMounted, onUnmounted } from "vue";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { authJsonHeaders, authHeaders } from "../utils/session";
@@ -96,7 +96,7 @@ async function togglePreview(loc: AlbumLocation) {
   previewStatus.value = "";
   await nextTick();
   if (expandedLocId.value !== loc.id || !previewMapContainer) return;
-  previewMap = L.map(previewMapContainer, { attributionControl: false }).setView([loc.lat!, loc.lon!], 13);
+  previewMap = L.map(previewMapContainer, { attributionControl: false }).setView([loc.lat!, loc.lon!], 6);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(previewMap);
   const marker = L.marker([loc.lat!, loc.lon!], { icon: makeMapIcon('#888fa8'), draggable: true }).addTo(previewMap);
   marker.on("dragend", async () => {
@@ -108,6 +108,10 @@ async function togglePreview(loc: AlbumLocation) {
     emit("updated", [...localLocations.value]);
   });
 }
+
+onMounted(() => {
+  if (localLocations.value.length > 0) togglePreview(localLocations.value[0]);
+});
 
 onUnmounted(() => { previewMap?.remove(); previewMap = null; });
 

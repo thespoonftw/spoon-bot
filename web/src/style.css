@@ -66,7 +66,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .location-row-dragging { opacity: 0.4; }
 .location-row-dragover { border-top: 2px solid #cba6f7; }
 .location-map-preview-wrap { margin: -2px 0 4px 20px; }
-.location-map-preview { height: 160px; border-radius: 8px; overflow: hidden; }
+.location-map-preview { height: 260px; border-radius: 8px; overflow: hidden; }
 .location-picker-row { justify-content: space-between; cursor: pointer; padding: 8px 10px; border-radius: 8px; transition: background 0.15s; }
 .location-picker-row:hover { background: #313244; }
 .location-picker-row.active { background: #1e3a2f; }
