@@ -175,7 +175,7 @@ const dragShare = useDraggable();
 
 interface Photo { id: number; channelId: string; url: string; filename?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string; takenAt?: string; width?: number; height?: number; caption?: string; score?: number; userVote?: string | null; taggedIds?: string[]; locationId?: number | null }
 interface Member { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string; rsvpStatus?: string }
-interface AlbumLocation { id: number; name: string }
+interface AlbumLocation { id: number; name: string; lat?: number | null; lon?: number | null; geocodeAttempted?: number }
 interface SiteGroup { id: number; name: string; color: string }
 interface Album { channelId: string; groupName: string; dateText?: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; groupId?: number | null; photos: Photo[]; members: Member[] }
 

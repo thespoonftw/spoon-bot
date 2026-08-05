@@ -34,7 +34,7 @@
       <div class="modal" :style="dragPicker.style.value">
         <button class="modal-close" @click="showMemberPicker = false">✕</button>
         <h2 class="modal-drag-handle" @mousedown="dragPicker.onMouseDown">Add User</h2>
-        <input v-model="addUserSearch" class="members-add-input" type="text" placeholder="Search…" style="margin-bottom:8px" />
+        <input ref="addUserSearchInput" v-model="addUserSearch" class="members-add-input" type="text" placeholder="Search…" style="margin-bottom:8px" />
         <div class="members-modal-list">
           <div v-for="u in filteredAddableUsers" :key="u.userId" class="members-modal-row tagging-row" @click="pickAndAddMember(u.userId)">
             <MemberAvatar :avatar-url="u.avatarUrl" :name="u.firstName || u.displayName" />
@@ -48,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, nextTick } from "vue";
 import MemberAvatar from "./MemberAvatar.vue";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 import { useDraggable, useEscKey } from "../utils/draggable";
@@ -78,8 +78,14 @@ const addMemberName = ref("");
 const addMemberError = ref("");
 const showMemberPicker = ref(false);
 const addUserSearch = ref("");
+const addUserSearchInput = ref<HTMLInputElement | null>(null);
 
-watch(showMemberPicker, (v) => { if (v) addUserSearch.value = ""; });
+watch(showMemberPicker, async (v) => {
+  if (!v) return;
+  addUserSearch.value = "";
+  await nextTick();
+  addUserSearchInput.value?.focus();
+});
 
 const addableUsers = computed(() => {
   const memberIds = new Set(allMembers.value.map(m => m.userId));

@@ -31,6 +31,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { authJsonHeaders, authHeaders } from "../utils/session";
 import { useCurrentUser } from "../composables/useCurrentUser";
+import { geocodeAndSaveLocation } from "../utils/geocode";
+import { DEFAULT_PIN_COLOR, makeMapIcon } from "../utils/mapIcon";
 
 interface AlbumLocation { id: number; name: string; lat?: number | null; lon?: number | null; geocodeAttempted?: number }
 interface Album {
@@ -45,40 +47,7 @@ interface Album {
 }
 
 async function geocodeAndSave(loc: AlbumLocation): Promise<[number, number] | null> {
-  let lat: number | null = null;
-  let lon: number | null = null;
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(loc.name)}&format=json&limit=1`,
-      { headers: { "Accept-Language": "en", "User-Agent": "spoon-bot/1.0" } }
-    );
-    const data = await res.json();
-    if (data[0]) { lat = parseFloat(data[0].lat); lon = parseFloat(data[0].lon); }
-  } catch { return null; }
-  fetch(`/api/album-location/${loc.id}/coords`, {
-    method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ lat, lon }),
-  });
-  return lat != null && lon != null ? [lat, lon] : null;
-}
-
-const DEFAULT_PIN_COLOR = '#888fa8';
-
-function makeIcon(color: string, editing = false) {
-  const c = color || DEFAULT_PIN_COLOR;
-  const w = editing ? 28 : 22;
-  const h = editing ? 40 : 31;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 31" width="${w}" height="${h}">
-    <path d="M11 0C5.2 0 0.5 4.7 0.5 10.5c0 8 10.5 20.5 10.5 20.5s10.5-12.5 10.5-20.5C21.5 4.7 16.8 0 11 0z"
-      fill="${c}" stroke="rgba(0,0,0,0.35)" stroke-width="1"/>
-    <circle cx="11" cy="10.5" r="4.5" fill="rgba(255,255,255,0.45)"/>
-  </svg>`;
-  return L.divIcon({
-    html: svg,
-    iconSize: [w, h],
-    iconAnchor: [w / 2, h],
-    popupAnchor: [0, -h],
-    className: "",
-  });
+  return geocodeAndSaveLocation(loc.id, loc.name);
 }
 
 const { currentUser } = useCurrentUser();
@@ -152,7 +121,7 @@ function startDragMode(loc: AlbumLocation, marker: L.Marker) {
   movingOrigLatLng = marker.getLatLng();
   marker.closePopup();
   marker.dragging?.enable();
-  marker.setIcon(makeIcon(markerColors.get(loc.id) ?? DEFAULT_PIN_COLOR, true));
+  marker.setIcon(makeMapIcon(markerColors.get(loc.id) ?? DEFAULT_PIN_COLOR, true));
 }
 
 async function saveDrag() {
@@ -172,7 +141,7 @@ function cancelDrag() {
 
 function endDragMode() {
   if (movingMarker && movingPinLoc.value)
-    movingMarker.setIcon(makeIcon(markerColors.get(movingPinLoc.value.id) ?? DEFAULT_PIN_COLOR));
+    movingMarker.setIcon(makeMapIcon(markerColors.get(movingPinLoc.value.id) ?? DEFAULT_PIN_COLOR));
   movingMarker?.dragging?.disable();
   movingPinLoc.value = null;
   movingMarker = null;
@@ -351,7 +320,7 @@ function applyFilter() {
     const photoCount = albumsHere.reduce((n, a) =>
       n + ((a.locations?.length ?? 0) <= 1 ? a.photos.length : a.photos.filter(p => p.locationId === loc.id).length), 0);
     const color = pinColor(albumsHere);
-    const marker = L.marker([loc.lat!, loc.lon!], { icon: makeIcon(color) }).addTo(map!);
+    const marker = L.marker([loc.lat!, loc.lon!], { icon: makeMapIcon(color) }).addTo(map!);
     markerColors.set(loc.id, color);
     const popupEl = buildPopupEl(loc, albumsHere, marker);
     marker.bindPopup(popupEl, { maxWidth: 340 });
