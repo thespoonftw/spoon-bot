@@ -5,7 +5,7 @@ import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
 import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbGetAssociatedUsers, dbUpdateUserFirstName, dbUpdateUserSurname, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetUserGroups, dbAddDiscordUser, dbSearchLoginUsers, dbUpdateUserDiscordId, dbUpdateUserEmail, dbCreateGuestUser, dbFindUserByDiscordId, dbFindUserByEmail } from "./db";
-import { sendMagicLinkEmail } from "./email";
+import { sendMagicLinkEmail, maskEmail } from "./email";
 
 export function sendJson(res: ServerResponse, status: number, data: unknown, extraHeaders: Record<string, string> = {}): void {
   res.writeHead(status, { "Content-Type": "application/json", ...extraHeaders });
@@ -149,7 +149,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
           const user = await discordClient!.users.fetch(targetUser.discordId!);
           await user.send(`🔗 Click here to log in to the Spoon Photos site:\n${link}\n\n*This link expires in 15 minutes.*`);
         }
-        sendJson(res, 200, { ok: true, method: chosenMethod });
+        sendJson(res, 200, { ok: true, method: chosenMethod, maskedEmail: chosenMethod === "email" ? maskEmail(targetUser.email!) : undefined });
       } catch (e) {
         console.error("Auth request error:", e);
         sendJson(res, 500, { error: "Failed to send login link" });

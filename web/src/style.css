@@ -260,6 +260,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .user-row-name-row { display: flex; align-items: center; gap: 6px; }
 .user-row-name { color: #cdd6f4; font-size: 1rem; font-weight: 600; }
 .user-row-surname { color: #a6adc8; font-size: 0.9rem; font-weight: 400; }
+.user-link-icons { display: flex; align-items: center; gap: 3px; }
+.user-link-icons .link-icon { font-size: 0.78rem; opacity: 0.65; line-height: 1; }
 .user-row-login { color: #a6adc8; font-size: 0.82em; }
 .user-row-login.never { color: #585b70; }
 .user-row-groups { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0; }

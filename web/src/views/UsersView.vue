@@ -23,6 +23,10 @@
           <div class="user-row-name-row">
             <span class="user-row-name">{{ user.firstName || user.displayName }}</span>
             <span class="user-row-surname" v-if="user.surname">{{ user.surname }}</span>
+            <span class="user-link-icons">
+              <span v-if="user.discordId" class="link-icon" title="Linked to Discord">💬</span>
+              <span v-if="user.email" class="link-icon" title="Has email on file">✉️</span>
+            </span>
             <button class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
           </div>
           <span class="user-row-login" v-if="user.discordId">{{ user.displayName }}</span>

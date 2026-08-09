@@ -1,6 +1,17 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const MAIL_FROM = process.env.MAIL_FROM ?? "Spoon Photos <login@brunch-projects.co.uk>";
 
+export function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!domain) return "***";
+  const maskedLocal = local[0] + "*".repeat(Math.max(local.length - 1, 3));
+  const domainParts = domain.split(".");
+  const tld = domainParts.pop()!;
+  const domainName = domainParts.join(".");
+  const maskedDomain = domainName ? domainName[0] + "*".repeat(Math.max(domainName.length - 1, 3)) : "*".repeat(3);
+  return `${maskedLocal}@${maskedDomain}.${tld}`;
+}
+
 export async function sendMagicLinkEmail(to: string, link: string): Promise<void> {
   if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
   const res = await fetch("https://api.resend.com/emails", {

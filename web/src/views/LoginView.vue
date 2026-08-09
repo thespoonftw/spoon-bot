@@ -89,7 +89,8 @@ async function requestLogin(userId: string, method: "discord" | "email") {
   });
   loading.value = false;
   if (res.ok) {
-    router.push({ path: "/login/sent", query: { userId, method } });
+    const data = await res.json().catch(() => ({}));
+    router.push({ path: "/login/sent", query: { userId, method, maskedEmail: data.maskedEmail } });
   } else {
     error.value = "Failed to send login link. Try again.";
     confirming.value = null;
