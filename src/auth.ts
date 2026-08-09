@@ -147,7 +147,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
           await sendMagicLinkEmail(targetUser.email!, link);
         } else {
           const user = await discordClient!.users.fetch(targetUser.discordId!);
-          await user.send(`🔗 Click here to log in to the Snek site:\n${link}\n\n*This link expires in 15 minutes.*`);
+          await user.send(`🔗 Click here to log in to the Spoon Photos site:\n${link}\n\n*This link expires in 15 minutes.*`);
         }
         sendJson(res, 200, { ok: true, method: chosenMethod });
       } catch (e) {
