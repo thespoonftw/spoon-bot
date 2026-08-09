@@ -112,9 +112,11 @@ watch(() => props.modelValue, async (v) => {
   addMemberName.value = "";
   addMemberError.value = "";
   addMemberUserId.value = "";
+  // Fetch the full roster, not the "associated" subset scoped to shared albums — a user with no
+  // album memberships yet (e.g. freshly created on the Users page) would never appear otherwise.
   const [membersRes, usersRes] = await Promise.all([
     fetch(`/api/album/${props.channelId}/members`, { headers: authHeaders() }),
-    fetch("/api/site-users?associated=1", { headers: authHeaders() }),
+    fetch("/api/site-users", { headers: authHeaders() }),
   ]);
   if (membersRes.ok) {
     const raw: AllMember[] = await membersRes.json();
