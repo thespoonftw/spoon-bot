@@ -4,7 +4,8 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
-import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbGetAssociatedUsers, dbUpdateUserFirstName, dbUpdateUserSurname, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetUserGroups, dbAddDiscordUser, dbSearchLoginUsers } from "./db";
+import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbGetAssociatedUsers, dbUpdateUserFirstName, dbUpdateUserSurname, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetUserGroups, dbAddDiscordUser, dbSearchLoginUsers, dbUpdateUserDiscordId, dbUpdateUserEmail, dbCreateGuestUser, dbFindUserByDiscordId, dbFindUserByEmail } from "./db";
+import { sendMagicLinkEmail } from "./email";
 
 export function sendJson(res: ServerResponse, status: number, data: unknown, extraHeaders: Record<string, string> = {}): void {
   res.writeHead(status, { "Content-Type": "application/json", ...extraHeaders });
@@ -68,10 +69,10 @@ export async function initAuth(client: Client) {
 }
 
 async function refreshAllUserAvatars(client: Client): Promise<void> {
-  const users = dbGetAllUsers().filter(u => !u.userId.startsWith("guest_"));
+  const users = dbGetAllUsers().filter(u => u.discordId);
   for (const u of users) {
     try {
-      const discordUser = await client.users.fetch(u.userId);
+      const discordUser = await client.users.fetch(u.discordId!);
       dbUpsertUser(u.userId, discordUser.displayName ?? discordUser.username, discordUser.displayAvatarURL({ extension: "png", size: 128 }));
     } catch (e) {
       console.error(`[refreshAllUserAvatars] Failed to refresh ${u.userId}:`, e);
@@ -133,18 +134,25 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     req.on("data", chunk => body += chunk);
     req.on("end", async () => {
       try {
-        const { userId } = JSON.parse(body);
-        const allUsers = dbGetAllUsers();
-        if (!allUsers.some(u => u.userId === userId)) { sendJson(res, 403, { error: "Not allowed" }); return; }
+        const { userId, method: deliveryMethod } = JSON.parse(body);
+        const targetUser = dbGetAllUsers().find(u => u.userId === userId);
+        if (!targetUser) { sendJson(res, 403, { error: "Not allowed" }); return; }
+        const chosenMethod = deliveryMethod === "email" ? "email" : "discord";
+        if (chosenMethod === "email" && !targetUser.email) { sendJson(res, 400, { error: "No email address on file" }); return; }
+        if (chosenMethod === "discord" && !targetUser.discordId) { sendJson(res, 400, { error: "No Discord account on file" }); return; }
         const token = crypto.randomBytes(32).toString("hex");
         magicTokens.set(token, { userId, expires: Date.now() + 15 * 60 * 1000 });
         const link = `${getBaseUrl()}/auth/verify/${token}`;
-        const user = await discordClient!.users.fetch(userId);
-        await user.send(`🔗 Click here to log in to the Snek site:\n${link}\n\n*This link expires in 15 minutes.*`);
-        sendJson(res, 200, { ok: true });
+        if (chosenMethod === "email") {
+          await sendMagicLinkEmail(targetUser.email!, link);
+        } else {
+          const user = await discordClient!.users.fetch(targetUser.discordId!);
+          await user.send(`🔗 Click here to log in to the Snek site:\n${link}\n\n*This link expires in 15 minutes.*`);
+        }
+        sendJson(res, 200, { ok: true, method: chosenMethod });
       } catch (e) {
         console.error("Auth request error:", e);
-        sendJson(res, 500, { error: "Failed to send DM" });
+        sendJson(res, 500, { error: "Failed to send login link" });
       }
     });
     return true;
@@ -201,18 +209,30 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     req.on("data", chunk => body += chunk);
     req.on("end", async () => {
       try {
-        const { userId, firstName, surname, groups } = JSON.parse(body);
-        if (!userId || typeof userId !== "string") { sendJson(res, 400, { error: "Invalid userId" }); return; }
-        const discordUser = await discordClient!.users.fetch(userId);
-        const displayName = discordUser.displayName ?? discordUser.username;
-        const avatarUrl = discordUser.displayAvatarURL({ extension: "png", size: 128 });
-        dbAddDiscordUser(userId, displayName, avatarUrl);
+        const { discordId, email, firstName, surname, groups } = JSON.parse(body);
+        const trimmedDiscordId = typeof discordId === "string" ? discordId.trim() : "";
+        const trimmedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+        if (trimmedDiscordId && dbFindUserByDiscordId(trimmedDiscordId)) { sendJson(res, 400, { error: "This Discord account is already linked to a user" }); return; }
+        if (trimmedEmail && dbFindUserByEmail(trimmedEmail)) { sendJson(res, 400, { error: "This email is already linked to a user" }); return; }
+        let userId: string;
+        if (trimmedDiscordId) {
+          const discordUser = await discordClient!.users.fetch(trimmedDiscordId).catch(() => null);
+          if (!discordUser) { sendJson(res, 404, { error: "User not found on Discord" }); return; }
+          dbAddDiscordUser(trimmedDiscordId, discordUser.displayName ?? discordUser.username, discordUser.displayAvatarURL({ extension: "png", size: 128 }));
+          userId = trimmedDiscordId;
+        } else {
+          const name = (typeof firstName === "string" ? firstName.trim() : "") || (typeof surname === "string" ? surname.trim() : "");
+          if (!name) { sendJson(res, 400, { error: "A Discord ID or a name is required" }); return; }
+          userId = dbCreateGuestUser(name).userId;
+        }
         if (firstName) dbUpdateUserFirstName(userId, firstName.trim() || null);
         if (surname) dbUpdateUserSurname(userId, surname.trim() || null);
+        if (trimmedEmail) dbUpdateUserEmail(userId, trimmedEmail.toLowerCase());
         if (Array.isArray(groups)) dbSetUserGroups(userId, groups);
         sendJson(res, 200, dbGetAllUsers().find(u => u.userId === userId));
-      } catch {
-        sendJson(res, 404, { error: "User not found on Discord" });
+      } catch (e) {
+        console.error("Add user error:", e);
+        sendJson(res, 500, { error: "Failed to add user" });
       }
     });
     return true;
@@ -223,14 +243,36 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     const userId = url.slice("/api/site-users/".length);
     let body = "";
     req.on("data", chunk => body += chunk);
-    req.on("end", () => {
+    req.on("end", async () => {
       try {
-        const { firstName, surname, groups } = JSON.parse(body);
+        const { firstName, surname, groups, discordId, email } = JSON.parse(body);
         dbUpdateUserFirstName(userId, firstName ?? null);
         dbUpdateUserSurname(userId, surname ?? null);
         if (Array.isArray(groups)) dbSetUserGroups(userId, groups);
-        sendJson(res, 200, { ok: true });
-      } catch {
+        if (discordId !== undefined) {
+          const trimmed = typeof discordId === "string" ? discordId.trim() : "";
+          if (trimmed) {
+            const existing = dbFindUserByDiscordId(trimmed);
+            if (existing && existing.userId !== userId) { sendJson(res, 400, { error: "This Discord account is already linked to a user" }); return; }
+            const discordUser = await discordClient!.users.fetch(trimmed).catch(() => null);
+            if (!discordUser) { sendJson(res, 400, { error: "Discord user not found" }); return; }
+            dbUpdateUserDiscordId(userId, trimmed);
+            dbUpsertUser(userId, discordUser.displayName ?? discordUser.username, discordUser.displayAvatarURL({ extension: "png", size: 128 }));
+          } else {
+            dbUpdateUserDiscordId(userId, null);
+          }
+        }
+        if (email !== undefined) {
+          const trimmedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+          if (trimmedEmail) {
+            const existing = dbFindUserByEmail(trimmedEmail);
+            if (existing && existing.userId !== userId) { sendJson(res, 400, { error: "This email is already linked to a user" }); return; }
+          }
+          dbUpdateUserEmail(userId, trimmedEmail || null);
+        }
+        sendJson(res, 200, dbGetUserById(userId) ?? { ok: true });
+      } catch (e) {
+        console.error("Update user error:", e);
         sendJson(res, 500, { error: "Failed to update" });
       }
     });

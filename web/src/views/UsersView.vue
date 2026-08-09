@@ -16,7 +16,7 @@
     </div>
 
     <div class="user-list">
-      <div v-for="user in sortedDiscordUsers" :key="user.userId" class="user-row">
+      <div v-for="user in sortedUsers" :key="user.userId" class="user-row">
         <img v-if="user.avatarUrl" :src="user.avatarUrl" class="avatar" />
         <div class="avatar placeholder" v-else>{{ (user.firstName || user.displayName)[0] }}</div>
         <div class="user-row-info">
@@ -25,7 +25,7 @@
             <span class="user-row-surname" v-if="user.surname">{{ user.surname }}</span>
             <button class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
           </div>
-          <span class="user-row-login">{{ user.displayName }}</span>
+          <span class="user-row-login" v-if="user.discordId">{{ user.displayName }}</span>
           <div v-if="user.groups?.length" class="user-row-groups">
             <span v-for="g in user.groups" :key="g.id" class="user-group-tag" :style="{ background: g.color }">{{ g.name }}</span>
           </div>
@@ -38,38 +38,29 @@
         </div>
       </div>
       <p v-if="loading" class="empty">Loading…</p>
-      <p v-else-if="sortedDiscordUsers.length === 0" class="empty">No users yet.</p>
-      <template v-if="guestUsers.length > 0">
-        <p class="user-category" style="margin-top:20px">Not on Discord</p>
-        <div v-for="user in guestUsers" :key="user.userId" class="user-row">
-          <div class="avatar placeholder">{{ (user.firstName || user.displayName)[0] }}</div>
-          <div class="user-row-info">
-            <div class="user-row-name-row">
-              <span class="user-row-name">{{ user.firstName || user.displayName }}</span>
-              <span class="user-row-surname" v-if="user.surname">{{ user.surname }}</span>
-              <button class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
-            </div>
-          </div>
-        </div>
-      </template>
+      <p v-else-if="sortedUsers.length === 0" class="empty">No users yet.</p>
     </div>
   </div>
 
   <div class="modal-overlay" v-if="addingUser">
     <div class="modal">
-      <button class="modal-close" @click="addingUser = false; addUserId = ''; addFirstName = ''; addSurname = ''; addGroups = []; addUserError = ''">✕</button>
+      <button class="modal-close" @click="closeAddModal">✕</button>
       <h2>Add User</h2>
       <div class="form-group">
-        <label>Discord User ID</label>
-        <input v-model="addUserId" type="text" placeholder="e.g. 368680768832143362" />
-      </div>
-      <div class="form-group">
-        <label>First Name <span style="color:#6c7086;font-weight:400">(optional)</span></label>
+        <label>First Name</label>
         <input v-model="addFirstName" type="text" placeholder="Leave blank to use Discord name" />
       </div>
       <div class="form-group">
         <label>Surname <span style="color:#6c7086;font-weight:400">(optional)</span></label>
         <input v-model="addSurname" type="text" />
+      </div>
+      <div class="form-group">
+        <label>Discord User ID <span style="color:#6c7086;font-weight:400">(optional)</span></label>
+        <input v-model="addDiscordId" type="text" placeholder="e.g. 368680768832143362" />
+      </div>
+      <div class="form-group">
+        <label>Email <span style="color:#6c7086;font-weight:400">(optional)</span></label>
+        <input v-model="addEmail" type="email" placeholder="name@example.com" />
       </div>
       <div class="form-group" v-if="canEditGroups">
         <label>Groups</label>
@@ -84,7 +75,7 @@
       </div>
       <div v-if="addUserError" class="error">{{ addUserError }}</div>
       <div class="modal-actions">
-        <button class="btn-primary" @click="addUser" :disabled="!addUserId.trim() || addUserLoading">{{ addUserLoading ? 'Adding…' : 'Add' }}</button>
+        <button class="btn-primary" @click="addUser" :disabled="!canAddUser || addUserLoading">{{ addUserLoading ? 'Adding…' : 'Add' }}</button>
       </div>
     </div>
   </div>
@@ -101,6 +92,14 @@
       <div class="form-group">
         <label>Surname</label>
         <input v-model="editSurname" type="text" />
+      </div>
+      <div class="form-group">
+        <label>Discord User ID <span style="color:#6c7086;font-weight:400">(leave blank to unlink)</span></label>
+        <input v-model="editDiscordId" type="text" placeholder="e.g. 368680768832143362" />
+      </div>
+      <div class="form-group">
+        <label>Email <span style="color:#6c7086;font-weight:400">(leave blank to remove)</span></label>
+        <input v-model="editEmail" type="email" placeholder="name@example.com" />
       </div>
       <div class="form-group" v-if="canEditGroups">
         <label>Groups</label>
@@ -128,16 +127,15 @@ import { authHeaders, authJsonHeaders } from "../utils/session";
 import PageHeader from "../components/PageHeader.vue";
 
 interface SiteGroup { id: number; name: string; color: string }
-interface SiteUser { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string; lastSeenAt?: string; uploadCount?: number; taggedCount?: number; groups?: SiteGroup[]; level: number }
+interface SiteUser { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string; lastSeenAt?: string; uploadCount?: number; taggedCount?: number; groups?: SiteGroup[]; level: number; discordId?: string | null; email?: string | null }
 
 const allGroups = ref<SiteGroup[]>([]);
 
 const users = ref<SiteUser[]>([]);
 const loading = ref(true);
 const sortBy = ref<'tags' | 'uploads' | 'lastSeen' | 'alpha'>('tags');
-const sortedDiscordUsers = computed(() => {
-  const list = users.value.filter(u => !u.userId.startsWith("guest_"));
-  return [...list].sort((a, b) => {
+const sortedUsers = computed(() => {
+  return [...users.value].sort((a, b) => {
     switch (sortBy.value) {
       case 'tags': return (b.taggedCount ?? 0) - (a.taggedCount ?? 0);
       case 'uploads': return (b.uploadCount ?? 0) - (a.uploadCount ?? 0);
@@ -150,19 +148,22 @@ const sortedDiscordUsers = computed(() => {
     }
   });
 });
-const guestUsers = computed(() => users.value.filter(u => u.userId.startsWith("guest_")));
 const addingUser = ref(false);
-const addUserId = ref('');
+const addDiscordId = ref('');
+const addEmail = ref('');
 const addFirstName = ref('');
 const addSurname = ref('');
 const addGroups = ref<number[]>([]);
 const addUserError = ref('');
 const addUserLoading = ref(false);
+const canAddUser = computed(() => !!(addDiscordId.value.trim() || addFirstName.value.trim() || addSurname.value.trim()));
 const { currentUser } = useCurrentUser();
 const canEditGroups = computed(() => (users.value.find(u => u.userId === currentUser.value?.userId)?.level ?? 0) >= 2);
 const editingUser = ref<SiteUser | null>(null);
 const editFirstName = ref("");
 const editSurname = ref("");
+const editDiscordId = ref("");
+const editEmail = ref("");
 const editGroups = ref<number[]>([]);
 const saving = ref(false);
 const saveError = ref("");
@@ -175,25 +176,36 @@ onMounted(async () => {
   loading.value = false;
 });
 
+function closeAddModal() {
+  addingUser.value = false;
+  addDiscordId.value = '';
+  addEmail.value = '';
+  addFirstName.value = '';
+  addSurname.value = '';
+  addGroups.value = [];
+  addUserError.value = '';
+}
+
 async function addUser() {
-  const id = addUserId.value.trim();
-  if (!id) return;
+  if (!canAddUser.value) return;
   addUserLoading.value = true;
   addUserError.value = '';
   const res = await fetch('/api/site-users', {
     method: 'POST',
     headers: authJsonHeaders(),
-    body: JSON.stringify({ userId: id, firstName: addFirstName.value.trim() || null, surname: addSurname.value.trim() || null, groups: addGroups.value }),
+    body: JSON.stringify({
+      discordId: addDiscordId.value.trim() || null,
+      email: addEmail.value.trim() || null,
+      firstName: addFirstName.value.trim() || null,
+      surname: addSurname.value.trim() || null,
+      groups: addGroups.value,
+    }),
   });
   addUserLoading.value = false;
   if (res.ok) {
     const user: SiteUser = await res.json();
     users.value.push(user);
-    addUserId.value = '';
-    addFirstName.value = '';
-    addSurname.value = '';
-    addGroups.value = [];
-    addingUser.value = false;
+    closeAddModal();
   } else {
     const err = await res.json().catch(() => ({}));
     addUserError.value = (err as any).error || 'Failed to add user';
@@ -204,6 +216,8 @@ function openEdit(user: SiteUser) {
   editingUser.value = user;
   editFirstName.value = user.firstName ?? "";
   editSurname.value = user.surname ?? "";
+  editDiscordId.value = user.discordId ?? "";
+  editEmail.value = user.email ?? "";
   editGroups.value = (user.groups ?? []).map(g => g.id);
   saveError.value = "";
 }
@@ -212,20 +226,32 @@ async function saveEdit() {
   if (!editingUser.value) return;
   saveError.value = "";
   const trimmed = editFirstName.value.trim();
+  const trimmedSurname = editSurname.value.trim();
+  const trimmedDiscordId = editDiscordId.value.trim();
+  const trimmedEmail = editEmail.value.trim();
   saving.value = true;
   const groupIds = editGroups.value;
-  const trimmedSurname = editSurname.value.trim();
   const res = await fetch(`/api/site-users/${editingUser.value.userId}`, {
     method: "PUT",
     headers: authJsonHeaders(),
-    body: JSON.stringify({ firstName: trimmed || null, surname: trimmedSurname || null, groups: groupIds }),
+    body: JSON.stringify({ firstName: trimmed || null, surname: trimmedSurname || null, groups: groupIds, discordId: trimmedDiscordId, email: trimmedEmail }),
   });
   saving.value = false;
   if (res.ok) {
+    const updated = await res.json().catch(() => null);
     editingUser.value.firstName = trimmed || undefined;
     editingUser.value.surname = trimmedSurname || undefined;
     editingUser.value.groups = allGroups.value.filter(g => groupIds.includes(g.id));
+    if (updated?.userId) {
+      editingUser.value.discordId = updated.discordId ?? null;
+      editingUser.value.email = updated.email ?? null;
+      editingUser.value.avatarUrl = updated.avatarUrl ?? editingUser.value.avatarUrl;
+      editingUser.value.displayName = updated.displayName ?? editingUser.value.displayName;
+    }
     editingUser.value = null;
+  } else {
+    const err = await res.json().catch(() => ({}));
+    saveError.value = (err as any).error || 'Failed to save';
   }
 }
 

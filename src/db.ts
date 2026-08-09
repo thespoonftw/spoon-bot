@@ -115,9 +115,16 @@ export function initDb() {
     "ALTER TABLE albums ADD COLUMN group_id INTEGER",
     "ALTER TABLE photos ADD COLUMN original_name TEXT",
     "ALTER TABLE users ADD COLUMN surname TEXT",
+    "ALTER TABLE users ADD COLUMN discord_id TEXT",
+    "ALTER TABLE users ADD COLUMN email TEXT",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
+  // Backfill discord_id for pre-existing rows where user_id already IS the Discord snowflake
+  // (every non-guest user before the discord_id column existed). New rows set it explicitly.
+  try {
+    db.exec(`UPDATE users SET discord_id = user_id WHERE discord_id IS NULL AND user_id NOT LIKE 'guest\\_%' ESCAPE '\\'`);
+  } catch { }
   // Migrate legacy vote_type column to react_type + is_super
   try {
     db.exec(`UPDATE photo_votes SET react_type = '👍', is_super = CASE vote_type WHEN 'fav' THEN 1 ELSE 0 END WHERE vote_type IS NOT NULL AND react_type = '👍' AND is_super = 0`);
@@ -372,7 +379,7 @@ export function dbAddPhoto(channelId: string, url: string) {
 }
 
 export type SiteGroup = { id: number; name: string; color: string };
-export type UserRow = { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string; lastSeenAt?: string; level: number; uploadCount?: number; taggedCount?: number; groups?: SiteGroup[] };
+export type UserRow = { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string; lastSeenAt?: string; level: number; uploadCount?: number; taggedCount?: number; groups?: SiteGroup[]; discordId?: string | null; email?: string | null };
 
 export function dbUpsertUser(userId: string, displayName: string, avatarUrl?: string) {
   db.prepare(`
@@ -383,9 +390,25 @@ export function dbUpsertUser(userId: string, displayName: string, avatarUrl?: st
 
 export function dbAddDiscordUser(userId: string, displayName: string, avatarUrl: string) {
   db.prepare(`
-    INSERT INTO users (user_id, display_name, avatar_url, level) VALUES (?, ?, ?, 1)
-    ON CONFLICT(user_id) DO UPDATE SET display_name=excluded.display_name, avatar_url=excluded.avatar_url
-  `).run(userId, displayName, avatarUrl);
+    INSERT INTO users (user_id, display_name, avatar_url, discord_id, level) VALUES (?, ?, ?, ?, 1)
+    ON CONFLICT(user_id) DO UPDATE SET display_name=excluded.display_name, avatar_url=excluded.avatar_url, discord_id=excluded.discord_id
+  `).run(userId, displayName, avatarUrl, userId);
+}
+
+export function dbUpdateUserDiscordId(userId: string, discordId: string | null) {
+  db.prepare("UPDATE users SET discord_id=? WHERE user_id=?").run(discordId || null, userId);
+}
+
+export function dbUpdateUserEmail(userId: string, email: string | null) {
+  db.prepare("UPDATE users SET email=? WHERE user_id=?").run(email || null, userId);
+}
+
+export function dbFindUserByDiscordId(discordId: string): UserRow | undefined {
+  return db.prepare("SELECT user_id AS userId, display_name AS displayName, discord_id AS discordId, email FROM users WHERE discord_id = ?").get(discordId) as UserRow | undefined;
+}
+
+export function dbFindUserByEmail(email: string): UserRow | undefined {
+  return db.prepare("SELECT user_id AS userId, display_name AS displayName, discord_id AS discordId, email FROM users WHERE email = ?").get(email) as UserRow | undefined;
 }
 
 export function dbUpdateUserLastSeen(userId: string) {
@@ -399,7 +422,7 @@ export function dbGetAllGroups(): SiteGroup[] {
 export function dbGetAllUsers(): UserRow[] {
   const rows = db.prepare(`
     SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.surname AS surname,
-      u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level,
+      u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level, u.discord_id AS discordId, u.email AS email,
       (SELECT COUNT(*) FROM photos p WHERE p.uploaded_by_id = u.user_id) AS uploadCount,
       (SELECT COUNT(*) FROM photo_tagged pt WHERE pt.user_id = u.user_id) AS taggedCount
     FROM users u WHERE u.level > 0 ORDER BY display_name ASC
@@ -419,7 +442,7 @@ export function dbGetAllUsers(): UserRow[] {
 export function dbGetAssociatedUsers(userId: string): UserRow[] {
   const rows = db.prepare(`
     SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.surname AS surname,
-      u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level,
+      u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level, u.discord_id AS discordId, u.email AS email,
       (SELECT COUNT(*) FROM photos p WHERE p.uploaded_by_id = u.user_id) AS uploadCount,
       (SELECT COUNT(*) FROM photo_tagged pt WHERE pt.user_id = u.user_id) AS taggedCount
     FROM users u
@@ -485,7 +508,7 @@ export function dbSetUserGroups(userId: string, groupIds: number[]) {
 }
 
 export function dbGetUserById(userId: string): UserRow | undefined {
-  return db.prepare("SELECT user_id AS userId, display_name AS displayName, first_name AS firstName, surname AS surname, avatar_url AS avatarUrl, last_seen_at AS lastSeenAt, level FROM users WHERE user_id = ?").get(userId) as UserRow | undefined;
+  return db.prepare("SELECT user_id AS userId, display_name AS displayName, first_name AS firstName, surname AS surname, avatar_url AS avatarUrl, last_seen_at AS lastSeenAt, level, discord_id AS discordId, email AS email FROM users WHERE user_id = ?").get(userId) as UserRow | undefined;
 }
 
 export function dbGetUserGroups(userId: string): SiteGroup[] {
@@ -496,24 +519,28 @@ export function dbGetUserGroups(userId: string): SiteGroup[] {
   `).all(userId) as SiteGroup[];
 }
 
-export type LoginUserRow = { userId: string; displayName: string; firstName?: string; avatarUrl?: string };
+export type LoginUserRow = { userId: string; displayName: string; firstName?: string; avatarUrl?: string; canDiscord: boolean; canEmail: boolean };
 
 // Used by the (unauthenticated) login screen. Requires >= 3 characters to avoid exposing the
 // full user roster to anonymous visitors via short/incremental queries; shorter queries only
 // match an exact (case-insensitive) name so a known name can still be typed in full quickly.
+// Only returns users with a Discord ID or email on file, since neither route reaches those without one.
+// canDiscord/canEmail expose booleans only — never the raw email — to avoid leaking PII pre-auth.
 export function dbSearchLoginUsers(query: string): LoginUserRow[] {
   const q = query.trim();
   if (!q) return [];
   const exactOnly = q.length < 3;
   const param = exactOnly ? q : `%${q}%`;
   const op = exactOnly ? "=" : "LIKE";
-  return db.prepare(`
-    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.avatar_url AS avatarUrl
+  const rows = db.prepare(`
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.avatar_url AS avatarUrl,
+      (u.discord_id IS NOT NULL) AS canDiscord, (u.email IS NOT NULL) AS canEmail
     FROM users u
-    WHERE u.level > 0 AND u.user_id NOT LIKE 'guest\\_%' ESCAPE '\\'
+    WHERE u.level > 0 AND (u.discord_id IS NOT NULL OR u.email IS NOT NULL)
       AND (LOWER(u.display_name) ${op} LOWER(?) OR LOWER(u.first_name) ${op} LOWER(?))
     ORDER BY u.display_name ASC
-  `).all(param, param) as LoginUserRow[];
+  `).all(param, param) as (Omit<LoginUserRow, 'canDiscord' | 'canEmail'> & { canDiscord: number; canEmail: number })[];
+  return rows.map(r => ({ ...r, canDiscord: !!r.canDiscord, canEmail: !!r.canEmail }));
 }
 
 export function dbCreateGuestUser(name: string): UserRow {
