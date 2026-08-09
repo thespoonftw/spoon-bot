@@ -1,5 +1,5 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const MAIL_FROM = process.env.MAIL_FROM ?? "Spoon Photos <onboarding@resend.dev>";
+const MAIL_FROM = process.env.MAIL_FROM ?? "Spoon Photos <login@brunch-projects.co.uk>";
 
 export async function sendMagicLinkEmail(to: string, link: string): Promise<void> {
   if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
