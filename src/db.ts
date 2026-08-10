@@ -369,8 +369,18 @@ export function dbUpdateAlbum(channelId: string, name: string, startDate?: strin
 }
 
 export function dbDeleteAlbum(channelId: string) {
-  db.prepare("DELETE FROM photos WHERE channel_id = ?").run(channelId);
-  db.prepare("DELETE FROM albums WHERE channel_id = ?").run(channelId);
+  const photoIds = (db.prepare("SELECT id FROM photos WHERE channel_id = ?").all(channelId) as { id: number }[]).map(r => r.id);
+  db.transaction(() => {
+    for (const id of photoIds) {
+      db.prepare("DELETE FROM photo_votes WHERE photo_id = ?").run(id);
+      db.prepare("DELETE FROM photo_tagged WHERE photo_id = ?").run(id);
+    }
+    db.prepare("DELETE FROM photos WHERE channel_id = ?").run(channelId);
+    db.prepare("DELETE FROM album_members WHERE channel_id = ?").run(channelId);
+    db.prepare("DELETE FROM album_locations WHERE channel_id = ?").run(channelId);
+    db.prepare("DELETE FROM album_shares WHERE channel_id = ?").run(channelId);
+    db.prepare("DELETE FROM albums WHERE channel_id = ?").run(channelId);
+  })();
 }
 
 export function dbAddPhoto(channelId: string, url: string) {

@@ -140,6 +140,7 @@
     :groups="siteGroups"
     @close="showEdit = false"
     @saved="onAlbumSaved"
+    @deleted="onAlbumDeleted"
   />
 
   <MembersModal
@@ -159,7 +160,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useAlbumsCache } from "../composables/useAlbumsCache";
 import MemberAvatar from "../components/MemberAvatar.vue";
 import EditAlbumModal from "../components/EditAlbumModal.vue";
@@ -180,6 +181,7 @@ interface SiteGroup { id: number; name: string; color: string }
 interface Album { channelId: string; groupName: string; dateText?: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; groupId?: number | null; photos: Photo[]; members: Member[] }
 
 const route = useRoute();
+const router = useRouter();
 const { markAlbumsDirty } = useAlbumsCache();
 
 const album = ref<Album | null>(null);
@@ -386,6 +388,12 @@ onMounted(async () => {
 function onAlbumSaved(updated: object) {
   if (album.value) album.value = { ...album.value, ...updated };
   markAlbumsDirty();
+}
+
+function onAlbumDeleted() {
+  showEdit.value = false;
+  markAlbumsDirty();
+  router.replace((route.query.back as string) || "/albums");
 }
 
 function onMembersUpdated(visible: Member[], all: Member[]) {

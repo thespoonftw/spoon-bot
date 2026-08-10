@@ -8,7 +8,7 @@ const sharp = require("sharp") as (input: string) => { rotate(): { toFile(p: str
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const exifr = require("exifr") as { parse(file: string, opts: unknown): Promise<Record<string, unknown> | null> };
 import { eventStates } from "./state";
-import { ensureAlbumDirs, StorageUnavailableError } from "./photoStorage";
+import { ensureAlbumDirs, PHOTO_STORAGE_PATH, StorageUnavailableError } from "./photoStorage";
 import { initDb, dbHasAlbum, dbInsertAlbum, dbAddUploadedPhoto, dbUpsertUser, dbAddAlbumMember, dbDeleteAlbum, dbGetPhotosByDiscordMessageId, dbVotePhoto } from "./db";
 import type { Guild } from "discord.js";
 
@@ -68,6 +68,7 @@ export async function handleAlbumInteractions(interaction: Interaction): Promise
   if (interaction.customId.startsWith("album_delete_")) {
     const channelId = interaction.customId.slice("album_delete_".length);
     dbDeleteAlbum(channelId);
+    try { fs.rmSync(path.join(PHOTO_STORAGE_PATH, channelId), { recursive: true, force: true }); } catch (e) { console.error("Failed to remove album photo directory:", e); }
     await interaction.update({ content: "Photo album deleted.", components: [] });
     return channelId;
   }
