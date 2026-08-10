@@ -1,10 +1,19 @@
 <template>
   <div class="page">
-    <PageHeader back-to="/" title="Users" />
+    <PageHeader back-to="/" title="Users">
+      <button v-if="canEditGroups" class="btn-primary btn-small" @click="addingUser = true">Add User</button>
+    </PageHeader>
 
     <div class="user-controls-row">
-      <div style="display:flex;align-items:center;gap:8px">
-        <label style="font-size:0.85em;color:#a6adc8">Sort:</label>
+      <div class="search-filters-row">
+        <label class="search-filter-label">Filter:</label>
+        <select v-model="filterGroup" class="sort-select">
+          <option v-for="g in currentUser?.groups ?? []" :key="g.id" :value="g.id">{{ g.name }}</option>
+          <option value="all">All Users</option>
+        </select>
+      </div>
+      <div class="search-filters-row">
+        <label class="search-filter-label">Sort:</label>
         <select v-model="sortBy" class="sort-select">
           <option value="tags">Most Tags</option>
           <option value="uploads">Most Uploads</option>
@@ -12,7 +21,6 @@
           <option value="alpha">Alphabetical</option>
         </select>
       </div>
-      <button v-if="canEditGroups" class="btn-primary btn-small" @click="addingUser = true">Add User</button>
     </div>
 
     <div class="user-list">
@@ -24,14 +32,16 @@
             <span class="user-row-name">{{ user.firstName || user.displayName }}</span>
             <span class="user-row-surname" v-if="user.surname">{{ user.surname }}</span>
             <span class="user-link-icons">
-              <svg v-if="user.discordId" class="link-icon discord-icon" viewBox="0 0 127.14 96.36" title="Linked to Discord">
-                <path fill="currentColor" d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"/>
-              </svg>
               <span v-if="user.email" class="link-icon" title="Has email on file">✉️</span>
             </span>
             <button class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
           </div>
-          <span class="user-row-login" v-if="user.discordId">{{ user.displayName }}</span>
+          <span class="user-row-login user-row-discord" v-if="user.discordId">
+            <svg class="link-icon discord-icon" viewBox="0 0 127.14 96.36" title="Linked to Discord">
+              <path fill="currentColor" d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"/>
+            </svg>
+            {{ user.displayName }}
+          </span>
           <div v-if="user.groups?.length" class="user-row-groups">
             <span v-for="g in user.groups" :key="g.id" class="user-group-tag" :style="{ background: g.color }">{{ g.name }}</span>
           </div>
@@ -140,8 +150,12 @@ const allGroups = ref<SiteGroup[]>([]);
 const users = ref<SiteUser[]>([]);
 const loading = ref(true);
 const sortBy = ref<'tags' | 'uploads' | 'lastSeen' | 'alpha'>('tags');
+const filterGroup = ref<'all' | number>('all');
 const sortedUsers = computed(() => {
-  return [...users.value].sort((a, b) => {
+  const filtered = filterGroup.value === 'all'
+    ? users.value
+    : users.value.filter(u => u.groups?.some(g => g.id === filterGroup.value));
+  return [...filtered].sort((a, b) => {
     switch (sortBy.value) {
       case 'tags': return (b.taggedCount ?? 0) - (a.taggedCount ?? 0);
       case 'uploads': return (b.uploadCount ?? 0) - (a.uploadCount ?? 0);
