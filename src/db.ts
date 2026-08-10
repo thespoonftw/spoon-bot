@@ -139,7 +139,8 @@ export function initDb() {
       (1, 'Brunch', '#e8950f'),
       (2, 'Void',   '#00aff0'),
       (3, 'Hull',   '#27ae60'),
-      (4, 'Wright', '#1a5f9e');
+      (4, 'Wright', '#1a5f9e'),
+      (5, 'Homos',  '#ff69b4');
   `);
   // Migrate user_groups from name-based to id-based if needed
   try {
