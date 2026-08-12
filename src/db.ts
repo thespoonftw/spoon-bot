@@ -138,10 +138,13 @@ export function initDb() {
     INSERT OR IGNORE INTO site_groups (id, name, color) VALUES
       (1, 'Brunch', '#e8950f'),
       (2, 'Void',   '#00aff0'),
-      (3, 'Hull',   '#27ae60'),
+      (3, 'Hull',   '#c1440e'),
       (4, 'Wright', '#1a5f9e'),
-      (5, 'Homos',  '#ff69b4');
+      (5, 'Homos',  '#ff69b4'),
+      (6, 'WOBOG',  '#27ae60');
   `);
+  // Recolour Hull from its old green to paprika (Hull's green is now WOBOG's colour)
+  db.exec(`UPDATE site_groups SET color = '#c1440e' WHERE id = 3 AND color = '#27ae60'`);
   // Migrate user_groups from name-based to id-based if needed
   try {
     const cols = (db.prepare("PRAGMA table_info(user_groups)").all() as { name: string }[]).map(c => c.name);
