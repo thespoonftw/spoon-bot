@@ -110,21 +110,21 @@ export function pinMessageComponents(channelId: string) {
 }
 
 export function buildGearMenuComponents(channelId: string, joiningEnabled: boolean, dateText: string, albumActive = false) {
-  const row1: ButtonBuilder[] = [];
+  const row1: ButtonBuilder[] = [
+    new ButtonBuilder().setCustomId(`edit_open_desc_${channelId}`).setLabel("Edit Event").setStyle(ButtonStyle.Primary),
+  ];
+  if (config.albumsEnabled) {
+    row1.push(albumActive
+      ? new ButtonBuilder().setCustomId(`album_delete_${channelId}`).setLabel("Delete Photo Album").setStyle(ButtonStyle.Danger)
+      : new ButtonBuilder().setCustomId(`album_start_${channelId}`).setLabel("Start Photo Album").setStyle(ButtonStyle.Primary));
+  }
   if (dateText !== "TBC") {
     row1.push(new ButtonBuilder().setCustomId(`edit_open_enddate_${channelId}`).setLabel("Edit End Date/Time").setStyle(ButtonStyle.Primary));
   }
-  row1.push(
-    new ButtonBuilder().setCustomId(`edit_open_desc_${channelId}`).setLabel("Edit Event").setStyle(ButtonStyle.Primary),
-  );
   return [
     new ActionRowBuilder<ButtonBuilder>().addComponents(...row1),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId(`gear_toggle_join_${channelId}`).setLabel(joiningEnabled ? "Disable Joining" : "Enable Joining").setStyle(ButtonStyle.Primary),
-      ...(config.albumsEnabled ? [albumActive
-        ? new ButtonBuilder().setCustomId(`album_delete_${channelId}`).setLabel("Delete Photo Album").setStyle(ButtonStyle.Danger)
-        : new ButtonBuilder().setCustomId(`album_start_${channelId}`).setLabel("Start Photo Album").setStyle(ButtonStyle.Primary)
-      ] : []),
+      new ButtonBuilder().setCustomId(`gear_toggle_join_${channelId}`).setLabel(joiningEnabled ? "Disable Joining" : "Enable Joining").setStyle(joiningEnabled ? ButtonStyle.Danger : ButtonStyle.Primary),
       new ButtonBuilder().setCustomId(`gear_delete_ask_${channelId}`).setLabel("Delete Event").setStyle(ButtonStyle.Danger),
       new ButtonBuilder().setCustomId(`close_edit_${channelId}`).setLabel("Cancel").setStyle(ButtonStyle.Secondary),
     ),
