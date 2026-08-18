@@ -21,7 +21,8 @@ import {
 import { updateJoinMessage, updateInnerMessage, updateEventMessages } from "../messageSync";
 import { hasAlbum, getAlbumUrl, handleAlbumInteractions, startAlbumForChannel } from "../albums";
 import { dbAddAlbumMember, dbRemoveAlbumMember, dbUpsertUser } from "../db";
-import { handleGearMenuInteractions, buildEventModalComponents } from "./gearMenuInteractions";
+import { handleGearMenuInteractions, buildCreateEventModalComponents } from "./gearMenuInteractions";
+import { parseCreateDateText } from "../dateUtils";
 
 function getDisplayName(interaction: Interaction): string {
   const member = interaction.member;
@@ -52,7 +53,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       return;
     }
     const modal = new ModalBuilder().setCustomId("event_modal").setTitle("Create Event");
-    modal.addComponents(...buildEventModalComponents());
+    modal.addComponents(...buildCreateEventModalComponents());
     await interaction.showModal(modal);
     return;
   }
@@ -61,8 +62,12 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
   if (interaction.isModalSubmit() && interaction.customId === "event_modal") {
     const eventName = interaction.fields.getTextInputValue("event_name").trim();
     const description = interaction.fields.getTextInputValue("event_desc").trim();
-    const location = interaction.fields.getTextInputValue("event_location").trim();
-    const imageUrl = interaction.fields.getTextInputValue("event_image").trim() || undefined;
+    const location = interaction.fields.getTextInputValue("event_location").trim() || "TBC";
+    const dateText = parseCreateDateText(
+      interaction.fields.getTextInputValue("event_date").trim(),
+      interaction.fields.getTextInputValue("event_time").trim()
+    );
+    const imageUrl: string | undefined = undefined;
     const g = interaction.guild;
     if (!g) return;
 
@@ -85,7 +90,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     const creatorName = creator?.displayName ?? interaction.user.displayName;
 
     const state: EventState = {
-      eventName, description, location, dateText: "TBC",
+      eventName, description, location, dateText,
       joinMessageId: "", pinMessageId: "",
       joiningEnabled: true, members: new Map(), imageUrl,
     };
@@ -115,7 +120,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     eventStates.set(eventChannel.id, state);
     persistState();
     await interaction.editReply({ content: "Done!" });
-    await eventChannel.send("Use the ⚙ button to set the event date when you're ready.");
+    if (dateText === "TBC") await eventChannel.send("Use the ⚙ button to set the event date when you're ready.");
     return;
   }
 
@@ -131,7 +136,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       return;
     }
     const modal = new ModalBuilder().setCustomId("addevent_modal").setTitle("Add Event to Channel");
-    modal.addComponents(...buildEventModalComponents({ eventName: channel.name.replace(/-/g, " ") }));
+    modal.addComponents(...buildCreateEventModalComponents({ eventName: channel.name.replace(/-/g, " ") }));
     await interaction.showModal(modal);
     return;
   }
@@ -140,8 +145,12 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
   if (interaction.isModalSubmit() && interaction.customId === "addevent_modal") {
     const eventName = interaction.fields.getTextInputValue("event_name").trim();
     const description = interaction.fields.getTextInputValue("event_desc").trim();
-    const location = interaction.fields.getTextInputValue("event_location").trim();
-    const imageUrl = interaction.fields.getTextInputValue("event_image").trim() || undefined;
+    const location = interaction.fields.getTextInputValue("event_location").trim() || "TBC";
+    const dateText = parseCreateDateText(
+      interaction.fields.getTextInputValue("event_date").trim(),
+      interaction.fields.getTextInputValue("event_time").trim()
+    );
+    const imageUrl: string | undefined = undefined;
     const g = interaction.guild;
     const channel = interaction.channel;
     if (!g || !channel || channel.type !== ChannelType.GuildText) return;
@@ -155,7 +164,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     const creatorName = creator?.displayName ?? interaction.user.displayName;
 
     const state: EventState = {
-      eventName, description, location, dateText: "TBC",
+      eventName, description, location, dateText,
       joinMessageId: "", pinMessageId: "",
       joiningEnabled: true, members: new Map(), imageUrl,
     };
@@ -185,7 +194,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     eventStates.set(channel.id, state);
     persistState();
     await interaction.editReply({ content: "Done!" });
-    await channel.send("Use the ⚙ button to set the event date when you're ready.");
+    if (dateText === "TBC") await channel.send("Use the ⚙ button to set the event date when you're ready.");
     return;
   }
 

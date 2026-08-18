@@ -22,6 +22,21 @@ export function parseDateText(dateText: string): Date | null {
   } catch { return null; }
 }
 
+export function parseCreateDateText(dateStr: string, timeStr: string): string {
+  const trimmedDate = dateStr.trim();
+  const match = trimmedDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+  if (!match) return "TBC";
+
+  const day = parseInt(match[1]);
+  const month = parseInt(match[2]);
+  const year = 2000 + parseInt(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > maxDaysInMonth(month, year)) return "TBC";
+
+  const dayOfWeek = DAYS[new Date(year, month - 1, day).getDay()];
+  const time = timeStr.trim() || "All Day";
+  return `${dayOfWeek} ${day} ${MONTHS[month - 1]} ${year}, ${time}`;
+}
+
 export function formatShortDate(date: string): string {
   const [day, month] = date.split("/").map(Number);
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

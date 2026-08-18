@@ -27,10 +27,30 @@ export function buildEventModalComponents(prefill?: EventModalPrefill): ActionRo
       new TextInputBuilder().setCustomId("event_desc").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setPlaceholder("Optional").setValue(prefill?.description ?? "")
     ),
     new ActionRowBuilder<TextInputBuilder>().addComponents(
-      new TextInputBuilder().setCustomId("event_location").setLabel("Location").setStyle(TextInputStyle.Short).setRequired(true).setValue(prefill?.location ?? "")
+      new TextInputBuilder().setCustomId("event_location").setLabel("Location").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional — defaults to TBC").setValue(prefill?.location ?? "")
     ),
     new ActionRowBuilder<TextInputBuilder>().addComponents(
-      new TextInputBuilder().setCustomId("event_image").setLabel("Image URL").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional — replaces server icon in embed").setValue(prefill?.imageUrl ?? "")
+      new TextInputBuilder().setCustomId("event_image").setLabel("Image URL").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional").setValue(prefill?.imageUrl ?? "")
+    ),
+  ];
+}
+
+export function buildCreateEventModalComponents(prefill?: EventModalPrefill): ActionRowBuilder<TextInputBuilder>[] {
+  return [
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder().setCustomId("event_name").setLabel("Event name").setStyle(TextInputStyle.Short).setRequired(true).setValue(prefill?.eventName ?? "")
+    ),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder().setCustomId("event_desc").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setPlaceholder("Optional").setValue(prefill?.description ?? "")
+    ),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder().setCustomId("event_location").setLabel("Location").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional — defaults to TBC").setValue(prefill?.location ?? "")
+    ),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder().setCustomId("event_date").setLabel("Date").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("DD/MM/YY — optional, defaults to TBC")
+    ),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder().setCustomId("event_time").setLabel("Start time").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional — defaults to All Day")
     ),
   ];
 }
@@ -223,7 +243,7 @@ export async function handleGearMenuInteractions(interaction: Interaction): Prom
     }
     state.eventName = interaction.fields.getTextInputValue("event_name").trim();
     state.description = interaction.fields.getTextInputValue("event_desc").trim();
-    state.location = interaction.fields.getTextInputValue("event_location").trim();
+    state.location = interaction.fields.getTextInputValue("event_location").trim() || "TBC";
     state.imageUrl = interaction.fields.getTextInputValue("event_image").trim() || undefined;
     persistState();
     await interaction.deferReply({ ephemeral: true });
