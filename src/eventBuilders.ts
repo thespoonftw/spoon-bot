@@ -118,9 +118,6 @@ export function buildGearMenuComponents(channelId: string, joiningEnabled: boole
       ? new ButtonBuilder().setCustomId(`album_delete_${channelId}`).setLabel("Delete Photo Album").setStyle(ButtonStyle.Danger)
       : new ButtonBuilder().setCustomId(`album_start_${channelId}`).setLabel("Start Photo Album").setStyle(ButtonStyle.Primary));
   }
-  if (dateText !== "TBC") {
-    row1.push(new ButtonBuilder().setCustomId(`edit_open_enddate_${channelId}`).setLabel("Edit End Date/Time").setStyle(ButtonStyle.Primary));
-  }
   return [
     new ActionRowBuilder<ButtonBuilder>().addComponents(...row1),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
