@@ -21,7 +21,7 @@ import {
 import { updateJoinMessage, updateInnerMessage, updateEventMessages } from "../messageSync";
 import { hasAlbum, getAlbumUrl, handleAlbumInteractions, startAlbumForChannel } from "../albums";
 import { dbAddAlbumMember, dbRemoveAlbumMember, dbUpsertUser } from "../db";
-import { handleGearMenuInteractions, buildCreateEventModalComponents } from "./gearMenuInteractions";
+import { handleGearMenuInteractions, buildEventModalComponents } from "./gearMenuInteractions";
 import { parseCreateDateText } from "../dateUtils";
 
 function getDisplayName(interaction: Interaction): string {
@@ -53,7 +53,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       return;
     }
     const modal = new ModalBuilder().setCustomId("event_modal").setTitle("Create Event");
-    modal.addComponents(...buildCreateEventModalComponents());
+    modal.addComponents(...buildEventModalComponents());
     await interaction.showModal(modal);
     return;
   }
@@ -67,7 +67,6 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       interaction.fields.getTextInputValue("event_date").trim(),
       interaction.fields.getTextInputValue("event_time").trim()
     );
-    const imageUrl: string | undefined = undefined;
     const g = interaction.guild;
     if (!g) return;
 
@@ -85,21 +84,20 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
     ]);
 
-    const iconUrl = imageUrl || g.iconURL();
     const creator = g.members.cache.get(interaction.user.id);
     const creatorName = creator?.displayName ?? interaction.user.displayName;
 
     const state: EventState = {
       eventName, description, location, dateText,
       joinMessageId: "", pinMessageId: "",
-      joiningEnabled: true, members: new Map(), imageUrl,
+      joiningEnabled: true, members: new Map(),
     };
     state.creatorId = interaction.user.id;
     state.members.set(interaction.user.id, makeMemberEntry(interaction.user.id, creatorName));
 
     const pinMsg = await eventChannel.send({
       content: "Please use the buttons to RSVP!",
-      embeds: [buildInnerEmbed(state, iconUrl)],
+      embeds: [buildInnerEmbed(state)],
       components: pinMessageComponents(eventChannel.id),
     });
     await pinMsg.pin();
@@ -109,7 +107,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     if (announcementChannel && announcementChannel.isSendable()) {
       const joinMsg = await announcementChannel.send({
         content: buildJoinContent(state),
-        embeds: [buildJoinEmbed(state, iconUrl)],
+        embeds: [buildJoinEmbed(state)],
         components: joinMessageComponents(eventChannel.id, true),
       });
       joinMsgId = joinMsg.id;
@@ -136,7 +134,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       return;
     }
     const modal = new ModalBuilder().setCustomId("addevent_modal").setTitle("Add Event to Channel");
-    modal.addComponents(...buildCreateEventModalComponents({ eventName: channel.name.replace(/-/g, " ") }));
+    modal.addComponents(...buildEventModalComponents({ eventName: channel.name.replace(/-/g, " ") }));
     await interaction.showModal(modal);
     return;
   }
@@ -150,7 +148,6 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       interaction.fields.getTextInputValue("event_date").trim(),
       interaction.fields.getTextInputValue("event_time").trim()
     );
-    const imageUrl: string | undefined = undefined;
     const g = interaction.guild;
     const channel = interaction.channel;
     if (!g || !channel || channel.type !== ChannelType.GuildText) return;
@@ -159,21 +156,20 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
 
     if (description) await channel.setTopic(description);
 
-    const iconUrl = imageUrl || g.iconURL();
     const creator = g.members.cache.get(interaction.user.id);
     const creatorName = creator?.displayName ?? interaction.user.displayName;
 
     const state: EventState = {
       eventName, description, location, dateText,
       joinMessageId: "", pinMessageId: "",
-      joiningEnabled: true, members: new Map(), imageUrl,
+      joiningEnabled: true, members: new Map(),
     };
     state.creatorId = interaction.user.id;
     state.members.set(interaction.user.id, makeMemberEntry(interaction.user.id, creatorName));
 
     const pinMsg = await channel.send({
       content: "Please use the buttons to RSVP!",
-      embeds: [buildInnerEmbed(state, iconUrl)],
+      embeds: [buildInnerEmbed(state)],
       components: pinMessageComponents(channel.id),
     });
     await pinMsg.pin();
@@ -183,7 +179,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     if (announcementChannel && announcementChannel.isSendable()) {
       const joinMsg = await announcementChannel.send({
         content: buildJoinContent(state),
-        embeds: [buildJoinEmbed(state, iconUrl)],
+        embeds: [buildJoinEmbed(state)],
         components: joinMessageComponents(channel.id, true),
       });
       joinMsgId = joinMsg.id;

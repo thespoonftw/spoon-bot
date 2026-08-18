@@ -13,11 +13,11 @@ import type { Interaction } from "discord.js";
 import { config } from "../config";
 import { eventStates, pendingGearMenus, persistState } from "../state";
 import { buildGearMenuComponents, backRow } from "../eventBuilders";
-import { parseDateText } from "../dateUtils";
+import { parseDateText, parseCreateDateText, dateTextToCreateFields } from "../dateUtils";
 import { updateJoinMessage, updateEventMessages } from "../messageSync";
 import { hasAlbum } from "../albums";
 
-type EventModalPrefill = { eventName?: string; description?: string; location?: string; imageUrl?: string };
+type EventModalPrefill = { eventName?: string; description?: string; location?: string; dateStr?: string; timeStr?: string };
 export function buildEventModalComponents(prefill?: EventModalPrefill): ActionRowBuilder<TextInputBuilder>[] {
   return [
     new ActionRowBuilder<TextInputBuilder>().addComponents(
@@ -27,30 +27,13 @@ export function buildEventModalComponents(prefill?: EventModalPrefill): ActionRo
       new TextInputBuilder().setCustomId("event_desc").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setPlaceholder("Optional").setValue(prefill?.description ?? "")
     ),
     new ActionRowBuilder<TextInputBuilder>().addComponents(
-      new TextInputBuilder().setCustomId("event_location").setLabel("Location").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional — defaults to TBC").setValue(prefill?.location ?? "")
+      new TextInputBuilder().setCustomId("event_location").setLabel("Location").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("TBC").setValue(prefill?.location ?? "")
     ),
     new ActionRowBuilder<TextInputBuilder>().addComponents(
-      new TextInputBuilder().setCustomId("event_image").setLabel("Image URL").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional").setValue(prefill?.imageUrl ?? "")
-    ),
-  ];
-}
-
-export function buildCreateEventModalComponents(prefill?: EventModalPrefill): ActionRowBuilder<TextInputBuilder>[] {
-  return [
-    new ActionRowBuilder<TextInputBuilder>().addComponents(
-      new TextInputBuilder().setCustomId("event_name").setLabel("Event name").setStyle(TextInputStyle.Short).setRequired(true).setValue(prefill?.eventName ?? "")
+      new TextInputBuilder().setCustomId("event_date").setLabel("Date - Use DD/MM/YY or TBC").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("TBC").setValue(prefill?.dateStr ?? "")
     ),
     new ActionRowBuilder<TextInputBuilder>().addComponents(
-      new TextInputBuilder().setCustomId("event_desc").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setPlaceholder("Optional").setValue(prefill?.description ?? "")
-    ),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(
-      new TextInputBuilder().setCustomId("event_location").setLabel("Location").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional — defaults to TBC").setValue(prefill?.location ?? "")
-    ),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(
-      new TextInputBuilder().setCustomId("event_date").setLabel("Date").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("DD/MM/YY — optional, defaults to TBC")
-    ),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(
-      new TextInputBuilder().setCustomId("event_time").setLabel("Start time").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional — defaults to All Day")
+      new TextInputBuilder().setCustomId("event_time").setLabel("Start Time").setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder("Optional").setValue(prefill?.timeStr ?? "")
     ),
   ];
 }
@@ -223,17 +206,18 @@ export async function handleGearMenuInteractions(interaction: Interaction): Prom
     return true;
   }
 
-  // Edit description — open modal
+  // Edit event — open modal
   if (interaction.isButton() && interaction.customId.startsWith("edit_open_desc_")) {
     const channelId = interaction.customId.slice("edit_open_desc_".length);
     const state = eventStates.get(channelId);
+    const { dateStr, timeStr } = dateTextToCreateFields(state?.dateText ?? "TBC");
     const modal = new ModalBuilder().setCustomId(`edit_desc_modal_${channelId}`).setTitle("Edit Event");
-    modal.addComponents(...buildEventModalComponents(state));
+    modal.addComponents(...buildEventModalComponents({ ...state, dateStr, timeStr }));
     await interaction.showModal(modal);
     return true;
   }
 
-  // Edit description — modal submit
+  // Edit event — modal submit
   if (interaction.isModalSubmit() && interaction.customId.startsWith("edit_desc_modal_")) {
     const channelId = interaction.customId.slice("edit_desc_modal_".length);
     const state = eventStates.get(channelId);
@@ -244,7 +228,10 @@ export async function handleGearMenuInteractions(interaction: Interaction): Prom
     state.eventName = interaction.fields.getTextInputValue("event_name").trim();
     state.description = interaction.fields.getTextInputValue("event_desc").trim();
     state.location = interaction.fields.getTextInputValue("event_location").trim() || "TBC";
-    state.imageUrl = interaction.fields.getTextInputValue("event_image").trim() || undefined;
+    state.dateText = parseCreateDateText(
+      interaction.fields.getTextInputValue("event_date").trim(),
+      interaction.fields.getTextInputValue("event_time").trim()
+    );
     persistState();
     await interaction.deferReply({ ephemeral: true });
     await updateEventMessages(interaction.guild, channelId);

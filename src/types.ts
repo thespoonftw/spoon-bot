@@ -21,7 +21,6 @@ export type EventState = {
   joiningEnabled: boolean;
   scheduledEventId?: string;
   endDateText?: string;
-  imageUrl?: string;
   creatorId?: string;
   members: Map<string, MemberEntry>;
 };

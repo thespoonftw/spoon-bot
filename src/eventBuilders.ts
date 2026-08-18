@@ -39,17 +39,15 @@ export function buildJoinContent(state: EventState): string {
   return "@everyone Click to join!";
 }
 
-function buildEventEmbedBase(state: EventState, thumbnailUrl?: string | null): EmbedBuilder {
-  const embed = new EmbedBuilder()
+function buildEventEmbedBase(state: EventState): EmbedBuilder {
+  return new EmbedBuilder()
     .setTitle(state.eventName)
     .setDescription(buildDescText(state.description, state.location, state.dateText, state.endDateText))
     .setColor(0x5865F2);
-  if (thumbnailUrl) embed.setThumbnail(thumbnailUrl);
-  return embed;
 }
 
-export function buildJoinEmbed(state: EventState, thumbnailUrl?: string | null) {
-  const embed = buildEventEmbedBase(state, thumbnailUrl);
+export function buildJoinEmbed(state: EventState) {
+  const embed = buildEventEmbedBase(state);
   if (state.members.size > 0) {
     const mentions = [...state.members.values()].map(m => `<@${m.userId}>`).join(" ");
     embed.addFields({ name: `👥 ${state.members.size} Interested`, value: mentions });
@@ -57,8 +55,8 @@ export function buildJoinEmbed(state: EventState, thumbnailUrl?: string | null) 
   return embed;
 }
 
-export function buildInnerEmbed(state: EventState, thumbnailUrl?: string | null, albumUrl?: string) {
-  const embed = buildEventEmbedBase(state, thumbnailUrl);
+export function buildInnerEmbed(state: EventState, albumUrl?: string) {
+  const embed = buildEventEmbedBase(state);
 
   if (state.members.size > 0) {
     const groups: Record<RSVPStatus, string[]> = { coming: [], maybe: [], decline: [], lurking: [] };
@@ -112,15 +110,12 @@ export function pinMessageComponents(channelId: string) {
 }
 
 export function buildGearMenuComponents(channelId: string, joiningEnabled: boolean, dateText: string, albumActive = false) {
-  const row1: ButtonBuilder[] = [
-    new ButtonBuilder().setCustomId(`edit_open_date_${channelId}`).setLabel("Edit Date/Time").setStyle(ButtonStyle.Primary),
-  ];
+  const row1: ButtonBuilder[] = [];
   if (dateText !== "TBC") {
     row1.push(new ButtonBuilder().setCustomId(`edit_open_enddate_${channelId}`).setLabel("Edit End Date/Time").setStyle(ButtonStyle.Primary));
   }
   row1.push(
-    new ButtonBuilder().setCustomId(`edit_open_desc_${channelId}`).setLabel("Edit Description").setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId(`gear_generate_${channelId}`).setLabel("Generate Discord Event").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`edit_open_desc_${channelId}`).setLabel("Edit Event").setStyle(ButtonStyle.Primary),
   );
   return [
     new ActionRowBuilder<ButtonBuilder>().addComponents(...row1),

@@ -37,6 +37,16 @@ export function parseCreateDateText(dateStr: string, timeStr: string): string {
   return `${dayOfWeek} ${day} ${MONTHS[month - 1]} ${year}, ${time}`;
 }
 
+export function dateTextToCreateFields(dateText: string): { dateStr: string; timeStr: string } {
+  const session = sessionFromDateText(dateText);
+  if (!session || !session.day || !session.month || !session.year) return { dateStr: "", timeStr: "" };
+  const dd = String(session.day).padStart(2, "0");
+  const mm = String(session.month).padStart(2, "0");
+  const yy = String(session.year % 100).padStart(2, "0");
+  const timeStr = !session.time || session.time === "All Day" ? "" : session.time;
+  return { dateStr: `${dd}/${mm}/${yy}`, timeStr };
+}
+
 export function formatShortDate(date: string): string {
   const [day, month] = date.split("/").map(Number);
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
