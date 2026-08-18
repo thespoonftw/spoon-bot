@@ -321,7 +321,9 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     const g = interaction.guild;
     if (!g) return;
 
-    await interaction.reply({ ephemeral: true, content: `Your RSVP has been updated to **${RSVP_LABELS[statusStr]}**.` });
+    await interaction.deferUpdate();
+
+    const channel = g.channels.cache.get(channelId);
 
     const state = eventStates.get(channelId);
     if (state) {
@@ -334,6 +336,10 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       }
       persistState();
       await updateInnerMessage(g, channelId);
+    }
+
+    if (channel && channel.type === ChannelType.GuildText) {
+      await channel.send(`**${interaction.user.displayName}** RSVP'd ${RSVP_LABELS[statusStr]}.`);
     }
     return;
   }
