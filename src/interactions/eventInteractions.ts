@@ -71,8 +71,19 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       await interaction.reply({ content: "No one has RSVP'd Maybe or Lurking.", ephemeral: true });
       return;
     }
+    const channel = interaction.channel;
+    if (!channel || !channel.isTextBased()) return;
     const mentions = targets.map(m => `<@${m.userId}>`).join(" ");
-    await interaction.reply(`${mentions}\nJust a reminder to RSVP for **${state.eventName}**!`);
+    const content = `${mentions}\nReminder to RSVP for ${state.eventName}! (click the message)`;
+    await interaction.deferReply({ ephemeral: true });
+    try {
+      const pinMsg = await channel.messages.fetch(state.pinMessageId);
+      await pinMsg.reply(content);
+    } catch (e) {
+      console.error("Failed to fetch pin message for /rsvp reply:", e);
+      if (channel.isSendable()) await channel.send(content);
+    }
+    await interaction.deleteReply();
     return;
   }
 
