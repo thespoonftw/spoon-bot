@@ -27,7 +27,7 @@ export async function updateInnerMessage(guild: Guild, channelId: string) {
     try {
       const pinMsg = await eventChannel.messages.fetch(state.pinMessageId);
       const albumUrl = getAlbumUrl(channelId) ?? undefined;
-      await pinMsg.edit({ content: 'Please use the buttons to RSVP!', embeds: [buildInnerEmbed(state, albumUrl)], components: pinMessageComponents(channelId) });
+      await pinMsg.edit({ content: 'Click here to RSVP!', embeds: [buildInnerEmbed(state, albumUrl)], components: pinMessageComponents(channelId) });
     } catch (e) { console.error("Failed to update inner message:", e); }
   }
 }
@@ -58,7 +58,7 @@ export async function updateEventMessages(guild: Guild, channelId: string) {
       await eventChannel.setTopic(state.description || null);
       const pinMsg = await eventChannel.messages.fetch(state.pinMessageId);
       const albumUrl = getAlbumUrl(channelId) ?? undefined;
-      await pinMsg.edit({ content: 'Please use the buttons to RSVP!', embeds: [buildInnerEmbed(state, albumUrl)], components: pinMessageComponents(channelId) });
+      await pinMsg.edit({ content: 'Click here to RSVP!', embeds: [buildInnerEmbed(state, albumUrl)], components: pinMessageComponents(channelId) });
     } catch (e) { console.error("Failed to update inner message:", e); }
   }
 }

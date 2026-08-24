@@ -74,7 +74,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     const channel = interaction.channel;
     if (!channel || !channel.isTextBased()) return;
     const mentions = targets.map(m => `<@${m.userId}>`).join(" ");
-    const content = `${mentions}\nReminder to RSVP for ${state.eventName}! (click the message)`;
+    const content = `${mentions}\nReminder to RSVP for ${state.eventName}!`;
     await interaction.deferReply({ ephemeral: true });
     try {
       const pinMsg = await channel.messages.fetch(state.pinMessageId);
@@ -125,7 +125,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     state.members.set(interaction.user.id, makeMemberEntry(interaction.user.id, creatorName));
 
     const pinMsg = await eventChannel.send({
-      content: "Please use the buttons to RSVP!",
+      content: "Click here to RSVP!",
       embeds: [buildInnerEmbed(state)],
       components: pinMessageComponents(eventChannel.id),
     });
@@ -197,7 +197,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     state.members.set(interaction.user.id, makeMemberEntry(interaction.user.id, creatorName));
 
     const pinMsg = await channel.send({
-      content: "Please use the buttons to RSVP!",
+      content: "Click here to RSVP!",
       embeds: [buildInnerEmbed(state)],
       components: pinMessageComponents(channel.id),
     });
