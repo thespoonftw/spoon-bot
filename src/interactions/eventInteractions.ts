@@ -58,6 +58,24 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     return;
   }
 
+  // /rsvp — ping everyone who RSVP'd Maybe or Lurking
+  if (interaction.isChatInputCommand() && interaction.commandName === "rsvp") {
+    const channelId = interaction.channelId;
+    const state = eventStates.get(channelId);
+    if (!state) {
+      await interaction.reply({ content: "This command can only be used in an event channel.", ephemeral: true });
+      return;
+    }
+    const targets = [...state.members.values()].filter(m => m.status === "maybe" || m.status === "lurking");
+    if (!targets.length) {
+      await interaction.reply({ content: "No one has RSVP'd Maybe or Lurking.", ephemeral: true });
+      return;
+    }
+    const mentions = targets.map(m => `<@${m.userId}>`).join(" ");
+    await interaction.reply(`${mentions}\nJust a reminder to RSVP for **${state.eventName}**!`);
+    return;
+  }
+
   // event_modal submit
   if (interaction.isModalSubmit() && interaction.customId === "event_modal") {
     const eventName = interaction.fields.getTextInputValue("event_name").trim();

@@ -28,6 +28,10 @@ const commands = [
     .setDescription("Leave this event or group channel")
     .toJSON(),
   new SlashCommandBuilder()
+    .setName("rsvp")
+    .setDescription("Ping everyone who RSVP'd Maybe or Lurking for this event")
+    .toJSON(),
+  new SlashCommandBuilder()
     .setName("edit")
     .setDescription("Edit this event's details, date, or settings")
     .toJSON(),
