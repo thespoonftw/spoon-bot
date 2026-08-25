@@ -141,10 +141,13 @@ export function initDb() {
       (3, 'Hull',   '#c1440e'),
       (4, 'Wright', '#1a5f9e'),
       (5, 'Homos',  '#ff69b4'),
-      (6, 'Wobog',  '#27ae60');
+      (6, 'Wobog',  '#27ae60'),
+      (7, '676a',   '#b22222');
   `);
   // Recolour Hull from its old green to paprika (Hull's green is now Wobog's colour)
   db.exec(`UPDATE site_groups SET color = '#c1440e' WHERE id = 3 AND color = '#27ae60'`);
+  // Recolour Hull (Hullites) from paprika to a more spicy-orange shade
+  db.exec(`UPDATE site_groups SET color = '#ff6d1f' WHERE id = 3 AND color = '#c1440e'`);
   // Rename WOBOG -> Wobog
   db.exec(`UPDATE site_groups SET name = 'Wobog' WHERE id = 6 AND name = 'WOBOG'`);
   // Migrate user_groups from name-based to id-based if needed
