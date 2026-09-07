@@ -20,6 +20,7 @@ import { loadBirthdays, handleBirthdayInteractions, scheduleBirthdayAnnouncement
 import { loadAlbums, handleAlbumReaction, handleAlbumMessageCreate, handleAlbumUploadInteraction } from "./albums";
 import { startWebServer, setAlbumDiscordClient, setUpdateEventMessages } from "./albumServer";
 import { initAuth } from "./auth";
+import { startArchipelagoRelay } from "./archipelago";
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   setAlbumDiscordClient(readyClient);
   setUpdateEventMessages(updateEventMessages);
   await initAuth(readyClient);
+  startArchipelagoRelay(readyClient);
 
 if (eventStates.size > 0) {
     const guild = readyClient.guilds.cache.get(config.guildId);
