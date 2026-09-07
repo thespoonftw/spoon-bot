@@ -53,10 +53,8 @@ function newestLog(): string | null {
 function formatLine(raw: string): string | null {
   const line = raw.replace(/^\[[^\]]+\]:\s*/, "").trim();
   if (!line) return null;
-  if (/^connection (open|closed)$/.test(line)) return null;
-  if (/^Notice \(Player .+\)/.test(line)) return null;
-  if (/Now that you are connected/.test(line)) return null;
-  if (/^Notice \(all\): \S+: !/.test(line)) return null; // chat command echoes
+  // Only relay item sends and hints; everything else is noise.
+  if (!/hint|sent/i.test(line)) return null;
   return line.replace(/^Notice \(all\): /, "");
 }
 
