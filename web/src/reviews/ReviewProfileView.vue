@@ -39,6 +39,8 @@
           <tbody>
             <tr v-for="r in g.reviews" :key="r.id" @click="router.push(`/reviews/${r.id}`)">
               <td class="rv-table-title"><router-link :to="`/reviews/${r.id}`" @click.stop>{{ r.title }}</router-link></td>
+              <td class="rv-muted">{{ r.creator ?? "" }}</td>
+              <td class="rv-muted num">{{ r.year ?? "" }}</td>
               <td><StarRating :model-value="r.rating" /></td>
               <td><span class="rv-progress" :class="`rv-progress--${r.progress}`">{{ progressLabel(r.progress) }}</span></td>
               <td class="rv-muted rv-nowrap">{{ formatReviewDate(r.createdAt) }}</td>
@@ -58,9 +60,11 @@ import { useCurrentUser } from "../composables/useCurrentUser";
 import StarRating from "./StarRating.vue";
 import TypeChip from "./TypeChip.vue";
 
-type SortKey = "title" | "rating" | "progress" | "createdAt";
+type SortKey = "title" | "creator" | "year" | "rating" | "progress" | "createdAt";
 const COLUMNS: { key: SortKey; label: string; cls?: string }[] = [
   { key: "title", label: "Title" },
+  { key: "creator", label: "By" },
+  { key: "year", label: "Year", cls: "num" },
   { key: "rating", label: "Rating" },
   { key: "progress", label: "Progress" },
   { key: "createdAt", label: "Reviewed" },
@@ -85,6 +89,9 @@ const average = computed(() => {
 function compare(a: Review, b: Review): number {
   switch (sortKey.value) {
     case "title": return a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
+    // Blank creator/year sort after filled ones either way round.
+    case "creator": return !a.creator !== !b.creator ? (a.creator ? -1 : 1) * (sortAsc.value ? 1 : -1) : (a.creator ?? "").localeCompare(b.creator ?? "", undefined, { sensitivity: "base" });
+    case "year": return (a.year === null) !== (b.year === null) ? (a.year !== null ? -1 : 1) * (sortAsc.value ? 1 : -1) : (a.year ?? 0) - (b.year ?? 0);
     case "rating": return a.rating - b.rating;
     case "progress": return PROGRESS_OPTIONS.findIndex(p => p.value === a.progress) - PROGRESS_OPTIONS.findIndex(p => p.value === b.progress);
     case "createdAt": return a.createdAt.localeCompare(b.createdAt);
@@ -106,7 +113,7 @@ const groups = computed(() => {
 
 function sortBy(key: SortKey) {
   if (sortKey.value === key) sortAsc.value = !sortAsc.value;
-  else { sortKey.value = key; sortAsc.value = key === "title" || key === "progress"; }
+  else { sortKey.value = key; sortAsc.value = key === "title" || key === "creator" || key === "progress"; }
 }
 
 onMounted(async () => {

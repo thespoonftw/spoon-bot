@@ -48,9 +48,12 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   const cleanedBody = typeof b.bodyHtml === "string" ? sanitizeHtml(b.bodyHtml, SANITIZE_OPTS).trim() : "";
   const bodyHasText = sanitizeHtml(cleanedBody, { allowedTags: [], allowedAttributes: {} }).trim().length > 0;
   // Images are only ever hotlinked from Wikimedia, which is where the Wikipedia lookup points.
-  const imageUrl = typeof b.imageUrl === "string" && /^https:\/\/upload\.wikimedia\.org\/[^\s"'<>]+$/.test(b.imageUrl) ? b.imageUrl : null;
+  const imageUrl = typeof b.imageUrl === "string" && /^https:\/\/(upload|thumb)\.wikimedia\.org\/[^\s"'<>]+$/.test(b.imageUrl) ? b.imageUrl : null;
   const wikiTitle = typeof b.wikiTitle === "string" && b.wikiTitle.trim() ? b.wikiTitle.trim().slice(0, 300) : null;
-  return { title, typeId, rating, progress, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null, imageUrl, wikiTitle };
+  const creator = typeof b.creator === "string" && b.creator.trim() ? b.creator.trim().slice(0, 200) : null;
+  const rawYear = b.year === null || b.year === undefined || b.year === "" ? null : Number(b.year);
+  if (rawYear !== null && (!Number.isInteger(rawYear) || rawYear < 0 || rawYear > 3000)) return "Year must be a whole number";
+  return { title, typeId, rating, progress, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null, imageUrl, wikiTitle, creator, year: rawYear };
 }
 
 function canModify(userId: string, reviewUserId: string): boolean {

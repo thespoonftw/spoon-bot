@@ -23,6 +23,7 @@
             <span class="rv-progress" :class="`rv-progress--${r.progress}`">{{ progressLabel(r.progress) }}</span>
           </div>
           <h3 class="rv-card-title">{{ r.title }}</h3>
+          <p v-if="creditLine(r)" class="rv-credit">{{ creditLine(r) }}</p>
           <StarRating :model-value="r.rating" />
           <p v-if="r.summary" class="rv-card-summary">{{ r.summary }}</p>
           <div class="rv-card-foot">
@@ -43,7 +44,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { progressLabel, authorName, formatReviewDate, fetchReviewTypes, type Review, type ReviewType } from "./api";
+import { progressLabel, creditLine, authorName, formatReviewDate, fetchReviewTypes, type Review, type ReviewType } from "./api";
 import ReviewCover from "./ReviewCover.vue";
 import StarRating from "./StarRating.vue";
 import TypeChip from "./TypeChip.vue";

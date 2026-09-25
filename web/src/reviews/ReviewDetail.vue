@@ -14,6 +14,7 @@
     <div>
       <TypeChip :name="review.typeName" :icon="review.typeIcon" :color="review.typeColor" with-icon />
       <h1 class="rv-detail-title">{{ review.title }}</h1>
+      <p v-if="creditLine(review)" class="rv-credit rv-credit--large">{{ creditLine(review) }}</p>
       <div class="rv-detail-meta">
         <StarRating :model-value="review.rating" />
         <span class="rv-progress" :class="`rv-progress--${review.progress}`" style="font-size: 0.95rem">{{ progressLabel(review.progress) }}</span>
@@ -40,7 +41,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { progressLabel, authorName, formatReviewDate, type Review } from "./api";
+import { progressLabel, creditLine, authorName, formatReviewDate, type Review } from "./api";
 import ReviewCover from "./ReviewCover.vue";
 import StarRating from "./StarRating.vue";
 import TypeChip from "./TypeChip.vue";
