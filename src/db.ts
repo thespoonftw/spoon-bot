@@ -186,6 +186,8 @@ export function initDb() {
       (2, 'Film',   '🎬', '#7c3d62', @now),
       (3, 'Series', '📺', '#2f5b88', @now)
   `).run({ now: new Date().toISOString() });
+  // Video Game was added with the default tag icon; give it a controller
+  db.prepare("UPDATE review_types SET icon = '🎮' WHERE name = 'Video Game' COLLATE NOCASE AND icon = '🏷️'").run();
   // Migrate reviews from the original fixed media_type strings to review_types ids
   try {
     const cols = (db.prepare("PRAGMA table_info(reviews)").all() as { name: string }[]).map(c => c.name);

@@ -36,13 +36,14 @@
       </div>
 
       <div class="rv-editor-row">
-        <div v-if="creatorFieldLabel" class="rv-field" style="flex: 2">
-          <label class="rv-label" for="rv-creator">{{ creatorFieldLabel }}</label>
-          <input id="rv-creator" v-model="draft.creator" class="rv-input" maxlength="200" autocomplete="off" @input="autoFilled.creator = false" />
-        </div>
-        <div class="rv-field" style="flex: 1; min-width: 120px">
+        <!-- Year first and fixed-width, so it sits in the same place whether or not the type has a creator. -->
+        <div class="rv-field rv-field--year">
           <label class="rv-label" for="rv-year">Year</label>
           <input id="rv-year" v-model="draft.year" class="rv-input" type="number" min="0" max="3000" @input="autoFilled.year = false" />
+        </div>
+        <div v-if="creatorFieldLabel" class="rv-field">
+          <label class="rv-label" for="rv-creator">{{ creatorFieldLabel }}</label>
+          <input id="rv-creator" v-model="draft.creator" class="rv-input" maxlength="200" autocomplete="off" @input="autoFilled.creator = false" />
         </div>
       </div>
       <p v-if="detailsStatus" class="rv-hint" style="margin: -14px 0 18px">{{ detailsStatus }}</p>
@@ -59,7 +60,7 @@
       </div>
 
       <div class="rv-field">
-        <span class="rv-label">Full review</span>
+        <span class="rv-label">Full review <span class="rv-label-note">Optional</span></span>
         <RichTextEditor v-model="bodyHtml" placeholder="Go into as much detail as you like…" />
       </div>
 
@@ -86,7 +87,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { PROGRESS_OPTIONS, searchMatches, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate } from "./api";
+import { PROGRESS_OPTIONS, SOURCE_NAMES, searchMatches, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource } from "./api";
 import StarRating from "./StarRating.vue";
 import RichTextEditor from "./RichTextEditor.vue";
 import ReviewCover from "./ReviewCover.vue";
@@ -113,9 +114,8 @@ const creatorFieldLabel = computed(() => creatorLabel(selectedType.value?.name ?
 // --- Match: re-searches as the title/type change and auto-selects the best page until the user picks
 // one. The chosen page (Wikipedia, or Open Library for books) supplies the cover, creator and year.
 const NO_PAGE = "__none__";
-const SOURCE_NAMES = { openlibrary: "Open Library", wikipedia: "Wikipedia" } as const;
 const candidates = ref<MatchCandidate[]>([]);
-const candidateGroups = computed(() => (Object.keys(SOURCE_NAMES) as (keyof typeof SOURCE_NAMES)[])
+const candidateGroups = computed(() => (Object.keys(SOURCE_NAMES) as MatchSource[])
   .map(source => ({ name: SOURCE_NAMES[source], items: candidates.value.filter(c => c.source === source) }))
   .filter(g => g.items.length));
 const selectedCandidate = computed(() => candidates.value.find(c => c.url === draft.sourceUrl) ?? null);
@@ -152,7 +152,7 @@ async function lookup() {
 function savedMatch(): MatchCandidate {
   const url = draft.sourceUrl!;
   return {
-    source: url.startsWith("https://openlibrary.org/") ? "openlibrary" : "wikipedia",
+    source: matchSource(draft)?.source ?? "wikipedia",
     url, label: draft.wikiTitle ?? draft.title, description: "saved match",
     imageUrl: draft.imageUrl, wikiTitle: draft.wikiTitle, wikidataId: null,
     details: { creator: draft.creator || null, year: draft.year === "" || draft.year === null ? null : Number(draft.year) },

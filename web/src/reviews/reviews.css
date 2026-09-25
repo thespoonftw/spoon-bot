@@ -54,6 +54,8 @@ body.rv-body {
 .rv-input:focus, .rv-select:focus, .rv-textarea:focus { border-color: var(--rv-ink); }
 .rv-input--title { font: 600 1.6rem var(--rv-serif); padding: 12px 16px; }
 .rv-textarea { resize: vertical; min-height: 84px; line-height: 1.5; }
+.rv-label-note { font-weight: 400; text-transform: none; letter-spacing: 0; font-style: italic; margin-left: 4px; }
+.rv-editor-row > .rv-field.rv-field--year { flex: 0 0 120px; min-width: 0; }
 .rv-hint { font-size: 0.8rem; color: var(--rv-muted); }
 .rv-error { color: var(--rv-accent); font-weight: 600; margin-bottom: 16px; }
 

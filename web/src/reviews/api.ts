@@ -36,14 +36,19 @@ export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyH
 // "Frank Herbert · 1965", or whichever half is known.
 export const creditLine = (r: { creator: string | null; year: number | null }) => [r.creator, r.year].filter(Boolean).join(" · ");
 
+export type MatchSource = "openlibrary" | "tvmaze" | "wikipedia";
+export const SOURCE_NAMES: Record<MatchSource, string> = { openlibrary: "Open Library", tvmaze: "TVmaze", wikipedia: "Wikipedia" };
+const SOURCE_HOSTS: Record<MatchSource, string> = { openlibrary: "https://openlibrary.org/", tvmaze: "https://www.tvmaze.com/", wikipedia: "https://en.wikipedia.org/" };
+
 export const wikiUrl = (pageTitle: string) => `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/ /g, "_"))}`;
 
 // Where a review's details came from, for the "Wikipedia ↗" / "Open Library ↗" link. Reviews saved
 // before sourceUrl existed only have wikiTitle.
-export function matchSource(r: { sourceUrl: string | null; wikiTitle: string | null }): { url: string; name: string } | null {
+export function matchSource(r: { sourceUrl: string | null; wikiTitle: string | null }): { url: string; source: MatchSource; name: string } | null {
   const url = r.sourceUrl ?? (r.wikiTitle ? wikiUrl(r.wikiTitle) : null);
   if (!url) return null;
-  return { url, name: url.startsWith("https://openlibrary.org/") ? "Open Library" : "Wikipedia" };
+  const source = (Object.keys(SOURCE_HOSTS) as MatchSource[]).find(s => url.startsWith(SOURCE_HOSTS[s])) ?? "wikipedia";
+  return { url, source, name: SOURCE_NAMES[source] };
 }
 
 export const PROGRESS_OPTIONS: { value: Progress; label: string }[] = [
@@ -77,10 +82,10 @@ export async function fetchReviewProfile(userId: string): Promise<ReviewProfile 
   return res.ok ? res.json() : null;
 }
 
-// A possible match for what's being reviewed, from Wikipedia or (for books) Open Library. `url` is
+// A possible match for what's being reviewed: an Open Library book, TVmaze show or Wikipedia page. `url` is
 // the page's address and doubles as its id in the editor's dropdown.
 export interface MatchCandidate {
-  source: "wikipedia" | "openlibrary";
+  source: MatchSource;
   url: string;
   label: string;
   description: string;
@@ -220,10 +225,43 @@ async function searchOpenLibrary(title: string, signal?: AbortSignal): Promise<M
     });
 }
 
-// Candidates for the editor's dropdown, best first. Books use Open Library (plenty of books have no
-// Wikipedia page); everything else uses Wikipedia.
+type TvmazeShow = { name: string; url: string; premiered: string | null; network?: { name: string } | null; webChannel?: { name: string } | null; image?: { medium?: string; original?: string } | null };
+
+// Searches TVmaze, a free TV database with far better series coverage and posters than Wikipedia.
+// Its own ranking is good; exact name matches are just nudged to the top.
+async function searchTvmaze(title: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
+  const res = await fetch(`https://api.tvmaze.com/search/shows?${new URLSearchParams({ q: title })}`, { signal });
+  if (!res.ok) return [];
+  const results = (await res.json()) as { score: number; show: TvmazeShow }[];
+  const wanted = title.trim().toLowerCase();
+  return results
+    .map(({ show }, index) => ({ show, index, exact: show.name.trim().toLowerCase() === wanted ? 1 : 0 }))
+    .sort((a, b) => b.exact - a.exact || a.index - b.index)
+    .slice(0, 8)
+    .map(({ show }) => {
+      const year = show.premiered ? Number(show.premiered.slice(0, 4)) : null;
+      const image = show.image?.original ?? show.image?.medium ?? null;
+      return {
+        source: "tvmaze" as const,
+        url: show.url.replace(/^http:/, "https:"),
+        label: show.name,
+        description: [year, show.network?.name ?? show.webChannel?.name].filter(Boolean).join(", "),
+        imageUrl: image?.startsWith("https://static.tvmaze.com/") ? image : null,
+        wikiTitle: null,
+        wikidataId: null,
+        details: { creator: null, year },
+      };
+    });
+}
+
+// Candidates for the editor's dropdown, best first. Books use Open Library and series use TVmaze
+// (both cover far more than Wikipedia and have proper covers/posters); everything else uses Wikipedia.
 export async function searchMatches(title: string, typeName: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
-  return typeName.trim().toLowerCase() === "book" ? searchOpenLibrary(title, signal) : searchWikipedia(title, typeName, signal);
+  switch (typeName.trim().toLowerCase()) {
+    case "book": return searchOpenLibrary(title, signal);
+    case "series": return searchTvmaze(title, signal);
+    default: return searchWikipedia(title, typeName, signal);
+  }
 }
 
 // "Terry Pratchett & Neil Gaiman", "A, B & C".
