@@ -17,6 +17,8 @@ import ReviewsLayout from "./reviews/ReviewsLayout.vue";
 import ReviewsHome from "./reviews/ReviewsHome.vue";
 import ReviewDetail from "./reviews/ReviewDetail.vue";
 import ReviewEditor from "./reviews/ReviewEditor.vue";
+import ReviewTypesView from "./reviews/ReviewTypesView.vue";
+import ReviewProfileView from "./reviews/ReviewProfileView.vue";
 import ReviewsLogin from "./reviews/ReviewsLogin.vue";
 import ReviewsLoginSent from "./reviews/ReviewsLoginSent.vue";
 import ReviewsAuthVerify from "./reviews/ReviewsAuthVerify.vue";
@@ -59,6 +61,8 @@ const router = createRouter({
         { path: "auth/verify/:token", component: ReviewsAuthVerify, meta: { public: true } },
         { path: "", component: ReviewsHome },
         { path: "new", component: ReviewEditor },
+        { path: "types", component: ReviewTypesView },
+        { path: "people/:userId", component: ReviewProfileView },
         { path: ":id(\\d+)", component: ReviewDetail },
         { path: ":id(\\d+)/edit", component: ReviewEditor },
       ],

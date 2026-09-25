@@ -118,6 +118,20 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
     return true;
   }
 
+  // GET /api/reviews/user/:userId — a person's profile: who they are plus every review they've written
+  const userMatch = url.match(/^\/api\/reviews\/user\/([^/]+)$/);
+  if (userMatch && method === "GET") {
+    const profileUser = dbGetUserById(decodeURIComponent(userMatch[1]));
+    if (!profileUser) { sendJson(res, 404, { error: "Not found" }); return true; }
+    const { reviews } = dbListReviews({ userId: profileUser.userId, limit: -1, offset: 0 });
+    sendJson(res, 200, {
+      user: { userId: profileUser.userId, displayName: profileUser.displayName, firstName: profileUser.firstName ?? null, avatarUrl: profileUser.avatarUrl ?? null },
+      // The tables only need the headline fields; the full review text stays on the review page.
+      reviews: reviews.map(({ bodyHtml: _body, ...r }) => r),
+    });
+    return true;
+  }
+
   const idMatch = url.match(/^\/api\/reviews\/(\d+)$/);
   if (!idMatch) { sendJson(res, 404, { error: "Not found" }); return true; }
   const id = parseInt(idMatch[1]);

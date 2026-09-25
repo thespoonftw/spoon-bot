@@ -26,13 +26,17 @@ body.rv-body {
 .rv h1, .rv h2, .rv h3 { color: var(--rv-ink); margin: 0; font-family: var(--rv-serif); font-weight: 600; letter-spacing: -0.01em; }
 
 /* Masthead */
-.rv-topbar { display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-size: 0.85rem; color: var(--rv-muted); min-height: 24px; }
+.rv-topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; font-size: 0.85rem; color: var(--rv-muted); min-height: 24px; }
+.rv-topbar-user { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.rv-nav { display: flex; gap: 18px; }
+.rv-nav a { text-decoration: none; font-weight: 600; color: var(--rv-muted); padding-bottom: 2px; border-bottom: 2px solid transparent; }
+.rv-nav a:hover { color: var(--rv-ink); }
+.rv-nav a.active { color: var(--rv-ink); border-bottom-color: var(--rv-accent); }
 .rv-link-btn { background: none; border: none; padding: 0; margin-left: 6px; font: inherit; color: var(--rv-muted); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .rv-link-btn:hover { color: var(--rv-accent); }
 .rv-masthead { border-bottom: 3px double var(--rv-ink); padding: 18px 0 16px; margin-bottom: 28px; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .rv-masthead h1 { font-size: clamp(2.6rem, 7vw, 4.2rem); line-height: 0.95; font-weight: 700; font-style: italic; }
 .rv-masthead h1 a { text-decoration: none; }
-.rv-masthead-sub { font-size: 0.95rem; color: var(--rv-muted); margin-top: 6px; }
 
 /* Buttons & form controls */
 .rv-btn { display: inline-flex; align-items: center; gap: 8px; border: 1.5px solid var(--rv-ink); background: var(--rv-ink); color: var(--rv-paper); font: 600 0.95rem var(--rv-sans); padding: 10px 18px; border-radius: 999px; cursor: pointer; text-decoration: none; transition: background 0.15s, color 0.15s; }
@@ -153,6 +157,32 @@ body.rv-body {
 .rv-picker-caption strong { color: var(--rv-ink); }
 
 .rv-loading { color: var(--rv-muted); padding: 40px 0; text-align: center; font-style: italic; }
+
+/* Tables (types page, profile) */
+.rv-narrow { max-width: 720px; }
+.rv-section-title { font-size: 1.8rem; margin-bottom: 6px !important; }
+.rv-muted { color: var(--rv-muted); }
+.rv-nowrap { white-space: nowrap; }
+.rv-newtype--panel { background: var(--rv-card); border: 1px solid var(--rv-rule); border-radius: 12px; padding: 12px; }
+.rv-table-wrap { overflow-x: auto; background: var(--rv-card); border: 1px solid var(--rv-rule); border-radius: 12px; }
+.rv-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.rv-narrow > .rv-table { background: var(--rv-card); border: 1px solid var(--rv-rule); border-radius: 12px; border-collapse: separate; border-spacing: 0; overflow: hidden; }
+.rv-table th { text-align: left; font: 600 0.72rem var(--rv-sans); text-transform: uppercase; letter-spacing: 0.1em; color: var(--rv-muted); padding: 10px 14px; border-bottom: 1px solid var(--rv-rule); white-space: nowrap; }
+.rv-table th button { all: unset; cursor: pointer; }
+.rv-table th button:hover, .rv-table th.sorted { color: var(--rv-ink); }
+.rv-sort-arrow { display: inline-block; width: 1.2em; font-size: 0.65rem; text-align: right; }
+.rv-table td { padding: 10px 14px; border-bottom: 1px solid var(--rv-rule); vertical-align: middle; }
+.rv-table tr:last-child td { border-bottom: none; }
+.rv-table .num { text-align: right; }
+.rv-table a { color: var(--rv-ink); }
+.rv-table--clickable tbody tr { cursor: pointer; }
+.rv-table--clickable tbody tr:hover td { background: var(--rv-paper); }
+.rv-table-title { font: 600 1.02rem var(--rv-serif); }
+.rv-table-title a { text-decoration: none; }
+.rv-row-new td { background: #fbf1d9; }
+.rv-profile-head { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+.rv-profile-group { margin-bottom: 32px; }
+.rv-profile-group-title { display: flex; align-items: center; gap: 10px; margin-bottom: 10px !important; font: 600 0.9rem var(--rv-sans) !important; }
 
 /* Login */
 .rv-login { max-width: 460px; margin: 20px auto 0; text-align: center; }

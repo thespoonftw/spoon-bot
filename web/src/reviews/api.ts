@@ -1,6 +1,10 @@
 export type Progress = "ongoing" | "stopped" | "finished";
 
-export interface ReviewType { id: number; name: string; icon: string; color: string; reviewCount: number }
+export interface ReviewType { id: number; name: string; icon: string; color: string; reviewCount: number; createdByName: string | null }
+export interface ReviewProfile {
+  user: { userId: string; displayName: string; firstName: string | null; avatarUrl: string | null };
+  reviews: Review[];
+}
 
 export interface Review {
   id: number;
@@ -47,6 +51,11 @@ export function formatReviewDate(iso: string): string {
 export async function fetchReviewTypes(): Promise<ReviewType[]> {
   const res = await fetch("/api/review-types");
   return res.ok ? res.json() : [];
+}
+
+export async function fetchReviewProfile(userId: string): Promise<ReviewProfile | null> {
+  const res = await fetch(`/api/reviews/user/${encodeURIComponent(userId)}`);
+  return res.ok ? res.json() : null;
 }
 
 // Adds a type (or returns the existing one with that name).

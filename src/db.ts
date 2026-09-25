@@ -780,7 +780,7 @@ export function dbVotePhoto(photoId: number, userId: string, reactType: string, 
   return { score: scoreRow.score, userVote: voteRow?.react_type ?? null, userIsSuper: voteRow?.is_super ?? 0 };
 }
 
-export type ReviewType = { id: number; name: string; icon: string; color: string; reviewCount: number };
+export type ReviewType = { id: number; name: string; icon: string; color: string; reviewCount: number; createdByName: string | null };
 
 export type ReviewInput = {
   title: string; typeId: number; rating: number; progress: string;
@@ -797,8 +797,11 @@ const REVIEW_TYPE_COLORS = ["#8a5a2b", "#5b4b8a", "#2f7a78", "#a33b5e", "#6b7a2f
 
 export function dbListReviewTypes(): ReviewType[] {
   return db.prepare(`
-    SELECT t.id, t.name, t.icon, t.color, COUNT(r.id) AS reviewCount
-    FROM review_types t LEFT JOIN reviews r ON r.type_id = t.id
+    SELECT t.id, t.name, t.icon, t.color, COUNT(r.id) AS reviewCount,
+           COALESCE(u.first_name, u.display_name) AS createdByName
+    FROM review_types t
+    LEFT JOIN reviews r ON r.type_id = t.id
+    LEFT JOIN users u ON u.user_id = t.created_by
     GROUP BY t.id ORDER BY t.id
   `).all() as ReviewType[];
 }

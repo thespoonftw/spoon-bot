@@ -22,7 +22,7 @@
         <img v-if="review.authorAvatarUrl" :src="review.authorAvatarUrl" class="rv-avatar rv-avatar--large" alt="" />
         <span v-else class="rv-avatar rv-avatar--large">{{ authorName(review)[0] }}</span>
         <span>
-          Reviewed by <strong>{{ authorName(review) }}</strong> · {{ formatReviewDate(review.createdAt) }}
+          Reviewed by <router-link :to="`/reviews/people/${review.userId}`"><strong>{{ authorName(review) }}</strong></router-link> · {{ formatReviewDate(review.createdAt) }}
           <template v-if="review.updatedAt !== review.createdAt"> · edited {{ formatReviewDate(review.updatedAt).toLowerCase() }}</template>
         </span>
       </div>

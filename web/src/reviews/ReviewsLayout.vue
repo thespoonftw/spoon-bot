@@ -1,18 +1,20 @@
 <template>
   <div class="rv">
     <div class="rv-topbar">
-      <template v-if="!isPublic && currentUser">
+      <nav v-if="!isPublic" class="rv-nav">
+        <router-link to="/reviews" :class="{ active: route.path === '/reviews' }">All reviews</router-link>
+        <router-link to="/reviews/types" :class="{ active: route.path === '/reviews/types' }">Types</router-link>
+        <router-link v-if="currentUser" :to="`/reviews/people/${currentUser.userId}`" :class="{ active: route.path === `/reviews/people/${currentUser.userId}` }">My reviews</router-link>
+      </nav>
+      <div v-if="!isPublic && currentUser" class="rv-topbar-user">
         <img v-if="currentUser.avatarUrl" :src="currentUser.avatarUrl" class="rv-avatar" alt="" />
         <span v-else class="rv-avatar">{{ userName[0] }}</span>
         <span>{{ userName }}</span>
         <button type="button" class="rv-link-btn" @click="logout">Log out</button>
-      </template>
+      </div>
     </div>
     <header class="rv-masthead">
-      <div>
-        <h1><router-link :to="isPublic ? '/reviews/login' : '/reviews'">Reviews</router-link></h1>
-        <div class="rv-masthead-sub">Books, films &amp; series — what everyone's been getting through.</div>
-      </div>
+      <h1><router-link :to="isPublic ? '/reviews/login' : '/reviews'">Reviews</router-link></h1>
       <router-link v-if="!isPublic && route.path !== '/reviews/new'" to="/reviews/new" class="rv-btn">✎ Write a review</router-link>
     </header>
     <router-view :key="route.fullPath" />
