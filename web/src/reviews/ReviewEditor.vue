@@ -33,9 +33,11 @@
       </div>
 
       <div class="rv-field">
-        <label class="rv-label" for="rv-wiki">Wikipedia match</label>
-        <select id="rv-wiki" class="rv-select" :value="draft.wikiTitle ?? NO_PAGE" :disabled="!candidates.length" @change="onPageChange">
-          <option v-for="c in candidates" :key="c.pageTitle" :value="c.pageTitle">{{ c.pageTitle }}{{ c.description ? ` — ${c.description}` : "" }}</option>
+        <label class="rv-label" for="rv-match">Match</label>
+        <select id="rv-match" class="rv-select" :value="draft.sourceUrl ?? NO_PAGE" :disabled="!candidates.length" @change="onPageChange">
+          <optgroup v-for="g in candidateGroups" :key="g.name" :label="g.name">
+            <option v-for="c in g.items" :key="c.url" :value="c.url">{{ c.label }}{{ c.description ? ` — ${c.description}` : "" }}</option>
+          </optgroup>
           <option :value="NO_PAGE">{{ candidates.length ? "None of these" : "—" }}</option>
         </select>
         <span class="rv-hint">{{ wikiStatus }}</span>
@@ -80,11 +82,11 @@
       <div style="margin-top: 8px">
         <ReviewCover class="rv-picker-main" :image-url="draft.imageUrl" :icon="selectedType?.icon ?? '⭐'" :title="draft.title" large />
       </div>
-      <p class="rv-picker-caption" v-if="draft.wikiTitle">
-        From Wikipedia: <strong>{{ draft.wikiTitle }}</strong><br />
-        <a :href="wikiUrl(draft.wikiTitle)" target="_blank" rel="noopener noreferrer">View page ↗</a>
+      <p class="rv-picker-caption" v-if="source">
+        From {{ source.name }}<template v-if="selectedCandidate">: <strong>{{ selectedCandidate.label }}</strong></template><br />
+        <a :href="source.url" target="_blank" rel="noopener noreferrer">View page ↗</a>
       </p>
-      <p class="rv-picker-caption" v-else>Pick a Wikipedia match to use its cover.</p>
+      <p class="rv-picker-caption" v-else>Pick a match to use its cover.</p>
     </aside>
   </form>
 </template>
@@ -92,7 +94,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { PROGRESS_OPTIONS, searchWikipedia, fetchWikiDetails, creatorLabel, fetchReviewTypes, createReviewType, type ReviewDraft, type ReviewType, type WikiCandidate } from "./api";
+import { PROGRESS_OPTIONS, searchMatches, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, createReviewType, type ReviewDraft, type ReviewType, type MatchCandidate } from "./api";
 import StarRating from "./StarRating.vue";
 import RichTextEditor from "./RichTextEditor.vue";
 import ReviewCover from "./ReviewCover.vue";
@@ -103,7 +105,7 @@ const isEdit = computed(() => route.params.id !== undefined);
 
 const draft = reactive<ReviewDraft>({
   title: "", typeId: null, rating: null, progress: "finished",
-  summary: "", bodyHtml: "", imageUrl: null, wikiTitle: null, creator: "", year: "",
+  summary: "", bodyHtml: "", imageUrl: null, wikiTitle: null, sourceUrl: null, creator: "", year: "",
 });
 const bodyHtml = computed({ get: () => draft.bodyHtml ?? "", set: (v: string) => { draft.bodyHtml = v; } });
 const loading = ref(isEdit.value);
@@ -147,40 +149,53 @@ async function addType() {
   addingType.value = false;
 }
 
-// --- Wikipedia match: re-searches as the title/type change and auto-selects the best page until the
-// user picks one. The chosen page supplies the cover, and its Wikidata item the creator and year.
+// --- Match: re-searches as the title/type change and auto-selects the best page until the user picks
+// one. The chosen page (Wikipedia, or Open Library for books) supplies the cover, creator and year.
 const NO_PAGE = "__none__";
-const candidates = ref<WikiCandidate[]>([]);
-const wikiStatus = ref("Type a title and we'll find it on Wikipedia.");
+const SOURCE_NAMES = { openlibrary: "Open Library", wikipedia: "Wikipedia" } as const;
+const candidates = ref<MatchCandidate[]>([]);
+const candidateGroups = computed(() => (Object.keys(SOURCE_NAMES) as (keyof typeof SOURCE_NAMES)[])
+  .map(source => ({ name: SOURCE_NAMES[source], items: candidates.value.filter(c => c.source === source) }))
+  .filter(g => g.items.length));
+const selectedCandidate = computed(() => candidates.value.find(c => c.url === draft.sourceUrl) ?? null);
+const source = computed(() => matchSource(draft));
+const wikiStatus = ref("Type a title and we'll look it up.");
 const detailsStatus = ref("");
 const userPicked = ref(false);
-// Creator/year that came from Wikipedia get replaced when the match changes; typed-in values don't.
+// Creator/year that came from the match get replaced when the match changes; typed-in values don't.
 const autoFilled = reactive({ creator: true, year: true });
 let debounce: ReturnType<typeof setTimeout> | undefined;
 let searchInflight: AbortController | null = null;
 let detailsInflight: AbortController | null = null;
 
-const wikiUrl = (pageTitle: string) => `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/ /g, "_"))}`;
-
 async function lookup() {
   const title = draft.title.trim();
   searchInflight?.abort();
-  if (title.length < 2) { candidates.value = []; wikiStatus.value = "Type a title and we'll find it on Wikipedia."; return; }
+  if (title.length < 2) { candidates.value = []; wikiStatus.value = "Type a title and we'll look it up."; return; }
   searchInflight = new AbortController();
-  wikiStatus.value = "Searching Wikipedia…";
+  wikiStatus.value = "Searching…";
   try {
-    const found = await searchWikipedia(title, selectedType.value?.name ?? "", searchInflight.signal);
-    // Keep the current page selectable even if the new search didn't return it (e.g. an existing review).
-    if (draft.wikiTitle && !found.some(c => c.pageTitle === draft.wikiTitle)) {
-      found.unshift({ pageTitle: draft.wikiTitle, description: "", imageUrl: draft.imageUrl, wikidataId: null });
-    }
+    const found = await searchMatches(title, selectedType.value?.name ?? "", searchInflight.signal);
+    // Keep the current match selectable even if the new search didn't return it (e.g. an existing review).
+    if (draft.sourceUrl && !found.some(c => c.url === draft.sourceUrl)) found.unshift(savedMatch());
     candidates.value = found;
     if (!userPicked.value) applyPage(found[0] ?? null);
-    wikiStatus.value = !found.length ? "No Wikipedia page found — fill in the details yourself."
+    wikiStatus.value = !found.length ? "Nothing found — fill in the details yourself."
       : userPicked.value ? "" : "Best match picked automatically — change it if it's wrong.";
   } catch (e) {
-    if ((e as Error).name !== "AbortError") wikiStatus.value = "Couldn't reach Wikipedia.";
+    if ((e as Error).name !== "AbortError") wikiStatus.value = "Couldn't search right now — fill in the details yourself.";
   }
+}
+
+// The match an existing review was saved with, as a dropdown entry carrying its saved details.
+function savedMatch(): MatchCandidate {
+  const url = draft.sourceUrl!;
+  return {
+    source: url.startsWith("https://openlibrary.org/") ? "openlibrary" : "wikipedia",
+    url, label: draft.wikiTitle ?? draft.title, description: "saved match",
+    imageUrl: draft.imageUrl, wikiTitle: draft.wikiTitle, wikidataId: null,
+    details: { creator: draft.creator || null, year: draft.year === "" || draft.year === null ? null : Number(draft.year) },
+  };
 }
 
 function onPageChange(e: Event) {
@@ -189,24 +204,24 @@ function onPageChange(e: Event) {
   wikiStatus.value = "";
   // Choosing a page on purpose means "use this page's details", so it overrides typed values too.
   Object.assign(autoFilled, { creator: true, year: true });
-  applyPage(candidates.value.find(c => c.pageTitle === value) ?? null);
+  applyPage(candidates.value.find(c => c.url === value) ?? null);
 }
 
-async function applyPage(c: WikiCandidate | null) {
-  draft.wikiTitle = c?.pageTitle ?? null;
+async function applyPage(c: MatchCandidate | null) {
+  draft.sourceUrl = c?.url ?? null;
+  draft.wikiTitle = c?.wikiTitle ?? null;
   draft.imageUrl = c?.imageUrl ?? null;
   detailsInflight?.abort();
   detailsStatus.value = "";
   if (!c) return;
-  if (!c.wikidataId) { fillDetails(null, null); return; }
   detailsInflight = new AbortController();
-  detailsStatus.value = "Getting details from Wikipedia…";
+  if (!c.details) detailsStatus.value = "Getting details…";
   try {
-    const d = await fetchWikiDetails(c.wikidataId, selectedType.value?.name ?? "", detailsInflight.signal);
+    const d = await fetchMatchDetails(c, selectedType.value?.name ?? "", detailsInflight.signal);
     fillDetails(d.creator, d.year);
     detailsStatus.value = "";
   } catch (e) {
-    if ((e as Error).name !== "AbortError") detailsStatus.value = "Couldn't get details from Wikipedia — fill them in yourself.";
+    if ((e as Error).name !== "AbortError") detailsStatus.value = "Couldn't get the details — fill them in yourself.";
   }
 }
 
@@ -237,6 +252,7 @@ onMounted(async () => {
   Object.assign(draft, {
     title: r.title, typeId: r.typeId, rating: r.rating, progress: r.progress,
     summary: r.summary ?? "", bodyHtml: r.bodyHtml ?? "", imageUrl: r.imageUrl, wikiTitle: r.wikiTitle,
+    sourceUrl: matchSource(r)?.url ?? null,
     creator: r.creator ?? "", year: r.year ?? "",
   });
   loading.value = false;

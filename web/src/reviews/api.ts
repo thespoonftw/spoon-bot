@@ -22,6 +22,7 @@ export interface Review {
   wikiTitle: string | null;
   creator: string | null;
   year: number | null;
+  sourceUrl: string | null;
   createdAt: string;
   updatedAt: string;
   authorName: string;
@@ -30,10 +31,20 @@ export interface Review {
   canEdit?: boolean;
 }
 
-export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyHtml" | "imageUrl" | "wikiTitle" | "creator"> & { typeId: number | null; rating: number | null; year: number | string | null };
+export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyHtml" | "imageUrl" | "wikiTitle" | "creator" | "sourceUrl"> & { typeId: number | null; rating: number | null; year: number | string | null };
 
 // "Frank Herbert · 1965", or whichever half is known.
 export const creditLine = (r: { creator: string | null; year: number | null }) => [r.creator, r.year].filter(Boolean).join(" · ");
+
+export const wikiUrl = (pageTitle: string) => `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/ /g, "_"))}`;
+
+// Where a review's details came from, for the "Wikipedia ↗" / "Open Library ↗" link. Reviews saved
+// before sourceUrl existed only have wikiTitle.
+export function matchSource(r: { sourceUrl: string | null; wikiTitle: string | null }): { url: string; name: string } | null {
+  const url = r.sourceUrl ?? (r.wikiTitle ? wikiUrl(r.wikiTitle) : null);
+  if (!url) return null;
+  return { url, name: url.startsWith("https://openlibrary.org/") ? "Open Library" : "Wikipedia" };
+}
 
 export const PROGRESS_OPTIONS: { value: Progress; label: string }[] = [
   { value: "ongoing", label: "Ongoing" },
@@ -74,8 +85,19 @@ export async function createReviewType(name: string, icon: string): Promise<Revi
   return res.ok ? data : { error: data.error ?? "Couldn't add that type." };
 }
 
-export interface WikiCandidate { pageTitle: string; description: string; imageUrl: string | null; wikidataId: string | null }
-export interface WikiDetails { creator: string | null; year: number | null }
+// A possible match for what's being reviewed, from Wikipedia or (for books) Open Library. `url` is
+// the page's address and doubles as its id in the editor's dropdown.
+export interface MatchCandidate {
+  source: "wikipedia" | "openlibrary";
+  url: string;
+  label: string;
+  description: string;
+  imageUrl: string | null;
+  wikiTitle: string | null;   // Wikipedia pages only
+  wikidataId: string | null;  // Wikipedia pages only — creator/year are looked up from it on selection
+  details: MatchDetails | null; // Open Library results come with creator/year already
+}
+export interface MatchDetails { creator: string | null; year: number | null }
 
 // How to match each type on Wikipedia/Wikidata:
 //  - hint/suffixes/match: search hint, the page-name suffixes Wikipedia disambiguates with, and words
@@ -141,7 +163,7 @@ async function wikiQuery(extra: Record<string, string>, signal?: AbortSignal): P
 // Search alone can miss the obvious page (e.g. "The Bear" + TV series), so the conventional
 // disambiguated page names are also looked up directly and merged in. pilicense=any is needed for
 // the cover — film posters and book covers are non-free images.
-export async function searchWikipedia(title: string, typeName: string, signal?: AbortSignal): Promise<WikiCandidate[]> {
+async function searchWikipedia(title: string, typeName: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
   const profile = wikiProfile(typeName);
   const [searched, direct] = await Promise.all([
     wikiQuery({ generator: "search", gsrsearch: `${title} ${profile.hint}`, gsrlimit: "10" }, signal),
@@ -156,11 +178,78 @@ export async function searchWikipedia(title: string, typeName: string, signal?: 
     .sort((a, b) => b.score - a.score || a.p.index - b.p.index)
     .slice(0, 8)
     .map(({ p }) => ({
-      pageTitle: p.title,
+      source: "wikipedia" as const,
+      url: wikiUrl(p.title),
+      label: p.title,
       description: p.description ?? "",
       imageUrl: p.thumbnail && WIKIMEDIA_IMAGE.test(p.thumbnail.source) ? p.thumbnail.source.split("?")[0] : null,
+      wikiTitle: p.title,
       wikidataId: p.pageprops?.wikibase_item ?? null,
+      details: null,
     }));
+}
+
+type OpenLibraryDoc = { key: string; title: string; author_name?: string[]; first_publish_year?: number; cover_i?: number; edition_count?: number };
+
+// Study guides and "Summary of…" knock-offs crowd the results for popular books.
+const OPEN_LIBRARY_JUNK = /\b(summary|study guide|sparknotes|cliffsnotes|workbook|analysis of)\b/i;
+
+// Searches Open Library (Internet Archive), which covers far more books than Wikipedia and returns
+// author, first-publication year and a cover in one go. Exact title matches come first, then the
+// most-published works, so the real book beats omnibuses and knock-offs.
+async function searchOpenLibrary(title: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
+  // title= rather than q= — a general query also matches quotes and subjects (q=Project Hail Mary finds Shakespeare).
+  const params = new URLSearchParams({ title, fields: "key,title,author_name,first_publish_year,cover_i,edition_count", limit: "15" });
+  const res = await fetch(`https://openlibrary.org/search.json?${params}`, { signal });
+  if (!res.ok) return [];
+  const docs = ((await res.json())?.docs ?? []) as OpenLibraryDoc[];
+  const wanted = title.trim().toLowerCase();
+  return docs
+    // Entries with neither an author nor a cover are near-empty duplicates of the real work.
+    .filter(d => /^\/works\/OL\d+W$/.test(d.key) && !OPEN_LIBRARY_JUNK.test(d.title) && (d.author_name?.length || d.cover_i))
+    .map((d, index) => ({ d, index, exact: d.title.trim().toLowerCase() === wanted ? 1 : 0 }))
+    .sort((a, b) => b.exact - a.exact || (b.d.edition_count ?? 0) - (a.d.edition_count ?? 0) || a.index - b.index)
+    .slice(0, 6)
+    .map(({ d }) => {
+      // Only the first listed author: Open Library often appends translators and editors to author_name.
+      const creator = d.author_name?.[0] ?? null;
+      const year = d.first_publish_year ?? null;
+      return {
+        source: "openlibrary" as const,
+        url: `https://openlibrary.org${d.key}`,
+        label: d.title,
+        description: [creator, year].filter(Boolean).join(", "),
+        imageUrl: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg` : null,
+        wikiTitle: null,
+        wikidataId: null,
+        details: { creator, year },
+      };
+    });
+}
+
+// Candidates for the editor's dropdown, best first. Books search Open Library as well as Wikipedia
+// (plenty of books have no Wikipedia page); everything else uses Wikipedia.
+export async function searchMatches(title: string, typeName: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
+  if (typeName.trim().toLowerCase() !== "book") return searchWikipedia(title, typeName, signal);
+  // Either source failing (or being slow to answer) shouldn't hide the other's results.
+  const [books, pages] = await Promise.all([
+    searchOpenLibrary(title, signal).catch(rethrowAbort),
+    searchWikipedia(title, typeName, signal).catch(rethrowAbort),
+  ]);
+  return [...books, ...pages.slice(0, 4)];
+}
+
+function rethrowAbort(e: unknown): MatchCandidate[] {
+  if ((e as Error).name === "AbortError") throw e;
+  return [];
+}
+
+// Creator and year for the chosen match: Open Library results already carry them; Wikipedia pages
+// look them up on Wikidata.
+export async function fetchMatchDetails(c: MatchCandidate, typeName: string, signal?: AbortSignal): Promise<MatchDetails> {
+  if (c.details) return c.details;
+  if (!c.wikidataId) return { creator: null, year: null };
+  return fetchWikiDetails(c.wikidataId, typeName, signal);
 }
 
 type WikidataClaim = { mainsnak: { datavalue?: { value: { id?: string; time?: string } } } };
@@ -176,7 +265,7 @@ async function wikidataEntities(ids: string[], props: string, signal?: AbortSign
 // Who made it (author / director / creator…) and the year, from the page's Wikidata item. For each,
 // the first property on the type's list that has values wins; the earliest year is used, since
 // films list a release date per country.
-export async function fetchWikiDetails(wikidataId: string, typeName: string, signal?: AbortSignal): Promise<WikiDetails> {
+async function fetchWikiDetails(wikidataId: string, typeName: string, signal?: AbortSignal): Promise<MatchDetails> {
   const profile = wikiProfile(typeName);
   const entity = (await wikidataEntities([wikidataId], "claims", signal))[wikidataId];
   const values = (prop: string) => (entity?.claims?.[prop] ?? []).map(c => c.mainsnak.datavalue?.value).filter(v => v !== undefined);

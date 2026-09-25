@@ -7,8 +7,8 @@
   <article v-else class="rv-detail">
     <div>
       <ReviewCover :image-url="review.imageUrl" :icon="review.typeIcon" :title="review.title" large />
-      <a v-if="review.wikiTitle" class="rv-wikilink" :href="`https://en.wikipedia.org/wiki/${encodeURIComponent(review.wikiTitle.replace(/ /g, '_'))}`" target="_blank" rel="noopener noreferrer">
-        Wikipedia: {{ review.wikiTitle }} ↗
+      <a v-if="source" class="rv-wikilink" :href="source.url" target="_blank" rel="noopener noreferrer">
+        {{ source.name }}<template v-if="review.wikiTitle">: {{ review.wikiTitle }}</template> ↗
       </a>
     </div>
     <div>
@@ -39,9 +39,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { progressLabel, creditLine, authorName, formatReviewDate, type Review } from "./api";
+import { progressLabel, creditLine, matchSource, authorName, formatReviewDate, type Review } from "./api";
 import ReviewCover from "./ReviewCover.vue";
 import StarRating from "./StarRating.vue";
 import TypeChip from "./TypeChip.vue";
@@ -51,6 +51,7 @@ const router = useRouter();
 const review = ref<Review | null>(null);
 const loading = ref(true);
 const deleting = ref(false);
+const source = computed(() => review.value ? matchSource(review.value) : null);
 
 onMounted(async () => {
   const res = await fetch(`/api/reviews/${route.params.id}`);

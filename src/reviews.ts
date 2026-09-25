@@ -47,13 +47,21 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   const summary = typeof b.summary === "string" ? b.summary.trim().slice(0, 1000) : "";
   const cleanedBody = typeof b.bodyHtml === "string" ? sanitizeHtml(b.bodyHtml, SANITIZE_OPTS).trim() : "";
   const bodyHasText = sanitizeHtml(cleanedBody, { allowedTags: [], allowedAttributes: {} }).trim().length > 0;
-  // Images are only ever hotlinked from Wikimedia, which is where the Wikipedia lookup points.
-  const imageUrl = typeof b.imageUrl === "string" && /^https:\/\/(upload|thumb)\.wikimedia\.org\/[^\s"'<>]+$/.test(b.imageUrl) ? b.imageUrl : null;
+  // Images are only ever hotlinked from where the lookups point: Wikimedia and Open Library covers.
+  const imageUrl = typeof b.imageUrl === "string" && (
+    /^https:\/\/(upload|thumb)\.wikimedia\.org\/[^\s"'<>]+$/.test(b.imageUrl) ||
+    /^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-[SML]\.jpg$/.test(b.imageUrl)
+  ) ? b.imageUrl : null;
+  // The page the review was matched to: a Wikipedia article or an Open Library work.
+  const sourceUrl = typeof b.sourceUrl === "string" && (
+    /^https:\/\/en\.wikipedia\.org\/wiki\/[^\s"'<>]+$/.test(b.sourceUrl) ||
+    /^https:\/\/openlibrary\.org\/works\/OL\d+W$/.test(b.sourceUrl)
+  ) ? b.sourceUrl : null;
   const wikiTitle = typeof b.wikiTitle === "string" && b.wikiTitle.trim() ? b.wikiTitle.trim().slice(0, 300) : null;
   const creator = typeof b.creator === "string" && b.creator.trim() ? b.creator.trim().slice(0, 200) : null;
   const rawYear = b.year === null || b.year === undefined || b.year === "" ? null : Number(b.year);
   if (rawYear !== null && (!Number.isInteger(rawYear) || rawYear < 0 || rawYear > 3000)) return "Year must be a whole number";
-  return { title, typeId, rating, progress, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null, imageUrl, wikiTitle, creator, year: rawYear };
+  return { title, typeId, rating, progress, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null, imageUrl, wikiTitle, creator, year: rawYear, sourceUrl };
 }
 
 function canModify(userId: string, reviewUserId: string): boolean {
