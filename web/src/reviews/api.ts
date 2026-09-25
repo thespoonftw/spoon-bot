@@ -23,6 +23,8 @@ export interface Review {
   creator: string | null;
   year: number | null;
   sourceUrl: string | null;
+  season: number | null;
+  platform: string | null;
   createdAt: string;
   updatedAt: string;
   authorName: string;
@@ -31,10 +33,11 @@ export interface Review {
   canEdit?: boolean;
 }
 
-export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyHtml" | "imageUrl" | "wikiTitle" | "creator" | "sourceUrl"> & { typeId: number | null; rating: number | null; year: number | string | null };
+export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyHtml" | "imageUrl" | "wikiTitle" | "creator" | "sourceUrl" | "platform"> & { typeId: number | null; rating: number | null; year: number | string | null; season: number | null };
 
-// "Frank Herbert · 1965", or whichever half is known.
-export const creditLine = (r: { creator: string | null; year: number | null }) => [r.creator, r.year].filter(Boolean).join(" · ");
+// "Frank Herbert · 1965", "Season 2 · 2023", "Nintendo Switch · 2020" — whichever parts are known.
+export const creditLine = (r: { creator: string | null; year: number | null; season?: number | null; platform?: string | null }) =>
+  [r.creator, r.season != null ? `Season ${r.season}` : null, r.platform, r.year].filter(Boolean).join(" · ");
 
 export type MatchSource = "openlibrary" | "tvmaze" | "wikipedia";
 export const SOURCE_NAMES: Record<MatchSource, string> = { openlibrary: "Open Library", tvmaze: "TVmaze", wikipedia: "Wikipedia" };
@@ -94,7 +97,49 @@ export interface MatchCandidate {
   wikidataId: string | null;  // Wikipedia pages only — creator/year are looked up from it on selection
   details: MatchDetails | null; // Open Library: year and first author from the search (full author list is fetched on selection)
 }
-export interface MatchDetails { creator: string | null; year: number | null }
+export interface MatchDetails { creator: string | null; year: number | null; platforms?: string[] }
+
+// The optional extra detail some types have: which season of a series, or which platform a game was
+// played on.
+export type TypeExtra = "season" | "platform";
+export function typeExtra(typeName: string): TypeExtra | null {
+  const key = typeName.trim().toLowerCase();
+  return key === "series" ? "season" : key === "video game" ? "platform" : null;
+}
+
+// Offered for every game, after the platforms the matched game was actually released on.
+export const COMMON_PLATFORMS = [
+  "PC", "Mac", "PlayStation 5", "PlayStation 4", "Xbox Series X|S", "Xbox One",
+  "Nintendo Switch 2", "Nintendo Switch", "Steam Deck", "iOS", "Android", "Meta Quest",
+];
+// Wikidata's names for platforms, where people would say something shorter.
+const PLATFORM_ALIASES: Record<string, string> = {
+  "Microsoft Windows": "PC", "Windows": "PC", "macOS": "Mac", "Classic Mac OS": "Mac",
+  "Xbox Series X and Series S": "Xbox Series X|S", "Xbox Series X/S": "Xbox Series X|S",
+  "Nintendo Switch 2": "Nintendo Switch 2", "iPadOS": "iOS", "Oculus Quest": "Meta Quest",
+};
+const normalizePlatform = (name: string) => PLATFORM_ALIASES[name] ?? name;
+
+export interface SeasonOption { number: number; year: number | null; imageUrl: string | null }
+
+// A TVmaze show's seasons (from its show URL), for the season dropdown.
+export async function fetchTvmazeSeasons(showUrl: string, signal?: AbortSignal): Promise<SeasonOption[]> {
+  const id = showUrl.match(/^https:\/\/www\.tvmaze\.com\/shows\/(\d+)\//)?.[1];
+  if (!id) return [];
+  const res = await fetch(`https://api.tvmaze.com/shows/${id}/seasons`, { signal });
+  if (!res.ok) return [];
+  const seasons = (await res.json()) as { number: number | null; premiereDate: string | null; image?: { original?: string; medium?: string } | null }[];
+  return seasons
+    .filter((s): s is typeof s & { number: number } => typeof s.number === "number")
+    .map(s => {
+      const image = s.image?.original ?? s.image?.medium ?? null;
+      return {
+        number: s.number,
+        year: s.premiereDate ? Number(s.premiereDate.slice(0, 4)) : null,
+        imageUrl: image?.startsWith("https://static.tvmaze.com/") ? image : null,
+      };
+    });
+}
 
 // How to match each type on Wikipedia/Wikidata:
 //  - hint/suffixes/match: search hint, the page-name suffixes Wikipedia disambiguates with, and words
@@ -297,13 +342,21 @@ export async function fetchMatchDetails(c: MatchCandidate, typeName: string, sig
 }
 
 type WikidataClaim = { mainsnak: { datavalue?: { value: { id?: string; time?: string } } } };
-type WikidataEntity = { claims?: Record<string, WikidataClaim[]>; labels?: { en?: { value: string } } };
+// English name, or the language-neutral one — Wikidata keeps brand names like "Nintendo Switch" or
+// "PlayStation 4" only under "mul", with no English label at all.
+const labelOf = (e: WikidataEntity | undefined) => e?.labels?.en?.value ?? e?.labels?.mul?.value ?? null;
+
+type WikidataEntity = { claims?: Record<string, WikidataClaim[]>; labels?: { en?: { value: string }; mul?: { value: string } }; redirects?: { from: string; to: string } };
 
 async function wikidataEntities(ids: string[], props: string, signal?: AbortSignal): Promise<Record<string, WikidataEntity>> {
-  const params = new URLSearchParams({ action: "wbgetentities", format: "json", origin: "*", ids: ids.join("|"), props, languages: "en" });
+  const params = new URLSearchParams({ action: "wbgetentities", format: "json", origin: "*", ids: ids.join("|"), props, languages: "en|mul" });
   const res = await fetch(`https://www.wikidata.org/w/api.php?${params}`, { signal });
   if (!res.ok) return {};
-  return (await res.json())?.entities ?? {};
+  // Merged items come back keyed by their new id (with `redirects.from` holding the one we asked
+  // for), so index them under both — otherwise lookups by the requested id silently miss them.
+  const entities = ((await res.json())?.entities ?? {}) as Record<string, WikidataEntity>;
+  for (const e of Object.values(entities)) if (e.redirects?.from) entities[e.redirects.from] = e;
+  return entities;
 }
 
 // Who made it (author / director / creator…) and the year, from the page's Wikidata item. For each,
@@ -325,9 +378,17 @@ async function fetchWikiDetails(wikidataId: string, typeName: string, signal?: A
     const ids = values(prop).map(v => v!.id).filter((id): id is string => !!id).slice(0, 3);
     if (!ids.length) continue;
     const people = await wikidataEntities(ids, "labels", signal);
-    const names = ids.map(id => people[id]?.labels?.en?.value).filter((n): n is string => !!n);
+    const names = ids.map(id => labelOf(people[id])).filter((n): n is string => !!n);
     if (names.length) { creator = names.length > 2 ? `${names.slice(0, -1).join(", ")} & ${names.at(-1)}` : names.join(" & "); break; }
   }
 
-  return { creator, year };
+  // Games: the platforms it was released on (P400), for the platform dropdown.
+  let platforms: string[] | undefined;
+  if (typeExtra(typeName) === "platform") {
+    const ids = values("P400").map(v => v!.id).filter((id): id is string => !!id).slice(0, 40);
+    const labels = ids.length ? await wikidataEntities(ids, "labels", signal) : {};
+    platforms = [...new Set(ids.map(id => labelOf(labels[id])).filter((n): n is string => !!n).map(normalizePlatform))];
+  }
+
+  return { creator, year, platforms };
 }

@@ -38,7 +38,7 @@
           </thead>
           <tbody>
             <tr v-for="r in g.reviews" :key="r.id" @click="router.push(`/reviews/${r.id}`)">
-              <td class="rv-table-title"><router-link :to="`/reviews/${r.id}`" @click.stop>{{ r.title }}</router-link></td>
+              <td class="rv-table-title"><router-link :to="`/reviews/${r.id}`" @click.stop>{{ r.title }}</router-link><span v-if="r.season != null || r.platform" class="rv-table-extra">{{ r.season != null ? `Season ${r.season}` : r.platform }}</span></td>
               <td v-if="creatorLabel(g.typeName)" class="rv-muted">{{ r.creator ?? "" }}</td>
               <td class="rv-muted num">{{ r.year ?? "" }}</td>
               <td><StarRating :model-value="r.rating" /></td>

@@ -177,6 +177,7 @@ body.rv-body {
 .rv-table--clickable tbody tr:hover td { background: var(--rv-paper); }
 .rv-table-title { font: 600 1.02rem var(--rv-serif); }
 .rv-table-title a { text-decoration: none; }
+.rv-table-extra { font: 0.8rem var(--rv-sans); color: var(--rv-muted); margin-left: 8px; }
 .rv-profile-head { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
 .rv-profile-group { margin-bottom: 32px; }
 .rv-profile-group-title { display: flex; align-items: center; gap: 10px; margin-bottom: 10px !important; font: 600 0.9rem var(--rv-sans) !important; }

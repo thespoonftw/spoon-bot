@@ -102,6 +102,8 @@ export function initDb() {
       wiki_title  TEXT,
       creator     TEXT,
       source_url  TEXT,
+      season      INTEGER,
+      platform    TEXT,
       year        INTEGER,
       created_at  TEXT NOT NULL,
       updated_at  TEXT NOT NULL
@@ -146,6 +148,8 @@ export function initDb() {
     "ALTER TABLE reviews ADD COLUMN creator TEXT",
     "ALTER TABLE reviews ADD COLUMN year INTEGER",
     "ALTER TABLE reviews ADD COLUMN source_url TEXT",
+    "ALTER TABLE reviews ADD COLUMN season INTEGER",
+    "ALTER TABLE reviews ADD COLUMN platform TEXT",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
@@ -794,6 +798,7 @@ export type ReviewInput = {
   title: string; typeId: number; rating: number; progress: string;
   summary: string | null; bodyHtml: string | null; imageUrl: string | null; wikiTitle: string | null;
   creator: string | null; year: number | null; sourceUrl: string | null;
+  season: number | null; platform: string | null;
 };
 export type ReviewRow = ReviewInput & {
   id: number; userId: string; createdAt: string; updatedAt: string;
@@ -831,7 +836,7 @@ export function dbCreateReviewType(name: string, icon: string, createdBy: string
 
 const REVIEW_SELECT = `
   SELECT r.id, r.user_id AS userId, r.title, r.type_id AS typeId, r.rating, r.progress,
-         r.summary, r.body_html AS bodyHtml, r.image_url AS imageUrl, r.wiki_title AS wikiTitle, r.creator, r.year, r.source_url AS sourceUrl,
+         r.summary, r.body_html AS bodyHtml, r.image_url AS imageUrl, r.wiki_title AS wikiTitle, r.creator, r.year, r.source_url AS sourceUrl, r.season, r.platform,
          r.created_at AS createdAt, r.updated_at AS updatedAt,
          t.name AS typeName, t.icon AS typeIcon, t.color AS typeColor,
          COALESCE(u.display_name, r.user_id) AS authorName, u.first_name AS authorFirstName, u.avatar_url AS authorAvatarUrl
@@ -857,17 +862,17 @@ export function dbGetReview(id: number): ReviewRow | undefined {
 export function dbCreateReview(userId: string, r: ReviewInput): ReviewRow {
   const now = new Date().toISOString();
   const info = db.prepare(`
-    INSERT INTO reviews (user_id, title, type_id, rating, progress, summary, body_html, image_url, wiki_title, creator, year, source_url, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(userId, r.title, r.typeId, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, r.creator, r.year, r.sourceUrl, now, now);
+    INSERT INTO reviews (user_id, title, type_id, rating, progress, summary, body_html, image_url, wiki_title, creator, year, source_url, season, platform, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(userId, r.title, r.typeId, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, r.creator, r.year, r.sourceUrl, r.season, r.platform, now, now);
   return dbGetReview(Number(info.lastInsertRowid))!;
 }
 
 export function dbUpdateReview(id: number, r: ReviewInput): ReviewRow | undefined {
   db.prepare(`
-    UPDATE reviews SET title = ?, type_id = ?, rating = ?, progress = ?, summary = ?, body_html = ?, image_url = ?, wiki_title = ?, creator = ?, year = ?, source_url = ?, updated_at = ?
+    UPDATE reviews SET title = ?, type_id = ?, rating = ?, progress = ?, summary = ?, body_html = ?, image_url = ?, wiki_title = ?, creator = ?, year = ?, source_url = ?, season = ?, platform = ?, updated_at = ?
     WHERE id = ?
-  `).run(r.title, r.typeId, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, r.creator, r.year, r.sourceUrl, new Date().toISOString(), id);
+  `).run(r.title, r.typeId, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, r.creator, r.year, r.sourceUrl, r.season, r.platform, new Date().toISOString(), id);
   return dbGetReview(id);
 }
 

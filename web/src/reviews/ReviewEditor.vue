@@ -45,6 +45,25 @@
           <label class="rv-label" for="rv-creator">{{ creatorFieldLabel }}</label>
           <input id="rv-creator" v-model="draft.creator" class="rv-input" maxlength="200" autocomplete="off" @input="autoFilled.creator = false" />
         </div>
+        <div v-if="extra === 'season' && seasonOptions.length" class="rv-field">
+          <label class="rv-label" for="rv-season">Season</label>
+          <select id="rv-season" class="rv-select" :value="draft.season ?? ''" @change="onSeasonChange">
+            <option value="">Whole series</option>
+            <option v-for="s in seasonOptions" :key="s.number" :value="s.number">Season {{ s.number }}{{ s.year ? ` (${s.year})` : "" }}</option>
+          </select>
+        </div>
+        <div v-if="extra === 'platform'" class="rv-field">
+          <label class="rv-label" for="rv-platform">Platform</label>
+          <select id="rv-platform" v-model="draft.platform" class="rv-select">
+            <option :value="null">Not specified</option>
+            <optgroup v-if="gamePlatforms.length" label="Released on">
+              <option v-for="p in gamePlatforms" :key="p" :value="p">{{ p }}</option>
+            </optgroup>
+            <optgroup :label="gamePlatforms.length ? 'Other platforms' : 'Platforms'">
+              <option v-for="p in otherPlatforms" :key="p" :value="p">{{ p }}</option>
+            </optgroup>
+          </select>
+        </div>
       </div>
       <p v-if="detailsStatus" class="rv-hint" style="margin: -14px 0 18px">{{ detailsStatus }}</p>
 
@@ -87,7 +106,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { PROGRESS_OPTIONS, SOURCE_NAMES, searchMatches, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource } from "./api";
+import { PROGRESS_OPTIONS, SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
 import StarRating from "./StarRating.vue";
 import RichTextEditor from "./RichTextEditor.vue";
 import ReviewCover from "./ReviewCover.vue";
@@ -99,6 +118,7 @@ const isEdit = computed(() => route.params.id !== undefined);
 const draft = reactive<ReviewDraft>({
   title: "", typeId: null, rating: null, progress: "finished",
   summary: "", bodyHtml: "", imageUrl: null, wikiTitle: null, sourceUrl: null, creator: "", year: "",
+  season: null, platform: null,
 });
 const bodyHtml = computed({ get: () => draft.bodyHtml ?? "", set: (v: string) => { draft.bodyHtml = v; } });
 const loading = ref(isEdit.value);
@@ -110,6 +130,39 @@ const types = ref<ReviewType[]>([]);
 const selectedType = computed(() => types.value.find(t => t.id === draft.typeId) ?? null);
 // null for types without a creator field (films and series).
 const creatorFieldLabel = computed(() => creatorLabel(selectedType.value?.name ?? ""));
+// "season" for series, "platform" for video games, null otherwise.
+const extra = computed(() => typeExtra(selectedType.value?.name ?? ""));
+
+// --- Season (series): the matched TVmaze show's seasons. Picking one moves the year and cover to
+// that season; "Whole series" goes back to the show's own.
+const seasonOptions = ref<SeasonOption[]>([]);
+let seasonsInflight: AbortController | null = null;
+
+async function loadSeasons(showUrl: string | null) {
+  seasonsInflight?.abort();
+  seasonOptions.value = [];
+  if (!showUrl?.startsWith("https://www.tvmaze.com/")) return;
+  seasonsInflight = new AbortController();
+  try { seasonOptions.value = await fetchTvmazeSeasons(showUrl, seasonsInflight.signal); } catch { /* aborted or offline: no season picker */ }
+}
+
+function onSeasonChange(e: Event) {
+  const value = (e.target as HTMLSelectElement).value;
+  draft.season = value === "" ? null : Number(value);
+  const season = seasonOptions.value.find(s => s.number === draft.season) ?? null;
+  const show = selectedCandidate.value;
+  if (autoFilled.year) draft.year = season?.year ?? show?.details?.year ?? draft.year;
+  draft.imageUrl = season?.imageUrl ?? show?.imageUrl ?? draft.imageUrl;
+}
+
+// --- Platform (video games): the matched game's platforms first, then the usual suspects. A saved
+// platform that's in neither list is kept as an option so editing doesn't lose it.
+const gamePlatforms = ref<string[]>([]);
+const otherPlatforms = computed(() => {
+  const others = COMMON_PLATFORMS.filter(p => !gamePlatforms.value.includes(p));
+  if (draft.platform && !gamePlatforms.value.includes(draft.platform) && !others.includes(draft.platform)) others.unshift(draft.platform);
+  return others;
+});
 
 // --- Match: re-searches as the title/type change and auto-selects the best page until the user picks
 // one. The chosen page (Wikipedia, or Open Library for books) supplies the cover, creator and year.
@@ -172,6 +225,11 @@ async function applyPage(c: MatchCandidate | null) {
   draft.sourceUrl = c?.url ?? null;
   draft.wikiTitle = c?.wikiTitle ?? null;
   draft.imageUrl = c?.imageUrl ?? null;
+  // A different show/game: its seasons and platforms replace the old ones, and a season no longer
+  // applies. (The chosen platform is about how you played it, so it stays.)
+  draft.season = null;
+  gamePlatforms.value = [];
+  loadSeasons(c?.source === "tvmaze" ? c.url : null);
   detailsInflight?.abort();
   detailsStatus.value = "";
   if (!c) return;
@@ -180,6 +238,7 @@ async function applyPage(c: MatchCandidate | null) {
   try {
     const d = await fetchMatchDetails(c, selectedType.value?.name ?? "", detailsInflight.signal);
     fillDetails(d.creator, d.year);
+    gamePlatforms.value = d.platforms ?? [];
     detailsStatus.value = "";
   } catch (e) {
     if ((e as Error).name !== "AbortError") detailsStatus.value = "Couldn't get the details — fill them in yourself.";
@@ -195,7 +254,7 @@ watch(() => [draft.title, draft.typeId], () => {
   clearTimeout(debounce);
   debounce = setTimeout(lookup, 600);
 });
-onUnmounted(() => { clearTimeout(debounce); searchInflight?.abort(); detailsInflight?.abort(); });
+onUnmounted(() => { clearTimeout(debounce); searchInflight?.abort(); detailsInflight?.abort(); seasonsInflight?.abort(); });
 
 onMounted(async () => {
   types.value = await fetchReviewTypes();
@@ -214,8 +273,9 @@ onMounted(async () => {
     title: r.title, typeId: r.typeId, rating: r.rating, progress: r.progress,
     summary: r.summary ?? "", bodyHtml: r.bodyHtml ?? "", imageUrl: r.imageUrl, wikiTitle: r.wikiTitle,
     sourceUrl: matchSource(r)?.url ?? null,
-    creator: r.creator ?? "", year: r.year ?? "",
+    creator: r.creator ?? "", year: r.year ?? "", season: r.season, platform: r.platform,
   });
+  loadSeasons(draft.sourceUrl);
   loading.value = false;
 });
 
@@ -228,7 +288,13 @@ async function save() {
   const res = await fetch(isEdit.value ? `/api/reviews/${route.params.id}` : "/api/reviews", {
     method: isEdit.value ? "PUT" : "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...draft, creator: creatorFieldLabel.value ? draft.creator : null }),
+    // Only send the fields this type actually shows.
+    body: JSON.stringify({
+      ...draft,
+      creator: creatorFieldLabel.value ? draft.creator : null,
+      season: extra.value === "season" ? draft.season : null,
+      platform: extra.value === "platform" ? draft.platform : null,
+    }),
   });
   const data = await res.json().catch(() => ({}));
   saving.value = false;

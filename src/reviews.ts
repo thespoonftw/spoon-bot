@@ -63,7 +63,11 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   const creator = typeof b.creator === "string" && b.creator.trim() ? b.creator.trim().slice(0, 200) : null;
   const rawYear = b.year === null || b.year === undefined || b.year === "" ? null : Number(b.year);
   if (rawYear !== null && (!Number.isInteger(rawYear) || rawYear < 0 || rawYear > 3000)) return "Year must be a whole number";
-  return { title, typeId, rating, progress, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null, imageUrl, wikiTitle, creator, year: rawYear, sourceUrl };
+  // Season (series) and platform (video games) are optional extras; null means "not specified".
+  const season = b.season === null || b.season === undefined || b.season === "" ? null : Number(b.season);
+  if (season !== null && (!Number.isInteger(season) || season < 0 || season > 500)) return "Season must be a whole number";
+  const platform = typeof b.platform === "string" && b.platform.trim() ? b.platform.trim().slice(0, 60) : null;
+  return { title, typeId, rating, progress, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null, imageUrl, wikiTitle, creator, year: rawYear, sourceUrl, season, platform };
 }
 
 function canModify(userId: string, reviewUserId: string): boolean {
