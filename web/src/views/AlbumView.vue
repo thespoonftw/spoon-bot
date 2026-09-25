@@ -48,7 +48,7 @@
           <span class="album-section-count">📷 {{ totalSortedCount }}</span>
           <template v-if="album.photos.length > 0">
             <label class="sort-label" style="margin-left: auto">Sort By:</label>
-            <select v-model="sortBy" class="sort-select" @change="onSortChange">
+            <select v-model="sortBy" class="sort-select">
               <option value="popular">Popularity</option>
               <option v-if="album.startDate" value="date">Date</option>
               <option v-if="album.locations && album.locations.length > 1" value="location">Location</option>
@@ -208,13 +208,8 @@ const siteGroups = ref<SiteGroup[]>([]);
 // allMembers is populated by MembersModal when it opens; used for getTaggedMembers
 const allMembers = ref<Member[]>([]);
 
-const SORT_KEY = 'snek_sort_by';
-const VALID_SORTS = new Set(['popular', 'date', 'location', 'uploader', 'newest', 'tagging']);
-const sortBy = ref<'popular' | 'date' | 'location' | 'uploader' | 'newest' | 'tagging'>(
-  (VALID_SORTS.has(sessionStorage.getItem(SORT_KEY) ?? '') ? sessionStorage.getItem(SORT_KEY) : 'popular') as any
-);
+const sortBy = ref<'popular' | 'date' | 'location' | 'uploader' | 'newest' | 'tagging'>('popular');
 watch(sortBy, () => { displayLimit.value = 40; });
-function onSortChange() { sessionStorage.setItem(SORT_KEY, sortBy.value); }
 const displayLimit = ref(40);
 const currentUserId = ref<string | null>(null);
 const tagFilterUserId = ref<string>('__nobody__');
@@ -332,7 +327,6 @@ const priorityLocId = ref<number | null>(null);
 function jumpToPhotos(locId: number) {
   priorityLocId.value = locId;
   sortBy.value = 'location';
-  sessionStorage.setItem(SORT_KEY, 'location');
 }
 let observer: IntersectionObserver | null = null;
 
@@ -353,7 +347,13 @@ watch(hasMore, async (val) => {
 
 const byName = (a: Member, b: Member) => (a.firstName || a.displayName).localeCompare(b.firstName || b.displayName);
 
-onMounted(async () => {
+async function loadAlbum() {
+  loading.value = true;
+  album.value = null;
+  sortBy.value = 'popular';
+  priorityLocId.value = null;
+  tagFilterUserId.value = '__nobody__';
+
   const [albumRes, checkRes, groupsRes] = await Promise.all([
     fetch(`/api/album/${route.params.channelId}`, { headers: authHeaders() }),
     fetch(`/api/auth/check`, { headers: authHeaders() }),
@@ -370,10 +370,6 @@ onMounted(async () => {
       sortBy.value = 'location';
       const locId = parseInt(route.query.loc as string);
       if (!isNaN(locId)) priorityLocId.value = locId;
-    } else if (sortBy.value === 'location' && !hasMultipleLocations) {
-      sortBy.value = 'popular';
-    } else if (sortBy.value === 'date' && !data.startDate) {
-      sortBy.value = 'popular';
     }
   }
   if (checkRes.ok) {
@@ -383,7 +379,10 @@ onMounted(async () => {
     tagFilterUserId.value = (userId && members.some(m => m.userId === userId)) ? userId : '__nobody__';
   }
   loading.value = false;
-});
+}
+
+onMounted(loadAlbum);
+watch(() => route.params.channelId, (_, oldId) => { if (oldId !== undefined) loadAlbum(); });
 
 function onAlbumSaved(updated: object) {
   if (album.value) album.value = { ...album.value, ...updated };
