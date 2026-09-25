@@ -52,6 +52,9 @@ export const PROGRESS_OPTIONS: { value: Progress; label: string }[] = [
   { value: "finished", label: "Finished" },
 ];
 
+// A word for each star rating, 0–5.
+export const RATING_LABELS = ["Awful", "Poor", "Weak", "Good", "Great", "Perfect"];
+
 export const progressLabel = (p: Progress) => PROGRESS_OPTIONS.find(o => o.value === p)?.label ?? p;
 export const authorName = (r: Review) => r.authorFirstName || r.authorName;
 
@@ -95,7 +98,7 @@ export interface MatchCandidate {
   imageUrl: string | null;
   wikiTitle: string | null;   // Wikipedia pages only
   wikidataId: string | null;  // Wikipedia pages only — creator/year are looked up from it on selection
-  details: MatchDetails | null; // Open Library results come with creator/year already
+  details: MatchDetails | null; // Open Library: year and first author from the search (full author list is fetched on selection)
 }
 export interface MatchDetails { creator: string | null; year: number | null }
 
@@ -109,19 +112,19 @@ type WikiProfile = { hint: string; suffixes: string[]; match: RegExp; creatorLab
 const GENERIC_CREATOR_PROPS = ["P50", "P57", "P170", "P178", "P175", "P86", "P943"]; // author, director, creator, developer, performer, composer, programmer
 const GENERIC_YEAR_PROPS = ["P577", "P580", "P571"]; // publication date, start time, inception
 const BUILT_IN_PROFILES: Record<string, WikiProfile> = {
-  book: { hint: "book", suffixes: ["", " (novel)", " (book)"], match: /\b(novel|novella|book|memoir|comic|manga|poem|non-fiction)\b/i, creatorLabel: "Author", creatorProps: ["P50", "P98"], yearProps: ["P577"] },
-  film: { hint: "film", suffixes: ["", " (film)"], match: /\b(film|movie)\b/i, creatorLabel: "Director", creatorProps: ["P57"], yearProps: ["P577"] },
-  series: { hint: "TV series", suffixes: ["", " (TV series)", " (miniseries)"], match: /\b(tv|television|series|miniseries|sitcom|anime|drama)\b/i, creatorLabel: "Creator", creatorProps: ["P170", "P57"], yearProps: ["P580", "P577"] },
+  book: { hint: "book", suffixes: ["", " (novel)", " (book)"], match: /\b(novel|novella|book|memoir|comic|manga|poem|non-fiction)\b/i, creatorLabel: "Author(s)", creatorProps: ["P50", "P98"], yearProps: ["P577"] },
+  film: { hint: "film", suffixes: ["", " (film)"], match: /\b(film|movie)\b/i, creatorLabel: "Director(s)", creatorProps: ["P57"], yearProps: ["P577"] },
+  series: { hint: "TV series", suffixes: ["", " (TV series)", " (miniseries)"], match: /\b(tv|television|series|miniseries|sitcom|anime|drama)\b/i, creatorLabel: "Creator(s)", creatorProps: ["P170", "P57"], yearProps: ["P580", "P577"] },
 };
 
 function wikiProfile(typeName: string): WikiProfile {
   const key = typeName.trim().toLowerCase();
   if (BUILT_IN_PROFILES[key]) return BUILT_IN_PROFILES[key];
   const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return { hint: key, suffixes: ["", ` (${key})`], match: new RegExp(`\\b${escaped}\\b`, "i"), creatorLabel: "Creator", creatorProps: GENERIC_CREATOR_PROPS, yearProps: GENERIC_YEAR_PROPS };
+  return { hint: key, suffixes: ["", ` (${key})`], match: new RegExp(`\\b${escaped}\\b`, "i"), creatorLabel: "Creator(s)", creatorProps: GENERIC_CREATOR_PROPS, yearProps: GENERIC_YEAR_PROPS };
 }
 
-// "Author" for books, "Director" for films, etc. — the label for the creator field.
+// "Author(s)" for books, "Director(s)" for films, etc. — the label for the creator field.
 export const creatorLabel = (typeName: string) => wikiProfile(typeName).creatorLabel;
 
 // Wikipedia's own ordering happily puts "The Hobbit (film series)" above the novel, so re-rank:
@@ -227,26 +230,39 @@ async function searchOpenLibrary(title: string, signal?: AbortSignal): Promise<M
     });
 }
 
-// Candidates for the editor's dropdown, best first. Books search Open Library as well as Wikipedia
-// (plenty of books have no Wikipedia page); everything else uses Wikipedia.
+// Candidates for the editor's dropdown, best first. Books use Open Library (plenty of books have no
+// Wikipedia page); everything else uses Wikipedia.
 export async function searchMatches(title: string, typeName: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
-  if (typeName.trim().toLowerCase() !== "book") return searchWikipedia(title, typeName, signal);
-  // Either source failing (or being slow to answer) shouldn't hide the other's results.
-  const [books, pages] = await Promise.all([
-    searchOpenLibrary(title, signal).catch(rethrowAbort),
-    searchWikipedia(title, typeName, signal).catch(rethrowAbort),
-  ]);
-  return [...books, ...pages.slice(0, 4)];
+  return typeName.trim().toLowerCase() === "book" ? searchOpenLibrary(title, signal) : searchWikipedia(title, typeName, signal);
 }
 
-function rethrowAbort(e: unknown): MatchCandidate[] {
-  if ((e as Error).name === "AbortError") throw e;
-  return [];
+// "Terry Pratchett & Neil Gaiman", "A, B & C".
+const joinNames = (names: string[]) => names.length > 2 ? `${names.slice(0, -1).join(", ")} & ${names.at(-1)}` : names.join(" & ");
+
+// All of a book's authors, from its Open Library work record. The search results' author list is
+// merged from every edition and so includes translators and editors; the work record is usually
+// just the real authors (though not always — some works list a translator too).
+async function fetchOpenLibraryAuthors(workUrl: string, signal?: AbortSignal): Promise<string | null> {
+  const res = await fetch(`${workUrl}.json`, { signal });
+  if (!res.ok) return null;
+  const work = await res.json() as { authors?: { author?: { key?: string } }[] };
+  const keys = (work.authors ?? []).map(a => a.author?.key).filter((k): k is string => !!k && /^\/authors\/OL\d+A$/.test(k)).slice(0, 4);
+  const names = await Promise.all(keys.map(async key => {
+    const r = await fetch(`https://openlibrary.org${key}.json`, { signal });
+    return r.ok ? ((await r.json()) as { name?: string }).name ?? null : null;
+  }));
+  const found = names.filter((n): n is string => !!n);
+  return found.length ? joinNames(found) : null;
 }
 
-// Creator and year for the chosen match: Open Library results already carry them; Wikipedia pages
-// look them up on Wikidata.
+// Creator and year for the chosen match. Books: the year comes with the search result and the
+// authors from the work record (falling back to the search's first author). Wikipedia pages look
+// both up on Wikidata.
 export async function fetchMatchDetails(c: MatchCandidate, typeName: string, signal?: AbortSignal): Promise<MatchDetails> {
+  if (c.source === "openlibrary") {
+    const authors = await fetchOpenLibraryAuthors(c.url, signal).catch(e => { if ((e as Error).name === "AbortError") throw e; return null; });
+    return { creator: authors ?? c.details?.creator ?? null, year: c.details?.year ?? null };
+  }
   if (c.details) return c.details;
   if (!c.wikidataId) return { creator: null, year: null };
   return fetchWikiDetails(c.wikidataId, typeName, signal);

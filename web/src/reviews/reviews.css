@@ -77,9 +77,10 @@ body.rv-body {
 .rv-stars--input button { background: none; border: none; cursor: pointer; font-size: 2rem; padding: 0 2px; color: var(--rv-star-empty); line-height: 1; transition: transform 0.1s; }
 .rv-stars--input button.on { color: var(--rv-star); }
 .rv-stars--input button:hover { transform: scale(1.12); }
-.rv-stars--input .rv-stars-zero { font: 600 0.8rem var(--rv-sans); border: 1.5px solid var(--rv-rule); border-radius: 999px; padding: 5px 10px; color: var(--rv-muted); margin-right: 8px; }
-.rv-stars--input .rv-stars-zero.on { border-color: var(--rv-ink); background: var(--rv-ink); color: var(--rv-paper); }
-.rv-stars--input .rv-stars-zero:hover { transform: none; }
+.rv-stars--input { gap: 14px; flex-wrap: wrap; }
+.rv-rating-label { font: italic 600 1rem var(--rv-serif); color: var(--rv-ink-soft); margin-left: 8px; }
+.rv-stars--input .rv-rating-label { margin-left: 0; min-width: 5em; }
+.rv-rating-label--hint { font: 0.85rem var(--rv-sans); font-style: normal; color: var(--rv-muted); }
 
 /* Filters */
 .rv-filters { display: flex; gap: 22px; margin-bottom: 24px; border-bottom: 1px solid var(--rv-rule); flex-wrap: wrap; }

@@ -215,7 +215,7 @@ async function applyPage(c: MatchCandidate | null) {
   detailsStatus.value = "";
   if (!c) return;
   detailsInflight = new AbortController();
-  if (!c.details) detailsStatus.value = "Getting details…";
+  detailsStatus.value = "Getting details…";
   try {
     const d = await fetchMatchDetails(c, selectedType.value?.name ?? "", detailsInflight.signal);
     fillDetails(d.creator, d.year);
@@ -262,7 +262,7 @@ async function save() {
   error.value = "";
   if (!draft.title.trim()) { error.value = "Give it a title."; return; }
   if (draft.typeId === null) { error.value = "Pick a type."; return; }
-  if (draft.rating === null) { error.value = "Pick a star rating (0 is allowed)."; return; }
+  if (draft.rating === null) { error.value = "Pick a star rating."; return; }
   saving.value = true;
   const res = await fetch(isEdit.value ? `/api/reviews/${route.params.id}` : "/api/reviews", {
     method: isEdit.value ? "PUT" : "POST",

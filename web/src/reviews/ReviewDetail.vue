@@ -16,7 +16,7 @@
       <h1 class="rv-detail-title">{{ review.title }}</h1>
       <p v-if="creditLine(review)" class="rv-credit rv-credit--large">{{ creditLine(review) }}</p>
       <div class="rv-detail-meta">
-        <StarRating :model-value="review.rating" />
+        <StarRating :model-value="review.rating" with-label />
         <span class="rv-progress" :class="`rv-progress--${review.progress}`" style="font-size: 0.95rem">{{ progressLabel(review.progress) }}</span>
       </div>
       <div class="rv-byline">
