@@ -147,8 +147,16 @@ body.rv-body {
 
 /* Editor layout */
 .rv-editor { display: grid; grid-template-columns: 1fr 280px; gap: 40px; align-items: start; }
-@media (max-width: 860px) { .rv-editor { grid-template-columns: 1fr; gap: 8px; } .rv-editor-side { order: -1; } }
 .rv-editor-side { position: sticky; top: 20px; }
+/* Mobile: one column, cover after the title/type fields and no longer sticky (it floated over the
+   form while scrolling). Lead fields and the cover share order -1, so DOM order puts the cover last. */
+@media (max-width: 860px) {
+  .rv-editor { grid-template-columns: 1fr; gap: 0; }
+  .rv-editor-main { display: contents; }
+  .rv-editor-lead { order: -1; }
+  .rv-editor-side { position: static; order: -1; margin-bottom: 22px; }
+  .rv-editor-side .rv-picker-main { max-width: 180px; }
+}
 .rv-editor-row { display: flex; gap: 24px; flex-wrap: wrap; }
 .rv-editor-row > .rv-field { flex: 1; min-width: 200px; }
 .rv-editor-foot { display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--rv-rule); padding-top: 20px; margin-top: 8px; }

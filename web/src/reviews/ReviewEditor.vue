@@ -1,15 +1,17 @@
 <template>
   <p v-if="loading" class="rv-loading">Loading…</p>
   <form v-else class="rv-editor" @submit.prevent="save">
-    <div>
-      <p v-if="error" class="rv-error">{{ error }}</p>
+    <!-- On mobile this wrapper dissolves (display: contents) so the cover can sit between the
+         rv-editor-lead fields (title, type) and the rest. -->
+    <div class="rv-editor-main">
+      <p v-if="error" class="rv-error rv-editor-lead">{{ error }}</p>
 
-      <div class="rv-field">
+      <div class="rv-field rv-editor-lead">
         <label class="rv-label" for="rv-title">Title</label>
         <input id="rv-title" v-model="draft.title" class="rv-input rv-input--title" maxlength="200" placeholder="What are you reviewing?" autocomplete="off" />
       </div>
 
-      <div class="rv-editor-row">
+      <div class="rv-editor-row rv-editor-lead">
         <div class="rv-field">
           <label class="rv-label" for="rv-type">Type</label>
           <select id="rv-type" v-model="draft.typeId" class="rv-select">
