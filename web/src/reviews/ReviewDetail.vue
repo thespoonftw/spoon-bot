@@ -12,9 +12,12 @@
       </a>
     </div>
     <div>
-      <TypeChip :name="review.typeName" :icon="review.typeIcon" :color="review.typeColor" with-icon />
-      <h1 class="rv-detail-title">{{ review.title }}</h1>
-      <p v-if="creditLine(review)" class="rv-credit rv-credit--large">{{ creditLine(review) }}</p>
+      <div class="rv-detail-head">
+        <h1 class="rv-detail-title">{{ review.title }}<span v-if="review.year" class="rv-detail-year">{{ review.year }}</span></h1>
+        <TypeChip class="rv-detail-type" :name="review.typeName" :icon="review.typeIcon" :color="review.typeColor" />
+      </div>
+      <!-- Year sits after the title (as on the feed cards), so it's left out of this line. -->
+      <p v-if="credits" class="rv-credit rv-credit--large">{{ credits }}</p>
       <div class="rv-detail-meta">
         <StarRating :model-value="review.rating" with-label />
         <span class="rv-progress" :class="`rv-progress--${review.progress}`" style="font-size: 0.95rem">{{ progressLabel(review.progress) }}</span>
@@ -52,6 +55,7 @@ const review = ref<Review | null>(null);
 const loading = ref(true);
 const deleting = ref(false);
 const source = computed(() => review.value ? matchSource(review.value) : null);
+const credits = computed(() => review.value ? creditLine({ ...review.value, year: null }) : "");
 
 onMounted(async () => {
   const res = await fetch(`/api/reviews/${route.params.id}`);

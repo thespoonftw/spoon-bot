@@ -19,7 +19,7 @@
         <ReviewCover :image-url="r.imageUrl" :icon="r.typeIcon" :title="r.title" />
         <div class="rv-card-body">
           <h3 class="rv-card-title">{{ r.title }}<span v-if="r.year" class="rv-card-year">{{ r.year }}</span></h3>
-          <p v-if="r.season != null || r.platform" class="rv-credit">{{ r.season != null ? `Season ${r.season}` : r.platform }}</p>
+          <p v-if="r.season != null" class="rv-credit">Season {{ r.season }}</p>
           <StarRating :model-value="r.rating" />
           <p v-if="r.summary" class="rv-card-summary">{{ r.summary }}</p>
           <div class="rv-card-foot">

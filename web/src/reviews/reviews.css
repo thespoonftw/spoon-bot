@@ -117,7 +117,10 @@ body.rv-body {
 /* Detail */
 .rv-detail { display: grid; grid-template-columns: 280px 1fr; gap: 44px; align-items: start; }
 @media (max-width: 760px) { .rv-detail { grid-template-columns: 1fr; gap: 24px; } .rv-detail .rv-cover--large { max-width: 200px; } }
-.rv-detail-title { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.05; margin: 12px 0 14px !important; overflow-wrap: anywhere; }
+.rv-detail-head { display: flex; align-items: flex-start; gap: 16px; }
+.rv-detail-type { margin-left: auto; margin-top: 6px; flex-shrink: 0; }
+.rv-detail-title { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.05; margin: 0 0 14px !important; overflow-wrap: anywhere; }
+.rv-detail-year { font: 400 clamp(1.1rem, 2.5vw, 1.4rem) var(--rv-sans); color: var(--rv-muted); margin-left: 12px; white-space: nowrap; }
 .rv-detail-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
 .rv-detail-meta .rv-stars { font-size: 1.6rem; }
 .rv-byline { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--rv-muted); padding: 14px 0; border-top: 1px solid var(--rv-rule); border-bottom: 1px solid var(--rv-rule); margin-bottom: 26px; }
