@@ -57,9 +57,6 @@ body.rv-body {
 .rv-hint { font-size: 0.8rem; color: var(--rv-muted); }
 .rv-error { color: var(--rv-accent); font-weight: 600; margin-bottom: 16px; }
 
-.rv-newtype { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.rv-newtype .rv-input { flex: 1; min-width: 140px; padding: 8px 12px; }
-.rv-newtype .rv-newtype-icon { flex: 0 0 56px; min-width: 0; text-align: center; }
 
 .rv-segmented { display: inline-flex; border: 1.5px solid var(--rv-ink); border-radius: 999px; overflow: hidden; align-self: flex-start; }
 .rv-segmented button { border: none; background: transparent; font: 600 0.95rem var(--rv-sans); color: var(--rv-ink); padding: 9px 18px; cursor: pointer; }
@@ -78,6 +75,10 @@ body.rv-body {
 .rv-stars--input button.on { color: var(--rv-star); }
 .rv-stars--input button:hover { transform: scale(1.12); }
 .rv-stars--input { gap: 14px; flex-wrap: wrap; }
+.rv-stars-row { display: inline-flex; align-items: stretch; margin-left: -16px; }
+/* Invisible click target left of the first star for a 0 rating (the row is pulled left to keep the stars aligned). */
+.rv-stars--input button.rv-stars-zero { width: 16px; padding: 0; font-size: inherit; }
+.rv-stars--input button.rv-stars-zero:hover { transform: none; }
 .rv-rating-label { font: italic 600 1rem var(--rv-serif); color: var(--rv-ink-soft); margin-left: 8px; }
 .rv-stars--input .rv-rating-label { margin-left: 0; min-width: 5em; }
 .rv-rating-label--hint { font: 0.85rem var(--rv-sans); font-style: normal; color: var(--rv-muted); }
@@ -156,15 +157,12 @@ body.rv-body {
 
 .rv-loading { color: var(--rv-muted); padding: 40px 0; text-align: center; font-style: italic; }
 
-/* Tables (types page, profile) */
-.rv-narrow { max-width: 720px; }
+/* Tables (profile) */
 .rv-section-title { font-size: 1.8rem; margin-bottom: 6px !important; }
 .rv-muted { color: var(--rv-muted); }
 .rv-nowrap { white-space: nowrap; }
-.rv-newtype--panel { background: var(--rv-card); border: 1px solid var(--rv-rule); border-radius: 12px; padding: 12px; }
 .rv-table-wrap { overflow-x: auto; background: var(--rv-card); border: 1px solid var(--rv-rule); border-radius: 12px; }
 .rv-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
-.rv-narrow > .rv-table { background: var(--rv-card); border: 1px solid var(--rv-rule); border-radius: 12px; border-collapse: separate; border-spacing: 0; overflow: hidden; }
 .rv-table th { text-align: left; font: 600 0.72rem var(--rv-sans); text-transform: uppercase; letter-spacing: 0.1em; color: var(--rv-muted); padding: 10px 14px; border-bottom: 1px solid var(--rv-rule); white-space: nowrap; }
 .rv-table th button { all: unset; cursor: pointer; }
 .rv-table th button:hover, .rv-table th.sorted { color: var(--rv-ink); }
@@ -177,7 +175,6 @@ body.rv-body {
 .rv-table--clickable tbody tr:hover td { background: var(--rv-paper); }
 .rv-table-title { font: 600 1.02rem var(--rv-serif); }
 .rv-table-title a { text-decoration: none; }
-.rv-row-new td { background: #fbf1d9; }
 .rv-profile-head { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
 .rv-profile-group { margin-bottom: 32px; }
 .rv-profile-group-title { display: flex; align-items: center; gap: 10px; margin-bottom: 10px !important; font: 600 0.9rem var(--rv-sans) !important; }

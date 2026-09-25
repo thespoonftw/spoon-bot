@@ -3,7 +3,6 @@
     <div class="rv-topbar">
       <nav v-if="!isPublic" class="rv-nav">
         <router-link to="/reviews" :class="{ active: route.path === '/reviews' }">All reviews</router-link>
-        <router-link to="/reviews/types" :class="{ active: route.path === '/reviews/types' }">Types</router-link>
         <router-link v-if="currentUser" :to="`/reviews/people/${currentUser.userId}`" :class="{ active: route.path === `/reviews/people/${currentUser.userId}` }">My reviews</router-link>
       </nav>
       <div v-if="!isPublic && currentUser" class="rv-topbar-user">

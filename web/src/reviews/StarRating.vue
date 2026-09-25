@@ -1,6 +1,9 @@
 <template>
   <div v-if="editable" class="rv-stars rv-stars--input">
-    <div role="radiogroup" aria-label="Rating" @mouseleave="hover = null">
+    <div role="radiogroup" aria-label="Rating" class="rv-stars-row" @mouseleave="hover = null">
+      <!-- Hidden 0-star option: an invisible strip just left of the first star. -->
+      <button type="button" class="rv-stars-zero" role="radio" :aria-checked="modelValue === 0" :aria-label="`0 stars — ${RATING_LABELS[0]}`"
+        @mouseenter="hover = 0" @click="set(0)"></button>
       <button
         v-for="n in 5" :key="n" type="button"
         :class="{ on: n <= (hover ?? modelValue ?? 0) }"
@@ -9,7 +12,7 @@
       >★</button>
     </div>
     <span class="rv-rating-label" :class="{ 'rv-rating-label--hint': shownLabel === null }" aria-live="polite">
-      {{ shownLabel ?? "Pick a rating — click a star twice for 0" }}
+      {{ shownLabel ?? "Pick a rating" }}
     </span>
   </div>
   <span v-else class="rv-stars" :aria-label="`${modelValue} out of 5 stars — ${RATING_LABELS[modelValue ?? 0]}`">
@@ -26,9 +29,8 @@ const props = defineProps<{ modelValue: number | null; editable?: boolean; withL
 const emit = defineEmits<{ "update:modelValue": [value: number] }>();
 const hover = ref<number | null>(null);
 
-// Clicking the star that's already selected drops the rating to 0.
 function set(n: number) {
-  emit("update:modelValue", props.modelValue === n ? 0 : n);
+  emit("update:modelValue", n);
   hover.value = null;
 }
 

@@ -77,17 +77,6 @@ export async function fetchReviewProfile(userId: string): Promise<ReviewProfile 
   return res.ok ? res.json() : null;
 }
 
-// Adds a type (or returns the existing one with that name).
-export async function createReviewType(name: string, icon: string): Promise<ReviewType | { error: string }> {
-  const res = await fetch("/api/review-types", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, icon }),
-  });
-  const data = await res.json().catch(() => ({}));
-  return res.ok ? data : { error: data.error ?? "Couldn't add that type." };
-}
-
 // A possible match for what's being reviewed, from Wikipedia or (for books) Open Library. `url` is
 // the page's address and doubles as its id in the editor's dropdown.
 export interface MatchCandidate {
@@ -108,13 +97,13 @@ export interface MatchDetails { creator: string | null; year: number | null }
 //  - creatorLabel/creatorProps/yearProps: which Wikidata properties hold "who made it" and "when"
 // The built-in types are tuned; user-added types fall back to their own name (e.g. "Video game" →
 // "Hades (video game)") and a general-purpose list of properties.
-type WikiProfile = { hint: string; suffixes: string[]; match: RegExp; creatorLabel: string; creatorProps: string[]; yearProps: string[] };
+type WikiProfile = { hint: string; suffixes: string[]; match: RegExp; creatorLabel: string | null; creatorProps: string[]; yearProps: string[] };
 const GENERIC_CREATOR_PROPS = ["P50", "P57", "P170", "P178", "P175", "P86", "P943"]; // author, director, creator, developer, performer, composer, programmer
 const GENERIC_YEAR_PROPS = ["P577", "P580", "P571"]; // publication date, start time, inception
 const BUILT_IN_PROFILES: Record<string, WikiProfile> = {
   book: { hint: "book", suffixes: ["", " (novel)", " (book)"], match: /\b(novel|novella|book|memoir|comic|manga|poem|non-fiction)\b/i, creatorLabel: "Author(s)", creatorProps: ["P50", "P98"], yearProps: ["P577"] },
-  film: { hint: "film", suffixes: ["", " (film)"], match: /\b(film|movie)\b/i, creatorLabel: "Director(s)", creatorProps: ["P57"], yearProps: ["P577"] },
-  series: { hint: "TV series", suffixes: ["", " (TV series)", " (miniseries)"], match: /\b(tv|television|series|miniseries|sitcom|anime|drama)\b/i, creatorLabel: "Creator(s)", creatorProps: ["P170", "P57"], yearProps: ["P580", "P577"] },
+  film: { hint: "film", suffixes: ["", " (film)"], match: /\b(film|movie)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P577"] },
+  series: { hint: "TV series", suffixes: ["", " (TV series)", " (miniseries)"], match: /\b(tv|television|series|miniseries|sitcom|anime|drama)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P580", "P577"] },
 };
 
 function wikiProfile(typeName: string): WikiProfile {
@@ -124,7 +113,8 @@ function wikiProfile(typeName: string): WikiProfile {
   return { hint: key, suffixes: ["", ` (${key})`], match: new RegExp(`\\b${escaped}\\b`, "i"), creatorLabel: "Creator(s)", creatorProps: GENERIC_CREATOR_PROPS, yearProps: GENERIC_YEAR_PROPS };
 }
 
-// "Author(s)" for books, "Director(s)" for films, etc. — the label for the creator field.
+// Label for the creator field — "Author(s)" for books, "Creator(s)" for custom types — or null for
+// types that don't have one (films and series).
 export const creatorLabel = (typeName: string) => wikiProfile(typeName).creatorLabel;
 
 // Wikipedia's own ordering happily puts "The Hobbit (film series)" above the novel, so re-rank:

@@ -93,8 +93,10 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
     return true;
   }
 
-  // POST /api/review-types — add a user-defined type (returns the existing one if the name is taken)
+  // POST /api/review-types — add a type (returns the existing one if the name is taken). Types are
+  // managed by admins; there's no UI for this, it's for admin use via the API.
   if (url === "/api/review-types" && method === "POST") {
+    if ((dbGetUserById(user.userId)?.level ?? 0) < 2) { sendJson(res, 403, { error: "Only admins can add types" }); return true; }
     readJsonBody(req).then(raw => {
       const input = parseTypeInput(raw);
       if (typeof input === "string") { sendJson(res, 400, { error: input }); return; }

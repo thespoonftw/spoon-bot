@@ -12,17 +12,9 @@
       <div class="rv-editor-row">
         <div class="rv-field">
           <label class="rv-label" for="rv-type">Type</label>
-          <select id="rv-type" class="rv-select" :value="draft.typeId ?? ''" @change="onTypeChange">
+          <select id="rv-type" v-model="draft.typeId" class="rv-select">
             <option v-for="t in types" :key="t.id" :value="t.id">{{ t.icon }} {{ t.name }}</option>
-            <option :value="NEW_TYPE">＋ Add a new type…</option>
           </select>
-          <div v-if="addingType" class="rv-newtype">
-            <input v-model="newType.icon" class="rv-input rv-newtype-icon" placeholder="🎮" maxlength="8" aria-label="Emoji (optional)" title="Emoji (optional)" />
-            <input ref="newTypeName" v-model="newType.name" class="rv-input" placeholder="e.g. Video game" maxlength="40" aria-label="New type name" @keydown.enter.prevent="addType" @keydown.esc="addingType = false" />
-            <button type="button" class="rv-btn rv-btn--small" :disabled="!newType.name.trim() || addingBusy" @click="addType">Add</button>
-            <button type="button" class="rv-btn rv-btn--ghost rv-btn--small" @click="addingType = false">Cancel</button>
-          </div>
-          <span v-if="typeError" class="rv-hint" style="color: var(--rv-accent)">{{ typeError }}</span>
         </div>
         <div class="rv-field">
           <label class="rv-label" for="rv-progress">Progress</label>
@@ -44,7 +36,7 @@
       </div>
 
       <div class="rv-editor-row">
-        <div class="rv-field" style="flex: 2">
+        <div v-if="creatorFieldLabel" class="rv-field" style="flex: 2">
           <label class="rv-label" for="rv-creator">{{ creatorFieldLabel }}</label>
           <input id="rv-creator" v-model="draft.creator" class="rv-input" maxlength="200" autocomplete="off" @input="autoFilled.creator = false" />
         </div>
@@ -92,9 +84,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { PROGRESS_OPTIONS, searchMatches, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, createReviewType, type ReviewDraft, type ReviewType, type MatchCandidate } from "./api";
+import { PROGRESS_OPTIONS, searchMatches, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate } from "./api";
 import StarRating from "./StarRating.vue";
 import RichTextEditor from "./RichTextEditor.vue";
 import ReviewCover from "./ReviewCover.vue";
@@ -112,42 +104,11 @@ const loading = ref(isEdit.value);
 const saving = ref(false);
 const error = ref("");
 
-// --- Types: a dropdown of everyone's types, with a last option to add a new one inline.
-const NEW_TYPE = "__new__";
+// --- Types: everyone's types (managed by admins).
 const types = ref<ReviewType[]>([]);
 const selectedType = computed(() => types.value.find(t => t.id === draft.typeId) ?? null);
+// null for types without a creator field (films and series).
 const creatorFieldLabel = computed(() => creatorLabel(selectedType.value?.name ?? ""));
-const addingType = ref(false);
-const addingBusy = ref(false);
-const typeError = ref("");
-const newType = reactive({ name: "", icon: "" });
-const newTypeName = ref<HTMLInputElement | null>(null);
-
-function onTypeChange(e: Event) {
-  const select = e.target as HTMLSelectElement;
-  if (select.value === NEW_TYPE) {
-    // Keep showing the current type until the new one is actually created.
-    select.value = String(draft.typeId ?? "");
-    Object.assign(newType, { name: "", icon: "" });
-    typeError.value = "";
-    addingType.value = true;
-    nextTick(() => newTypeName.value?.focus());
-  } else {
-    draft.typeId = Number(select.value);
-  }
-}
-
-async function addType() {
-  if (!newType.name.trim() || addingBusy.value) return;
-  addingBusy.value = true;
-  typeError.value = "";
-  const result = await createReviewType(newType.name, newType.icon);
-  addingBusy.value = false;
-  if ("error" in result) { typeError.value = result.error; return; }
-  if (!types.value.some(t => t.id === result.id)) types.value.push(result);
-  draft.typeId = result.id;
-  addingType.value = false;
-}
 
 // --- Match: re-searches as the title/type change and auto-selects the best page until the user picks
 // one. The chosen page (Wikipedia, or Open Library for books) supplies the cover, creator and year.
@@ -267,7 +228,7 @@ async function save() {
   const res = await fetch(isEdit.value ? `/api/reviews/${route.params.id}` : "/api/reviews", {
     method: isEdit.value ? "PUT" : "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(draft),
+    body: JSON.stringify({ ...draft, creator: creatorFieldLabel.value ? draft.creator : null }),
   });
   const data = await res.json().catch(() => ({}));
   saving.value = false;

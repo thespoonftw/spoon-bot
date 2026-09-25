@@ -31,7 +31,7 @@
         <table class="rv-table rv-table--clickable">
           <thead>
             <tr>
-              <th v-for="c in COLUMNS" :key="c.key" :class="[c.cls, { sorted: sortKey === c.key }]" :aria-sort="sortKey === c.key ? (sortAsc ? 'ascending' : 'descending') : 'none'">
+              <th v-for="c in columnsFor(g.typeName)" :key="c.key" :class="[c.cls, { sorted: sortKey === c.key }]" :aria-sort="sortKey === c.key ? (sortAsc ? 'ascending' : 'descending') : 'none'">
                 <button type="button" @click="sortBy(c.key)">{{ c.label }}<span class="rv-sort-arrow">{{ sortKey === c.key ? (sortAsc ? "▲" : "▼") : "" }}</span></button>
               </th>
             </tr>
@@ -39,7 +39,7 @@
           <tbody>
             <tr v-for="r in g.reviews" :key="r.id" @click="router.push(`/reviews/${r.id}`)">
               <td class="rv-table-title"><router-link :to="`/reviews/${r.id}`" @click.stop>{{ r.title }}</router-link></td>
-              <td class="rv-muted">{{ r.creator ?? "" }}</td>
+              <td v-if="creatorLabel(g.typeName)" class="rv-muted">{{ r.creator ?? "" }}</td>
               <td class="rv-muted num">{{ r.year ?? "" }}</td>
               <td><StarRating :model-value="r.rating" /></td>
               <td><span class="rv-progress" :class="`rv-progress--${r.progress}`">{{ progressLabel(r.progress) }}</span></td>
@@ -55,7 +55,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { fetchReviewProfile, progressLabel, formatReviewDate, PROGRESS_OPTIONS, type Review, type ReviewProfile } from "./api";
+import { fetchReviewProfile, creatorLabel, progressLabel, formatReviewDate, PROGRESS_OPTIONS, type Review, type ReviewProfile } from "./api";
 import { useCurrentUser } from "../composables/useCurrentUser";
 import StarRating from "./StarRating.vue";
 import TypeChip from "./TypeChip.vue";
@@ -69,6 +69,9 @@ const COLUMNS: { key: SortKey; label: string; cls?: string }[] = [
   { key: "progress", label: "Progress" },
   { key: "createdAt", label: "Reviewed" },
 ];
+
+// Films and series have no creator, so their tables skip the "By" column.
+const columnsFor = (typeName: string) => creatorLabel(typeName) ? COLUMNS : COLUMNS.filter(c => c.key !== "creator");
 
 const route = useRoute();
 const router = useRouter();
