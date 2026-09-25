@@ -106,6 +106,12 @@ body.rv-body {
 .rv-cover { flex-shrink: 0; width: 96px; aspect-ratio: 2 / 3; border-radius: 8px; overflow: hidden; background: var(--rv-rule); display: flex; align-items: center; justify-content: center; font-size: 2rem; }
 .rv-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .rv-cover--large { width: 100%; max-width: 280px; border-radius: 12px; font-size: 4rem; box-shadow: 0 18px 36px -20px rgba(31, 26, 23, 0.6); }
+/* Real images keep their own shape (posters, square album art, wide TV title cards…), scaled to fit
+   a max box; only the emoji placeholder is book-shaped. */
+.rv-cover--image { aspect-ratio: auto; width: auto; background: none; overflow: visible; align-items: flex-start; justify-content: flex-start; }
+.rv-cover--image img { width: auto; height: auto; max-width: 128px; max-height: 176px; object-fit: contain; border-radius: 8px; }
+.rv-cover--large.rv-cover--image { width: 100%; box-shadow: none; }
+.rv-cover--large.rv-cover--image img { max-width: 100%; max-height: 440px; border-radius: 12px; box-shadow: 0 18px 36px -20px rgba(31, 26, 23, 0.6); }
 
 .rv-avatar { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: var(--rv-rule); display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: var(--rv-ink); }
 .rv-avatar--large { width: 36px; height: 36px; font-size: 0.95rem; }
