@@ -239,6 +239,11 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .feature-icon { font-size: 3rem; line-height: 1; }
 .feature-card h2 { color: #cba6f7; font-size: 1.5rem; margin-bottom: 0; }
 .feature-card p { color: #a6adc8; text-align: center; margin: 0; }
+.landing-admin-row { display: flex; margin-top: 24px; }
+.feature-card--small { flex: 0 1 auto; flex-direction: row; padding: 14px 24px; gap: 12px; border-radius: 12px; }
+.feature-card--small .feature-icon { font-size: 1.5rem; }
+.feature-card--small h2 { font-size: 1.1rem; }
+@media (max-width: 767px) { .feature-card--small { padding: 14px 24px; } }
 
 .status-grid { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px; }
 .status-card { background: #313244; border-radius: 12px; padding: 28px; flex: 1; min-width: 220px; }

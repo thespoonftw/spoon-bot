@@ -31,7 +31,14 @@
         <span class="feature-icon">📊</span>
         <h2>Stats</h2>
       </router-link>
-      <router-link to="/database" class="feature-card">
+      <router-link to="/reviews" class="feature-card">
+        <span class="feature-icon">⭐</span>
+        <h2>Reviews</h2>
+      </router-link>
+    </div>
+
+    <div v-if="(currentUser?.level ?? 0) >= 2" class="landing-admin-row">
+      <router-link to="/database" class="feature-card feature-card--small">
         <span class="feature-icon">🗄️</span>
         <h2>Database</h2>
       </router-link>

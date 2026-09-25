@@ -81,6 +81,21 @@ export function initDb() {
       group_id INTEGER NOT NULL REFERENCES site_groups(id),
       PRIMARY KEY (user_id, group_id)
     );
+    CREATE TABLE IF NOT EXISTS reviews (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id     TEXT NOT NULL,
+      title       TEXT NOT NULL,
+      media_type  TEXT NOT NULL,
+      rating      INTEGER NOT NULL,
+      progress    TEXT NOT NULL,
+      summary     TEXT,
+      body_html   TEXT,
+      image_url   TEXT,
+      wiki_title  TEXT,
+      created_at  TEXT NOT NULL,
+      updated_at  TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS reviews_created_at ON reviews(created_at);
   `);
   // Add new columns to existing DBs (safe to run repeatedly — fails silently if column exists)
   for (const sql of [
@@ -736,4 +751,56 @@ export function dbVotePhoto(photoId: number, userId: string, reactType: string, 
   ).get(photoId) as { score: number };
   const voteRow = db.prepare("SELECT react_type, is_super FROM photo_votes WHERE photo_id = ? AND user_id = ?").get(photoId, userId) as { react_type: string; is_super: number } | undefined;
   return { score: scoreRow.score, userVote: voteRow?.react_type ?? null, userIsSuper: voteRow?.is_super ?? 0 };
+}
+
+export type ReviewInput = {
+  title: string; mediaType: string; rating: number; progress: string;
+  summary: string | null; bodyHtml: string | null; imageUrl: string | null; wikiTitle: string | null;
+};
+export type ReviewRow = ReviewInput & {
+  id: number; userId: string; createdAt: string; updatedAt: string;
+  authorName: string; authorFirstName: string | null; authorAvatarUrl: string | null;
+};
+
+const REVIEW_SELECT = `
+  SELECT r.id, r.user_id AS userId, r.title, r.media_type AS mediaType, r.rating, r.progress,
+         r.summary, r.body_html AS bodyHtml, r.image_url AS imageUrl, r.wiki_title AS wikiTitle,
+         r.created_at AS createdAt, r.updated_at AS updatedAt,
+         COALESCE(u.display_name, r.user_id) AS authorName, u.first_name AS authorFirstName, u.avatar_url AS authorAvatarUrl
+  FROM reviews r LEFT JOIN users u ON u.user_id = r.user_id`;
+
+export function dbListReviews(opts: { mediaType?: string; userId?: string; limit: number; offset: number }): { reviews: ReviewRow[]; total: number } {
+  const where: string[] = [];
+  const args: unknown[] = [];
+  if (opts.mediaType) { where.push("r.media_type = ?"); args.push(opts.mediaType); }
+  if (opts.userId) { where.push("r.user_id = ?"); args.push(opts.userId); }
+  const whereSql = where.length ? ` WHERE ${where.join(" AND ")}` : "";
+  const total = (db.prepare(`SELECT COUNT(*) AS n FROM reviews r${whereSql}`).get(...args) as { n: number }).n;
+  const reviews = db.prepare(`${REVIEW_SELECT}${whereSql} ORDER BY r.created_at DESC, r.id DESC LIMIT ? OFFSET ?`).all(...args, opts.limit, opts.offset) as ReviewRow[];
+  return { reviews, total };
+}
+
+export function dbGetReview(id: number): ReviewRow | undefined {
+  return db.prepare(`${REVIEW_SELECT} WHERE r.id = ?`).get(id) as ReviewRow | undefined;
+}
+
+export function dbCreateReview(userId: string, r: ReviewInput): ReviewRow {
+  const now = new Date().toISOString();
+  const info = db.prepare(`
+    INSERT INTO reviews (user_id, title, media_type, rating, progress, summary, body_html, image_url, wiki_title, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(userId, r.title, r.mediaType, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, now, now);
+  return dbGetReview(Number(info.lastInsertRowid))!;
+}
+
+export function dbUpdateReview(id: number, r: ReviewInput): ReviewRow | undefined {
+  db.prepare(`
+    UPDATE reviews SET title = ?, media_type = ?, rating = ?, progress = ?, summary = ?, body_html = ?, image_url = ?, wiki_title = ?, updated_at = ?
+    WHERE id = ?
+  `).run(r.title, r.mediaType, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, new Date().toISOString(), id);
+  return dbGetReview(id);
+}
+
+export function dbDeleteReview(id: number): void {
+  db.prepare("DELETE FROM reviews WHERE id = ?").run(id);
 }

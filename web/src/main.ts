@@ -13,6 +13,10 @@ import MapView from "./views/MapView.vue";
 import LoginView from "./views/LoginView.vue";
 import MagicLinkSent from "./views/MagicLinkSent.vue";
 import AuthVerify from "./views/AuthVerify.vue";
+import ReviewsLayout from "./reviews/ReviewsLayout.vue";
+import ReviewsHome from "./reviews/ReviewsHome.vue";
+import ReviewDetail from "./reviews/ReviewDetail.vue";
+import ReviewEditor from "./reviews/ReviewEditor.vue";
 import "./style.css";
 
 function applyMobileZoom() {
@@ -44,6 +48,15 @@ const router = createRouter({
     { path: "/users", component: UsersView },
     { path: "/status", component: StatusView },
     { path: "/database", component: DatabaseView },
+    {
+      path: "/reviews", component: ReviewsLayout,
+      children: [
+        { path: "", component: ReviewsHome },
+        { path: "new", component: ReviewEditor },
+        { path: ":id(\\d+)", component: ReviewDetail },
+        { path: ":id(\\d+)/edit", component: ReviewEditor },
+      ],
+    },
   ],
 });
 

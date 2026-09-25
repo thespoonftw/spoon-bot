@@ -3,13 +3,13 @@ import { useRouter } from "vue-router";
 
 export function useCurrentUser() {
   const router = useRouter();
-  const currentUser = ref<{ userId: string; displayName: string; firstName?: string; avatarUrl: string; groups: { id: number; name: string; color: string }[] } | null>(null);
+  const currentUser = ref<{ userId: string; displayName: string; firstName?: string; avatarUrl: string; level: number; groups: { id: number; name: string; color: string }[] } | null>(null);
 
   onMounted(async () => {
     const res = await fetch("/api/auth/check");
     if (res.ok) {
       const data = await res.json();
-      if (data.valid) currentUser.value = { userId: data.userId, displayName: data.displayName, firstName: data.firstName ?? undefined, avatarUrl: data.avatarUrl, groups: data.groups ?? [] };
+      if (data.valid) currentUser.value = { userId: data.userId, displayName: data.displayName, firstName: data.firstName ?? undefined, avatarUrl: data.avatarUrl, level: data.level ?? 1, groups: data.groups ?? [] };
     }
   });
 

@@ -16,6 +16,7 @@ import { PHOTO_STORAGE_PATH, ensureAlbumDirs, StorageUnavailableError } from "./
 import { getClientIp, anonRateLimit } from "./rateLimit";
 import { config } from "./config";
 import { handleAuthRoutes, isValidSession, getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
+import { handleReviewRoutes } from "./reviews";
 import { dbHasAlbum, dbUpdateAlbum, dbDeleteAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbGetUserById, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbGetAlbumVotes, dbSetPhotoCaption, dbListTables, dbTablePage, dbSearchPhotos, dbGetAlbumLocations, dbAddAlbumLocation, dbDeleteAlbumLocation, dbReorderAlbumLocations, dbSetLocationCoords, dbRenameAlbumLocation, dbSetPhotoLocation, dbSetPhotoTakenAt } from "./db";
 
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
@@ -57,6 +58,12 @@ function uploadLog(channelId: string, who: string, filename: string, outcome: st
   else console.log(line);
 }
 
+// Raw table browsing exposes every column (emails, Discord IDs), so it is admin-only.
+function isAdminRequest(req: http.IncomingMessage): boolean {
+  const user = getSessionUser(getTokenFromRequest(req));
+  return !!user && (dbGetUserById(user.userId)?.level ?? 0) >= 2;
+}
+
 export function startWebServer(): void {
   if (!config.albumsEnabled) return;
   const port = parseInt(process.env.ALBUM_PORT ?? "3000");
@@ -81,6 +88,7 @@ export function startWebServer(): void {
     }
 
     if (handleAuthRoutes(req, res)) return;
+    if (handleReviewRoutes(req, res)) return;
 
     if (url === "/api/status" && method === "GET") {
       const token = getTokenFromRequest(req);
@@ -100,6 +108,7 @@ export function startWebServer(): void {
 
     if (url === "/api/db/tables" && method === "GET") {
       if (!isValidSession(getTokenFromRequest(req))) { send401(res); return; }
+      if (!isAdminRequest(req)) { sendJson(res, 403, { error: "Admins only" }); return; }
       sendJson(res, 200, { tables: dbListTables() });
       return;
     }
@@ -107,6 +116,7 @@ export function startWebServer(): void {
     const dbTableMatch = url.match(/^\/api\/db\/table\/([^/?]+)(\?.*)?$/);
     if (dbTableMatch && method === "GET") {
       if (!isValidSession(getTokenFromRequest(req))) { send401(res); return; }
+      if (!isAdminRequest(req)) { sendJson(res, 403, { error: "Admins only" }); return; }
       const table = decodeURIComponent(dbTableMatch[1]);
       const rawUrl = req.url ?? "";
       const params = new URLSearchParams(rawUrl.includes("?") ? rawUrl.slice(rawUrl.indexOf("?") + 1) : "");
