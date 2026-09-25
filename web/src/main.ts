@@ -17,6 +17,9 @@ import ReviewsLayout from "./reviews/ReviewsLayout.vue";
 import ReviewsHome from "./reviews/ReviewsHome.vue";
 import ReviewDetail from "./reviews/ReviewDetail.vue";
 import ReviewEditor from "./reviews/ReviewEditor.vue";
+import ReviewsLogin from "./reviews/ReviewsLogin.vue";
+import ReviewsLoginSent from "./reviews/ReviewsLoginSent.vue";
+import ReviewsAuthVerify from "./reviews/ReviewsAuthVerify.vue";
 import "./style.css";
 
 function applyMobileZoom() {
@@ -51,6 +54,9 @@ const router = createRouter({
     {
       path: "/reviews", component: ReviewsLayout,
       children: [
+        { path: "login", component: ReviewsLogin, meta: { public: true } },
+        { path: "login/sent", component: ReviewsLoginSent, meta: { public: true } },
+        { path: "auth/verify/:token", component: ReviewsAuthVerify, meta: { public: true } },
         { path: "", component: ReviewsHome },
         { path: "new", component: ReviewEditor },
         { path: ":id(\\d+)", component: ReviewDetail },
@@ -68,7 +74,8 @@ router.beforeEach(async (to) => {
     const data = await res.json();
     if (data.valid) return true;
   } catch { /* network error, fall through to login */ }
-  return { path: "/login" };
+  // The reviews section has its own login pages.
+  return { path: to.path.startsWith("/reviews") ? "/reviews/login" : "/login" };
 });
 
 const app = createApp(App);

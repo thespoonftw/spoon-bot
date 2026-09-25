@@ -134,7 +134,10 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     req.on("data", chunk => body += chunk);
     req.on("end", async () => {
       try {
-        const { userId, method: deliveryMethod } = JSON.parse(body);
+        const { userId, method: deliveryMethod, site } = JSON.parse(body);
+        // The reviews section has its own login pages, so its links land there and say so.
+        const isReviews = site === "reviews";
+        const siteName = isReviews ? "Spoon Reviews" : "Spoon Photos";
         const targetUser = dbGetAllUsers().find(u => u.userId === userId);
         if (!targetUser) { sendJson(res, 403, { error: "Not allowed" }); return; }
         const chosenMethod = deliveryMethod === "email" ? "email" : "discord";
@@ -142,12 +145,12 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
         if (chosenMethod === "discord" && !targetUser.discordId) { sendJson(res, 400, { error: "No Discord account on file" }); return; }
         const token = crypto.randomBytes(32).toString("hex");
         magicTokens.set(token, { userId, expires: Date.now() + 15 * 60 * 1000 });
-        const link = `${getBaseUrl()}/auth/verify/${token}`;
+        const link = `${getBaseUrl()}${isReviews ? "/reviews" : ""}/auth/verify/${token}`;
         if (chosenMethod === "email") {
-          await sendMagicLinkEmail(targetUser.email!, link);
+          await sendMagicLinkEmail(targetUser.email!, link, siteName);
         } else {
           const user = await discordClient!.users.fetch(targetUser.discordId!);
-          await user.send(`🔗 Click here to log in to the Spoon Photos site:\n${link}\n\n*This link expires in 15 minutes.*`);
+          await user.send(`🔗 Click here to log in to the ${siteName} site:\n${link}\n\n*This link expires in 15 minutes.*`);
         }
         sendJson(res, 200, { ok: true, method: chosenMethod, maskedEmail: chosenMethod === "email" ? maskEmail(targetUser.email!) : undefined });
       } catch (e) {

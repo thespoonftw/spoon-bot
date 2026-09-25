@@ -81,11 +81,19 @@ export function initDb() {
       group_id INTEGER NOT NULL REFERENCES site_groups(id),
       PRIMARY KEY (user_id, group_id)
     );
+    CREATE TABLE IF NOT EXISTS review_types (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      name        TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      icon        TEXT NOT NULL,
+      color       TEXT NOT NULL,
+      created_by  TEXT,
+      created_at  TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS reviews (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id     TEXT NOT NULL,
       title       TEXT NOT NULL,
-      media_type  TEXT NOT NULL,
+      type_id     INTEGER NOT NULL REFERENCES review_types(id),
       rating      INTEGER NOT NULL,
       progress    TEXT NOT NULL,
       summary     TEXT,
@@ -165,6 +173,25 @@ export function initDb() {
   db.exec(`UPDATE site_groups SET color = '#ff6d1f' WHERE id = 3 AND color = '#c1440e'`);
   // Rename WOBOG -> Wobog
   db.exec(`UPDATE site_groups SET name = 'Wobog' WHERE id = 6 AND name = 'WOBOG'`);
+  // Seed the built-in review types; users can add more from the review editor
+  db.prepare(`
+    INSERT OR IGNORE INTO review_types (id, name, icon, color, created_at) VALUES
+      (1, 'Book',   '📖', '#3f6b4d', @now),
+      (2, 'Film',   '🎬', '#7c3d62', @now),
+      (3, 'Series', '📺', '#2f5b88', @now)
+  `).run({ now: new Date().toISOString() });
+  // Migrate reviews from the original fixed media_type strings to review_types ids
+  try {
+    const cols = (db.prepare("PRAGMA table_info(reviews)").all() as { name: string }[]).map(c => c.name);
+    if (cols.includes('media_type')) {
+      db.transaction(() => {
+        db.exec("ALTER TABLE reviews ADD COLUMN type_id INTEGER NOT NULL DEFAULT 1");
+        db.exec("UPDATE reviews SET type_id = CASE media_type WHEN 'film' THEN 2 WHEN 'series' THEN 3 ELSE 1 END");
+        db.exec("ALTER TABLE reviews DROP COLUMN media_type");
+      })();
+      console.log("[db] Migrated reviews.media_type to review_types");
+    }
+  } catch (e) { console.error("[db] reviews type migration failed:", e); }
   // Migrate user_groups from name-based to id-based if needed
   try {
     const cols = (db.prepare("PRAGMA table_info(user_groups)").all() as { name: string }[]).map(c => c.name);
@@ -753,26 +780,57 @@ export function dbVotePhoto(photoId: number, userId: string, reactType: string, 
   return { score: scoreRow.score, userVote: voteRow?.react_type ?? null, userIsSuper: voteRow?.is_super ?? 0 };
 }
 
+export type ReviewType = { id: number; name: string; icon: string; color: string; reviewCount: number };
+
 export type ReviewInput = {
-  title: string; mediaType: string; rating: number; progress: string;
+  title: string; typeId: number; rating: number; progress: string;
   summary: string | null; bodyHtml: string | null; imageUrl: string | null; wikiTitle: string | null;
 };
 export type ReviewRow = ReviewInput & {
   id: number; userId: string; createdAt: string; updatedAt: string;
+  typeName: string; typeIcon: string; typeColor: string;
   authorName: string; authorFirstName: string | null; authorAvatarUrl: string | null;
 };
 
+// Colours handed out to user-added review types, in order (the built-ins have their own).
+const REVIEW_TYPE_COLORS = ["#8a5a2b", "#5b4b8a", "#2f7a78", "#a33b5e", "#6b7a2f", "#b0632a", "#4a5d6b", "#7a4a3a"];
+
+export function dbListReviewTypes(): ReviewType[] {
+  return db.prepare(`
+    SELECT t.id, t.name, t.icon, t.color, COUNT(r.id) AS reviewCount
+    FROM review_types t LEFT JOIN reviews r ON r.type_id = t.id
+    GROUP BY t.id ORDER BY t.id
+  `).all() as ReviewType[];
+}
+
+export function dbGetReviewType(id: number): ReviewType | undefined {
+  return dbListReviewTypes().find(t => t.id === id);
+}
+
+// Returns the existing type when the name is already taken (case-insensitive), so users can't create duplicates.
+export function dbCreateReviewType(name: string, icon: string, createdBy: string): { type: ReviewType; created: boolean } {
+  const existing = db.prepare("SELECT id FROM review_types WHERE name = ? COLLATE NOCASE").get(name) as { id: number } | undefined;
+  if (existing) return { type: dbGetReviewType(existing.id)!, created: false };
+  const custom = (db.prepare("SELECT COUNT(*) AS n FROM review_types WHERE id > 3").get() as { n: number }).n;
+  const info = db.prepare("INSERT INTO review_types (name, icon, color, created_by, created_at) VALUES (?, ?, ?, ?, ?)")
+    .run(name, icon, REVIEW_TYPE_COLORS[custom % REVIEW_TYPE_COLORS.length], createdBy, new Date().toISOString());
+  return { type: dbGetReviewType(Number(info.lastInsertRowid))!, created: true };
+}
+
 const REVIEW_SELECT = `
-  SELECT r.id, r.user_id AS userId, r.title, r.media_type AS mediaType, r.rating, r.progress,
+  SELECT r.id, r.user_id AS userId, r.title, r.type_id AS typeId, r.rating, r.progress,
          r.summary, r.body_html AS bodyHtml, r.image_url AS imageUrl, r.wiki_title AS wikiTitle,
          r.created_at AS createdAt, r.updated_at AS updatedAt,
+         t.name AS typeName, t.icon AS typeIcon, t.color AS typeColor,
          COALESCE(u.display_name, r.user_id) AS authorName, u.first_name AS authorFirstName, u.avatar_url AS authorAvatarUrl
-  FROM reviews r LEFT JOIN users u ON u.user_id = r.user_id`;
+  FROM reviews r
+  JOIN review_types t ON t.id = r.type_id
+  LEFT JOIN users u ON u.user_id = r.user_id`;
 
-export function dbListReviews(opts: { mediaType?: string; userId?: string; limit: number; offset: number }): { reviews: ReviewRow[]; total: number } {
+export function dbListReviews(opts: { typeId?: number; userId?: string; limit: number; offset: number }): { reviews: ReviewRow[]; total: number } {
   const where: string[] = [];
   const args: unknown[] = [];
-  if (opts.mediaType) { where.push("r.media_type = ?"); args.push(opts.mediaType); }
+  if (opts.typeId) { where.push("r.type_id = ?"); args.push(opts.typeId); }
   if (opts.userId) { where.push("r.user_id = ?"); args.push(opts.userId); }
   const whereSql = where.length ? ` WHERE ${where.join(" AND ")}` : "";
   const total = (db.prepare(`SELECT COUNT(*) AS n FROM reviews r${whereSql}`).get(...args) as { n: number }).n;
@@ -787,17 +845,17 @@ export function dbGetReview(id: number): ReviewRow | undefined {
 export function dbCreateReview(userId: string, r: ReviewInput): ReviewRow {
   const now = new Date().toISOString();
   const info = db.prepare(`
-    INSERT INTO reviews (user_id, title, media_type, rating, progress, summary, body_html, image_url, wiki_title, created_at, updated_at)
+    INSERT INTO reviews (user_id, title, type_id, rating, progress, summary, body_html, image_url, wiki_title, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(userId, r.title, r.mediaType, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, now, now);
+  `).run(userId, r.title, r.typeId, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, now, now);
   return dbGetReview(Number(info.lastInsertRowid))!;
 }
 
 export function dbUpdateReview(id: number, r: ReviewInput): ReviewRow | undefined {
   db.prepare(`
-    UPDATE reviews SET title = ?, media_type = ?, rating = ?, progress = ?, summary = ?, body_html = ?, image_url = ?, wiki_title = ?, updated_at = ?
+    UPDATE reviews SET title = ?, type_id = ?, rating = ?, progress = ?, summary = ?, body_html = ?, image_url = ?, wiki_title = ?, updated_at = ?
     WHERE id = ?
-  `).run(r.title, r.mediaType, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, new Date().toISOString(), id);
+  `).run(r.title, r.typeId, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, new Date().toISOString(), id);
   return dbGetReview(id);
 }
 

@@ -12,12 +12,14 @@ if ($status) { Write-Error "Uncommitted changes: $status"; exit 1 }
 Write-Host "Pushing to GitHub..."
 git push
 
+# The server's npm rewrites both lockfiles on install (drops "peer": true), which blocks git pull.
+# Those edits are noise, so the server resets just those two files before each pull.
 if ($Full) {
     Write-Host "Running npm install and deploy on server..."
-    & $plink @conn "cd /home/spoon/spoon-bot && git pull && npm install && npm run deploy && (set -a; source .env.snek; set +a; npm run deploy)"
+    & $plink @conn "cd /home/spoon/spoon-bot && git checkout -- package-lock.json web/package-lock.json && git pull && npm install && npm run deploy && (set -a; source .env.snek; set +a; npm run deploy)"
 } else {
     Write-Host "Pulling on server and installing dependencies..."
-    & $plink @conn "cd /home/spoon/spoon-bot && git pull && npm install --silent"
+    & $plink @conn "cd /home/spoon/spoon-bot && git checkout -- package-lock.json web/package-lock.json && git pull && npm install --silent"
 }
 
 Write-Host "Building TypeScript..."

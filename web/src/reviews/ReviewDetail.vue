@@ -6,13 +6,13 @@
   </div>
   <article v-else class="rv-detail">
     <div>
-      <ReviewCover :image-url="review.imageUrl" :media-type="review.mediaType" :title="review.title" large />
+      <ReviewCover :image-url="review.imageUrl" :icon="review.typeIcon" :title="review.title" large />
       <a v-if="review.wikiTitle" class="rv-wikilink" :href="`https://en.wikipedia.org/wiki/${encodeURIComponent(review.wikiTitle.replace(/ /g, '_'))}`" target="_blank" rel="noopener noreferrer">
         Wikipedia: {{ review.wikiTitle }} ↗
       </a>
     </div>
     <div>
-      <span class="rv-type" :class="`rv-type--${review.mediaType}`">{{ mediaIcon(review.mediaType) }} {{ mediaLabel(review.mediaType) }}</span>
+      <TypeChip :name="review.typeName" :icon="review.typeIcon" :color="review.typeColor" with-icon />
       <h1 class="rv-detail-title">{{ review.title }}</h1>
       <div class="rv-detail-meta">
         <StarRating :model-value="review.rating" />
@@ -40,9 +40,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { mediaIcon, mediaLabel, progressLabel, authorName, formatReviewDate, type Review } from "./api";
+import { progressLabel, authorName, formatReviewDate, type Review } from "./api";
 import ReviewCover from "./ReviewCover.vue";
 import StarRating from "./StarRating.vue";
+import TypeChip from "./TypeChip.vue";
 
 const route = useRoute();
 const router = useRouter();

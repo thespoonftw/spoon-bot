@@ -46,34 +46,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
-
-interface UserInfo { userId: string; displayName: string; firstName?: string; avatarUrl: string; canDiscord: boolean; canEmail: boolean }
+import { useLoginSearch, requestLoginLink, type LoginUser } from "../composables/useLogin";
 
 const router = useRouter();
 const route = useRoute();
-const query = ref("");
-const results = ref<UserInfo[]>([]);
-const searching = ref(false);
+const { query, results, searching } = useLoginSearch();
 const loading = ref(false);
 const error = ref("");
-const confirming = ref<UserInfo | null>(null);
-
-let searchTimer: ReturnType<typeof setTimeout> | null = null;
-watch(query, (q) => {
-  if (searchTimer) clearTimeout(searchTimer);
-  const trimmed = q.trim();
-  if (!trimmed) { results.value = []; searching.value = false; return; }
-  searching.value = true;
-  searchTimer = setTimeout(async () => {
-    try {
-      results.value = await fetch(`/api/users/search?q=${encodeURIComponent(trimmed)}`).then(r => r.json());
-    } finally {
-      searching.value = false;
-    }
-  }, 250);
-});
+const confirming = ref<LoginUser | null>(null);
 
 onMounted(() => {
   if (route.query.expired) error.value = "This login link has expired. Please request a new one.";
@@ -82,15 +64,10 @@ onMounted(() => {
 async function requestLogin(userId: string, method: "discord" | "email") {
   loading.value = true;
   error.value = "";
-  const res = await fetch("/api/auth/request", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, method }),
-  });
+  const { ok, maskedEmail } = await requestLoginLink(userId, method);
   loading.value = false;
-  if (res.ok) {
-    const data = await res.json().catch(() => ({}));
-    router.push({ path: "/login/sent", query: { userId, method, maskedEmail: data.maskedEmail } });
+  if (ok) {
+    router.push({ path: "/login/sent", query: { userId, method, maskedEmail } });
   } else {
     error.value = "Failed to send login link. Try again.";
     confirming.value = null;

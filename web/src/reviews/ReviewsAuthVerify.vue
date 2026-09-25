@@ -1,14 +1,14 @@
 <template>
-  <div class="page center">
-    <p v-if="status === 'loading'" class="subtitle">Logging you in…</p>
+  <div class="rv-login">
+    <p v-if="status === 'loading'" class="rv-loading">Signing you in…</p>
     <template v-else-if="status === 'ok'">
-      <h1>Logged in! ✅</h1>
-      <p class="subtitle">Redirecting…</p>
+      <h2>You're in</h2>
+      <p class="rv-login-sub">Taking you to the reviews…</p>
     </template>
     <template v-else>
-      <h1>Link expired ❌</h1>
-      <p class="subtitle">This magic link is invalid or has already been used.</p>
-      <router-link to="/login" class="back">← Back to login</router-link>
+      <h2>Link expired</h2>
+      <p class="rv-login-sub">This login link is invalid or has already been used.</p>
+      <p style="margin-top: 24px"><router-link to="/reviews/login" class="rv-btn">Get a new link</router-link></p>
     </template>
   </div>
 </template>
@@ -25,7 +25,7 @@ const status = ref<"loading" | "ok" | "error">("loading");
 onMounted(async () => {
   if (await verifyLoginToken(route.params.token as string)) {
     status.value = "ok";
-    setTimeout(() => router.push("/"), 1000);
+    setTimeout(() => router.replace("/reviews"), 800);
   } else {
     status.value = "error";
   }

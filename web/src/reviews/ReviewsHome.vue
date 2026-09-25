@@ -1,8 +1,8 @@
 <template>
   <div>
-    <nav class="rv-filters">
-      <button :class="{ active: !type }" @click="setType(null)">All</button>
-      <button v-for="m in MEDIA_TYPES" :key="m.value" :class="{ active: type === m.value }" @click="setType(m.value)">{{ m.plural }}</button>
+    <nav v-if="filterTypes.length > 1" class="rv-filters">
+      <button :class="{ active: !typeId }" @click="setType(null)">All</button>
+      <button v-for="t in filterTypes" :key="t.id" :class="{ active: typeId === t.id }" @click="setType(t.id)">{{ t.icon }} {{ t.name }}</button>
     </nav>
 
     <p v-if="loading && !reviews.length" class="rv-loading">Fetching the latest…</p>
@@ -10,16 +10,16 @@
 
     <div v-else-if="!reviews.length" class="rv-empty">
       <h2>Nothing here yet</h2>
-      <p>Be the first to review {{ type ? `a ${mediaLabel(type).toLowerCase()}` : "something" }}.</p>
+      <p>Be the first to review {{ activeType ? `something in ${activeType.name}` : "something" }}.</p>
       <p style="margin-top: 18px"><router-link to="/reviews/new" class="rv-btn">✎ Write a review</router-link></p>
     </div>
 
     <div v-else class="rv-feed">
       <router-link v-for="r in reviews" :key="r.id" :to="`/reviews/${r.id}`" class="rv-card">
-        <ReviewCover :image-url="r.imageUrl" :media-type="r.mediaType" :title="r.title" />
+        <ReviewCover :image-url="r.imageUrl" :icon="r.typeIcon" :title="r.title" />
         <div class="rv-card-body">
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
-            <span class="rv-type" :class="`rv-type--${r.mediaType}`">{{ mediaLabel(r.mediaType) }}</span>
+            <TypeChip :name="r.typeName" :icon="r.typeIcon" :color="r.typeColor" />
             <span class="rv-progress" :class="`rv-progress--${r.progress}`">{{ progressLabel(r.progress) }}</span>
           </div>
           <h3 class="rv-card-title">{{ r.title }}</h3>
@@ -41,26 +41,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { MEDIA_TYPES, mediaLabel, progressLabel, authorName, formatReviewDate, type MediaType, type Review } from "./api";
+import { progressLabel, authorName, formatReviewDate, fetchReviewTypes, type Review, type ReviewType } from "./api";
 import ReviewCover from "./ReviewCover.vue";
 import StarRating from "./StarRating.vue";
+import TypeChip from "./TypeChip.vue";
 
 const PAGE = 30;
 const route = useRoute();
 const router = useRouter();
-const type = ref<MediaType | null>(MEDIA_TYPES.some(m => m.value === route.query.type) ? route.query.type as MediaType : null);
+const typeId = ref<number | null>(parseInt(route.query.type as string) || null);
+const types = ref<ReviewType[]>([]);
 const reviews = ref<Review[]>([]);
 const total = ref(0);
 const loading = ref(false);
 const error = ref("");
 
+// Only types that have reviews get a tab (plus the active one, so a filtered URL still shows its tab).
+const filterTypes = computed(() => types.value.filter(t => t.reviewCount > 0 || t.id === typeId.value));
+const activeType = computed(() => types.value.find(t => t.id === typeId.value) ?? null);
+
 async function load(reset: boolean) {
   loading.value = true;
   error.value = "";
   const params = new URLSearchParams({ limit: String(PAGE), offset: String(reset ? 0 : reviews.value.length) });
-  if (type.value) params.set("type", type.value);
+  if (typeId.value) params.set("typeId", String(typeId.value));
   try {
     const res = await fetch(`/api/reviews?${params}`);
     if (!res.ok) throw new Error();
@@ -74,9 +80,11 @@ async function load(reset: boolean) {
 }
 
 // The filter lives in the URL so back/refresh keep it; the layout re-mounts this view on URL change.
-function setType(t: MediaType | null) {
-  router.replace({ query: t ? { type: t } : {} });
+function setType(id: number | null) {
+  router.replace({ query: id ? { type: String(id) } : {} });
 }
 
-onMounted(() => load(true));
+onMounted(async () => {
+  await Promise.all([load(true), fetchReviewTypes().then(t => { types.value = t; })]);
+});
 </script>
