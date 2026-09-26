@@ -47,17 +47,19 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   const summary = typeof b.summary === "string" ? b.summary.trim().slice(0, 1000) : "";
   const cleanedBody = typeof b.bodyHtml === "string" ? sanitizeHtml(b.bodyHtml, SANITIZE_OPTS).trim() : "";
   const bodyHasText = sanitizeHtml(cleanedBody, { allowedTags: [], allowedAttributes: {} }).trim().length > 0;
-  // Images are only ever hotlinked from where the lookups point: Wikimedia, Open Library and TVmaze.
+  // Images are only ever hotlinked from where the lookups point: Wikimedia, Open Library, TVmaze and Apple.
   const imageUrl = typeof b.imageUrl === "string" && (
     /^https:\/\/(upload|thumb)\.wikimedia\.org\/[^\s"'<>]+$/.test(b.imageUrl) ||
     /^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-[SML]\.jpg$/.test(b.imageUrl) ||
-    /^https:\/\/static\.tvmaze\.com\/uploads\/images\/[a-z_]+\/\d+\/\d+\.(jpg|jpeg|png)$/.test(b.imageUrl)
+    /^https:\/\/static\.tvmaze\.com\/uploads\/images\/[a-z_]+\/\d+\/\d+\.(jpg|jpeg|png)$/.test(b.imageUrl) ||
+    /^https:\/\/is\d+-ssl\.mzstatic\.com\/image\/thumb\/[^\s"'<>?]+\.(jpg|jpeg|png|webp)$/.test(b.imageUrl)
   ) ? b.imageUrl : null;
-  // The page the review was matched to: a Wikipedia article, Open Library work or TVmaze show.
+  // The page the review was matched to: a Wikipedia article, Open Library work, TVmaze show or Apple podcast.
   const sourceUrl = typeof b.sourceUrl === "string" && (
     /^https:\/\/en\.wikipedia\.org\/wiki\/[^\s"'<>]+$/.test(b.sourceUrl) ||
     /^https:\/\/openlibrary\.org\/works\/OL\d+W$/.test(b.sourceUrl) ||
-    /^https:\/\/www\.tvmaze\.com\/shows\/\d+\/[a-z0-9-]+$/.test(b.sourceUrl)
+    /^https:\/\/www\.tvmaze\.com\/shows\/\d+\/[a-z0-9-]+$/.test(b.sourceUrl) ||
+    /^https:\/\/podcasts\.apple\.com\/[a-z]{2}\/podcast\/[^\s"'<>/?]+\/id\d+$/.test(b.sourceUrl)
   ) ? b.sourceUrl : null;
   const wikiTitle = typeof b.wikiTitle === "string" && b.wikiTitle.trim() ? b.wikiTitle.trim().slice(0, 300) : null;
   const creator = typeof b.creator === "string" && b.creator.trim() ? b.creator.trim().slice(0, 200) : null;

@@ -192,6 +192,12 @@ export function initDb() {
   `).run({ now: new Date().toISOString() });
   // Video Game was added with the default tag icon; give it a controller
   db.prepare("UPDATE review_types SET icon = '🎮' WHERE name = 'Video Game' COLLATE NOCASE AND icon = '🏷️'").run();
+  // Further types added by request (names are unique, so these are no-ops once present)
+  db.prepare(`
+    INSERT OR IGNORE INTO review_types (name, icon, color, created_at) VALUES
+      ('Board Game', '🎲', '#5b4b8a', @now),
+      ('Podcast',    '🎙️', '#2f7a78', @now)
+  `).run({ now: new Date().toISOString() });
   // Migrate reviews from the original fixed media_type strings to review_types ids
   try {
     const cols = (db.prepare("PRAGMA table_info(reviews)").all() as { name: string }[]).map(c => c.name);

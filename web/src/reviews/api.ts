@@ -39,9 +39,9 @@ export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyH
 export const creditLine = (r: { creator: string | null; year: number | null; season?: number | null; platform?: string | null }) =>
   [r.creator, r.season != null ? `Season ${r.season}` : null, r.platform, r.year].filter(Boolean).join(" · ");
 
-export type MatchSource = "openlibrary" | "tvmaze" | "wikipedia";
-export const SOURCE_NAMES: Record<MatchSource, string> = { openlibrary: "Open Library", tvmaze: "TVmaze", wikipedia: "Wikipedia" };
-const SOURCE_HOSTS: Record<MatchSource, string> = { openlibrary: "https://openlibrary.org/", tvmaze: "https://www.tvmaze.com/", wikipedia: "https://en.wikipedia.org/" };
+export type MatchSource = "openlibrary" | "tvmaze" | "applepodcasts" | "wikipedia";
+export const SOURCE_NAMES: Record<MatchSource, string> = { openlibrary: "Open Library", tvmaze: "TVmaze", applepodcasts: "Apple Podcasts", wikipedia: "Wikipedia" };
+const SOURCE_HOSTS: Record<MatchSource, string> = { openlibrary: "https://openlibrary.org/", tvmaze: "https://www.tvmaze.com/", applepodcasts: "https://podcasts.apple.com/", wikipedia: "https://en.wikipedia.org/" };
 
 export const wikiUrl = (pageTitle: string) => `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/ /g, "_"))}`;
 
@@ -154,6 +154,8 @@ const BUILT_IN_PROFILES: Record<string, WikiProfile> = {
   book: { hint: "book", suffixes: ["", " (novel)", " (book)"], match: /\b(novel|novella|book|memoir|comic|manga|poem|non-fiction)\b/i, creatorLabel: "Author(s)", creatorProps: ["P50", "P98"], yearProps: ["P577"] },
   film: { hint: "film", suffixes: ["", " (film)"], match: /\b(film|movie)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P577"] },
   series: { hint: "TV series", suffixes: ["", " (TV series)", " (miniseries)"], match: /\b(tv|television|series|miniseries|sitcom|anime|drama)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P580", "P577"] },
+  // P287 = designed by
+  "board game": { hint: "board game", suffixes: ["", " (board game)", " (game)"], match: /\b(board game|card game|tabletop|game)\b/i, creatorLabel: "Designer(s)", creatorProps: ["P287", "P170", "P50"], yearProps: ["P577", "P571"] },
 };
 
 function wikiProfile(typeName: string): WikiProfile {
@@ -299,12 +301,42 @@ async function searchTvmaze(title: string, signal?: AbortSignal): Promise<MatchC
     });
 }
 
-// Candidates for the editor's dropdown, best first. Books use Open Library and series use TVmaze
-// (both cover far more than Wikipedia and have proper covers/posters); everything else uses Wikipedia.
+type ApplePodcast = { collectionName: string; artistName?: string; collectionViewUrl?: string; artworkUrl600?: string; primaryGenreName?: string };
+
+// Searches Apple's podcast directory (free, no key, browser-callable) for square artwork and who
+// makes the show. It only reports the latest episode's date, not when the show began, so no year.
+async function searchApplePodcasts(title: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
+  const res = await fetch(`https://itunes.apple.com/search?${new URLSearchParams({ media: "podcast", entity: "podcast", limit: "10", term: title })}`, { signal });
+  if (!res.ok) return [];
+  const results = ((await res.json())?.results ?? []) as ApplePodcast[];
+  const wanted = title.trim().toLowerCase();
+  const seen = new Set<string>();
+  return results
+    .map(p => ({ p, url: p.collectionViewUrl?.split("?")[0] ?? "" }))
+    .filter(({ url }) => /^https:\/\/podcasts\.apple\.com\/[a-z]{2}\/podcast\/[^/?]+\/id\d+$/.test(url) && !seen.has(url) && !!seen.add(url))
+    .map(({ p, url }, index) => ({ p, url, index, exact: p.collectionName.trim().toLowerCase() === wanted ? 1 : 0 }))
+    .sort((a, b) => b.exact - a.exact || a.index - b.index)
+    .slice(0, 8)
+    .map(({ p, url }) => ({
+      source: "applepodcasts" as const,
+      url,
+      label: p.collectionName,
+      description: [p.artistName, p.primaryGenreName].filter(Boolean).join(", "),
+      imageUrl: p.artworkUrl600 && /^https:\/\/is\d+-ssl\.mzstatic\.com\//.test(p.artworkUrl600) ? p.artworkUrl600 : null,
+      wikiTitle: null,
+      wikidataId: null,
+      details: { creator: p.artistName ?? null, year: null },
+    }));
+}
+
+// Candidates for the editor's dropdown, best first. Books use Open Library, series TVmaze and
+// podcasts Apple Podcasts (all cover far more than Wikipedia and have proper artwork); everything
+// else uses Wikipedia.
 export async function searchMatches(title: string, typeName: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
   switch (typeName.trim().toLowerCase()) {
     case "book": return searchOpenLibrary(title, signal);
     case "series": return searchTvmaze(title, signal);
+    case "podcast": return searchApplePodcasts(title, signal);
     default: return searchWikipedia(title, typeName, signal);
   }
 }
