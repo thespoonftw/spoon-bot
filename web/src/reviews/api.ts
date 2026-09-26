@@ -154,8 +154,11 @@ const BUILT_IN_PROFILES: Record<string, WikiProfile> = {
   book: { hint: "book", suffixes: ["", " (novel)", " (book)"], match: /\b(novel|novella|book|memoir|comic|manga|poem|non-fiction)\b/i, creatorLabel: "Author(s)", creatorProps: ["P50", "P98"], yearProps: ["P577"] },
   film: { hint: "film", suffixes: ["", " (film)"], match: /\b(film|movie)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P577"] },
   series: { hint: "TV series", suffixes: ["", " (TV series)", " (miniseries)"], match: /\b(tv|television|series|miniseries|sitcom|anime|drama)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P580", "P577"] },
-  // P287 = designed by
-  "board game": { hint: "board game", suffixes: ["", " (board game)", " (game)"], match: /\b(board game|card game|tabletop|game)\b/i, creatorLabel: "Designer(s)", creatorProps: ["P287", "P170", "P50"], yearProps: ["P577", "P571"] },
+  "board game": { hint: "board game", suffixes: ["", " (board game)", " (game)"], match: /\b(board game|card game|tabletop)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P577", "P571"] },
+  // P178 = developer
+  "video game": { hint: "video game", suffixes: ["", " (video game)"], match: /\bvideo game\b/i, creatorLabel: "Developer(s)", creatorProps: ["P178"], yearProps: ["P577"] },
+  // Podcasts are matched on Apple Podcasts, not Wikipedia; this just says they have no creator field.
+  podcast: { hint: "podcast", suffixes: ["", " (podcast)"], match: /\bpodcast\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P580", "P577"] },
 };
 
 function wikiProfile(typeName: string): WikiProfile {
@@ -303,8 +306,9 @@ async function searchTvmaze(title: string, signal?: AbortSignal): Promise<MatchC
 
 type ApplePodcast = { collectionName: string; artistName?: string; collectionViewUrl?: string; artworkUrl600?: string; primaryGenreName?: string };
 
-// Searches Apple's podcast directory (free, no key, browser-callable) for square artwork and who
-// makes the show. It only reports the latest episode's date, not when the show began, so no year.
+// Searches Apple's podcast directory (free, no key, browser-callable) for square artwork; who makes
+// the show is shown in the dropdown to tell matches apart. It only reports the latest episode's
+// date, not when the show began, so no year.
 async function searchApplePodcasts(title: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
   const res = await fetch(`https://itunes.apple.com/search?${new URLSearchParams({ media: "podcast", entity: "podcast", limit: "10", term: title })}`, { signal });
   if (!res.ok) return [];
@@ -325,7 +329,7 @@ async function searchApplePodcasts(title: string, signal?: AbortSignal): Promise
       imageUrl: p.artworkUrl600 && /^https:\/\/is\d+-ssl\.mzstatic\.com\//.test(p.artworkUrl600) ? p.artworkUrl600 : null,
       wikiTitle: null,
       wikidataId: null,
-      details: { creator: p.artistName ?? null, year: null },
+      details: { creator: null, year: null },
     }));
 }
 
