@@ -60,11 +60,11 @@ async function discordAuthor(client: Client, r: ReviewRow): Promise<{ name: stri
 // reviewer's avatar and "@Name reviewed a 🎬 Film" (plain text — the header can't hold a real
 // mention), then the linked title, season/platform, stars and summary, with the cover beside.
 // Best-effort — a failure never affects the save.
+// Some types are also posted to their own channel (e.g. board games to the board game channel).
 async function announceReview(r: ReviewRow): Promise<void> {
   const client = reviewsDiscordClient;
-  if (!client || !config.reviewsChannelId) return;
-  const channel = await client.channels.fetch(config.reviewsChannelId);
-  if (!channel?.isSendable()) return;
+  const channelIds = [config.reviewsChannelId, config.reviewTypeChannels[r.typeName.toLowerCase()]].filter((id): id is string => !!id);
+  if (!client || !channelIds.length) return;
   const [emoji, author] = await Promise.all([getStarEmojis(client), discordAuthor(client, r)]);
   const stars = emoji ? emoji.full.repeat(r.rating) + emoji.empty.repeat(5 - r.rating) : "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
   const article = /^[aeiou]/i.test(r.typeName) ? "an" : "a";
@@ -83,7 +83,12 @@ async function announceReview(r: ReviewRow): Promise<void> {
     .setURL(`${getBaseUrl()}/reviews/${r.id}`)
     .setDescription([extra || null, stars, r.summary].filter(Boolean).join("\n").slice(0, 4096));
   if (r.imageUrl) embed.setThumbnail(r.imageUrl);
-  await channel.send({ embeds: [embed] });
+  for (const id of new Set(channelIds)) {
+    try {
+      const channel = await client.channels.fetch(id);
+      if (channel?.isSendable()) await channel.send({ embeds: [embed] });
+    } catch (e) { console.error(`Failed to announce review in ${id}:`, e); }
+  }
 }
 
 // The long review is rich text from a contenteditable editor, rendered with v-html — so it is

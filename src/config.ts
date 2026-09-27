@@ -13,4 +13,9 @@ export const config = {
   birthdaysChannelId: process.env.BIRTHDAYS_CHANNEL_ID,
   albumsEnabled: process.env.ALBUMS_ENABLED === "true",
   reviewsChannelId: process.env.REVIEWS_CHANNEL_ID,
+  // Extra channels for particular review types, as "Board Game=123,Film=456" (type names, any case).
+  reviewTypeChannels: Object.fromEntries((process.env.REVIEW_TYPE_CHANNELS ?? "").split(",")
+    .map(pair => pair.split("=").map(s => s.trim()))
+    .filter(([type, id]) => type && id)
+    .map(([type, id]) => [type.toLowerCase(), id])) as Record<string, string>,
 };
