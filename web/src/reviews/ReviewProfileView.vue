@@ -42,7 +42,7 @@
               <td v-if="creatorLabel(g.typeName)" class="rv-muted">{{ r.creator ?? "" }}</td>
               <td class="rv-muted num">{{ r.year ?? "" }}</td>
               <td><StarRating :model-value="r.rating" /></td>
-              <td><span class="rv-progress" :class="`rv-progress--${r.progress}`">{{ progressLabel(r.progress) }}</span></td>
+              <td v-if="hasProgress(g.typeName)"><span class="rv-progress" :class="`rv-progress--${r.progress}`">{{ progressLabel(r.progress) }}</span></td>
               <td class="rv-muted rv-nowrap">{{ formatReviewDate(r.createdAt) }}</td>
             </tr>
           </tbody>
@@ -55,7 +55,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { fetchReviewProfile, creatorLabel, progressLabel, formatReviewDate, PROGRESS_OPTIONS, type Review, type ReviewProfile } from "./api";
+import { fetchReviewProfile, creatorLabel, progressLabel, hasProgress, formatReviewDate, PROGRESS_OPTIONS, type Review, type ReviewProfile } from "./api";
 import { useCurrentUser } from "../composables/useCurrentUser";
 import StarRating from "./StarRating.vue";
 import TypeChip from "./TypeChip.vue";
@@ -70,8 +70,9 @@ const COLUMNS: { key: SortKey; label: string; cls?: string }[] = [
   { key: "createdAt", label: "Reviewed" },
 ];
 
-// Films and series have no creator, so their tables skip the "By" column.
-const columnsFor = (typeName: string) => creatorLabel(typeName) ? COLUMNS : COLUMNS.filter(c => c.key !== "creator");
+// Types without a creator skip the "By" column, and films skip "Progress".
+const columnsFor = (typeName: string) => COLUMNS.filter(c =>
+  (c.key !== "creator" || creatorLabel(typeName)) && (c.key !== "progress" || hasProgress(typeName)));
 
 const route = useRoute();
 const router = useRouter();

@@ -20,7 +20,7 @@
       <p v-if="credits" class="rv-credit rv-credit--large">{{ credits }}</p>
       <div class="rv-detail-meta">
         <StarRating :model-value="review.rating" with-label />
-        <span class="rv-progress" :class="`rv-progress--${review.progress}`" style="font-size: 0.95rem">{{ progressLabel(review.progress) }}</span>
+        <span v-if="hasProgress(review.typeName)" class="rv-progress" :class="`rv-progress--${review.progress}`" style="font-size: 0.95rem">{{ progressLabel(review.progress) }}</span>
       </div>
       <div class="rv-byline">
         <img v-if="review.authorAvatarUrl" :src="review.authorAvatarUrl" class="rv-avatar rv-avatar--large" alt="" />
@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { progressLabel, creditLine, matchSource, authorName, formatReviewDate, type Review } from "./api";
+import { progressLabel, hasProgress, creditLine, matchSource, authorName, formatReviewDate, type Review } from "./api";
 import ReviewCover from "./ReviewCover.vue";
 import StarRating from "./StarRating.vue";
 import TypeChip from "./TypeChip.vue";

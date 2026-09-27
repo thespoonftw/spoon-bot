@@ -18,15 +18,18 @@
       <router-link v-for="r in reviews" :key="r.id" :to="`/reviews/${r.id}`" class="rv-card">
         <ReviewCover :image-url="r.imageUrl" :icon="r.typeIcon" :title="r.title" />
         <div class="rv-card-body">
+          <TypeChip class="rv-card-type" :name="r.typeName" :icon="r.typeIcon" :color="r.typeColor" />
           <h3 class="rv-card-title">{{ r.title }}<span v-if="r.year" class="rv-card-year">{{ r.year }}</span></h3>
           <p v-if="r.season != null" class="rv-credit">Season {{ r.season }}</p>
-          <StarRating :model-value="r.rating" />
+          <div class="rv-card-rating">
+            <StarRating :model-value="r.rating" />
+            <span v-if="hasProgress(r.typeName)" class="rv-progress" :class="`rv-progress--${r.progress}`">{{ progressLabel(r.progress) }}</span>
+          </div>
           <p v-if="r.summary" class="rv-card-summary">{{ r.summary }}</p>
           <div class="rv-card-foot">
             <img v-if="r.authorAvatarUrl" :src="r.authorAvatarUrl" class="rv-avatar" alt="" />
             <span v-else class="rv-avatar">{{ authorName(r)[0] }}</span>
             <span>{{ authorName(r) }} · {{ formatReviewDate(r.createdAt) }}</span>
-            <TypeChip class="rv-card-type" :name="r.typeName" :icon="r.typeIcon" :color="r.typeColor" />
           </div>
         </div>
       </router-link>
@@ -41,7 +44,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { authorName, formatReviewDate, fetchReviewTypes, type Review, type ReviewType } from "./api";
+import { authorName, formatReviewDate, fetchReviewTypes, hasProgress, progressLabel, type Review, type ReviewType } from "./api";
 import ReviewCover from "./ReviewCover.vue";
 import StarRating from "./StarRating.vue";
 import TypeChip from "./TypeChip.vue";

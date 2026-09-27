@@ -24,12 +24,11 @@ async function announceReview(r: ReviewRow): Promise<void> {
     .setTitle((r.year ? `${r.title} (${r.year})` : r.title).slice(0, 256))
     .setURL(`${getBaseUrl()}/reviews/${r.id}`)
     .setColor(r.typeColor as `#${string}`)
-    .setAuthor({ name: r.authorFirstName || r.authorName, iconURL: r.authorAvatarUrl || undefined })
-    .setDescription([credit || null, `**${stars}**`, r.summary].filter(Boolean).join("\n").slice(0, 4096))
-    .setFooter({ text: `${r.typeIcon} ${r.typeName}` })
-    .setTimestamp(new Date(r.createdAt));
+    .setDescription([credit || null, stars, r.summary].filter(Boolean).join("\n").slice(0, 4096))
+    .setFooter({ text: `${r.typeIcon} ${r.typeName}` });
   if (r.imageUrl) embed.setThumbnail(r.imageUrl);
-  await channel.send({ embeds: [embed] });
+  const name = (r.authorFirstName || r.authorName).replace(/[\\*_~`|>]/g, "\\$&");
+  await channel.send({ content: `**${name}** reviewed:`, embeds: [embed], allowedMentions: { parse: [] } });
 }
 
 // The long review is rich text from a contenteditable editor, rendered with v-html — so it is
@@ -65,12 +64,14 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   const title = typeof b.title === "string" ? b.title.trim() : "";
   if (!title || title.length > 200) return "Title is required (max 200 characters)";
   const typeId = Number(b.typeId);
-  if (!Number.isInteger(typeId) || !dbGetReviewType(typeId)) return "Pick a type";
+  const type = Number.isInteger(typeId) ? dbGetReviewType(typeId) : undefined;
+  if (!type) return "Pick a type";
   const rating = Number(b.rating);
   if (!Number.isInteger(rating) || rating < 0 || rating > 5) return "Rating must be 0–5 stars";
-  const progress = String(b.progress ?? "");
+  // Films don't ask for progress, so they're always saved as finished.
+  const progress = type.name.toLowerCase() === "film" ? "finished" : String(b.progress ?? "");
   if (!PROGRESS.has(progress)) return "Progress must be ongoing, stopped or finished";
-  const summary = typeof b.summary === "string" ? b.summary.trim().slice(0, 1000) : "";
+  const summary = typeof b.summary === "string" ? b.summary.trim().slice(0, 300) : "";
   const cleanedBody = typeof b.bodyHtml === "string" ? sanitizeHtml(b.bodyHtml, SANITIZE_OPTS).trim() : "";
   const bodyHasText = sanitizeHtml(cleanedBody, { allowedTags: [], allowedAttributes: {} }).trim().length > 0;
   // Images are only ever hotlinked from where the lookups point: Wikimedia, Open Library, TVmaze and Apple.

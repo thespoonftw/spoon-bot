@@ -18,7 +18,7 @@
             <option v-for="t in types" :key="t.id" :value="t.id">{{ t.icon }} {{ t.name }}</option>
           </select>
         </div>
-        <div class="rv-field">
+        <div v-if="hasProgress(selectedType?.name ?? '')" class="rv-field">
           <label class="rv-label" for="rv-progress">Progress</label>
           <select id="rv-progress" v-model="draft.progress" class="rv-select">
             <option v-for="p in PROGRESS_OPTIONS" :key="p.value" :value="p.value">{{ p.label }}</option>
@@ -76,8 +76,8 @@
 
       <div class="rv-field">
         <label class="rv-label" for="rv-summary">Summary</label>
-        <textarea id="rv-summary" v-model="draft.summary" class="rv-textarea" maxlength="1000" rows="3" placeholder="The short version — a line or two."></textarea>
-        <span class="rv-hint">{{ (draft.summary ?? "").length }}/1000</span>
+        <textarea id="rv-summary" v-model="draft.summary" class="rv-textarea" maxlength="300" rows="3" placeholder="The short version — a line or two."></textarea>
+        <span class="rv-hint">{{ (draft.summary ?? "").length }}/300</span>
       </div>
 
       <div class="rv-field">
@@ -108,7 +108,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { PROGRESS_OPTIONS, SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
+import { PROGRESS_OPTIONS, hasProgress,SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
 import StarRating from "./StarRating.vue";
 import RichTextEditor from "./RichTextEditor.vue";
 import ReviewCover from "./ReviewCover.vue";

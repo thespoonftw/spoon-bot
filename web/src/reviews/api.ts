@@ -64,6 +64,8 @@ export const PROGRESS_OPTIONS: { value: Progress; label: string }[] = [
 export const RATING_LABELS = ["Awful", "Poor", "Weak", "Good", "Great", "Perfect"];
 
 export const progressLabel = (p: Progress) => PROGRESS_OPTIONS.find(o => o.value === p)?.label ?? p;
+// Films are short enough that progress isn't asked for (they're saved as finished) or shown.
+export const hasProgress = (typeName: string) => typeName.trim().toLowerCase() !== "film";
 export const authorName = (r: Review) => r.authorFirstName || r.authorName;
 
 export function formatReviewDate(iso: string): string {
