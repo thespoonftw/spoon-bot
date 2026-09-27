@@ -7,7 +7,9 @@ import { dbListReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteRev
 
 const PROGRESS = new Set(["ongoing", "stopped", "finished"]);
 // Types done in one sitting, which don't ask for progress. Keep in sync with web/src/reviews/api.ts.
-const NO_PROGRESS_TYPES = new Set(["film", "board game"]);
+const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast"]);
+// Types that don't ask for a year (a podcast runs for years). Keep in sync with web/src/reviews/api.ts.
+const NO_YEAR_TYPES = new Set(["podcast"]);
 const MAX_BODY_BYTES = 200 * 1024;
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 
@@ -83,16 +85,18 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
     /^https:\/\/static\.tvmaze\.com\/uploads\/images\/[a-z_]+\/\d+\/\d+\.(jpg|jpeg|png)$/.test(b.imageUrl) ||
     /^https:\/\/is\d+-ssl\.mzstatic\.com\/image\/thumb\/[^\s"'<>?]+\.(jpg|jpeg|png|webp)$/.test(b.imageUrl)
   ) ? b.imageUrl : null;
-  // The page the review was matched to: a Wikipedia article, Open Library work, TVmaze show or Apple podcast.
+  // The page the review was matched to: a Wikipedia article, Open Library work, TVmaze show, Apple
+  // podcast or Apple Music album.
   const sourceUrl = typeof b.sourceUrl === "string" && (
     /^https:\/\/en\.wikipedia\.org\/wiki\/[^\s"'<>]+$/.test(b.sourceUrl) ||
     /^https:\/\/openlibrary\.org\/works\/OL\d+W$/.test(b.sourceUrl) ||
     /^https:\/\/www\.tvmaze\.com\/shows\/\d+\/[a-z0-9-]+$/.test(b.sourceUrl) ||
-    /^https:\/\/podcasts\.apple\.com\/[a-z]{2}\/podcast\/[^\s"'<>/?]+\/id\d+$/.test(b.sourceUrl)
+    /^https:\/\/podcasts\.apple\.com\/[a-z]{2}\/podcast\/[^\s"'<>/?]+\/id\d+$/.test(b.sourceUrl) ||
+    /^https:\/\/music\.apple\.com\/[a-z]{2}\/album\/[^\s"'<>/?]+\/\d+$/.test(b.sourceUrl)
   ) ? b.sourceUrl : null;
   const wikiTitle = typeof b.wikiTitle === "string" && b.wikiTitle.trim() ? b.wikiTitle.trim().slice(0, 300) : null;
   const creator = typeof b.creator === "string" && b.creator.trim() ? b.creator.trim().slice(0, 200) : null;
-  const rawYear = b.year === null || b.year === undefined || b.year === "" ? null : Number(b.year);
+  const rawYear = b.year === null || b.year === undefined || b.year === "" || NO_YEAR_TYPES.has(type.name.toLowerCase()) ? null : Number(b.year);
   if (rawYear !== null && (!Number.isInteger(rawYear) || rawYear < 0 || rawYear > 3000)) return "Year must be a whole number";
   // Season (series) and platform (video games) are optional extras; null means "not specified".
   const season = b.season === null || b.season === undefined || b.season === "" ? null : Number(b.season);

@@ -196,7 +196,8 @@ export function initDb() {
   db.prepare(`
     INSERT OR IGNORE INTO review_types (name, icon, color, created_at) VALUES
       ('Board Game', '🎲', '#5b4b8a', @now),
-      ('Podcast',    '🎙️', '#2f7a78', @now)
+      ('Podcast',    '🎙️', '#2f7a78', @now),
+      ('Album',      '💿', '#a33b5e', @now)
   `).run({ now: new Date().toISOString() });
   // Migrate reviews from the original fixed media_type strings to review_types ids
   try {

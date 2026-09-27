@@ -39,9 +39,9 @@ export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyH
 export const creditLine = (r: { creator: string | null; year: number | null; season?: number | null; platform?: string | null }) =>
   [r.creator, r.season != null ? `Season ${r.season}` : null, r.platform, r.year].filter(Boolean).join(" · ");
 
-export type MatchSource = "openlibrary" | "tvmaze" | "applepodcasts" | "wikipedia";
-export const SOURCE_NAMES: Record<MatchSource, string> = { openlibrary: "Open Library", tvmaze: "TVmaze", applepodcasts: "Apple Podcasts", wikipedia: "Wikipedia" };
-const SOURCE_HOSTS: Record<MatchSource, string> = { openlibrary: "https://openlibrary.org/", tvmaze: "https://www.tvmaze.com/", applepodcasts: "https://podcasts.apple.com/", wikipedia: "https://en.wikipedia.org/" };
+export type MatchSource = "openlibrary" | "tvmaze" | "applepodcasts" | "applemusic" | "wikipedia";
+export const SOURCE_NAMES: Record<MatchSource, string> = { openlibrary: "Open Library", tvmaze: "TVmaze", applepodcasts: "Apple Podcasts", applemusic: "Apple Music", wikipedia: "Wikipedia" };
+const SOURCE_HOSTS: Record<MatchSource, string> = { openlibrary: "https://openlibrary.org/", tvmaze: "https://www.tvmaze.com/", applepodcasts: "https://podcasts.apple.com/", applemusic: "https://music.apple.com/", wikipedia: "https://en.wikipedia.org/" };
 
 export const wikiUrl = (pageTitle: string) => `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/ /g, "_"))}`;
 
@@ -64,10 +64,13 @@ export const PROGRESS_OPTIONS: { value: Progress; label: string }[] = [
 export const RATING_LABELS = ["Awful", "Poor", "Weak", "Good", "Great", "Perfect"];
 
 export const progressLabel = (p: Progress) => PROGRESS_OPTIONS.find(o => o.value === p)?.label ?? p;
-// Films and board games are done in one sitting, so progress isn't asked for (they're saved as
-// finished) or shown. Keep in sync with NO_PROGRESS_TYPES in src/reviews.ts.
-const NO_PROGRESS_TYPES = new Set(["film", "board game"]);
+// Films, board games and podcasts don't ask for progress (they're saved as finished) or show it.
+// Keep in sync with NO_PROGRESS_TYPES in src/reviews.ts.
+const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast"]);
 export const hasProgress = (typeName: string) => !NO_PROGRESS_TYPES.has(typeName.trim().toLowerCase());
+// Podcasts run for years, so they don't ask for one. Keep in sync with NO_YEAR_TYPES in src/reviews.ts.
+const NO_YEAR_TYPES = new Set(["podcast"]);
+export const hasYear = (typeName: string) => !NO_YEAR_TYPES.has(typeName.trim().toLowerCase());
 export const authorName = (r: Review) => r.authorFirstName || r.authorName;
 
 export function formatReviewDate(iso: string): string {
@@ -163,6 +166,8 @@ const BUILT_IN_PROFILES: Record<string, WikiProfile> = {
   "video game": { hint: "video game", suffixes: ["", " (video game)"], match: /\bvideo game\b/i, creatorLabel: "Developer(s)", creatorProps: ["P178"], yearProps: ["P577"] },
   // Podcasts are matched on Apple Podcasts, not Wikipedia; this just says they have no creator field.
   podcast: { hint: "podcast", suffixes: ["", " (podcast)"], match: /\bpodcast\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P580", "P577"] },
+  // Albums are matched on Apple Music, which gives the artist and year itself; P175 = performer.
+  album: { hint: "album", suffixes: ["", " (album)"], match: /\balbum\b/i, creatorLabel: "Artist(s)", creatorProps: ["P175"], yearProps: ["P577"] },
 };
 
 function wikiProfile(typeName: string): WikiProfile {
@@ -337,14 +342,47 @@ async function searchApplePodcasts(title: string, signal?: AbortSignal): Promise
     }));
 }
 
-// Candidates for the editor's dropdown, best first. Books use Open Library, series TVmaze and
-// podcasts Apple Podcasts (all cover far more than Wikipedia and have proper artwork); everything
-// else uses Wikipedia.
+type AppleAlbum = { collectionName: string; artistName?: string; collectionViewUrl?: string; artworkUrl100?: string; releaseDate?: string; trackCount?: number };
+
+// Searches Apple Music's albums (same free iTunes search as podcasts). The artist and release year
+// come with each result, and the 100px artwork URL can be asked for at 600px instead.
+async function searchAppleMusic(title: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
+  const res = await fetch(`https://itunes.apple.com/search?${new URLSearchParams({ media: "music", entity: "album", limit: "15", term: title })}`, { signal });
+  if (!res.ok) return [];
+  const results = ((await res.json())?.results ?? []) as AppleAlbum[];
+  const wanted = title.trim().toLowerCase();
+  const seen = new Set<string>();
+  return results
+    .map(a => ({ a, url: a.collectionViewUrl?.split("?")[0] ?? "" }))
+    .filter(({ url }) => /^https:\/\/music\.apple\.com\/[a-z]{2}\/album\/[^/?]+\/\d+$/.test(url) && !seen.has(url) && !!seen.add(url))
+    .map(({ a, url }, index) => ({ a, url, index, exact: a.collectionName.trim().toLowerCase() === wanted ? 1 : 0 }))
+    .sort((x, y) => y.exact - x.exact || x.index - y.index)
+    .slice(0, 8)
+    .map(({ a, url }) => {
+      const year = a.releaseDate ? Number(a.releaseDate.slice(0, 4)) || null : null;
+      const art = a.artworkUrl100?.replace(/\/100x100bb\.jpg$/, "/600x600bb.jpg");
+      return {
+        source: "applemusic" as const,
+        url,
+        label: a.collectionName,
+        description: [a.artistName, year].filter(Boolean).join(", "),
+        imageUrl: art && /^https:\/\/is\d+-ssl\.mzstatic\.com\//.test(art) ? art : null,
+        wikiTitle: null,
+        wikidataId: null,
+        details: { creator: a.artistName ?? null, year },
+      };
+    });
+}
+
+// Candidates for the editor's dropdown, best first. Books use Open Library, series TVmaze, podcasts
+// Apple Podcasts and albums Apple Music (all cover far more than Wikipedia and have proper
+// artwork); everything else uses Wikipedia.
 export async function searchMatches(title: string, typeName: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
   switch (typeName.trim().toLowerCase()) {
     case "book": return searchOpenLibrary(title, signal);
     case "series": return searchTvmaze(title, signal);
     case "podcast": return searchApplePodcasts(title, signal);
+    case "album": return searchAppleMusic(title, signal);
     default: return searchWikipedia(title, typeName, signal);
   }
 }
