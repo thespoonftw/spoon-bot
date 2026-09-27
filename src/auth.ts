@@ -4,7 +4,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
-import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbGetAssociatedUsers, dbUpdateUserFirstName, dbUpdateUserSurname, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetUserGroups, dbAddDiscordUser, dbSearchLoginUsers, dbUpdateUserDiscordId, dbUpdateUserEmail, dbCreateGuestUser, dbFindUserByDiscordId, dbFindUserByEmail } from "./db";
+import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbGetAssociatedUsers, dbUpdateUserFirstName, dbUpdateUserSurname, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetUserGroups, dbAddDiscordUser, dbSearchLoginUsers, dbUpdateUserDiscordId, dbUpdateUserEmail, dbCreateGuestUser, dbFindUserByDiscordId, dbUnhideUser, dbFindUserByEmail } from "./db";
 import { sendMagicLinkEmail, maskEmail } from "./email";
 
 export function sendJson(res: ServerResponse, status: number, data: unknown, extraHeaders: Record<string, string> = {}): void {
@@ -215,10 +215,17 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
         const { discordId, email, firstName, surname, groups } = JSON.parse(body);
         const trimmedDiscordId = typeof discordId === "string" ? discordId.trim() : "";
         const trimmedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
-        if (trimmedDiscordId && dbFindUserByDiscordId(trimmedDiscordId)) { sendJson(res, 400, { error: "This Discord account is already linked to a user" }); return; }
-        if (trimmedEmail && dbFindUserByEmail(trimmedEmail)) { sendJson(res, 400, { error: "This email is already linked to a user" }); return; }
+        // An invisible (level 0) user isn't on the list, so adding them again makes them visible
+        // rather than failing as a duplicate.
+        const existing = trimmedDiscordId ? dbFindUserByDiscordId(trimmedDiscordId) : undefined;
+        if (existing && existing.level > 0) { sendJson(res, 400, { error: "This Discord account is already linked to a user" }); return; }
+        const emailOwner = trimmedEmail ? dbFindUserByEmail(trimmedEmail) : undefined;
+        if (emailOwner && emailOwner.userId !== existing?.userId) { sendJson(res, 400, { error: "This email is already linked to a user" }); return; }
         let userId: string;
-        if (trimmedDiscordId) {
+        if (existing) {
+          dbUnhideUser(existing.userId);
+          userId = existing.userId;
+        } else if (trimmedDiscordId) {
           const discordUser = await discordClient!.users.fetch(trimmedDiscordId).catch(() => null);
           if (!discordUser) { sendJson(res, 404, { error: "User not found on Discord" }); return; }
           dbAddDiscordUser(trimmedDiscordId, discordUser.displayName ?? discordUser.username, discordUser.displayAvatarURL({ extension: "png", size: 128 }));

@@ -485,7 +485,12 @@ export function dbUpdateUserEmail(userId: string, email: string | null) {
 }
 
 export function dbFindUserByDiscordId(discordId: string): UserRow | undefined {
-  return db.prepare("SELECT user_id AS userId, display_name AS displayName, discord_id AS discordId, email FROM users WHERE discord_id = ?").get(discordId) as UserRow | undefined;
+  return db.prepare("SELECT user_id AS userId, display_name AS displayName, discord_id AS discordId, email, level FROM users WHERE discord_id = ?").get(discordId) as UserRow | undefined;
+}
+
+// Makes an invisible (level 0) user visible again at the default level.
+export function dbUnhideUser(userId: string) {
+  db.prepare("UPDATE users SET level = 1 WHERE user_id = ? AND level = 0").run(userId);
 }
 
 export function dbFindUserByEmail(email: string): UserRow | undefined {
