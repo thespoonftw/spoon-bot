@@ -2,6 +2,8 @@ import http from "http";
 import sanitizeHtml from "sanitize-html";
 import { EmbedBuilder, type Client } from "discord.js";
 import { config } from "./config";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const sharp = require("sharp") as (input: Buffer) => { png(): { toBuffer(): Promise<Buffer> } };
 import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
 import { dbListReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, type ReviewInput, type ReviewRow } from "./db";
 
@@ -14,25 +16,64 @@ const MAX_BODY_BYTES = 200 * 1024;
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 
 let reviewsDiscordClient: Client | null = null;
-export function setReviewsDiscordClient(client: Client) { reviewsDiscordClient = client; }
+export function setReviewsDiscordClient(client: Client) {
+  reviewsDiscordClient = client;
+  if (config.reviewsChannelId) getStarEmojis(client);
+}
 
-// Posts a new review to the reviews channel as an embed mirroring the feed card: cover, title and
-// year, season, stars, summary, author and type. Best-effort — a failure never affects the save.
+// Embed text can't be coloured, so the stars are two of the bot's own (application) emoji: a gold
+// filled star and a grey empty one. They're created on first use and found by name after that;
+// if that fails the post falls back to plain ★/☆.
+const STAR_SVG = (fill: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 24 24"><path fill="${fill}" d="M12 1.5l3.1 6.9 7.4.7-5.6 5 1.7 7.4L12 17.6l-6.6 3.9 1.7-7.4-5.6-5 7.4-.7z"/></svg>`;
+let starEmojis: Promise<{ full: string; empty: string } | null> | null = null;
+function getStarEmojis(client: Client): Promise<{ full: string; empty: string } | null> {
+  starEmojis ??= (async () => {
+    const app = client.application;
+    if (!app) return null;
+    const existing = await app.emojis.fetch();
+    const ensure = async (name: string, fill: string) => {
+      const found = existing.find(e => e.name === name);
+      if (found) return found.toString();
+      const png = await sharp(Buffer.from(STAR_SVG(fill))).png().toBuffer();
+      return (await app.emojis.create({ attachment: png, name })).toString();
+    };
+    return { full: await ensure("review_star", "#f5b301"), empty: await ensure("review_star_empty", "#80848e") };
+  })().catch(e => { console.error("Failed to set up review star emoji:", e); starEmojis = null; return null; });
+  return starEmojis;
+}
+
+// The reviewer as they appear on the Discord server (nickname and server avatar), falling back to
+// their site name and avatar for guests or anyone who's left.
+async function discordAuthor(client: Client, r: ReviewRow): Promise<{ name: string; iconURL?: string }> {
+  const fallback = { name: r.authorName, iconURL: r.authorAvatarUrl || undefined };
+  const discordId = dbGetUserById(r.userId)?.discordId;
+  if (!discordId) return fallback;
+  try {
+    const member = await client.guilds.cache.get(config.guildId)?.members.fetch(discordId);
+    return member ? { name: member.displayName, iconURL: member.displayAvatarURL({ extension: "png", size: 128 }) } : fallback;
+  } catch { return fallback; }
+}
+
+// Posts a new review to the reviews channel as an embed mirroring the feed card: who reviewed what
+// type, then cover, title and year, credit, stars and summary. Best-effort — a failure never
+// affects the save.
 async function announceReview(r: ReviewRow): Promise<void> {
-  if (!reviewsDiscordClient || !config.reviewsChannelId) return;
-  const channel = await reviewsDiscordClient.channels.fetch(config.reviewsChannelId);
+  const client = reviewsDiscordClient;
+  if (!client || !config.reviewsChannelId) return;
+  const channel = await client.channels.fetch(config.reviewsChannelId);
   if (!channel?.isSendable()) return;
-  const stars = "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
+  const [emoji, author] = await Promise.all([getStarEmojis(client), discordAuthor(client, r)]);
+  const stars = emoji ? emoji.full.repeat(r.rating) + emoji.empty.repeat(5 - r.rating) : "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
   const credit = [r.creator, r.season != null ? `Season ${r.season}` : null, r.platform].filter(Boolean).join(" · ");
+  const article = /^[aeiou]/i.test(r.typeName) ? "an" : "a";
   const embed = new EmbedBuilder()
+    .setAuthor({ name: `${author.name} reviewed ${article} ${r.typeIcon} ${r.typeName}`.slice(0, 256), iconURL: author.iconURL })
     .setTitle((r.year ? `${r.title} (${r.year})` : r.title).slice(0, 256))
     .setURL(`${getBaseUrl()}/reviews/${r.id}`)
     .setColor(r.typeColor as `#${string}`)
-    .setDescription([credit || null, stars, r.summary].filter(Boolean).join("\n").slice(0, 4096))
-    .setFooter({ text: `${r.typeIcon} ${r.typeName}` });
+    .setDescription([credit || null, stars, r.summary].filter(Boolean).join("\n").slice(0, 4096));
   if (r.imageUrl) embed.setThumbnail(r.imageUrl);
-  const name = (r.authorFirstName || r.authorName).replace(/[\\*_~`|>]/g, "\\$&");
-  await channel.send({ content: `**${name}** reviewed:`, embeds: [embed], allowedMentions: { parse: [] } });
+  await channel.send({ embeds: [embed] });
 }
 
 // The long review is rich text from a contenteditable editor, rendered with v-html — so it is
