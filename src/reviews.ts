@@ -44,21 +44,29 @@ function getStarEmojis(client: Client): Promise<{ full: string; empty: string } 
   return starEmojis;
 }
 
-const escapeMarkdown = (s: string) => s.replace(/[\\*_~`|[\]]/g, "\\$&");
+// The reviewer as they appear on the Discord server (nickname and server avatar), falling back to
+// their site name and avatar for guests or anyone who's left.
+async function discordAuthor(client: Client, r: ReviewRow): Promise<{ name: string; iconURL?: string }> {
+  const fallback = { name: r.authorName, iconURL: r.authorAvatarUrl || undefined };
+  const discordId = dbGetUserById(r.userId)?.discordId;
+  if (!discordId) return fallback;
+  try {
+    const member = await client.guilds.cache.get(config.guildId)?.members.fetch(discordId);
+    return member ? { name: member.displayName, iconURL: member.displayAvatarURL({ extension: "png", size: 128 }) } : fallback;
+  } catch { return fallback; }
+}
 
-// Posts a new review to the reviews channel as an embed mirroring the feed card: "@user reviewed a
-// 🎬 Film", then the linked title, season/platform, stars and summary, with the cover beside. It's
-// all in the description because mentions only render there (and never ping from an embed).
+// Posts a new review to the reviews channel as an embed mirroring the feed card: a header of the
+// reviewer's avatar and "@Name reviewed a 🎬 Film" (plain text — the header can't hold a real
+// mention), then the linked title, season/platform, stars and summary, with the cover beside.
 // Best-effort — a failure never affects the save.
 async function announceReview(r: ReviewRow): Promise<void> {
   const client = reviewsDiscordClient;
   if (!client || !config.reviewsChannelId) return;
   const channel = await client.channels.fetch(config.reviewsChannelId);
   if (!channel?.isSendable()) return;
-  const emoji = await getStarEmojis(client);
+  const [emoji, author] = await Promise.all([getStarEmojis(client), discordAuthor(client, r)]);
   const stars = emoji ? emoji.full.repeat(r.rating) + emoji.empty.repeat(5 - r.rating) : "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
-  const discordId = dbGetUserById(r.userId)?.discordId;
-  const who = discordId ? `<@${discordId}>` : `**${escapeMarkdown(r.authorName)}**`;
   const article = /^[aeiou]/i.test(r.typeName) ? "an" : "a";
   // Only albums name who made it: "OK Computer (1997) by Radiohead".
   const isAlbum = r.typeName.toLowerCase() === "album";
@@ -66,13 +74,14 @@ async function announceReview(r: ReviewRow): Promise<void> {
   const extra = [r.season != null ? `Season ${r.season}` : null, r.platform].filter(Boolean).join(" · ");
   const embed = new EmbedBuilder()
     .setColor(r.typeColor as `#${string}`)
-    .setDescription([
-      `${who} reviewed ${article} ${r.typeIcon} ${r.typeName}`,
-      `### [${escapeMarkdown(heading)}](${getBaseUrl()}/reviews/${r.id})`,
-      extra || null,
-      stars,
-      r.summary,
-    ].filter(Boolean).join("\n").slice(0, 4096));
+    .setAuthor({
+      name: `@${author.name} reviewed ${article} ${r.typeIcon} ${r.typeName}`.slice(0, 256),
+      iconURL: author.iconURL,
+      url: `${getBaseUrl()}/reviews/people/${encodeURIComponent(r.userId)}`,
+    })
+    .setTitle(heading)
+    .setURL(`${getBaseUrl()}/reviews/${r.id}`)
+    .setDescription([extra || null, stars, r.summary].filter(Boolean).join("\n").slice(0, 4096));
   if (r.imageUrl) embed.setThumbnail(r.imageUrl);
   await channel.send({ embeds: [embed] });
 }
