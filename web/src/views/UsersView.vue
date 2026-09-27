@@ -34,7 +34,7 @@
             <span class="user-link-icons">
               <span v-if="user.email" class="link-icon" title="Has email on file">✉️</span>
             </span>
-            <button class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
+            <button v-if="canEditGroups" class="btn-icon" @click="openEdit(user)" title="Edit user">✏️</button>
           </div>
           <span class="user-row-login user-row-discord" v-if="user.discordId">
             <svg class="link-icon discord-icon" viewBox="0 0 127.14 96.36" title="Linked to Discord">

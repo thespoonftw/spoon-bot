@@ -111,6 +111,12 @@ export function getSessionUser(token: string): UserInfo | null {
   return { userId, displayName: userId, avatarUrl: "" };
 }
 
+// Admins (level 2+) manage the user list; everyone else can only view it.
+function isAdminRequest(req: IncomingMessage): boolean {
+  const userId = sessions.get(getTokenFromRequest(req));
+  return !!userId && (dbGetUserById(userId)?.level ?? 0) >= 2;
+}
+
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 
 // Returns true if the request was handled
@@ -208,6 +214,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
 
   if (url === "/api/site-users" && method === "POST") {
     if (!sessions.has(getTokenFromRequest(req))) { send401(res); return true; }
+    if (!isAdminRequest(req)) { sendJson(res, 403, { error: "Only admins can add users" }); return true; }
     let body = "";
     req.on("data", chunk => body += chunk);
     req.on("end", async () => {
@@ -250,6 +257,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
 
   if (url.match(/^\/api\/site-users\/[^/]+$/) && method === "PUT") {
     if (!sessions.has(getTokenFromRequest(req))) { send401(res); return true; }
+    if (!isAdminRequest(req)) { sendJson(res, 403, { error: "Only admins can edit users" }); return true; }
     const userId = url.slice("/api/site-users/".length);
     let body = "";
     req.on("data", chunk => body += chunk);
