@@ -20,6 +20,7 @@
         </div>
       </div>
 
+      <template v-if="details">
       <div class="rv-field">
         <label class="rv-label" for="rv-match">Match</label>
         <select id="rv-match" class="rv-select" :value="draft.sourceUrl ?? NO_PAGE" :disabled="!candidates.length" @change="onPageChange">
@@ -62,6 +63,7 @@
         </div>
       </div>
       <p v-if="detailsStatus" class="rv-hint" style="margin: -14px 0 18px">{{ detailsStatus }}</p>
+      </template>
 
       <div class="rv-editor-row">
         <div class="rv-field">
@@ -102,7 +104,7 @@
         From {{ source.name }}<template v-if="selectedCandidate">: <strong>{{ selectedCandidate.label }}</strong></template><br />
         <a :href="source.url" target="_blank" rel="noopener noreferrer">View page ↗</a>
       </p>
-      <p class="rv-picker-caption" v-else>Pick a match to use its cover.</p>
+      <p class="rv-picker-caption" v-else-if="details">Pick a match to use its cover.</p>
     </aside>
   </form>
 </template>
@@ -110,7 +112,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { PROGRESS_OPTIONS, hasProgress, hasYear, SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
+import { PROGRESS_OPTIONS, hasProgress, hasYear, hasDetails,SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
 import StarRating from "./StarRating.vue";
 import RichTextEditor from "./RichTextEditor.vue";
 import ReviewCover from "./ReviewCover.vue";
@@ -136,6 +138,8 @@ const selectedType = computed(() => types.value.find(t => t.id === draft.typeId)
 const creatorFieldLabel = computed(() => creatorLabel(selectedType.value?.name ?? ""));
 // "season" for series, "platform" for video games, null otherwise.
 const extra = computed(() => typeExtra(selectedType.value?.name ?? ""));
+// false for types that only take a rating and write-up (shows): no lookup, cover or details.
+const details = computed(() => hasDetails(selectedType.value?.name ?? ""));
 
 // --- Season (series): the matched TVmaze show's seasons. Picking one moves the year and cover to
 // that season; "Whole series" goes back to the show's own.
@@ -189,7 +193,7 @@ let detailsInflight: AbortController | null = null;
 async function lookup() {
   const title = draft.title.trim();
   searchInflight?.abort();
-  if (title.length < 2) { candidates.value = []; wikiStatus.value = "Type a title and we'll look it up."; return; }
+  if (title.length < 2 || !details.value) { candidates.value = []; wikiStatus.value = "Type a title and we'll look it up."; return; }
   searchInflight = new AbortController();
   wikiStatus.value = "Searching…";
   try {
@@ -298,6 +302,7 @@ async function save() {
       creator: creatorFieldLabel.value ? draft.creator : null,
       season: extra.value === "season" ? draft.season : null,
       platform: extra.value === "platform" ? draft.platform : null,
+      ...(details.value ? {} : { sourceUrl: null, wikiTitle: null, imageUrl: null, year: null }),
     }),
   });
   const data = await res.json().catch(() => ({}));

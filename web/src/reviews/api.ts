@@ -64,13 +64,17 @@ export const PROGRESS_OPTIONS: { value: Progress; label: string }[] = [
 export const RATING_LABELS = ["Awful", "Poor", "Weak", "Good", "Great", "Perfect"];
 
 export const progressLabel = (p: Progress) => PROGRESS_OPTIONS.find(o => o.value === p)?.label ?? p;
+// Shows (theatre) ask for nothing beyond the rating and write-up: no match, cover, year, creator or
+// progress. Keep in sync with NO_DETAILS_TYPES in src/reviews.ts.
+const NO_DETAILS_TYPES = new Set(["show"]);
+export const hasDetails = (typeName: string) => !NO_DETAILS_TYPES.has(typeName.trim().toLowerCase());
 // Films, board games, podcasts and albums don't ask for progress (they're saved as finished) or show it.
 // Keep in sync with NO_PROGRESS_TYPES in src/reviews.ts.
 const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album"]);
-export const hasProgress = (typeName: string) => !NO_PROGRESS_TYPES.has(typeName.trim().toLowerCase());
+export const hasProgress = (typeName: string) => hasDetails(typeName) && !NO_PROGRESS_TYPES.has(typeName.trim().toLowerCase());
 // Podcasts run for years, so they don't ask for one. Keep in sync with NO_YEAR_TYPES in src/reviews.ts.
 const NO_YEAR_TYPES = new Set(["podcast"]);
-export const hasYear = (typeName: string) => !NO_YEAR_TYPES.has(typeName.trim().toLowerCase());
+export const hasYear = (typeName: string) => hasDetails(typeName) && !NO_YEAR_TYPES.has(typeName.trim().toLowerCase());
 export const authorName = (r: Review) => r.authorFirstName || r.authorName;
 
 export function formatReviewDate(iso: string): string {
@@ -166,6 +170,9 @@ const BUILT_IN_PROFILES: Record<string, WikiProfile> = {
   "video game": { hint: "video game", suffixes: ["", " (video game)"], match: /\bvideo game\b/i, creatorLabel: "Developer(s)", creatorProps: ["P178"], yearProps: ["P577"] },
   // Podcasts are matched on Apple Podcasts, not Wikipedia; this just says they have no creator field.
   podcast: { hint: "podcast", suffixes: ["", " (podcast)"], match: /\bpodcast\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P580", "P577"] },
+  // Shows aren't looked up at all; this just says they have no creator field. (The never-matching
+  // pattern keeps it out of other types' Wikipedia ranking.)
+  show: { hint: "show", suffixes: [""], match: /(?!)/, creatorLabel: null, creatorProps: [], yearProps: [] },
   // Albums are matched on Apple Music, which gives the artist and year itself; P175 = performer.
   album: { hint: "album", suffixes: ["", " (album)"], match: /\balbum\b/i, creatorLabel: "Artist(s)", creatorProps: ["P175"], yearProps: ["P577"] },
 };

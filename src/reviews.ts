@@ -12,6 +12,8 @@ const PROGRESS = new Set(["ongoing", "stopped", "finished"]);
 const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album"]);
 // Types that don't ask for a year (a podcast runs for years). Keep in sync with web/src/reviews/api.ts.
 const NO_YEAR_TYPES = new Set(["podcast"]);
+// Types that ask for nothing beyond the rating and write-up (theatre shows). Keep in sync with web/src/reviews/api.ts.
+const NO_DETAILS_TYPES = new Set(["show"]);
 const MAX_BODY_BYTES = 200 * 1024;
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 
@@ -42,36 +44,35 @@ function getStarEmojis(client: Client): Promise<{ full: string; empty: string } 
   return starEmojis;
 }
 
-// The reviewer as they appear on the Discord server (nickname and server avatar), falling back to
-// their site name and avatar for guests or anyone who's left.
-async function discordAuthor(client: Client, r: ReviewRow): Promise<{ name: string; iconURL?: string }> {
-  const fallback = { name: r.authorName, iconURL: r.authorAvatarUrl || undefined };
-  const discordId = dbGetUserById(r.userId)?.discordId;
-  if (!discordId) return fallback;
-  try {
-    const member = await client.guilds.cache.get(config.guildId)?.members.fetch(discordId);
-    return member ? { name: member.displayName, iconURL: member.displayAvatarURL({ extension: "png", size: 128 }) } : fallback;
-  } catch { return fallback; }
-}
+const escapeMarkdown = (s: string) => s.replace(/[\\*_~`|[\]]/g, "\\$&");
 
-// Posts a new review to the reviews channel as an embed mirroring the feed card: who reviewed what
-// type, then cover, title and year, credit, stars and summary. Best-effort — a failure never
-// affects the save.
+// Posts a new review to the reviews channel as an embed mirroring the feed card: "@user reviewed a
+// 🎬 Film", then the linked title, season/platform, stars and summary, with the cover beside. It's
+// all in the description because mentions only render there (and never ping from an embed).
+// Best-effort — a failure never affects the save.
 async function announceReview(r: ReviewRow): Promise<void> {
   const client = reviewsDiscordClient;
   if (!client || !config.reviewsChannelId) return;
   const channel = await client.channels.fetch(config.reviewsChannelId);
   if (!channel?.isSendable()) return;
-  const [emoji, author] = await Promise.all([getStarEmojis(client), discordAuthor(client, r)]);
+  const emoji = await getStarEmojis(client);
   const stars = emoji ? emoji.full.repeat(r.rating) + emoji.empty.repeat(5 - r.rating) : "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
-  const credit = [r.creator, r.season != null ? `Season ${r.season}` : null, r.platform].filter(Boolean).join(" · ");
+  const discordId = dbGetUserById(r.userId)?.discordId;
+  const who = discordId ? `<@${discordId}>` : `**${escapeMarkdown(r.authorName)}**`;
   const article = /^[aeiou]/i.test(r.typeName) ? "an" : "a";
+  // Only albums name who made it: "OK Computer (1997) by Radiohead".
+  const isAlbum = r.typeName.toLowerCase() === "album";
+  const heading = `${r.title}${r.year ? ` (${r.year})` : ""}${isAlbum && r.creator ? ` by ${r.creator}` : ""}`.slice(0, 200);
+  const extra = [r.season != null ? `Season ${r.season}` : null, r.platform].filter(Boolean).join(" · ");
   const embed = new EmbedBuilder()
-    .setAuthor({ name: `${author.name} reviewed ${article} ${r.typeIcon} ${r.typeName}`.slice(0, 256), iconURL: author.iconURL })
-    .setTitle((r.year ? `${r.title} (${r.year})` : r.title).slice(0, 256))
-    .setURL(`${getBaseUrl()}/reviews/${r.id}`)
     .setColor(r.typeColor as `#${string}`)
-    .setDescription([credit || null, stars, r.summary].filter(Boolean).join("\n").slice(0, 4096));
+    .setDescription([
+      `${who} reviewed ${article} ${r.typeIcon} ${r.typeName}`,
+      `### [${escapeMarkdown(heading)}](${getBaseUrl()}/reviews/${r.id})`,
+      extra || null,
+      stars,
+      r.summary,
+    ].filter(Boolean).join("\n").slice(0, 4096));
   if (r.imageUrl) embed.setThumbnail(r.imageUrl);
   await channel.send({ embeds: [embed] });
 }
@@ -143,7 +144,12 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   const season = b.season === null || b.season === undefined || b.season === "" ? null : Number(b.season);
   if (season !== null && (!Number.isInteger(season) || season < 0 || season > 500)) return "Season must be a whole number";
   const platform = typeof b.platform === "string" && b.platform.trim() ? b.platform.trim().slice(0, 60) : null;
-  return { title, typeId, rating, progress, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null, imageUrl, wikiTitle, creator, year: rawYear, sourceUrl, season, platform };
+  const base = { title, typeId, rating, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null };
+  // Types with no details (shows) keep just the title, rating and write-up.
+  if (NO_DETAILS_TYPES.has(type.name.toLowerCase())) {
+    return { ...base, progress: "finished", imageUrl: null, wikiTitle: null, creator: null, year: null, sourceUrl: null, season: null, platform: null };
+  }
+  return { ...base, progress, imageUrl, wikiTitle, creator, year: rawYear, sourceUrl, season, platform };
 }
 
 function canModify(userId: string, reviewUserId: string): boolean {
