@@ -74,7 +74,7 @@ export const PROGRESS_OPTIONS: { value: Progress; label: string }[] = [
 ];
 
 // A word for each star rating, 0–5.
-export const RATING_LABELS = ["Awful", "Poor", "Weak", "Good", "Great", "Perfect"];
+export const RATING_LABELS = ["Awful", "Bad", "Weak", "Good", "Great", "Amazing"];
 
 export const progressLabel = (p: Progress) => PROGRESS_OPTIONS.find(o => o.value === p)?.label ?? p;
 // Shows (theatre) ask for nothing beyond the rating and write-up: no match, cover, year, creator or
