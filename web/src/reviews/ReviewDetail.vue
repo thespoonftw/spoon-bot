@@ -33,9 +33,9 @@
       <blockquote v-if="review.summary" class="rv-pullquote">{{ review.summary }}</blockquote>
       <!-- bodyHtml is sanitised server-side on save (src/reviews.ts) -->
       <div v-if="review.bodyHtml" class="rv-prose" v-html="review.bodyHtml"></div>
-      <div v-if="review.canEdit" class="rv-actions">
-        <router-link :to="`/reviews/${review.id}/edit`" class="rv-btn rv-btn--ghost rv-btn--small">Edit</router-link>
-        <button class="rv-btn rv-btn--danger rv-btn--small" :disabled="deleting" @click="remove">Delete</button>
+      <div v-if="review.canEdit || review.canDelete" class="rv-actions">
+        <router-link v-if="review.canEdit" :to="`/reviews/${review.id}/edit`" class="rv-btn rv-btn--ghost rv-btn--small">Edit</router-link>
+        <button v-if="review.canDelete" class="rv-btn rv-btn--danger rv-btn--small" :disabled="deleting" @click="remove">Delete</button>
       </div>
     </div>
   </article>

@@ -31,6 +31,7 @@ export interface Review {
   authorFirstName: string | null;
   authorAvatarUrl: string | null;
   canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyHtml" | "imageUrl" | "wikiTitle" | "creator" | "sourceUrl" | "platform"> & { typeId: number | null; rating: number | null; year: number | string | null; season: number | null };

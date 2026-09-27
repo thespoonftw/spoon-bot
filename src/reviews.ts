@@ -213,7 +213,8 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   return { ...base, progress, imageUrl, wikiTitle, creator, year: rawYear, sourceUrl, season, platform };
 }
 
-function canModify(userId: string, reviewUserId: string): boolean {
+// Only the author can edit a review; admins can also delete one (to take something down).
+function canDelete(userId: string, reviewUserId: string): boolean {
   return userId === reviewUserId || (dbGetUserById(userId)?.level ?? 0) >= 2;
 }
 
@@ -312,13 +313,12 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
   if (!existing) { sendJson(res, 404, { error: "Not found" }); return true; }
 
   if (method === "GET") {
-    sendJson(res, 200, { ...existing, canEdit: canModify(user.userId, existing.userId) });
+    sendJson(res, 200, { ...existing, canEdit: user.userId === existing.userId, canDelete: canDelete(user.userId, existing.userId) });
     return true;
   }
 
-  if (!canModify(user.userId, existing.userId)) { sendJson(res, 403, { error: "You can only change your own reviews" }); return true; }
-
   if (method === "PUT") {
+    if (user.userId !== existing.userId) { sendJson(res, 403, { error: "You can only edit your own reviews" }); return true; }
     readJsonBody(req).then(raw => {
       const input = parseReviewInput(raw);
       if (typeof input === "string") { sendJson(res, 400, { error: input }); return; }
@@ -328,6 +328,7 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
   }
 
   if (method === "DELETE") {
+    if (!canDelete(user.userId, existing.userId)) { sendJson(res, 403, { error: "You can only delete your own reviews" }); return true; }
     dbDeleteReview(id);
     sendJson(res, 200, { ok: true });
     return true;
