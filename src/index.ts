@@ -21,6 +21,7 @@ import { loadAlbums, handleAlbumReaction, handleAlbumMessageCreate, handleAlbumU
 import { startWebServer, setAlbumDiscordClient, setUpdateEventMessages } from "./albumServer";
 import { initAuth } from "./auth";
 import { startArchipelagoRelay } from "./archipelago";
+import { setReviewsDiscordClient } from "./reviews";
 
 dotenv.config();
 
@@ -45,6 +46,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   scheduleBirthdayAnnouncements(readyClient);
   startWebServer();
   setAlbumDiscordClient(readyClient);
+  setReviewsDiscordClient(readyClient);
   setUpdateEventMessages(updateEventMessages);
   await initAuth(readyClient);
   startArchipelagoRelay(readyClient);

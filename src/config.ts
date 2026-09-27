@@ -12,4 +12,5 @@ export const config = {
   birthdaysEnabled: process.env.BIRTHDAYS_ENABLED === "true",
   birthdaysChannelId: process.env.BIRTHDAYS_CHANNEL_ID,
   albumsEnabled: process.env.ALBUMS_ENABLED === "true",
+  reviewsChannelId: process.env.REVIEWS_CHANNEL_ID,
 };

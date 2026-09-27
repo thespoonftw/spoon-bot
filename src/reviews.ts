@@ -1,10 +1,36 @@
 import http from "http";
 import sanitizeHtml from "sanitize-html";
+import { EmbedBuilder, type Client } from "discord.js";
+import { config } from "./config";
 import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbListReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, type ReviewInput } from "./db";
+import { dbListReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, type ReviewInput, type ReviewRow } from "./db";
 
 const PROGRESS = new Set(["ongoing", "stopped", "finished"]);
 const MAX_BODY_BYTES = 200 * 1024;
+const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
+
+let reviewsDiscordClient: Client | null = null;
+export function setReviewsDiscordClient(client: Client) { reviewsDiscordClient = client; }
+
+// Posts a new review to the reviews channel as an embed mirroring the feed card: cover, title and
+// year, season, stars, summary, author and type. Best-effort — a failure never affects the save.
+async function announceReview(r: ReviewRow): Promise<void> {
+  if (!reviewsDiscordClient || !config.reviewsChannelId) return;
+  const channel = await reviewsDiscordClient.channels.fetch(config.reviewsChannelId);
+  if (!channel?.isSendable()) return;
+  const stars = "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
+  const credit = [r.creator, r.season != null ? `Season ${r.season}` : null, r.platform].filter(Boolean).join(" · ");
+  const embed = new EmbedBuilder()
+    .setTitle((r.year ? `${r.title} (${r.year})` : r.title).slice(0, 256))
+    .setURL(`${getBaseUrl()}/reviews/${r.id}`)
+    .setColor(r.typeColor as `#${string}`)
+    .setAuthor({ name: r.authorFirstName || r.authorName, iconURL: r.authorAvatarUrl || undefined })
+    .setDescription([credit || null, `**${stars}**`, r.summary].filter(Boolean).join("\n").slice(0, 4096))
+    .setFooter({ text: `${r.typeIcon} ${r.typeName}` })
+    .setTimestamp(new Date(r.createdAt));
+  if (r.imageUrl) embed.setThumbnail(r.imageUrl);
+  await channel.send({ embeds: [embed] });
+}
 
 // The long review is rich text from a contenteditable editor, rendered with v-html — so it is
 // sanitised here on write against a small allowlist matching the editor's toolbar.
@@ -134,7 +160,9 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
       const input = parseReviewInput(raw);
       if (typeof input === "string") { sendJson(res, 400, { error: input }); return; }
       dbUpsertUser(user.userId, user.displayName, user.avatarUrl || undefined);
-      sendJson(res, 201, dbCreateReview(user.userId, input));
+      const review = dbCreateReview(user.userId, input);
+      sendJson(res, 201, review);
+      announceReview(review).catch(e => console.error("Failed to announce review:", e));
     }).catch(() => { if (!res.headersSent) sendJson(res, 400, { error: "Invalid body" }); });
     return true;
   }
