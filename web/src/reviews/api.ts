@@ -64,9 +64,9 @@ export const PROGRESS_OPTIONS: { value: Progress; label: string }[] = [
 export const RATING_LABELS = ["Awful", "Poor", "Weak", "Good", "Great", "Perfect"];
 
 export const progressLabel = (p: Progress) => PROGRESS_OPTIONS.find(o => o.value === p)?.label ?? p;
-// Films, board games and podcasts don't ask for progress (they're saved as finished) or show it.
+// Films, board games, podcasts and albums don't ask for progress (they're saved as finished) or show it.
 // Keep in sync with NO_PROGRESS_TYPES in src/reviews.ts.
-const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast"]);
+const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album"]);
 export const hasProgress = (typeName: string) => !NO_PROGRESS_TYPES.has(typeName.trim().toLowerCase());
 // Podcasts run for years, so they don't ask for one. Keep in sync with NO_YEAR_TYPES in src/reviews.ts.
 const NO_YEAR_TYPES = new Set(["podcast"]);
@@ -167,7 +167,7 @@ const BUILT_IN_PROFILES: Record<string, WikiProfile> = {
   // Podcasts are matched on Apple Podcasts, not Wikipedia; this just says they have no creator field.
   podcast: { hint: "podcast", suffixes: ["", " (podcast)"], match: /\bpodcast\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P580", "P577"] },
   // Albums are matched on Apple Music, which gives the artist and year itself; P175 = performer.
-  album: { hint: "album", suffixes: ["", " (album)"], match: /\balbum\b/i, creatorLabel: "Artist(s)", creatorProps: ["P175"], yearProps: ["P577"] },
+  album: { hint: "album", suffixes: ["", " (album)"], match: /\balbum\b/i, creatorLabel: "Artists", creatorProps: ["P175"], yearProps: ["P577"] },
 };
 
 function wikiProfile(typeName: string): WikiProfile {

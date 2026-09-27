@@ -7,7 +7,7 @@ import { dbListReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteRev
 
 const PROGRESS = new Set(["ongoing", "stopped", "finished"]);
 // Types done in one sitting, which don't ask for progress. Keep in sync with web/src/reviews/api.ts.
-const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast"]);
+const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album"]);
 // Types that don't ask for a year (a podcast runs for years). Keep in sync with web/src/reviews/api.ts.
 const NO_YEAR_TYPES = new Set(["podcast"]);
 const MAX_BODY_BYTES = 200 * 1024;
