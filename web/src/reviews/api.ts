@@ -167,7 +167,7 @@ const BUILT_IN_PROFILES: Record<string, WikiProfile> = {
   // Podcasts are matched on Apple Podcasts, not Wikipedia; this just says they have no creator field.
   podcast: { hint: "podcast", suffixes: ["", " (podcast)"], match: /\bpodcast\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P580", "P577"] },
   // Albums are matched on Apple Music, which gives the artist and year itself; P175 = performer.
-  album: { hint: "album", suffixes: ["", " (album)"], match: /\balbum\b/i, creatorLabel: "Artists", creatorProps: ["P175"], yearProps: ["P577"] },
+  album: { hint: "album", suffixes: ["", " (album)"], match: /\balbum\b/i, creatorLabel: "Artist(s)", creatorProps: ["P175"], yearProps: ["P577"] },
 };
 
 function wikiProfile(typeName: string): WikiProfile {
