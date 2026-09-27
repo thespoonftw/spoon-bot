@@ -6,6 +6,8 @@ import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
 import { dbListReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, type ReviewInput, type ReviewRow } from "./db";
 
 const PROGRESS = new Set(["ongoing", "stopped", "finished"]);
+// Types done in one sitting, which don't ask for progress. Keep in sync with web/src/reviews/api.ts.
+const NO_PROGRESS_TYPES = new Set(["film", "board game"]);
 const MAX_BODY_BYTES = 200 * 1024;
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 
@@ -68,8 +70,8 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   if (!type) return "Pick a type";
   const rating = Number(b.rating);
   if (!Number.isInteger(rating) || rating < 0 || rating > 5) return "Rating must be 0–5 stars";
-  // Films don't ask for progress, so they're always saved as finished.
-  const progress = type.name.toLowerCase() === "film" ? "finished" : String(b.progress ?? "");
+  // Some types don't ask for progress, so they're always saved as finished.
+  const progress = NO_PROGRESS_TYPES.has(type.name.toLowerCase()) ? "finished" : String(b.progress ?? "");
   if (!PROGRESS.has(progress)) return "Progress must be ongoing, stopped or finished";
   const summary = typeof b.summary === "string" ? b.summary.trim().slice(0, 300) : "";
   const cleanedBody = typeof b.bodyHtml === "string" ? sanitizeHtml(b.bodyHtml, SANITIZE_OPTS).trim() : "";

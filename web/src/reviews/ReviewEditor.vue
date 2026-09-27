@@ -18,12 +18,6 @@
             <option v-for="t in types" :key="t.id" :value="t.id">{{ t.icon }} {{ t.name }}</option>
           </select>
         </div>
-        <div v-if="hasProgress(selectedType?.name ?? '')" class="rv-field">
-          <label class="rv-label" for="rv-progress">Progress</label>
-          <select id="rv-progress" v-model="draft.progress" class="rv-select">
-            <option v-for="p in PROGRESS_OPTIONS" :key="p.value" :value="p.value">{{ p.label }}</option>
-          </select>
-        </div>
       </div>
 
       <div class="rv-field">
@@ -69,9 +63,17 @@
       </div>
       <p v-if="detailsStatus" class="rv-hint" style="margin: -14px 0 18px">{{ detailsStatus }}</p>
 
-      <div class="rv-field">
-        <span class="rv-label">Rating</span>
-        <StarRating v-model="draft.rating" editable />
+      <div class="rv-editor-row">
+        <div class="rv-field">
+          <span class="rv-label">Rating</span>
+          <StarRating v-model="draft.rating" editable />
+        </div>
+        <div v-if="hasProgress(selectedType?.name ?? '')" class="rv-field rv-field--progress">
+          <label class="rv-label" for="rv-progress">Progress</label>
+          <select id="rv-progress" v-model="draft.progress" class="rv-select">
+            <option v-for="p in PROGRESS_OPTIONS" :key="p.value" :value="p.value">{{ p.label }}</option>
+          </select>
+        </div>
       </div>
 
       <div class="rv-field">

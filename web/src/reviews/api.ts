@@ -64,8 +64,10 @@ export const PROGRESS_OPTIONS: { value: Progress; label: string }[] = [
 export const RATING_LABELS = ["Awful", "Poor", "Weak", "Good", "Great", "Perfect"];
 
 export const progressLabel = (p: Progress) => PROGRESS_OPTIONS.find(o => o.value === p)?.label ?? p;
-// Films are short enough that progress isn't asked for (they're saved as finished) or shown.
-export const hasProgress = (typeName: string) => typeName.trim().toLowerCase() !== "film";
+// Films and board games are done in one sitting, so progress isn't asked for (they're saved as
+// finished) or shown. Keep in sync with NO_PROGRESS_TYPES in src/reviews.ts.
+const NO_PROGRESS_TYPES = new Set(["film", "board game"]);
+export const hasProgress = (typeName: string) => !NO_PROGRESS_TYPES.has(typeName.trim().toLowerCase());
 export const authorName = (r: Review) => r.authorFirstName || r.authorName;
 
 export function formatReviewDate(iso: string): string {
