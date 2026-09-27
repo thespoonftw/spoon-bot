@@ -39,9 +39,21 @@ export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyH
 export const creditLine = (r: { creator: string | null; year: number | null; season?: number | null; platform?: string | null }) =>
   [r.creator, r.season != null ? `Season ${r.season}` : null, r.platform, r.year].filter(Boolean).join(" · ");
 
-export type MatchSource = "openlibrary" | "tvmaze" | "applepodcasts" | "applemusic" | "wikipedia";
-export const SOURCE_NAMES: Record<MatchSource, string> = { openlibrary: "Open Library", tvmaze: "TVmaze", applepodcasts: "Apple Podcasts", applemusic: "Apple Music", wikipedia: "Wikipedia" };
-const SOURCE_HOSTS: Record<MatchSource, string> = { openlibrary: "https://openlibrary.org/", tvmaze: "https://www.tvmaze.com/", applepodcasts: "https://podcasts.apple.com/", applemusic: "https://music.apple.com/", wikipedia: "https://en.wikipedia.org/" };
+export type MatchSource = "openlibrary" | "tvmaze" | "applepodcasts" | "applemusic" | "bgg" | "wikipedia";
+export const SOURCE_NAMES: Record<MatchSource, string> = { openlibrary: "Open Library", tvmaze: "TVmaze", applepodcasts: "Apple Podcasts", applemusic: "Apple Music", bgg: "BoardGameGeek", wikipedia: "Wikipedia" };
+const SOURCE_HOSTS: Record<MatchSource, string> = { openlibrary: "https://openlibrary.org/", tvmaze: "https://www.tvmaze.com/", applepodcasts: "https://podcasts.apple.com/", applemusic: "https://music.apple.com/", bgg: "https://boardgamegeek.com/", wikipedia: "https://en.wikipedia.org/" };
+
+// Board games are matched by pasting a BoardGameGeek link rather than searching (BGG's search
+// can't be used without a registered API token); the server looks the game up by its id.
+export const usesBggLink = (typeName: string) => typeName.trim().toLowerCase() === "board game";
+export const parseBggId = (text: string) => text.match(/boardgamegeek\.com\/(?:boardgame|boardgameexpansion)\/(\d{1,9})/)?.[1] ?? null;
+export interface BggGame { name: string; year: number | null; imageUrl: string | null; url: string | null }
+export async function fetchBggGame(id: string, signal?: AbortSignal): Promise<BggGame | null> {
+  const res = await fetch(`/api/reviews/bgg/${id}`, { signal });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`BGG lookup failed: ${res.status}`);
+  return res.json();
+}
 
 export const wikiUrl = (pageTitle: string) => `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/ /g, "_"))}`;
 

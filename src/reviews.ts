@@ -91,6 +91,28 @@ async function announceReview(r: ReviewRow): Promise<void> {
   }
 }
 
+// Board games are matched by pasting a BoardGameGeek link. BGG's official API needs a registered
+// token, but the endpoint behind its own game pages answers without one (and without CORS, hence
+// this proxy). It's undocumented, so it may change or close.
+const BGG_GAME_URL = /^https:\/\/boardgamegeek\.com\/(boardgame|boardgameexpansion)\/\d+\/[^\s"'<>/?]+$/;
+type BggItem = { name?: string; yearpublished?: string; canonical_link?: string; images?: { previewthumb?: string } };
+
+async function fetchBggGame(id: string): Promise<{ name: string; year: number | null; imageUrl: string | null; url: string | null } | null> {
+  const res = await fetch(`https://api.geekdo.com/api/geekitems?objectid=${id}&objecttype=thing`, { signal: AbortSignal.timeout(10_000) });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`BGG responded ${res.status}`);
+  const item = ((await res.json()) as { item?: BggItem } | null)?.item;
+  if (!item?.name) return null;
+  const year = Number(item.yearpublished);
+  const image = item.images?.previewthumb ?? null;
+  return {
+    name: item.name,
+    year: Number.isInteger(year) && year > 0 ? year : null,
+    imageUrl: image && /^https:\/\/cf\.geekdo-images\.com\//.test(image) ? image : null,
+    url: item.canonical_link && BGG_GAME_URL.test(item.canonical_link) ? item.canonical_link : null,
+  };
+}
+
 // The long review is rich text from a contenteditable editor, rendered with v-html — so it is
 // sanitised here on write against a small allowlist matching the editor's toolbar.
 const SANITIZE_OPTS: sanitizeHtml.IOptions = {
@@ -134,16 +156,18 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   const summary = typeof b.summary === "string" ? b.summary.trim().slice(0, 300) : "";
   const cleanedBody = typeof b.bodyHtml === "string" ? sanitizeHtml(b.bodyHtml, SANITIZE_OPTS).trim() : "";
   const bodyHasText = sanitizeHtml(cleanedBody, { allowedTags: [], allowedAttributes: {} }).trim().length > 0;
-  // Images are only ever hotlinked from where the lookups point: Wikimedia, Open Library, TVmaze and Apple.
+  // Images are only ever hotlinked from where the lookups point: Wikimedia, Open Library, TVmaze, Apple and BGG.
   const imageUrl = typeof b.imageUrl === "string" && (
+    /^https:\/\/cf\.geekdo-images\.com\/[^\s"'<>?]+\.(jpg|jpeg|png|webp)$/.test(b.imageUrl) ||
     /^https:\/\/(upload|thumb)\.wikimedia\.org\/[^\s"'<>]+$/.test(b.imageUrl) ||
     /^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-[SML]\.jpg$/.test(b.imageUrl) ||
     /^https:\/\/static\.tvmaze\.com\/uploads\/images\/[a-z_]+\/\d+\/\d+\.(jpg|jpeg|png)$/.test(b.imageUrl) ||
     /^https:\/\/is\d+-ssl\.mzstatic\.com\/image\/thumb\/[^\s"'<>?]+\.(jpg|jpeg|png|webp)$/.test(b.imageUrl)
   ) ? b.imageUrl : null;
   // The page the review was matched to: a Wikipedia article, Open Library work, TVmaze show, Apple
-  // podcast or Apple Music album.
+  // podcast, Apple Music album or BoardGameGeek game.
   const sourceUrl = typeof b.sourceUrl === "string" && (
+    BGG_GAME_URL.test(b.sourceUrl) ||
     /^https:\/\/en\.wikipedia\.org\/wiki\/[^\s"'<>]+$/.test(b.sourceUrl) ||
     /^https:\/\/openlibrary\.org\/works\/OL\d+W$/.test(b.sourceUrl) ||
     /^https:\/\/www\.tvmaze\.com\/shows\/\d+\/[a-z0-9-]+$/.test(b.sourceUrl) ||
@@ -246,6 +270,15 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
       // The tables only need the headline fields; the full review text stays on the review page.
       reviews: reviews.map(({ bodyHtml: _body, ...r }) => r),
     });
+    return true;
+  }
+
+  // GET /api/reviews/bgg/:id — a board game's name, year and box art from BoardGameGeek
+  const bggMatch = url.match(/^\/api\/reviews\/bgg\/(\d{1,9})$/);
+  if (bggMatch && method === "GET") {
+    fetchBggGame(bggMatch[1])
+      .then(game => game ? sendJson(res, 200, game) : sendJson(res, 404, { error: "Not found" }))
+      .catch(e => { console.error("BGG lookup failed:", e); if (!res.headersSent) sendJson(res, 502, { error: "Couldn't reach BoardGameGeek" }); });
     return true;
   }
 

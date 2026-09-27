@@ -21,7 +21,12 @@
       </div>
 
       <template v-if="details">
-      <div class="rv-field">
+      <div v-if="bggLink" class="rv-field">
+        <label class="rv-label" for="rv-bgg">BoardGameGeek link</label>
+        <input id="rv-bgg" v-model="bggInput" class="rv-input" placeholder="https://boardgamegeek.com/boardgame/…" autocomplete="off" @input="onBggInput" />
+        <span class="rv-hint">{{ bggStatus }}</span>
+      </div>
+      <div v-else class="rv-field">
         <label class="rv-label" for="rv-match">Match</label>
         <select id="rv-match" class="rv-select" :value="draft.sourceUrl ?? NO_PAGE" :disabled="!candidates.length" @change="onPageChange">
           <optgroup v-for="g in candidateGroups" :key="g.name" :label="g.name">
@@ -104,7 +109,7 @@
         From {{ source.name }}<template v-if="selectedCandidate">: <strong>{{ selectedCandidate.label }}</strong></template><br />
         <a :href="source.url" target="_blank" rel="noopener noreferrer">View page ↗</a>
       </p>
-      <p class="rv-picker-caption" v-else-if="details">Pick a match to use its cover.</p>
+      <p class="rv-picker-caption" v-else-if="details">{{ bggLink ? "Paste a BoardGameGeek link to use its cover." : "Pick a match to use its cover." }}</p>
     </aside>
   </form>
 </template>
@@ -112,7 +117,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { PROGRESS_OPTIONS, hasProgress, hasYear, hasDetails,SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
+import { PROGRESS_OPTIONS, hasProgress, hasYear, hasDetails, usesBggLink, parseBggId, fetchBggGame, SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
 import StarRating from "./StarRating.vue";
 import RichTextEditor from "./RichTextEditor.vue";
 import ReviewCover from "./ReviewCover.vue";
@@ -140,6 +145,36 @@ const creatorFieldLabel = computed(() => creatorLabel(selectedType.value?.name ?
 const extra = computed(() => typeExtra(selectedType.value?.name ?? ""));
 // false for types that only take a rating and write-up (shows): no lookup, cover or details.
 const details = computed(() => hasDetails(selectedType.value?.name ?? ""));
+
+// --- BoardGameGeek (board games): instead of searching, paste a game's BGG link and its name, year
+// and box art are filled in from it.
+const bggLink = computed(() => usesBggLink(selectedType.value?.name ?? ""));
+const BGG_HINT = "Find the game on boardgamegeek.com and paste its link here.";
+const bggInput = ref("");
+const bggStatus = ref(BGG_HINT);
+let bggInflight: AbortController | null = null;
+
+async function onBggInput() {
+  bggInflight?.abort();
+  const text = bggInput.value.trim();
+  if (!text) { bggStatus.value = BGG_HINT; return; }
+  const id = parseBggId(text);
+  if (!id) { bggStatus.value = "That doesn't look like a BoardGameGeek game link."; return; }
+  bggInflight = new AbortController();
+  bggStatus.value = "Getting details…";
+  try {
+    const game = await fetchBggGame(id, bggInflight.signal);
+    if (!game) { bggStatus.value = "Couldn't find that game on BoardGameGeek."; return; }
+    draft.sourceUrl = game.url;
+    draft.wikiTitle = null;
+    draft.imageUrl = game.imageUrl;
+    if (!draft.title.trim()) draft.title = game.name;
+    if (game.year) { draft.year = game.year; autoFilled.year = true; }
+    bggStatus.value = `Matched: ${game.name}${game.year ? ` (${game.year})` : ""}`;
+  } catch (e) {
+    if ((e as Error).name !== "AbortError") bggStatus.value = "Couldn't reach BoardGameGeek — fill in the details yourself.";
+  }
+}
 
 // --- Season (series): the matched TVmaze show's seasons. Picking one moves the year and cover to
 // that season; "Whole series" goes back to the show's own.
@@ -193,7 +228,7 @@ let detailsInflight: AbortController | null = null;
 async function lookup() {
   const title = draft.title.trim();
   searchInflight?.abort();
-  if (title.length < 2 || !details.value) { candidates.value = []; wikiStatus.value = "Type a title and we'll look it up."; return; }
+  if (title.length < 2 || !details.value || bggLink.value) { candidates.value = []; wikiStatus.value = "Type a title and we'll look it up."; return; }
   searchInflight = new AbortController();
   wikiStatus.value = "Searching…";
   try {
@@ -262,7 +297,7 @@ watch(() => [draft.title, draft.typeId], () => {
   clearTimeout(debounce);
   debounce = setTimeout(lookup, 600);
 });
-onUnmounted(() => { clearTimeout(debounce); searchInflight?.abort(); detailsInflight?.abort(); seasonsInflight?.abort(); });
+onUnmounted(() => { clearTimeout(debounce); bggInflight?.abort(); searchInflight?.abort(); detailsInflight?.abort(); seasonsInflight?.abort(); });
 
 onMounted(async () => {
   types.value = await fetchReviewTypes();
@@ -284,6 +319,7 @@ onMounted(async () => {
     creator: r.creator ?? "", year: r.year ?? "", season: r.season, platform: r.platform,
   });
   loadSeasons(draft.sourceUrl);
+  if (matchSource(r)?.source === "bgg") { bggInput.value = draft.sourceUrl ?? ""; bggStatus.value = ""; }
   loading.value = false;
 });
 
