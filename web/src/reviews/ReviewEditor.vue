@@ -2,15 +2,11 @@
   <p v-if="loading" class="rv-loading">Loading…</p>
   <form v-else class="rv-editor" @submit.prevent="save">
     <!-- On mobile this wrapper dissolves (display: contents) so the cover can sit between the
-         rv-editor-lead fields (title, type) and the rest. -->
+         rv-editor-lead fields (type, BGG link, title) and the rest. -->
     <div class="rv-editor-main">
       <p v-if="error" class="rv-error rv-editor-lead">{{ error }}</p>
 
-      <div class="rv-field rv-editor-lead">
-        <label class="rv-label" for="rv-title">Title</label>
-        <input id="rv-title" v-model="draft.title" class="rv-input rv-input--title" maxlength="200" placeholder="What are you reviewing?" autocomplete="off" />
-      </div>
-
+      <!-- Type comes first: it decides which fields follow and where the details are looked up. -->
       <div class="rv-editor-row rv-editor-lead">
         <div class="rv-field">
           <label class="rv-label" for="rv-type">Type</label>
@@ -20,13 +16,23 @@
         </div>
       </div>
 
-      <template v-if="details">
-      <div v-if="bggLink" class="rv-field">
+      <!-- Board games: the pasted BGG link fills in the title, so it goes above it. -->
+      <div v-if="details && bggLink" class="rv-field rv-editor-lead">
         <label class="rv-label" for="rv-bgg">BoardGameGeek link</label>
         <input id="rv-bgg" v-model="bggInput" class="rv-input" placeholder="https://boardgamegeek.com/boardgame/…" autocomplete="off" @input="onBggInput" />
-        <span class="rv-hint">{{ bggStatus }}</span>
+        <span class="rv-hint">
+          <template v-if="bggStatus">{{ bggStatus }}</template>
+          <template v-else>Find the game on <a href="https://boardgamegeek.com/" target="_blank" rel="noopener noreferrer">BoardGameGeek ↗</a> and paste its link here.</template>
+        </span>
       </div>
-      <div v-else class="rv-field">
+
+      <div class="rv-field rv-editor-lead">
+        <label class="rv-label" for="rv-title">Title</label>
+        <input id="rv-title" v-model="draft.title" class="rv-input rv-input--title" maxlength="200" placeholder="What are you reviewing?" autocomplete="off" />
+      </div>
+
+      <template v-if="details">
+      <div v-if="!bggLink" class="rv-field">
         <label class="rv-label" for="rv-match">Match</label>
         <select id="rv-match" class="rv-select" :value="draft.sourceUrl ?? NO_PAGE" :disabled="!candidates.length" @change="onPageChange">
           <optgroup v-for="g in candidateGroups" :key="g.name" :label="g.name">
@@ -149,15 +155,17 @@ const details = computed(() => hasDetails(selectedType.value?.name ?? ""));
 // --- BoardGameGeek (board games): instead of searching, paste a game's BGG link and its name, year
 // and box art are filled in from it.
 const bggLink = computed(() => usesBggLink(selectedType.value?.name ?? ""));
-const BGG_HINT = "Find the game on boardgamegeek.com and paste its link here.";
 const bggInput = ref("");
-const bggStatus = ref(BGG_HINT);
+// Empty shows the default hint, which links to BGG.
+const bggStatus = ref("");
+// The title the last pasted link filled in, so pasting a different link can replace it.
+let bggTitle = "";
 let bggInflight: AbortController | null = null;
 
 async function onBggInput() {
   bggInflight?.abort();
   const text = bggInput.value.trim();
-  if (!text) { bggStatus.value = BGG_HINT; return; }
+  if (!text) { bggStatus.value = ""; return; }
   const id = parseBggId(text);
   if (!id) { bggStatus.value = "That doesn't look like a BoardGameGeek game link."; return; }
   bggInflight = new AbortController();
@@ -168,7 +176,7 @@ async function onBggInput() {
     draft.sourceUrl = game.url;
     draft.wikiTitle = null;
     draft.imageUrl = game.imageUrl;
-    if (!draft.title.trim()) draft.title = game.name;
+    if (!draft.title.trim() || draft.title === bggTitle) draft.title = bggTitle = game.name;
     if (game.year) { draft.year = game.year; autoFilled.year = true; }
     bggStatus.value = `Matched: ${game.name}${game.year ? ` (${game.year})` : ""}`;
   } catch (e) {
@@ -319,7 +327,7 @@ onMounted(async () => {
     creator: r.creator ?? "", year: r.year ?? "", season: r.season, platform: r.platform,
   });
   loadSeasons(draft.sourceUrl);
-  if (matchSource(r)?.source === "bgg") { bggInput.value = draft.sourceUrl ?? ""; bggStatus.value = ""; }
+  if (matchSource(r)?.source === "bgg") { bggInput.value = draft.sourceUrl ?? ""; bggStatus.value = "Linked to BoardGameGeek."; }
   loading.value = false;
 });
 
