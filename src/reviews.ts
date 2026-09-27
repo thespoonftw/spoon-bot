@@ -57,8 +57,8 @@ async function discordAuthor(client: Client, r: ReviewRow): Promise<{ name: stri
 }
 
 // Posts a new review to the reviews channel as an embed mirroring the feed card: a header of the
-// reviewer's avatar and "@Name reviewed a 🎬 Film" (plain text — the header can't hold a real
-// mention), then the linked title, season/platform, stars and summary, with the cover beside.
+// reviewer's avatar and "Name reviewed a 🎬 Film" (plain text: the header can't hold markdown or
+// mentions), then the linked title, season/platform, stars and summary, with the cover beside.
 // Best-effort — a failure never affects the save.
 // Some types are also posted to their own channel (e.g. board games to the board game channel).
 async function announceReview(r: ReviewRow): Promise<void> {
@@ -75,7 +75,7 @@ async function announceReview(r: ReviewRow): Promise<void> {
   const embed = new EmbedBuilder()
     .setColor(r.typeColor as `#${string}`)
     .setAuthor({
-      name: `@${author.name} reviewed ${article} ${r.typeIcon} ${r.typeName}`.slice(0, 256),
+      name: `${author.name} reviewed ${article} ${r.typeIcon} ${r.typeName}`.slice(0, 256),
       iconURL: author.iconURL,
       url: `${getBaseUrl()}/reviews/people/${encodeURIComponent(r.userId)}`,
     })
