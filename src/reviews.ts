@@ -86,13 +86,13 @@ async function avatarEmoji(client: Client, key: string, avatarUrl: string | null
 
 // Posts a new review to the reviews channel: "@User reviewed a 🎬 Film" as the message (a real
 // mention, though it doesn't ping), then an embed mirroring the feed card: the linked title,
-// season/platform, avatar and stars, and the summary, with the cover beside. Some types are also
-// posted to their own channel (e.g. board games to the board game channel). Best-effort — a
+// season/platform, avatar and stars, and the summary, with the cover beside. Types with their own
+// channel (e.g. board games) go there instead of the general reviews channel. Best-effort — a
 // failure never affects the save.
 async function announceReview(r: ReviewRow): Promise<void> {
   const client = reviewsDiscordClient;
-  const channelIds = [config.reviewsChannelId, config.reviewTypeChannels[r.typeName.toLowerCase()]].filter((id): id is string => !!id);
-  if (!client || !channelIds.length) return;
+  const channelId = config.reviewTypeChannels[r.typeName.toLowerCase()] ?? config.reviewsChannelId;
+  if (!client || !channelId) return;
   const [emoji, author] = await Promise.all([getStarEmojis(client), reviewAuthor(client, r)]);
   const avatar = await avatarEmoji(client, author.avatarKey, author.avatarUrl);
   const stars = emoji ? emoji.full.repeat(r.rating) + emoji.empty.repeat(5 - r.rating) : "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
@@ -110,12 +110,8 @@ async function announceReview(r: ReviewRow): Promise<void> {
     .setDescription((r.summary ? `${top}\n\n${r.summary}` : top).slice(0, 4096));
   if (r.imageUrl) embed.setThumbnail(r.imageUrl);
   const content = `${author.who} reviewed ${article} ${r.typeIcon} ${r.typeName}`;
-  for (const id of new Set(channelIds)) {
-    try {
-      const channel = await client.channels.fetch(id);
-      if (channel?.isSendable()) await channel.send({ content, embeds: [embed], allowedMentions: { parse: [] } });
-    } catch (e) { console.error(`Failed to announce review in ${id}:`, e); }
-  }
+  const channel = await client.channels.fetch(channelId);
+  if (channel?.isSendable()) await channel.send({ content, embeds: [embed], allowedMentions: { parse: [] } });
 }
 
 // Board games are matched by pasting a BoardGameGeek link. BGG's official API needs a registered
