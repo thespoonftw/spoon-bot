@@ -1,6 +1,6 @@
 import http from "http";
 import sanitizeHtml from "sanitize-html";
-import { EmbedBuilder, type Client } from "discord.js";
+import { EmbedBuilder, type Client, type Message } from "discord.js";
 import { config } from "./config";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const sharp = require("sharp") as (input: Buffer) => { png(): { toBuffer(): Promise<Buffer> } };
@@ -97,26 +97,37 @@ async function announceReview(r: ReviewRow): Promise<void> {
   dbSetReviewPost(r.id, channelId, message.id);
 }
 
+// Finds a review's Discord post: the remembered one, or for reviews announced before posts were
+// remembered, the bot's recent message in the channel their type posts to that links to the review.
+// Null if it can't be found (deleted, too old, or the bot can't read the channel's history).
+async function findReviewPost(client: Client, r: ReviewRow, saved: { channelId: string; messageId: string } | undefined): Promise<Message | null> {
+  const channelId = saved?.channelId ?? config.reviewTypeChannels[r.typeName.toLowerCase()] ?? config.reviewsChannelId;
+  if (!channelId) return null;
+  const channel = await client.channels.fetch(channelId);
+  if (!channel?.isTextBased()) return null;
+  if (saved) return channel.messages.fetch(saved.messageId).catch(() => null);
+  const reviewUrl = `${getBaseUrl()}/reviews/${r.id}`;
+  const recent = await channel.messages.fetch({ limit: 100 });
+  return recent.find(m => m.author.id === client.user?.id && m.embeds[0]?.url === reviewUrl) ?? null;
+}
+
 // Brings a review's Discord post up to date after an edit, in whichever channel it was posted.
-// Reviews announced before posts were remembered are found by their link among the bot's recent
-// messages in the channel their type posts to. Nothing happens if the post can't be found.
 async function updateReviewPost(r: ReviewRow): Promise<void> {
   const client = reviewsDiscordClient;
   if (!client) return;
   const saved = dbGetReviewPost(r.id);
-  const channelId = saved?.channelId ?? config.reviewTypeChannels[r.typeName.toLowerCase()] ?? config.reviewsChannelId;
-  if (!channelId) return;
-  const channel = await client.channels.fetch(channelId);
-  if (!channel?.isTextBased()) return;
-  let message = saved ? await channel.messages.fetch(saved.messageId).catch(() => null) : null;
-  if (!saved) {
-    const reviewUrl = `${getBaseUrl()}/reviews/${r.id}`;
-    const recent = await channel.messages.fetch({ limit: 100 });
-    message = recent.find(m => m.author.id === client.user?.id && m.embeds[0]?.url === reviewUrl) ?? null;
-    if (message) dbSetReviewPost(r.id, channelId, message.id);
-  }
+  const message = await findReviewPost(client, r, saved);
+  if (message && !saved) dbSetReviewPost(r.id, message.channelId, message.id);
   // Clearing the text too tidies up posts from when the "@User reviewed…" line sat above the card.
   if (message?.editable) await message.edit({ content: "", embeds: [await buildReviewEmbed(client, r)] });
+}
+
+// Removes a deleted review's Discord post. `saved` is read before the review is deleted.
+async function deleteReviewPost(r: ReviewRow, saved: { channelId: string; messageId: string } | undefined): Promise<void> {
+  const client = reviewsDiscordClient;
+  if (!client) return;
+  const message = await findReviewPost(client, r, saved);
+  if (message?.deletable) await message.delete();
 }
 
 // Board games are matched by pasting a BoardGameGeek link. BGG's official API needs a registered
@@ -337,8 +348,10 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
 
   if (method === "DELETE") {
     if (!canDelete(user.userId, existing.userId)) { sendJson(res, 403, { error: "You can only delete your own reviews" }); return true; }
+    const post = dbGetReviewPost(id);
     dbDeleteReview(id);
     sendJson(res, 200, { ok: true });
+    deleteReviewPost(existing, post).catch(e => console.error("Failed to delete review post:", e));
     return true;
   }
 
