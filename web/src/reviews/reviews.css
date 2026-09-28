@@ -187,6 +187,13 @@ body.rv-body {
 .rv-nowrap { white-space: nowrap; }
 .rv-table-wrap { overflow-x: auto; background: var(--rv-card); border: 1px solid var(--rv-rule); border-radius: 12px; }
 .rv-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+/* Profile tables: fixed layout so Year, Rating and Reviewed are the same width in every table and
+   Title and By share what's left. The minimum width scrolls sideways on phones instead of squashing. */
+.rv-table--clickable { table-layout: fixed; min-width: 560px; }
+.rv-table--clickable td { overflow-wrap: anywhere; }
+.rv-table .rv-col-year { width: 80px; }
+.rv-table .rv-col-rating { width: 130px; }
+.rv-table .rv-col-date { width: 130px; }
 .rv-table th { text-align: left; font: 600 0.72rem var(--rv-sans); text-transform: uppercase; letter-spacing: 0.1em; color: var(--rv-muted); padding: 10px 14px; border-bottom: 1px solid var(--rv-rule); white-space: nowrap; }
 .rv-table th button { all: unset; cursor: pointer; }
 .rv-table th button:hover, .rv-table th.sorted { color: var(--rv-ink); }

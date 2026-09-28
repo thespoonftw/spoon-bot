@@ -42,7 +42,6 @@
               <td v-if="creatorLabel(g.typeName)" class="rv-muted">{{ r.creator ?? "" }}</td>
               <td v-if="hasYear(g.typeName)" class="rv-muted num">{{ r.year ?? "" }}</td>
               <td><StarRating :model-value="r.rating" /></td>
-              <td v-if="hasProgress(g.typeName)"><span class="rv-progress" :class="`rv-progress--${r.progress}`">{{ progressLabel(r.progress) }}</span></td>
               <td class="rv-muted rv-nowrap">{{ formatReviewDate(r.createdAt) }}</td>
             </tr>
           </tbody>
@@ -55,24 +54,24 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { fetchReviewProfile, creatorLabel, progressLabel, hasProgress, hasYear, formatReviewDate, PROGRESS_OPTIONS, type Review, type ReviewProfile } from "./api";
+import { fetchReviewProfile, creatorLabel, hasYear, formatReviewDate, type Review, type ReviewProfile } from "./api";
 import { useCurrentUser } from "../composables/useCurrentUser";
 import StarRating from "./StarRating.vue";
 import TypeChip from "./TypeChip.vue";
 
-type SortKey = "title" | "creator" | "year" | "rating" | "progress" | "createdAt";
+// Year, Rating and Reviewed are fixed widths so every type's table lines up; Title and By share the rest.
+type SortKey = "title" | "creator" | "year" | "rating" | "createdAt";
 const COLUMNS: { key: SortKey; label: string; cls?: string }[] = [
   { key: "title", label: "Title" },
   { key: "creator", label: "By" },
-  { key: "year", label: "Year", cls: "num" },
-  { key: "rating", label: "Rating" },
-  { key: "progress", label: "Progress" },
-  { key: "createdAt", label: "Reviewed" },
+  { key: "year", label: "Year", cls: "num rv-col-year" },
+  { key: "rating", label: "Rating", cls: "rv-col-rating" },
+  { key: "createdAt", label: "Reviewed", cls: "rv-col-date" },
 ];
 
-// Types without a creator skip the "By" column, and likewise for year and progress.
+// Types without a creator skip the "By" column, and likewise for year.
 const columnsFor = (typeName: string) => COLUMNS.filter(c =>
-  (c.key !== "creator" || creatorLabel(typeName)) && (c.key !== "year" || hasYear(typeName)) && (c.key !== "progress" || hasProgress(typeName)));
+  (c.key !== "creator" || creatorLabel(typeName)) && (c.key !== "year" || hasYear(typeName)));
 
 const route = useRoute();
 const router = useRouter();
@@ -97,7 +96,6 @@ function compare(a: Review, b: Review): number {
     case "creator": return !a.creator !== !b.creator ? (a.creator ? -1 : 1) * (sortAsc.value ? 1 : -1) : (a.creator ?? "").localeCompare(b.creator ?? "", undefined, { sensitivity: "base" });
     case "year": return (a.year === null) !== (b.year === null) ? (a.year !== null ? -1 : 1) * (sortAsc.value ? 1 : -1) : (a.year ?? 0) - (b.year ?? 0);
     case "rating": return a.rating - b.rating;
-    case "progress": return PROGRESS_OPTIONS.findIndex(p => p.value === a.progress) - PROGRESS_OPTIONS.findIndex(p => p.value === b.progress);
     case "createdAt": return a.createdAt.localeCompare(b.createdAt);
   }
 }
@@ -117,7 +115,7 @@ const groups = computed(() => {
 
 function sortBy(key: SortKey) {
   if (sortKey.value === key) sortAsc.value = !sortAsc.value;
-  else { sortKey.value = key; sortAsc.value = key === "title" || key === "creator" || key === "progress"; }
+  else { sortKey.value = key; sortAsc.value = key === "title" || key === "creator"; }
 }
 
 onMounted(async () => {
