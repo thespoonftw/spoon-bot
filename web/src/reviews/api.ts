@@ -101,7 +101,10 @@ export const authorName = (r: Review) => r.authorFirstName || r.authorName;
 
 export function formatReviewDate(iso: string): string {
   const d = new Date(iso);
-  const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+  // Calendar days in the viewer's time zone, so last night counts as "Yesterday" even if it was
+  // under 24 hours ago. (Rounding absorbs the hour lost or gained when the clocks change.)
+  const midnight = (t: Date) => new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime();
+  const days = Math.round((midnight(new Date()) - midnight(d)) / 86_400_000);
   if (days < 1) return "Today";
   if (days < 2) return "Yesterday";
   if (days < 7) return `${days} days ago`;
