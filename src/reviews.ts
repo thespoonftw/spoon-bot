@@ -15,7 +15,7 @@ const NO_YEAR_TYPES = new Set(["podcast"]);
 // Types that ask for nothing beyond the rating and write-up (theatre shows). Keep in sync with web/src/reviews/api.ts.
 const NO_DETAILS_TYPES = new Set(["show"]);
 const MAX_BODY_BYTES = 200 * 1024;
-const SUMMARY_MAX = 200; // Keep in sync with the editor (web/src/reviews/ReviewEditor.vue).
+const SUMMARY_MAX = 250; // Keep in sync with the editor (web/src/reviews/ReviewEditor.vue).
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 
 let reviewsDiscordClient: Client | null = null;

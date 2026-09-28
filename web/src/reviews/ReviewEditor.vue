@@ -153,7 +153,7 @@ const extra = computed(() => typeExtra(selectedType.value?.name ?? ""));
 // false for types that only take a rating and write-up (shows): no lookup, cover or details.
 const details = computed(() => hasDetails(selectedType.value?.name ?? ""));
 // Keep in sync with SUMMARY_MAX in src/reviews.ts.
-const SUMMARY_MAX = 200;
+const SUMMARY_MAX = 250;
 const summaryLength = computed(() => (draft.summary ?? "").trim().length);
 
 // --- BoardGameGeek (board games): instead of searching, paste a game's BGG link and its name, year
