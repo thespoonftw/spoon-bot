@@ -80,5 +80,10 @@ router.beforeEach(async (to) => {
   return { path: to.path.startsWith("/reviews") ? "/reviews/login" : "/login" };
 });
 
+// The browser tab names the section you're in: the reviews site is "Reviews", the rest "Spoon Photos".
+router.afterEach((to) => {
+  document.title = to.path.startsWith("/reviews") ? "Reviews" : "Spoon Photos";
+});
+
 const app = createApp(App);
 app.use(router).mount("#app");
