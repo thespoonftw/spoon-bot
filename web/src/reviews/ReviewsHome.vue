@@ -3,16 +3,18 @@
     <div v-if="filterTypes.length > 1" ref="filtersWrap" class="rv-filters-wrap">
       <nav class="rv-filters" :class="{ 'rv-filters--icons': iconsOnly }">
         <button :class="{ active: !typeId }" @click="setType(null)">All</button>
-        <button v-for="t in filterTypes" :key="t.id" :class="{ active: typeId === t.id }" :title="iconsOnly ? t.name : undefined" :aria-label="t.name" @click="setType(t.id)">
-          <span class="rv-filter-icon">{{ t.icon }}</span><span class="rv-filter-name"> {{ t.name }}</span>
+        <button v-for="t in filterTypes" :key="t.id" :class="{ active: typeId === t.id }" :title="iconsOnly ? pluralType(t.name) : undefined" :aria-label="pluralType(t.name)" @click="setType(t.id)">
+          <span class="rv-filter-icon">{{ t.icon }}</span><span class="rv-filter-name"> {{ pluralType(t.name) }}</span>
         </button>
       </nav>
       <!-- An invisible copy with the full names, measured to tell whether they fit on one row. -->
       <nav ref="filtersMeasure" class="rv-filters rv-filters--measure" aria-hidden="true">
         <button tabindex="-1">All</button>
-        <button v-for="t in filterTypes" :key="t.id" tabindex="-1">{{ t.icon }} {{ t.name }}</button>
+        <button v-for="t in filterTypes" :key="t.id" tabindex="-1">{{ t.icon }} {{ pluralType(t.name) }}</button>
       </nav>
     </div>
+    <!-- With just emoji on the tabs, the selected one is named above the list. -->
+    <h2 v-if="iconsOnly && filterTypes.length > 1" class="rv-filter-heading">{{ activeType ? `${activeType.icon} ${pluralType(activeType.name)}` : "All reviews" }}</h2>
 
     <p v-if="loading && !reviews.length" class="rv-loading">Fetching the latest…</p>
     <p v-else-if="error" class="rv-error">{{ error }}</p>
@@ -54,7 +56,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { getCached, setCached, authorName, formatReviewDate, fetchReviewTypes, hasProgress, progressLabel, cardCredit, type Review, type ReviewType } from "./api";
+import { getCached, setCached, pluralType, authorName, formatReviewDate, fetchReviewTypes, hasProgress, progressLabel, cardCredit, type Review, type ReviewType } from "./api";
 import ReviewCover from "./ReviewCover.vue";
 import StarRating from "./StarRating.vue";
 import TypeChip from "./TypeChip.vue";

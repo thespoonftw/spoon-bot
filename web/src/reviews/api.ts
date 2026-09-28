@@ -87,6 +87,14 @@ export const PROGRESS_OPTIONS: { value: Progress; label: string }[] = [
 // A word for each star rating, 0–5.
 export const RATING_LABELS = ["Awful", "Bad", "Weak", "Good", "Great", "Amazing"];
 
+// A type's name for a list of them: Books, Films, Video Games, Series (already plural), Shows.
+export function pluralType(name: string): string {
+  if (/s$/i.test(name)) return name;
+  if (/[^aeiou]y$/i.test(name)) return name.slice(0, -1) + "ies";
+  if (/(x|ch|sh)$/i.test(name)) return name + "es";
+  return name + "s";
+}
+
 export const progressLabel = (p: Progress) => PROGRESS_OPTIONS.find(o => o.value === p)?.label ?? p;
 // Shows (theatre) ask for nothing beyond the rating and write-up: no match, cover, year, creator or
 // progress. Keep in sync with NO_DETAILS_TYPES in src/reviews.ts.
