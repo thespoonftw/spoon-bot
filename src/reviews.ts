@@ -97,9 +97,9 @@ async function announceReview(r: ReviewRow): Promise<void> {
   const avatar = await avatarEmoji(client, author.avatarKey, author.avatarUrl);
   const stars = emoji ? emoji.full.repeat(r.rating) + emoji.empty.repeat(5 - r.rating) : "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
   const article = /^[aeiou]/i.test(r.typeName) ? "an" : "a";
-  // Only albums name who made it: "OK Computer (1997) by Radiohead".
-  const isAlbum = r.typeName.toLowerCase() === "album";
-  const heading = `${r.title}${r.year ? ` (${r.year})` : ""}${isAlbum && r.creator ? ` by ${r.creator}` : ""}`.slice(0, 200);
+  // Only albums and books name who made it: "OK Computer (1997) by Radiohead".
+  const namesCreator = ["album", "book"].includes(r.typeName.toLowerCase());
+  const heading = `${r.title}${r.year ? ` (${r.year})` : ""}${namesCreator && r.creator ? ` by ${r.creator}` : ""}`.slice(0, 200);
   const extra = [r.season != null ? `Season ${r.season}` : null, r.platform].filter(Boolean).join(" · ");
   // A blank line keeps the summary apart from the stars.
   const top = [extra || null, avatar ? `${avatar}  ${stars}` : stars].filter(Boolean).join("\n");
