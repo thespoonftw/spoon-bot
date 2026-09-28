@@ -1,11 +1,9 @@
 import http from "http";
-import crypto from "crypto";
 import sanitizeHtml from "sanitize-html";
 import { EmbedBuilder, type Client } from "discord.js";
 import { config } from "./config";
-type SharpImage = { resize(w: number, h: number): SharpImage; composite(layers: { input: Buffer; blend: string }[]): SharpImage; png(): SharpImage; toBuffer(): Promise<Buffer> };
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const sharp = require("sharp") as (input: Buffer) => SharpImage;
+const sharp = require("sharp") as (input: Buffer) => { png(): { toBuffer(): Promise<Buffer> } };
 import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
 import { dbListReviews, dbListMatchingReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, type ReviewInput, type ReviewRow } from "./db";
 
@@ -46,55 +44,28 @@ function getStarEmojis(client: Client): Promise<{ full: string; empty: string } 
   return starEmojis;
 }
 
-// The reviewer's name and avatar as they appear on the Discord server (nickname and server
-// avatar), plus a mention for the line above the card. Guests and anyone who's left fall back to
-// their site name and avatar, and a bold name instead of a mention.
-async function reviewAuthor(client: Client, r: ReviewRow): Promise<{ who: string; avatarKey: string; avatarUrl: string | null }> {
-  const fallback = { who: `**${r.authorName.replace(/[\*_~`|]/g, "\$&")}**`, avatarKey: r.userId, avatarUrl: r.authorAvatarUrl || null };
+// The reviewer as they appear on the Discord server (nickname and server avatar), falling back to
+// their site name and avatar for guests or anyone who's left.
+async function reviewAuthor(client: Client, r: ReviewRow): Promise<{ name: string; iconURL?: string }> {
+  const fallback = { name: r.authorName, iconURL: r.authorAvatarUrl || undefined };
   const discordId = dbGetUserById(r.userId)?.discordId;
   if (!discordId) return fallback;
   try {
     const member = await client.guilds.cache.get(config.guildId)?.members.fetch(discordId);
-    return { ...fallback, who: `<@${discordId}>`, avatarKey: discordId, avatarUrl: member?.displayAvatarURL({ extension: "png", size: 128 }) ?? fallback.avatarUrl };
-  } catch { return { ...fallback, who: `<@${discordId}>`, avatarKey: discordId }; }
+    return member ? { name: member.displayName, iconURL: member.displayAvatarURL({ extension: "png", size: 128 }) } : fallback;
+  } catch { return fallback; }
 }
 
-// Embeds can't show images inline, so the reviewer's avatar (for beside the stars) is turned into
-// a round application emoji too, named after the user and a hash of the avatar URL. A changed avatar
-// gets a new emoji and that user's old one is deleted. Returns null (no avatar shown) on failure.
-const CIRCLE_MASK = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><circle cx="64" cy="64" r="64"/></svg>`);
-async function avatarEmoji(client: Client, key: string, avatarUrl: string | null): Promise<string | null> {
-  const app = client.application;
-  if (!app || !avatarUrl?.startsWith("https://")) return null;
-  try {
-    const prefix = `av_${key.replace(/[^A-Za-z0-9]/g, "").slice(-16)}_`;
-    const name = prefix + crypto.createHash("sha1").update(avatarUrl).digest("hex").slice(0, 8);
-    const existing = await app.emojis.fetch();
-    const found = existing.find(e => e.name === name);
-    if (found) return found.toString();
-    const res = await fetch(avatarUrl, { signal: AbortSignal.timeout(10_000) });
-    if (!res.ok) return null;
-    const png = await sharp(Buffer.from(await res.arrayBuffer())).resize(128, 128).composite([{ input: CIRCLE_MASK, blend: "dest-in" }]).png().toBuffer();
-    const created = await app.emojis.create({ attachment: png, name });
-    for (const old of existing.filter(e => e.name?.startsWith(prefix) && e.name !== name).values()) await old.delete().catch(() => {});
-    return created.toString();
-  } catch (e) {
-    console.error("Failed to make avatar emoji:", e);
-    return null;
-  }
-}
-
-// Posts a new review to the reviews channel: "@User reviewed a 🎬 Film" as the message (a real
-// mention, though it doesn't ping), then an embed mirroring the feed card: the linked title,
-// season/platform, avatar and stars, and the summary, with the cover beside. Types with their own
-// channel (e.g. board games) go there instead of the general reviews channel. Best-effort — a
-// failure never affects the save.
+// Posts a new review as an embed mirroring the feed card: a header of the reviewer's avatar and
+// "Name reviewed a 🎬 Film" (the header is plain text, so no mention or markdown), then the linked
+// title, credit line, stars and summary, with the cover beside. Types with their own channel (e.g.
+// board games) go there instead of the general reviews channel. Best-effort — a failure never
+// affects the save.
 async function announceReview(r: ReviewRow): Promise<void> {
   const client = reviewsDiscordClient;
   const channelId = config.reviewTypeChannels[r.typeName.toLowerCase()] ?? config.reviewsChannelId;
   if (!client || !channelId) return;
   const [emoji, author] = await Promise.all([getStarEmojis(client), reviewAuthor(client, r)]);
-  const avatar = await avatarEmoji(client, author.avatarKey, author.avatarUrl);
   const stars = emoji ? emoji.full.repeat(r.rating) + emoji.empty.repeat(5 - r.rating) : "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
   const article = /^[aeiou]/i.test(r.typeName) ? "an" : "a";
   // Only albums and books name who made it: an album in the title ("OK Computer (1997) by
@@ -103,16 +74,20 @@ async function announceReview(r: ReviewRow): Promise<void> {
   const heading = `${r.title}${r.year ? ` (${r.year})` : ""}${type === "album" && r.creator ? ` by ${r.creator}` : ""}`.slice(0, 200);
   const extra = [type === "book" ? r.creator : null, r.season != null ? `Season ${r.season}` : null, r.platform].filter(Boolean).join(" · ");
   // A blank line keeps the summary apart from the stars.
-  const top = [extra || null, avatar ? `${avatar}  ${stars}` : stars].filter(Boolean).join("\n");
+  const top = [extra || null, stars].filter(Boolean).join("\n");
   const embed = new EmbedBuilder()
     .setColor(r.typeColor as `#${string}`)
+    .setAuthor({
+      name: `${author.name} reviewed ${article} ${r.typeIcon} ${r.typeName}`.slice(0, 256),
+      iconURL: author.iconURL,
+      url: `${getBaseUrl()}/reviews/people/${encodeURIComponent(r.userId)}`,
+    })
     .setTitle(heading)
     .setURL(`${getBaseUrl()}/reviews/${r.id}`)
     .setDescription((r.summary ? `${top}\n\n${r.summary}` : top).slice(0, 4096));
   if (r.imageUrl) embed.setThumbnail(r.imageUrl);
-  const content = `${author.who} reviewed ${article} ${r.typeIcon} ${r.typeName}`;
   const channel = await client.channels.fetch(channelId);
-  if (channel?.isSendable()) await channel.send({ content, embeds: [embed], allowedMentions: { parse: [] } });
+  if (channel?.isSendable()) await channel.send({ embeds: [embed] });
 }
 
 // Board games are matched by pasting a BoardGameGeek link. BGG's official API needs a registered
