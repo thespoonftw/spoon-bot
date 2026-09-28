@@ -43,6 +43,16 @@ export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyH
 export const creditLine = (r: { creator: string | null; year: number | null; season?: number | null; platform?: string | null }) =>
   [r.creator, r.season != null ? `Season ${r.season}` : null, r.platform, r.year].filter(Boolean).join(" · ");
 
+// The line under the title on a feed card: "Season 2" for a series, "by Daft Punk" for an album,
+// "for Nintendo Switch" for a game. Other types don't have one.
+export function cardCredit(r: { typeName: string; creator: string | null; season: number | null; platform: string | null }): string | null {
+  if (r.season != null) return `Season ${r.season}`;
+  const type = r.typeName.trim().toLowerCase();
+  if (type === "album" && r.creator) return `by ${r.creator}`;
+  if (type === "video game" && r.platform) return `for ${r.platform}`;
+  return null;
+}
+
 export type MatchSource = "openlibrary" | "tvmaze" | "applepodcasts" | "applemusic" | "bgg" | "wikipedia";
 export const SOURCE_NAMES: Record<MatchSource, string> = { openlibrary: "Open Library", tvmaze: "TVmaze", applepodcasts: "Apple Podcasts", applemusic: "Apple Music", bgg: "BoardGameGeek", wikipedia: "Wikipedia" };
 const SOURCE_HOSTS: Record<MatchSource, string> = { openlibrary: "https://openlibrary.org/", tvmaze: "https://www.tvmaze.com/", applepodcasts: "https://podcasts.apple.com/", applemusic: "https://music.apple.com/", bgg: "https://boardgamegeek.com/", wikipedia: "https://en.wikipedia.org/" };

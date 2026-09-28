@@ -21,7 +21,7 @@
           <!-- On a type's own tab every card is that type, so the chip is left off. -->
           <TypeChip v-if="!typeId" class="rv-card-type" :name="r.typeName" :icon="r.typeIcon" :color="r.typeColor" />
           <h3 class="rv-card-title">{{ r.title }}<span v-if="r.year" class="rv-card-year">{{ r.year }}</span></h3>
-          <p v-if="r.season != null" class="rv-credit">Season {{ r.season }}</p>
+          <p v-if="cardCredit(r)" class="rv-credit">{{ cardCredit(r) }}</p>
           <div class="rv-card-rating">
             <StarRating :model-value="r.rating" />
             <span v-if="hasProgress(r.typeName)" class="rv-progress" :class="`rv-progress--${r.progress}`">{{ progressLabel(r.progress) }}</span>
@@ -45,7 +45,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { authorName, formatReviewDate, fetchReviewTypes, hasProgress, progressLabel, type Review, type ReviewType } from "./api";
+import { authorName, formatReviewDate, fetchReviewTypes, hasProgress, progressLabel, cardCredit, type Review, type ReviewType } from "./api";
 import ReviewCover from "./ReviewCover.vue";
 import StarRating from "./StarRating.vue";
 import TypeChip from "./TypeChip.vue";
