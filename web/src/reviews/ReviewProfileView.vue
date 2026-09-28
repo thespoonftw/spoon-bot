@@ -54,7 +54,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { fetchReviewProfile, creatorLabel, hasYear, formatReviewDate, type Review, type ReviewProfile } from "./api";
+import { fetchReviewProfile, getCached, creatorLabel, hasYear, formatReviewDate, type Review, type ReviewProfile } from "./api";
 import { useCurrentUser } from "../composables/useCurrentUser";
 import StarRating from "./StarRating.vue";
 import TypeChip from "./TypeChip.vue";
@@ -76,12 +76,13 @@ const columnsFor = (typeName: string) => COLUMNS.filter(c =>
 const route = useRoute();
 const router = useRouter();
 const { currentUser } = useCurrentUser();
-const profile = ref<ReviewProfile | null>(null);
-const loading = ref(true);
+const userId = computed(() => route.params.userId as string);
+// Shown straight from the session cache when this profile has been loaded before.
+const profile = ref<ReviewProfile | null>(getCached<ReviewProfile>(`profile:${userId.value}`) ?? null);
+const loading = ref(!profile.value);
 const sortKey = ref<SortKey>("createdAt");
 const sortAsc = ref(false);
 
-const userId = computed(() => route.params.userId as string);
 const isMe = computed(() => currentUser.value?.userId === userId.value);
 const name = computed(() => profile.value ? profile.value.user.firstName || profile.value.user.displayName : "");
 const average = computed(() => {
@@ -119,6 +120,7 @@ function sortBy(key: SortKey) {
 }
 
 onMounted(async () => {
+  if (profile.value) return;
   profile.value = await fetchReviewProfile(userId.value);
   loading.value = false;
 });

@@ -123,7 +123,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { PROGRESS_OPTIONS, hasProgress, hasYear, hasDetails, usesBggLink, parseBggId, fetchBggGame, SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
+import { clearReviewCache, PROGRESS_OPTIONS, hasProgress, hasYear, hasDetails, usesBggLink, parseBggId, fetchBggGame, SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
 import StarRating from "./StarRating.vue";
 import RichTextEditor from "./RichTextEditor.vue";
 import ReviewCover from "./ReviewCover.vue";
@@ -363,6 +363,7 @@ async function save() {
   const data = await res.json().catch(() => ({}));
   saving.value = false;
   if (!res.ok) { error.value = data.error ?? "Couldn't save the review."; return; }
+  clearReviewCache();
   router.push(`/reviews/${data.id}`);
 }
 </script>

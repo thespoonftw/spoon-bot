@@ -113,14 +113,33 @@ export function formatReviewDate(iso: string): string {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+// --- Session cache: switching tabs and pages reuses what's already been loaded instead of fetching
+// it again. It lasts until the page is reloaded, and is emptied whenever a review is saved or
+// deleted so your own changes show straight away. Keys: "types", "feed:<typeId|all>",
+// "profile:<userId>", "review:<id>".
+const cache = new Map<string, unknown>();
+export const getCached = <T>(key: string) => cache.get(key) as T | undefined;
+export const setCached = (key: string, value: unknown) => { cache.set(key, value); };
+export const clearReviewCache = () => cache.clear();
+
 export async function fetchReviewTypes(): Promise<ReviewType[]> {
+  const hit = getCached<ReviewType[]>("types");
+  if (hit) return hit;
   const res = await fetch("/api/review-types");
-  return res.ok ? res.json() : [];
+  if (!res.ok) return [];
+  const types = await res.json();
+  setCached("types", types);
+  return types;
 }
 
 export async function fetchReviewProfile(userId: string): Promise<ReviewProfile | null> {
+  const hit = getCached<ReviewProfile>(`profile:${userId}`);
+  if (hit) return hit;
   const res = await fetch(`/api/reviews/user/${encodeURIComponent(userId)}`);
-  return res.ok ? res.json() : null;
+  if (!res.ok) return null;
+  const profile = await res.json();
+  setCached(`profile:${userId}`, profile);
+  return profile;
 }
 
 // A possible match for what's being reviewed: an Open Library book, TVmaze show or Wikipedia page. `url` is

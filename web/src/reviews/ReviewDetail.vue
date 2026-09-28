@@ -66,23 +66,28 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { progressLabel, hasProgress, cardCredit, matchSource, authorName, formatReviewDate, type Review } from "./api";
+import { getCached, setCached, clearReviewCache, progressLabel, hasProgress, cardCredit, matchSource, authorName, formatReviewDate, type Review } from "./api";
 import ReviewCover from "./ReviewCover.vue";
 import StarRating from "./StarRating.vue";
 import TypeChip from "./TypeChip.vue";
 
 const route = useRoute();
 const router = useRouter();
-const review = ref<Review | null>(null);
-const loading = ref(true);
+// Shown straight from the session cache when this review has been opened before.
+const review = ref<Review | null>(getCached<Review>(`review:${route.params.id}`) ?? null);
+const loading = ref(!review.value);
 const deleting = ref(false);
 const source = computed(() => review.value ? matchSource(review.value) : null);
 // The same line as under the title on the feed cards ("by Daft Punk", "for Nintendo Switch", "Season 2").
 const credits = computed(() => review.value ? cardCredit(review.value) : null);
 
 onMounted(async () => {
+  if (review.value) return;
   const res = await fetch(`/api/reviews/${route.params.id}`);
-  if (res.ok) review.value = await res.json();
+  if (res.ok) {
+    review.value = await res.json();
+    setCached(`review:${route.params.id}`, review.value);
+  }
   loading.value = false;
 });
 
@@ -90,7 +95,7 @@ async function remove() {
   if (!review.value || !window.confirm(`Delete ${review.value.canEdit ? "your" : `${authorName(review.value)}'s`} review of "${review.value.title}"?`)) return;
   deleting.value = true;
   const res = await fetch(`/api/reviews/${review.value.id}`, { method: "DELETE" });
-  if (res.ok) router.push("/reviews");
+  if (res.ok) { clearReviewCache(); router.push("/reviews"); }
   else { deleting.value = false; window.alert("Couldn't delete the review."); }
 }
 </script>

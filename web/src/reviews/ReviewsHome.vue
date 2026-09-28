@@ -45,7 +45,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { authorName, formatReviewDate, fetchReviewTypes, hasProgress, progressLabel, cardCredit, type Review, type ReviewType } from "./api";
+import { getCached, setCached, authorName, formatReviewDate, fetchReviewTypes, hasProgress, progressLabel, cardCredit, type Review, type ReviewType } from "./api";
 import ReviewCover from "./ReviewCover.vue";
 import StarRating from "./StarRating.vue";
 import TypeChip from "./TypeChip.vue";
@@ -54,9 +54,13 @@ const PAGE = 30;
 const route = useRoute();
 const router = useRouter();
 const typeId = ref<number | null>(parseInt(route.query.type as string) || null);
-const types = ref<ReviewType[]>([]);
-const reviews = ref<Review[]>([]);
-const total = ref(0);
+// Each tab's list (including any "Load more" pages) is kept in the session cache, so switching
+// back to a tab shows it straight away.
+const feedKey = `feed:${typeId.value ?? "all"}`;
+const cachedFeed = getCached<{ reviews: Review[]; total: number }>(feedKey);
+const types = ref<ReviewType[]>(getCached<ReviewType[]>("types") ?? []);
+const reviews = ref<Review[]>(cachedFeed?.reviews ?? []);
+const total = ref(cachedFeed?.total ?? 0);
 const loading = ref(false);
 const error = ref("");
 
@@ -75,6 +79,7 @@ async function load(reset: boolean) {
     const data = await res.json();
     reviews.value = reset ? data.reviews : [...reviews.value, ...data.reviews];
     total.value = data.total;
+    setCached(feedKey, { reviews: reviews.value, total: total.value });
   } catch {
     error.value = "Couldn't load reviews — try refreshing.";
   }
@@ -87,6 +92,6 @@ function setType(id: number | null) {
 }
 
 onMounted(async () => {
-  await Promise.all([load(true), fetchReviewTypes().then(t => { types.value = t; })]);
+  await Promise.all([cachedFeed ? null : load(true), fetchReviewTypes().then(t => { types.value = t; })]);
 });
 </script>
