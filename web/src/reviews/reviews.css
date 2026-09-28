@@ -102,7 +102,7 @@ body.rv-body {
 .rv-card-rating { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .rv-credit { font-size: 0.85rem; color: var(--rv-muted); margin-top: -3px; }
 .rv-credit--large { font: italic 500 1.15rem var(--rv-serif); margin: -6px 0 14px; }
-.rv-card-summary { font-size: 0.92rem; line-height: 1.45; color: var(--rv-ink-soft); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.rv-card-summary { font-size: 0.92rem; line-height: 1.45; color: var(--rv-ink-soft); overflow-wrap: anywhere; }
 .rv-card-foot { margin-top: auto; display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--rv-muted); padding-top: 4px; }
 
 .rv-cover { flex-shrink: 0; width: 96px; aspect-ratio: 2 / 3; border-radius: 8px; overflow: hidden; background: var(--rv-rule); display: flex; align-items: center; justify-content: center; font-size: 2rem; }
