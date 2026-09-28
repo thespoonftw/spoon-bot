@@ -18,7 +18,8 @@
       <router-link v-for="r in reviews" :key="r.id" :to="`/reviews/${r.id}`" class="rv-card">
         <ReviewCover :image-url="r.imageUrl" :icon="r.typeIcon" :title="r.title" />
         <div class="rv-card-body">
-          <TypeChip class="rv-card-type" :name="r.typeName" :icon="r.typeIcon" :color="r.typeColor" />
+          <!-- On a type's own tab every card is that type, so the chip is left off. -->
+          <TypeChip v-if="!typeId" class="rv-card-type" :name="r.typeName" :icon="r.typeIcon" :color="r.typeColor" />
           <h3 class="rv-card-title">{{ r.title }}<span v-if="r.year" class="rv-card-year">{{ r.year }}</span></h3>
           <p v-if="r.season != null" class="rv-credit">Season {{ r.season }}</p>
           <div class="rv-card-rating">
