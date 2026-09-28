@@ -1,9 +1,18 @@
 <template>
   <div>
-    <nav v-if="filterTypes.length > 1" class="rv-filters">
-      <button :class="{ active: !typeId }" @click="setType(null)">All</button>
-      <button v-for="t in filterTypes" :key="t.id" :class="{ active: typeId === t.id }" @click="setType(t.id)">{{ t.icon }} {{ t.name }}</button>
-    </nav>
+    <div v-if="filterTypes.length > 1" ref="filtersWrap" class="rv-filters-wrap">
+      <nav class="rv-filters" :class="{ 'rv-filters--icons': iconsOnly }">
+        <button :class="{ active: !typeId }" @click="setType(null)">All</button>
+        <button v-for="t in filterTypes" :key="t.id" :class="{ active: typeId === t.id }" :title="iconsOnly ? t.name : undefined" :aria-label="t.name" @click="setType(t.id)">
+          <span class="rv-filter-icon">{{ t.icon }}</span><span class="rv-filter-name"> {{ t.name }}</span>
+        </button>
+      </nav>
+      <!-- An invisible copy with the full names, measured to tell whether they fit on one row. -->
+      <nav ref="filtersMeasure" class="rv-filters rv-filters--measure" aria-hidden="true">
+        <button tabindex="-1">All</button>
+        <button v-for="t in filterTypes" :key="t.id" tabindex="-1">{{ t.icon }} {{ t.name }}</button>
+      </nav>
+    </div>
 
     <p v-if="loading && !reviews.length" class="rv-loading">Fetching the latest…</p>
     <p v-else-if="error" class="rv-error">{{ error }}</p>
@@ -43,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { getCached, setCached, authorName, formatReviewDate, fetchReviewTypes, hasProgress, progressLabel, cardCredit, type Review, type ReviewType } from "./api";
 import ReviewCover from "./ReviewCover.vue";
@@ -85,6 +94,19 @@ async function load(reset: boolean) {
   }
   loading.value = false;
 }
+
+// When the tabs' full names don't fit on one row (narrow screens), they show just their emoji.
+const filtersWrap = ref<HTMLElement | null>(null);
+const filtersMeasure = ref<HTMLElement | null>(null);
+const iconsOnly = ref(false);
+function fitFilters() {
+  const m = filtersMeasure.value;
+  if (m) iconsOnly.value = m.scrollWidth > m.clientWidth + 1;
+}
+const resizeObserver = new ResizeObserver(fitFilters);
+watch(filtersWrap, (el, old) => { if (old) resizeObserver.unobserve(old); if (el) resizeObserver.observe(el); });
+watch(filterTypes, () => nextTick(fitFilters));
+onUnmounted(() => resizeObserver.disconnect());
 
 // The filter lives in the URL so back/refresh keep it; the layout re-mounts this view on URL change.
 function setType(id: number | null) {
