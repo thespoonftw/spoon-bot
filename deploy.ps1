@@ -2,7 +2,8 @@ param([switch]$Full)
 
 $ErrorActionPreference = "Stop"
 $plink = "C:\Program Files\PuTTY\plink.exe"
-$conn = @("-batch", "-pw", "Omega1314", "-hostkey", "f5:db:e8:20:b7:b2:dc:91:6a:c2:ab:b3:cc:40:0a:e0", "spoon@192.168.1.50")
+$password = (Get-Content (Join-Path $PSScriptRoot ".server-password") -Raw).Trim()
+$conn = @("-batch", "-pw", $password,"-hostkey", "f5:db:e8:20:b7:b2:dc:91:6a:c2:ab:b3:cc:40:0a:e0", "spoon@192.168.1.50")
 
 Set-Location $PSScriptRoot
 

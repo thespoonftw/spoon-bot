@@ -3,6 +3,7 @@ dist/
 web/node_modules/
 web/dist/
 .env
+.server-password
 bot.log
 *.log
 data/
