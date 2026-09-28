@@ -115,7 +115,8 @@ async function updateReviewPost(r: ReviewRow): Promise<void> {
     message = recent.find(m => m.author.id === client.user?.id && m.embeds[0]?.url === reviewUrl) ?? null;
     if (message) dbSetReviewPost(r.id, channelId, message.id);
   }
-  if (message?.editable) await message.edit({ embeds: [await buildReviewEmbed(client, r)] });
+  // Clearing the text too tidies up posts from when the "@User reviewed…" line sat above the card.
+  if (message?.editable) await message.edit({ content: "", embeds: [await buildReviewEmbed(client, r)] });
 }
 
 // Board games are matched by pasting a BoardGameGeek link. BGG's official API needs a registered
