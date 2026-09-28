@@ -12,10 +12,10 @@
         <button type="button" class="rv-link-btn" @click="logout">Log out</button>
       </div>
     </div>
-    <!-- A single review's page has its own big title, so it skips the masthead. -->
-    <header v-if="!isReviewPage" class="rv-masthead">
+    <header class="rv-masthead">
       <h1><router-link :to="isPublic ? '/reviews/login' : '/reviews'">Reviews</router-link></h1>
-      <router-link v-if="!isPublic && route.path !== '/reviews/new'" to="/reviews/new" class="rv-btn">✎ Write a review</router-link>
+      <!-- A single review offers "Write your own review for this" instead. -->
+      <router-link v-if="!isPublic && route.path !== '/reviews/new' && !isReviewPage" to="/reviews/new" class="rv-btn">✎ Write a review</router-link>
     </header>
     <router-view :key="route.fullPath" />
   </div>
