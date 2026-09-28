@@ -33,12 +33,35 @@
       <blockquote v-if="review.summary" class="rv-pullquote">{{ review.summary }}</blockquote>
       <!-- bodyHtml is sanitised server-side on save (src/reviews.ts) -->
       <div v-if="review.bodyHtml" class="rv-prose" v-html="review.bodyHtml"></div>
-      <div v-if="review.canEdit || review.canDelete" class="rv-actions">
+      <div class="rv-actions">
         <router-link v-if="review.canEdit" :to="`/reviews/${review.id}/edit`" class="rv-btn rv-btn--ghost rv-btn--small">Edit</router-link>
+        <!-- Someone else's review: offer theirs, or a new one pre-filled with the same thing. -->
+        <router-link v-else-if="review.myReviewId" :to="`/reviews/${review.myReviewId}`" class="rv-btn rv-btn--small">See your review of this</router-link>
+        <router-link v-else :to="`/reviews/new?from=${review.id}`" class="rv-btn rv-btn--small">✎ Write your own review for this</router-link>
         <button v-if="review.canDelete" class="rv-btn rv-btn--danger rv-btn--small" :disabled="deleting" @click="remove">Delete</button>
       </div>
     </div>
   </article>
+
+  <section v-if="review?.others?.length" class="rv-others">
+    <h2 class="rv-others-title">Other reviews for this</h2>
+    <div class="rv-feed">
+      <router-link v-for="o in review.others" :key="o.id" :to="`/reviews/${o.id}`" class="rv-card">
+        <div class="rv-card-body">
+          <div class="rv-card-rating">
+            <StarRating :model-value="o.rating" />
+            <span v-if="hasProgress(o.typeName)" class="rv-progress" :class="`rv-progress--${o.progress}`">{{ progressLabel(o.progress) }}</span>
+          </div>
+          <p v-if="o.summary" class="rv-card-summary">{{ o.summary }}</p>
+          <div class="rv-card-foot">
+            <img v-if="o.authorAvatarUrl" :src="o.authorAvatarUrl" class="rv-avatar" alt="" />
+            <span v-else class="rv-avatar">{{ authorName(o)[0] }}</span>
+            <span>{{ authorName(o) }} · {{ formatReviewDate(o.createdAt) }}</span>
+          </div>
+        </div>
+      </router-link>
+    </div>
+  </section>
 </template>
 
 <script setup lang="ts">
@@ -64,7 +87,7 @@ onMounted(async () => {
 });
 
 async function remove() {
-  if (!review.value || !window.confirm(`Delete your review of "${review.value.title}"?`)) return;
+  if (!review.value || !window.confirm(`Delete ${review.value.canEdit ? "your" : `${authorName(review.value)}'s`} review of "${review.value.title}"?`)) return;
   deleting.value = true;
   const res = await fetch(`/api/reviews/${review.value.id}`, { method: "DELETE" });
   if (res.ok) router.push("/reviews");

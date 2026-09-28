@@ -135,6 +135,8 @@ body.rv-body {
 .rv-byline strong { color: var(--rv-ink); }
 .rv-pullquote { font: italic 500 1.35rem/1.45 var(--rv-serif); border-left: 4px solid var(--rv-accent); padding: 2px 0 2px 20px; margin-bottom: 28px; color: var(--rv-ink-soft); white-space: pre-line; }
 .rv-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+.rv-others { margin-top: 48px; padding-top: 28px; border-top: 1px solid var(--rv-rule); }
+.rv-others-title { font-size: 1.5rem; margin-bottom: 16px !important; }
 .rv-wikilink { font-size: 0.8rem; color: var(--rv-muted); margin-top: 10px; display: inline-block; }
 
 /* Rich text — shared by the editor surface and the rendered review */

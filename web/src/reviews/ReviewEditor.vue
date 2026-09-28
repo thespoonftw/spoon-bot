@@ -309,23 +309,34 @@ onUnmounted(() => { clearTimeout(debounce); bggInflight?.abort(); searchInflight
 
 onMounted(async () => {
   types.value = await fetchReviewTypes();
-  if (!isEdit.value) {
+  // "Write your own review for this" opens /reviews/new?from=<id>: same thing, blank review.
+  const fromId = isEdit.value ? null : parseInt(route.query.from as string) || null;
+  if (!isEdit.value && !fromId) {
     draft.typeId = (types.value.find(t => t.name === "Film") ?? types.value[0])?.id ?? null;
     return;
   }
-  const res = await fetch(`/api/reviews/${route.params.id}`);
-  if (!res.ok) { error.value = "Couldn't load that review."; loading.value = false; return; }
+  loading.value = true;
+  const res = await fetch(`/api/reviews/${isEdit.value ? route.params.id : fromId}`);
+  if (!res.ok) {
+    if (isEdit.value) error.value = "Couldn't load that review.";
+    else draft.typeId = (types.value.find(t => t.name === "Film") ?? types.value[0])?.id ?? null;
+    loading.value = false;
+    return;
+  }
   const r = await res.json();
-  if (!r.canEdit) { router.replace(`/reviews/${r.id}`); return; }
+  if (isEdit.value && !r.canEdit) { router.replace(`/reviews/${r.id}`); return; }
   // Keep the saved page, cover and details; the search still fills the dropdown so they can be swapped.
   userPicked.value = true;
   Object.assign(autoFilled, { creator: !r.creator, year: r.year === null });
   Object.assign(draft, {
-    title: r.title, typeId: r.typeId, rating: r.rating, progress: r.progress,
-    summary: r.summary ?? "", bodyHtml: r.bodyHtml ?? "", imageUrl: r.imageUrl, wikiTitle: r.wikiTitle,
+    title: r.title, typeId: r.typeId, imageUrl: r.imageUrl, wikiTitle: r.wikiTitle,
     sourceUrl: matchSource(r)?.url ?? null,
-    creator: r.creator ?? "", year: r.year ?? "", season: r.season, platform: r.platform,
+    creator: r.creator ?? "", year: r.year ?? "", season: r.season,
   });
+  // The rating, write-up, progress and platform (how you played it) are only kept when editing.
+  if (isEdit.value) {
+    Object.assign(draft, { rating: r.rating, progress: r.progress, summary: r.summary ?? "", bodyHtml: r.bodyHtml ?? "", platform: r.platform });
+  }
   loadSeasons(draft.sourceUrl);
   if (matchSource(r)?.source === "bgg") { bggInput.value = draft.sourceUrl ?? ""; bggStatus.value = "Linked to BoardGameGeek."; }
   loading.value = false;

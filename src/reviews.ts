@@ -7,7 +7,7 @@ type SharpImage = { resize(w: number, h: number): SharpImage; composite(layers: 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const sharp = require("sharp") as (input: Buffer) => SharpImage;
 import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbListReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, type ReviewInput, type ReviewRow } from "./db";
+import { dbListReviews, dbListMatchingReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, type ReviewInput, type ReviewRow } from "./db";
 
 const PROGRESS = new Set(["ongoing", "stopped", "finished"]);
 // Types done in one sitting, which don't ask for progress. Keep in sync with web/src/reviews/api.ts.
@@ -313,7 +313,11 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
   if (!existing) { sendJson(res, 404, { error: "Not found" }); return true; }
 
   if (method === "GET") {
-    sendJson(res, 200, { ...existing, canEdit: user.userId === existing.userId, canDelete: canDelete(user.userId, existing.userId) });
+    // Other reviews of the same thing, for the bottom of the page (headline fields only).
+    const others = dbListMatchingReviews(existing).map(({ bodyHtml: _body, ...r }) => r);
+    // The viewer's own review of it, if they have one (so the page links to it instead of offering a new one).
+    const myReviewId = existing.userId === user.userId ? existing.id : others.find(o => o.userId === user.userId)?.id ?? null;
+    sendJson(res, 200, { ...existing, canEdit: user.userId === existing.userId, canDelete: canDelete(user.userId, existing.userId), others, myReviewId });
     return true;
   }
 

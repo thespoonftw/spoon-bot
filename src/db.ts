@@ -857,6 +857,14 @@ const REVIEW_SELECT = `
   JOIN review_types t ON t.id = r.type_id
   LEFT JOIN users u ON u.user_id = r.user_id`;
 
+// Other people's reviews of the same thing: same type, title (ignoring case and surrounding spaces)
+// and year (both missing counts as a match). Newest first.
+export function dbListMatchingReviews(r: { id: number; typeId: number; title: string; year: number | null }): ReviewRow[] {
+  return db.prepare(`${REVIEW_SELECT}
+    WHERE r.id != ? AND r.type_id = ? AND LOWER(TRIM(r.title)) = LOWER(TRIM(?)) AND r.year IS ?
+    ORDER BY r.created_at DESC, r.id DESC`).all(r.id, r.typeId, r.title, r.year) as ReviewRow[];
+}
+
 export function dbListReviews(opts: { typeId?: number; userId?: string; limit: number; offset: number }): { reviews: ReviewRow[]; total: number } {
   const where: string[] = [];
   const args: unknown[] = [];

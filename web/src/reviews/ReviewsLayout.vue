@@ -12,7 +12,8 @@
         <button type="button" class="rv-link-btn" @click="logout">Log out</button>
       </div>
     </div>
-    <header class="rv-masthead">
+    <!-- A single review's page has its own big title, so it skips the masthead. -->
+    <header v-if="!isReviewPage" class="rv-masthead">
       <h1><router-link :to="isPublic ? '/reviews/login' : '/reviews'">Reviews</router-link></h1>
       <router-link v-if="!isPublic && route.path !== '/reviews/new'" to="/reviews/new" class="rv-btn">✎ Write a review</router-link>
     </header>
@@ -30,6 +31,7 @@ const route = useRoute();
 const router = useRouter();
 const { currentUser, reload } = useCurrentUser();
 const isPublic = computed(() => !!route.meta.public);
+const isReviewPage = computed(() => /^\/reviews\/\d+$/.test(route.path));
 const userName = computed(() => currentUser.value?.firstName || currentUser.value?.displayName || "");
 
 // The layout stays mounted across the login pages, so pick the user up once they're signed in.

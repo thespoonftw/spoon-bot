@@ -32,6 +32,9 @@ export interface Review {
   authorAvatarUrl: string | null;
   canEdit?: boolean;
   canDelete?: boolean;
+  // Only on a single review: other reviews of the same thing, and the viewer's own review of it.
+  others?: Review[];
+  myReviewId?: number | null;
 }
 
 export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyHtml" | "imageUrl" | "wikiTitle" | "creator" | "sourceUrl" | "platform"> & { typeId: number | null; rating: number | null; year: number | string | null; season: number | null };
