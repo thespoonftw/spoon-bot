@@ -16,10 +16,9 @@
         <h1 class="rv-detail-title">{{ review.title }}<span v-if="review.year" class="rv-detail-year">{{ review.year }}</span></h1>
         <TypeChip class="rv-detail-type" :name="review.typeName" :icon="review.typeIcon" :color="review.typeColor" />
       </div>
-      <!-- Year sits after the title (as on the feed cards), so it's left out of this line. -->
       <p v-if="credits" class="rv-credit rv-credit--large">{{ credits }}</p>
       <div class="rv-detail-meta">
-        <StarRating :model-value="review.rating" with-label />
+        <StarRating :model-value="review.rating" />
         <span v-if="hasProgress(review.typeName)" class="rv-progress" :class="`rv-progress--${review.progress}`" style="font-size: 0.95rem">{{ progressLabel(review.progress) }}</span>
       </div>
       <div class="rv-byline">
@@ -67,7 +66,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { progressLabel, hasProgress, creditLine, matchSource, authorName, formatReviewDate, type Review } from "./api";
+import { progressLabel, hasProgress, cardCredit, matchSource, authorName, formatReviewDate, type Review } from "./api";
 import ReviewCover from "./ReviewCover.vue";
 import StarRating from "./StarRating.vue";
 import TypeChip from "./TypeChip.vue";
@@ -78,7 +77,8 @@ const review = ref<Review | null>(null);
 const loading = ref(true);
 const deleting = ref(false);
 const source = computed(() => review.value ? matchSource(review.value) : null);
-const credits = computed(() => review.value ? creditLine({ ...review.value, year: null }) : "");
+// The same line as under the title on the feed cards ("by Daft Punk", "for Nintendo Switch", "Season 2").
+const credits = computed(() => review.value ? cardCredit(review.value) : null);
 
 onMounted(async () => {
   const res = await fetch(`/api/reviews/${route.params.id}`);

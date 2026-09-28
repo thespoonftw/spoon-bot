@@ -39,11 +39,7 @@ export interface Review {
 
 export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyHtml" | "imageUrl" | "wikiTitle" | "creator" | "sourceUrl" | "platform"> & { typeId: number | null; rating: number | null; year: number | string | null; season: number | null };
 
-// "Frank Herbert · 1965", "Season 2 · 2023", "Nintendo Switch · 2020" — whichever parts are known.
-export const creditLine = (r: { creator: string | null; year: number | null; season?: number | null; platform?: string | null }) =>
-  [r.creator, r.season != null ? `Season ${r.season}` : null, r.platform, r.year].filter(Boolean).join(" · ");
-
-// The line under the title on a feed card: "Season 2" for a series, "by Daft Punk" for an album,
+// The line under the title on feed cards and review pages: "Season 2" for a series, "by Daft Punk" for an album,
 // "for Nintendo Switch" for a game. Other types don't have one.
 export function cardCredit(r: { typeName: string; creator: string | null; season: number | null; platform: string | null }): string | null {
   if (r.season != null) return `Season ${r.season}`;

@@ -17,7 +17,6 @@
   </div>
   <span v-else class="rv-stars" :aria-label="`${modelValue} out of 5 stars — ${RATING_LABELS[modelValue ?? 0]}`">
     <span v-for="n in 5" :key="n" :class="{ off: n > (modelValue ?? 0) }" aria-hidden="true">★</span>
-    <span v-if="withLabel && modelValue !== null" class="rv-rating-label">{{ RATING_LABELS[modelValue] }}</span>
   </span>
 </template>
 
@@ -25,7 +24,7 @@
 import { ref, computed } from "vue";
 import { RATING_LABELS } from "./api";
 
-const props = defineProps<{ modelValue: number | null; editable?: boolean; withLabel?: boolean }>();
+const props = defineProps<{ modelValue: number | null; editable?: boolean }>();
 const emit = defineEmits<{ "update:modelValue": [value: number] }>();
 const hover = ref<number | null>(null);
 
