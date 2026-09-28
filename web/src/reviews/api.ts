@@ -39,12 +39,14 @@ export interface Review {
 
 export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyHtml" | "imageUrl" | "wikiTitle" | "creator" | "sourceUrl" | "platform"> & { typeId: number | null; rating: number | null; year: number | string | null; season: number | null };
 
-// The line under the title on feed cards and review pages: "Season 2" for a series, "by Daft Punk" for an album or book,
-// "for Nintendo Switch" for a game. Other types don't have one.
+// The line under the title on feed cards and review pages: "Season 2" for a series, "by Daft Punk"
+// for an album, just the author for a book (as book covers do), "for Nintendo Switch" for a game.
+// Other types don't have one.
 export function cardCredit(r: { typeName: string; creator: string | null; season: number | null; platform: string | null }): string | null {
   if (r.season != null) return `Season ${r.season}`;
   const type = r.typeName.trim().toLowerCase();
-  if ((type === "album" || type === "book") && r.creator) return `by ${r.creator}`;
+  if (type === "album" && r.creator) return `by ${r.creator}`;
+  if (type === "book" && r.creator) return r.creator;
   if (type === "video game" && r.platform) return `for ${r.platform}`;
   return null;
 }
