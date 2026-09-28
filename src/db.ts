@@ -150,6 +150,8 @@ export function initDb() {
     "ALTER TABLE reviews ADD COLUMN source_url TEXT",
     "ALTER TABLE reviews ADD COLUMN season INTEGER",
     "ALTER TABLE reviews ADD COLUMN platform TEXT",
+    "ALTER TABLE reviews ADD COLUMN discord_channel_id TEXT",
+    "ALTER TABLE reviews ADD COLUMN discord_message_id TEXT",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
@@ -897,6 +899,15 @@ export function dbUpdateReview(id: number, r: ReviewInput): ReviewRow | undefine
     WHERE id = ?
   `).run(r.title, r.typeId, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, r.creator, r.year, r.sourceUrl, r.season, r.platform, new Date().toISOString(), id);
   return dbGetReview(id);
+}
+
+// Where the review was announced on Discord, so edits can update that post.
+export function dbGetReviewPost(id: number): { channelId: string; messageId: string } | undefined {
+  return db.prepare("SELECT discord_channel_id AS channelId, discord_message_id AS messageId FROM reviews WHERE id = ? AND discord_message_id IS NOT NULL").get(id) as { channelId: string; messageId: string } | undefined;
+}
+
+export function dbSetReviewPost(id: number, channelId: string, messageId: string): void {
+  db.prepare("UPDATE reviews SET discord_channel_id = ?, discord_message_id = ? WHERE id = ?").run(channelId, messageId, id);
 }
 
 export function dbDeleteReview(id: number): void {

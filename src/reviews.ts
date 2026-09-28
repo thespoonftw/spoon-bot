@@ -5,7 +5,7 @@ import { config } from "./config";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const sharp = require("sharp") as (input: Buffer) => { png(): { toBuffer(): Promise<Buffer> } };
 import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbListReviews, dbListMatchingReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, type ReviewInput, type ReviewRow } from "./db";
+import { dbListReviews, dbListMatchingReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetReviewPost, dbSetReviewPost, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, type ReviewInput, type ReviewRow } from "./db";
 
 const PROGRESS = new Set(["ongoing", "stopped", "finished"]);
 // Types done in one sitting, which don't ask for progress. Keep in sync with web/src/reviews/api.ts.
@@ -56,15 +56,10 @@ async function reviewAuthor(client: Client, r: ReviewRow): Promise<{ name: strin
   } catch { return fallback; }
 }
 
-// Posts a new review as an embed mirroring the feed card: a header of the reviewer's avatar and
+// A review's Discord card, mirroring the feed card: a header of the reviewer's avatar and
 // "Name reviewed a 🎬 Film" (the header is plain text, so no mention or markdown), then the linked
-// title, credit line, stars and summary, with the cover beside. Types with their own channel (e.g.
-// board games) go there instead of the general reviews channel. Best-effort — a failure never
-// affects the save.
-async function announceReview(r: ReviewRow): Promise<void> {
-  const client = reviewsDiscordClient;
-  const channelId = config.reviewTypeChannels[r.typeName.toLowerCase()] ?? config.reviewsChannelId;
-  if (!client || !channelId) return;
+// title, credit line, stars and summary, with the cover beside.
+async function buildReviewEmbed(client: Client, r: ReviewRow): Promise<EmbedBuilder> {
   const [emoji, author] = await Promise.all([getStarEmojis(client), reviewAuthor(client, r)]);
   const stars = emoji ? emoji.full.repeat(r.rating) + emoji.empty.repeat(5 - r.rating) : "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
   const article = /^[aeiou]/i.test(r.typeName) ? "an" : "a";
@@ -86,8 +81,41 @@ async function announceReview(r: ReviewRow): Promise<void> {
     .setURL(`${getBaseUrl()}/reviews/${r.id}`)
     .setDescription((r.summary ? `${top}\n\n${r.summary}` : top).slice(0, 4096));
   if (r.imageUrl) embed.setThumbnail(r.imageUrl);
+  return embed;
+}
+
+// Posts a new review. Types with their own channel (e.g. board games) go there instead of the
+// general reviews channel. The post is remembered so later edits can update it. Best-effort — a
+// failure never affects the save.
+async function announceReview(r: ReviewRow): Promise<void> {
+  const client = reviewsDiscordClient;
+  const channelId = config.reviewTypeChannels[r.typeName.toLowerCase()] ?? config.reviewsChannelId;
+  if (!client || !channelId) return;
   const channel = await client.channels.fetch(channelId);
-  if (channel?.isSendable()) await channel.send({ embeds: [embed] });
+  if (!channel?.isSendable()) return;
+  const message = await channel.send({ embeds: [await buildReviewEmbed(client, r)] });
+  dbSetReviewPost(r.id, channelId, message.id);
+}
+
+// Brings a review's Discord post up to date after an edit, in whichever channel it was posted.
+// Reviews announced before posts were remembered are found by their link among the bot's recent
+// messages in the channel their type posts to. Nothing happens if the post can't be found.
+async function updateReviewPost(r: ReviewRow): Promise<void> {
+  const client = reviewsDiscordClient;
+  if (!client) return;
+  const saved = dbGetReviewPost(r.id);
+  const channelId = saved?.channelId ?? config.reviewTypeChannels[r.typeName.toLowerCase()] ?? config.reviewsChannelId;
+  if (!channelId) return;
+  const channel = await client.channels.fetch(channelId);
+  if (!channel?.isTextBased()) return;
+  let message = saved ? await channel.messages.fetch(saved.messageId).catch(() => null) : null;
+  if (!saved) {
+    const reviewUrl = `${getBaseUrl()}/reviews/${r.id}`;
+    const recent = await channel.messages.fetch({ limit: 100 });
+    message = recent.find(m => m.author.id === client.user?.id && m.embeds[0]?.url === reviewUrl) ?? null;
+    if (message) dbSetReviewPost(r.id, channelId, message.id);
+  }
+  if (message?.editable) await message.edit({ embeds: [await buildReviewEmbed(client, r)] });
 }
 
 // Board games are matched by pasting a BoardGameGeek link. BGG's official API needs a registered
@@ -299,7 +327,9 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
     readJsonBody(req).then(raw => {
       const input = parseReviewInput(raw);
       if (typeof input === "string") { sendJson(res, 400, { error: input }); return; }
-      sendJson(res, 200, dbUpdateReview(id, input));
+      const review = dbUpdateReview(id, input);
+      sendJson(res, 200, review);
+      if (review) updateReviewPost(review).catch(e => console.error("Failed to update review post:", e));
     }).catch(() => { if (!res.headersSent) sendJson(res, 400, { error: "Invalid body" }); });
     return true;
   }
