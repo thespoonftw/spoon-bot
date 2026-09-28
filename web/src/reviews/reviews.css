@@ -94,7 +94,8 @@ body.rv-body {
 /* A tab never shrinks or breaks its name over two lines; when they don't fit, the row switches to emoji. */
 .rv-filters button { flex-shrink: 0; white-space: nowrap; }
 .rv-filters-wrap { position: relative; }
-.rv-filter-heading { font-size: 1.5rem; margin: -8px 0 18px !important; }
+/* In the masthead's style (bold italic serif), a size down. */
+.rv-filter-heading { font-size: clamp(1.9rem, 5.5vw, 2.6rem); line-height: 1; font-weight: 700; font-style: italic; margin: -6px 0 20px !important; }
 .rv-filters--measure { position: absolute; top: 0; left: 0; right: 0; flex-wrap: nowrap; overflow: hidden; visibility: hidden; pointer-events: none; }
 .rv-filters--icons { gap: 18px; }
 .rv-filters--icons .rv-filter-icon { font-size: 1.25rem; line-height: 1; }

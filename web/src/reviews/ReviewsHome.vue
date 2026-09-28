@@ -13,8 +13,8 @@
         <button v-for="t in filterTypes" :key="t.id" tabindex="-1">{{ t.icon }} {{ pluralType(t.name) }}</button>
       </nav>
     </div>
-    <!-- With just emoji on the tabs, the selected one is named above the list. -->
-    <h2 v-if="iconsOnly && filterTypes.length > 1" class="rv-filter-heading">{{ activeType ? `${activeType.icon} ${pluralType(activeType.name)}` : "All reviews" }}</h2>
+    <!-- With just emoji on the tabs, the selected type is named above the list ("All" needs no heading). -->
+    <h2 v-if="iconsOnly && activeType && filterTypes.length > 1" class="rv-filter-heading">{{ pluralType(activeType.name) }}</h2>
 
     <p v-if="loading && !reviews.length" class="rv-loading">Fetching the latest…</p>
     <p v-else-if="error" class="rv-error">{{ error }}</p>
