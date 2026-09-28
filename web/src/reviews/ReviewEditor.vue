@@ -17,7 +17,7 @@
       </div>
 
       <!-- Board games: the pasted BGG link fills in the title, so it goes above it. -->
-      <div v-if="details && bggLink" class="rv-field rv-editor-lead">
+      <div v-if="bggLink" class="rv-field rv-editor-lead">
         <label class="rv-label" for="rv-bgg">BoardGameGeek link</label>
         <input id="rv-bgg" v-model="bggInput" class="rv-input" placeholder="https://boardgamegeek.com/boardgame/…" autocomplete="off" @input="onBggInput" />
         <span class="rv-hint">
@@ -31,7 +31,6 @@
         <input id="rv-title" v-model="draft.title" class="rv-input rv-input--title" maxlength="200" placeholder="What are you reviewing?" autocomplete="off" />
       </div>
 
-      <template v-if="details">
       <div v-if="!bggLink" class="rv-field">
         <label class="rv-label" for="rv-match">Match</label>
         <select id="rv-match" class="rv-select" :value="draft.sourceUrl ?? NO_PAGE" :disabled="!candidates.length" @change="onPageChange">
@@ -43,7 +42,7 @@
         <span class="rv-hint">{{ wikiStatus }}</span>
       </div>
 
-      <div class="rv-editor-row">
+      <div v-if="hasYear(selectedType?.name ?? '') || creatorFieldLabel || extra" class="rv-editor-row">
         <!-- Year first and fixed-width, so it sits in the same place whether or not the type has a creator. -->
         <div v-if="hasYear(selectedType?.name ?? '')" class="rv-field rv-field--year">
           <label class="rv-label" for="rv-year">Year</label>
@@ -74,7 +73,6 @@
         </div>
       </div>
       <p v-if="detailsStatus" class="rv-hint" style="margin: -14px 0 18px">{{ detailsStatus }}</p>
-      </template>
 
       <div class="rv-editor-row">
         <div class="rv-field">
@@ -116,7 +114,7 @@
         From {{ source.name }}<template v-if="selectedCandidate">: <strong>{{ selectedCandidate.label }}</strong></template><br />
         <a :href="source.url" target="_blank" rel="noopener noreferrer">View page ↗</a>
       </p>
-      <p class="rv-picker-caption" v-else-if="details">{{ bggLink ? "Paste a BoardGameGeek link to use its cover." : "Pick a match to use its cover." }}</p>
+      <p class="rv-picker-caption" v-else>{{ bggLink ? "Paste a BoardGameGeek link to use its cover." : "Pick a match to use its cover." }}</p>
     </aside>
   </form>
 </template>
@@ -124,7 +122,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { clearReviewCache, PROGRESS_OPTIONS, hasProgress, hasYear, hasDetails, usesBggLink, parseBggId, fetchBggGame, SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
+import { clearReviewCache, PROGRESS_OPTIONS, hasProgress, hasYear, usesBggLink, parseBggId, fetchBggGame, SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
 import StarRating from "./StarRating.vue";
 import RichTextEditor from "./RichTextEditor.vue";
 import ReviewCover from "./ReviewCover.vue";
@@ -150,8 +148,6 @@ const selectedType = computed(() => types.value.find(t => t.id === draft.typeId)
 const creatorFieldLabel = computed(() => creatorLabel(selectedType.value?.name ?? ""));
 // "season" for series, "platform" for video games, null otherwise.
 const extra = computed(() => typeExtra(selectedType.value?.name ?? ""));
-// false for types that only take a rating and write-up (shows): no lookup, cover or details.
-const details = computed(() => hasDetails(selectedType.value?.name ?? ""));
 // Keep in sync with SUMMARY_MAX in src/reviews.ts.
 const SUMMARY_MAX = 250;
 const summaryLength = computed(() => (draft.summary ?? "").trim().length);
@@ -240,7 +236,7 @@ let detailsInflight: AbortController | null = null;
 async function lookup() {
   const title = draft.title.trim();
   searchInflight?.abort();
-  if (title.length < 2 || !details.value || bggLink.value) { candidates.value = []; wikiStatus.value = "Type a title and we'll look it up."; return; }
+  if (title.length < 2 || bggLink.value) { candidates.value = []; wikiStatus.value = "Type a title and we'll look it up."; return; }
   searchInflight = new AbortController();
   wikiStatus.value = "Searching…";
   try {
@@ -362,7 +358,6 @@ async function save() {
       creator: creatorFieldLabel.value ? draft.creator : null,
       season: extra.value === "season" ? draft.season : null,
       platform: extra.value === "platform" ? draft.platform : null,
-      ...(details.value ? {} : { sourceUrl: null, wikiTitle: null, imageUrl: null, year: null }),
     }),
   });
   const data = await res.json().catch(() => ({}));

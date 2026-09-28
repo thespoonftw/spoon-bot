@@ -9,11 +9,10 @@ import { dbListReviews, dbListMatchingReviews, dbGetReview, dbCreateReview, dbUp
 
 const PROGRESS = new Set(["ongoing", "stopped", "finished"]);
 // Types done in one sitting, which don't ask for progress. Keep in sync with web/src/reviews/api.ts.
-const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album"]);
-// Types that don't ask for a year (a podcast runs for years). Keep in sync with web/src/reviews/api.ts.
-const NO_YEAR_TYPES = new Set(["podcast"]);
-// Types that ask for nothing beyond the rating and write-up (theatre shows). Keep in sync with web/src/reviews/api.ts.
-const NO_DETAILS_TYPES = new Set(["show"]);
+const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album", "stage show"]);
+// Types that don't ask for a year (a podcast runs for years; a stage show is a production, not a
+// release). Keep in sync with web/src/reviews/api.ts.
+const NO_YEAR_TYPES = new Set(["podcast", "stage show"]);
 const MAX_BODY_BYTES = 200 * 1024;
 const SUMMARY_MAX = 250; // Keep in sync with the editor (web/src/reviews/ReviewEditor.vue).
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
@@ -184,12 +183,7 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   const season = b.season === null || b.season === undefined || b.season === "" ? null : Number(b.season);
   if (season !== null && (!Number.isInteger(season) || season < 0 || season > 500)) return "Season must be a whole number";
   const platform = typeof b.platform === "string" && b.platform.trim() ? b.platform.trim().slice(0, 60) : null;
-  const base = { title, typeId, rating, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null };
-  // Types with no details (shows) keep just the title, rating and write-up.
-  if (NO_DETAILS_TYPES.has(type.name.toLowerCase())) {
-    return { ...base, progress: "finished", imageUrl: null, wikiTitle: null, creator: null, year: null, sourceUrl: null, season: null, platform: null };
-  }
-  return { ...base, progress, imageUrl, wikiTitle, creator, year: rawYear, sourceUrl, season, platform };
+  return { title, typeId, rating, progress, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null, imageUrl, wikiTitle, creator, year: rawYear, sourceUrl, season, platform };
 }
 
 // Only the author can edit a review; admins can also delete one (to take something down).
