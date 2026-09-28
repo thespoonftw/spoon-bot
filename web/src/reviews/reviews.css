@@ -58,6 +58,7 @@ body.rv-body {
 .rv-editor-row > .rv-field.rv-field--year { flex: 0 0 120px; min-width: 0; }
 .rv-editor-row > .rv-field.rv-field--progress { flex: 0 0 200px; min-width: 0; }
 .rv-hint { font-size: 0.8rem; color: var(--rv-muted); }
+.rv-hint--over { color: var(--rv-accent); font-weight: 600; }
 .rv-error { color: var(--rv-accent); font-weight: 600; margin-bottom: 16px; }
 
 

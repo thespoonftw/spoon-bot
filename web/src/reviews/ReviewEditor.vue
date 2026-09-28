@@ -91,8 +91,9 @@
 
       <div class="rv-field">
         <label class="rv-label" for="rv-summary">Summary</label>
-        <textarea id="rv-summary" v-model="draft.summary" class="rv-textarea" maxlength="300" rows="3" placeholder="The short version — a line or two."></textarea>
-        <span class="rv-hint">{{ (draft.summary ?? "").length }}/300</span>
+        <!-- No maxlength: an older summary may already be longer, and needs to show so it can be trimmed. -->
+        <textarea id="rv-summary" v-model="draft.summary" class="rv-textarea" rows="3" placeholder="The short version — a line or two."></textarea>
+        <span class="rv-hint" :class="{ 'rv-hint--over': summaryLength > SUMMARY_MAX }">{{ summaryLength }}/{{ SUMMARY_MAX }}</span>
       </div>
 
       <div class="rv-field">
@@ -151,6 +152,9 @@ const creatorFieldLabel = computed(() => creatorLabel(selectedType.value?.name ?
 const extra = computed(() => typeExtra(selectedType.value?.name ?? ""));
 // false for types that only take a rating and write-up (shows): no lookup, cover or details.
 const details = computed(() => hasDetails(selectedType.value?.name ?? ""));
+// Keep in sync with SUMMARY_MAX in src/reviews.ts.
+const SUMMARY_MAX = 200;
+const summaryLength = computed(() => (draft.summary ?? "").trim().length);
 
 // --- BoardGameGeek (board games): instead of searching, paste a game's BGG link and its name, year
 // and box art are filled in from it.
@@ -347,6 +351,7 @@ async function save() {
   if (!draft.title.trim()) { error.value = "Give it a title."; return; }
   if (draft.typeId === null) { error.value = "Pick a type."; return; }
   if (draft.rating === null) { error.value = "Pick a star rating."; return; }
+  if (summaryLength.value > SUMMARY_MAX) { error.value = `Keep the summary to ${SUMMARY_MAX} characters.`; return; }
   saving.value = true;
   const res = await fetch(isEdit.value ? `/api/reviews/${route.params.id}` : "/api/reviews", {
     method: isEdit.value ? "PUT" : "POST",

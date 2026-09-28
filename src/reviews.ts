@@ -15,6 +15,7 @@ const NO_YEAR_TYPES = new Set(["podcast"]);
 // Types that ask for nothing beyond the rating and write-up (theatre shows). Keep in sync with web/src/reviews/api.ts.
 const NO_DETAILS_TYPES = new Set(["show"]);
 const MAX_BODY_BYTES = 200 * 1024;
+const SUMMARY_MAX = 200; // Keep in sync with the editor (web/src/reviews/ReviewEditor.vue).
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 
 let reviewsDiscordClient: Client | null = null;
@@ -152,7 +153,9 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   // Some types don't ask for progress, so they're always saved as finished.
   const progress = NO_PROGRESS_TYPES.has(type.name.toLowerCase()) ? "finished" : String(b.progress ?? "");
   if (!PROGRESS.has(progress)) return "Progress must be ongoing, stopped or finished";
-  const summary = typeof b.summary === "string" ? b.summary.trim().slice(0, 300) : "";
+  // Rejected rather than cut short, so an older, longer summary isn't chopped mid-sentence on edit.
+  const summary = typeof b.summary === "string" ? b.summary.trim() : "";
+  if (summary.length > SUMMARY_MAX) return `Keep the summary to ${SUMMARY_MAX} characters`;
   const cleanedBody = typeof b.bodyHtml === "string" ? sanitizeHtml(b.bodyHtml, SANITIZE_OPTS).trim() : "";
   const bodyHasText = sanitizeHtml(cleanedBody, { allowedTags: [], allowedAttributes: {} }).trim().length > 0;
   // Images are only ever hotlinked from where the lookups point: Wikimedia, Open Library, TVmaze, Apple and BGG.
