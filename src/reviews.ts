@@ -133,7 +133,11 @@ async function deleteReviewPost(r: ReviewRow, saved: { channelId: string; messag
 // Board games are matched by pasting a BoardGameGeek link. BGG's official API needs a registered
 // token, but the endpoint behind its own game pages answers without one (and without CORS, hence
 // this proxy). It's undocumented, so it may change or close.
-const BGG_GAME_URL = /^https:\/\/boardgamegeek\.com\/(boardgame|boardgameexpansion)\/\d+\/[^\s"'<>/?]+$/;
+function isValidUrl(s: string): boolean {
+  try { new URL(s); return true; } catch { return false; }
+}
+
+const BGG_GAME_URL =/^https:\/\/boardgamegeek\.com\/(boardgame|boardgameexpansion)\/\d+\/[^\s"'<>/?]+$/;
 type BggItem = { name?: string; yearpublished?: string; canonical_link?: string; images?: { previewthumb?: string } };
 
 async function fetchBggGame(id: string): Promise<{ name: string; year: number | null; imageUrl: string | null; url: string | null } | null> {
@@ -197,14 +201,9 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   if (summary.length > SUMMARY_MAX) return `Keep the summary to ${SUMMARY_MAX} characters`;
   const cleanedBody = typeof b.bodyHtml === "string" ? sanitizeHtml(b.bodyHtml, SANITIZE_OPTS).trim() : "";
   const bodyHasText = sanitizeHtml(cleanedBody, { allowedTags: [], allowedAttributes: {} }).trim().length > 0;
-  // Images are only ever hotlinked from where the lookups point: Wikimedia, Open Library, TVmaze, Apple and BGG.
-  const imageUrl = typeof b.imageUrl === "string" && (
-    /^https:\/\/cf\.geekdo-images\.com\/[^\s"'<>?]+\.(jpg|jpeg|png|webp)$/.test(b.imageUrl) ||
-    /^https:\/\/(upload|thumb)\.wikimedia\.org\/[^\s"'<>]+$/.test(b.imageUrl) ||
-    /^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-[SML]\.jpg$/.test(b.imageUrl) ||
-    /^https:\/\/static\.tvmaze\.com\/uploads\/images\/[a-z_]+\/\d+\/\d+\.(jpg|jpeg|png)$/.test(b.imageUrl) ||
-    /^https:\/\/is\d+-ssl\.mzstatic\.com\/image\/thumb\/[^\s"'<>?]+\.(jpg|jpeg|png|webp)$/.test(b.imageUrl)
-  ) ? b.imageUrl : null;
+  // The cover is hotlinked: usually from where the lookups point, but any https:// image link can be pasted in.
+  const imageUrl = typeof b.imageUrl === "string" && b.imageUrl.trim() ? b.imageUrl.trim() : null;
+  if (imageUrl && (imageUrl.length > 2000 || !/^https:\/\/[^\s"'<>]+$/.test(imageUrl) || !isValidUrl(imageUrl))) return "Image link must be an https:// address";
   // The page the review was matched to: a Wikipedia article, Open Library work, TVmaze show, Apple
   // podcast, Apple Music album or BoardGameGeek game.
   const sourceUrl = typeof b.sourceUrl === "string" && (

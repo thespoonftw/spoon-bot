@@ -115,6 +115,11 @@
         <a :href="source.url" target="_blank" rel="noopener noreferrer">View page ↗</a>
       </p>
       <p class="rv-picker-caption" v-else>{{ bggLink ? "Paste a BoardGameGeek link to use its cover." : "Pick a match to use its cover." }}</p>
+      <div class="rv-field" style="margin-top: 12px">
+        <label class="rv-label" for="rv-image">Image link <span class="rv-label-note">Optional</span></label>
+        <input id="rv-image" v-model="customImage" class="rv-input" type="url" maxlength="2000" placeholder="https://… to use a different image" autocomplete="off" @input="onCustomImageInput" />
+        <span v-if="customImage.trim()" class="rv-hint">Used instead of the match's cover. Clear it to go back.</span>
+      </div>
     </aside>
   </form>
 </template>
@@ -152,6 +157,21 @@ const extra = computed(() => typeExtra(selectedType.value?.name ?? ""));
 const SUMMARY_MAX = 250;
 const summaryLength = computed(() => (draft.summary ?? "").trim().length);
 
+// --- Cover: the matched page's image, unless an image link has been pasted in, which then sticks
+// through match and season changes. Clearing the link goes back to the match's image.
+const LOOKUP_IMAGE = /^https:\/\/(cf\.geekdo-images\.com|(upload|thumb)\.wikimedia\.org|covers\.openlibrary\.org|static\.tvmaze\.com|is\d+-ssl\.mzstatic\.com)\//;
+const customImage = ref("");
+let matchImage: string | null = null;
+
+function setMatchImage(url: string | null) {
+  matchImage = url;
+  if (!customImage.value.trim()) draft.imageUrl = url;
+}
+
+function onCustomImageInput() {
+  draft.imageUrl = customImage.value.trim() || matchImage;
+}
+
 // --- BoardGameGeek (board games): instead of searching, paste a game's BGG link and its name, year
 // and box art are filled in from it.
 const bggLink = computed(() => usesBggLink(selectedType.value?.name ?? ""));
@@ -175,7 +195,7 @@ async function onBggInput() {
     if (!game) { bggStatus.value = "Couldn't find that game on BoardGameGeek."; return; }
     draft.sourceUrl = game.url;
     draft.wikiTitle = null;
-    draft.imageUrl = game.imageUrl;
+    setMatchImage(game.imageUrl);
     if (!draft.title.trim() || draft.title === bggTitle) draft.title = bggTitle = game.name;
     if (game.year) { draft.year = game.year; autoFilled.year = true; }
     bggStatus.value = `Matched: ${game.name}${game.year ? ` (${game.year})` : ""}`;
@@ -203,7 +223,7 @@ function onSeasonChange(e: Event) {
   const season = seasonOptions.value.find(s => s.number === draft.season) ?? null;
   const show = selectedCandidate.value;
   if (autoFilled.year) draft.year = season?.year ?? show?.details?.year ?? draft.year;
-  draft.imageUrl = season?.imageUrl ?? show?.imageUrl ?? draft.imageUrl;
+  setMatchImage(season?.imageUrl ?? show?.imageUrl ?? matchImage);
 }
 
 // --- Platform (video games): the matched game's platforms first, then the usual suspects. A saved
@@ -260,7 +280,7 @@ function savedMatch(): MatchCandidate {
   return {
     source: matchSource(draft)?.source ?? "wikipedia",
     url, label: draft.wikiTitle ?? draft.title, description: "saved match",
-    imageUrl: draft.imageUrl, wikiTitle: draft.wikiTitle, wikidataId: null,
+    imageUrl: matchImage, wikiTitle: draft.wikiTitle, wikidataId: null,
     details: { creator: draft.creator || null, year: draft.year === "" || draft.year === null ? null : Number(draft.year) },
   };
 }
@@ -282,7 +302,7 @@ function onPageChange(e: Event) {
 async function applyPage(c: MatchCandidate | null) {
   draft.sourceUrl = c?.url ?? null;
   draft.wikiTitle = c?.wikiTitle ?? null;
-  draft.imageUrl = c?.imageUrl ?? null;
+  setMatchImage(c?.imageUrl ?? null);
   // A different show/game: its seasons and platforms replace the old ones, and a season no longer
   // applies. (The chosen platform is about how you played it, so it stays.)
   draft.season = null;
@@ -347,6 +367,8 @@ onMounted(async () => {
   if (isEdit.value) {
     Object.assign(draft, { rating: r.rating, progress: r.progress, summary: r.summary ?? "", bodyHtml: r.bodyHtml ?? "", platform: r.platform });
   }
+  if (r.imageUrl && !LOOKUP_IMAGE.test(r.imageUrl)) customImage.value = r.imageUrl;
+  else matchImage = r.imageUrl;
   loadSeasons(draft.sourceUrl);
   if (matchSource(r)?.source === "bgg") { bggInput.value = draft.sourceUrl ?? ""; bggStatus.value = "Linked to BoardGameGeek."; }
   loading.value = false;
@@ -358,6 +380,7 @@ async function save() {
   if (draft.typeId === null) { error.value = "Pick a type."; return; }
   if (draft.rating === null) { error.value = "Pick a star rating."; return; }
   if (summaryLength.value > SUMMARY_MAX) { error.value = `Keep the summary to ${SUMMARY_MAX} characters.`; return; }
+  if (customImage.value.trim() && !/^https:\/\/\S+$/.test(customImage.value.trim())) { error.value = "The image link needs to start with https://."; return; }
   saving.value = true;
   const res = await fetch(isEdit.value ? `/api/reviews/${route.params.id}` : "/api/reviews", {
     method: isEdit.value ? "PUT" : "POST",
