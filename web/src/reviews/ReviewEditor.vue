@@ -230,6 +230,8 @@ const userPicked = ref(false);
 // Creator/year that came from the match get replaced when the match changes; typed-in values don't.
 const autoFilled = reactive({ creator: true, year: true });
 let debounce: ReturnType<typeof setTimeout> | undefined;
+// A title set from the picked match, which shouldn't trigger a fresh search.
+let skipLookupFor: string | null = null;
 let searchInflight: AbortController | null = null;
 let detailsInflight: AbortController | null = null;
 
@@ -269,7 +271,12 @@ function onPageChange(e: Event) {
   wikiStatus.value = "";
   // Choosing a page on purpose means "use this page's details", so it overrides typed values too.
   Object.assign(autoFilled, { creator: true, year: true });
-  applyPage(candidates.value.find(c => c.url === value) ?? null);
+  const c = candidates.value.find(c => c.url === value) ?? null;
+  // Take the match's name as the title — without Wikipedia's "(film)"-style suffix. The dropdown
+  // already holds this search's results, so the title change doesn't need to search again.
+  const name = c?.source === "wikipedia" ? c.label.replace(/\s*\(.*\)\s*$/, "") : c?.label;
+  if (name && name !== draft.title) draft.title = skipLookupFor = name;
+  applyPage(c);
 }
 
 async function applyPage(c: MatchCandidate | null) {
@@ -301,8 +308,11 @@ function fillDetails(creator: string | null, year: number | null) {
   if (autoFilled.year) draft.year = year ?? "";
 }
 
-watch(() => [draft.title, draft.typeId], () => {
+watch(() => [draft.title, draft.typeId], ([title], [prevTitle]) => {
+  const skip = skipLookupFor !== null && title === skipLookupFor && title !== prevTitle;
+  skipLookupFor = null;
   clearTimeout(debounce);
+  if (skip) return;
   debounce = setTimeout(lookup, 600);
 });
 onUnmounted(() => { clearTimeout(debounce); bggInflight?.abort(); searchInflight?.abort(); detailsInflight?.abort(); seasonsInflight?.abort(); });
