@@ -100,6 +100,7 @@
       </div>
 
       <div class="rv-editor-foot">
+        <label v-if="!isEdit" class="rv-editor-discord"><input v-model="postToDiscord" type="checkbox" /> Post to Discord</label>
         <router-link :to="isEdit ? `/reviews/${route.params.id}` : '/reviews'" class="rv-btn rv-btn--ghost">Cancel</router-link>
         <button type="submit" class="rv-btn" :disabled="saving">{{ saving ? "Saving…" : isEdit ? "Save changes" : "Publish review" }}</button>
       </div>
@@ -135,6 +136,8 @@ import ReviewCover from "./ReviewCover.vue";
 const route = useRoute();
 const router = useRouter();
 const isEdit = computed(() => route.params.id !== undefined);
+// New reviews are announced on Discord unless this is unticked.
+const postToDiscord = ref(true);
 
 const draft = reactive<ReviewDraft>({
   title: "", typeId: null, rating: null, progress: "finished",
@@ -391,6 +394,7 @@ async function save() {
       creator: creatorFieldLabel.value ? draft.creator : null,
       season: extra.value === "season" ? draft.season : null,
       platform: extra.value === "platform" ? draft.platform : null,
+      ...(isEdit.value ? {} : { postToDiscord: postToDiscord.value }),
     }),
   });
   const data = await res.json().catch(() => ({}));

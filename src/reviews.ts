@@ -290,7 +290,8 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
       dbUpsertUser(user.userId, user.displayName, user.avatarUrl || undefined);
       const review = dbCreateReview(user.userId, input);
       sendJson(res, 201, review);
-      announceReview(review).catch(e => console.error("Failed to announce review:", e));
+      // The editor's "Post to Discord" box; only an explicit false skips the post.
+      if ((raw as { postToDiscord?: unknown }).postToDiscord !== false) announceReview(review).catch(e => console.error("Failed to announce review:", e));
     }).catch(() => { if (!res.headersSent) sendJson(res, 400, { error: "Invalid body" }); });
     return true;
   }
