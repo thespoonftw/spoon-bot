@@ -117,9 +117,17 @@
       </p>
       <p class="rv-picker-caption" v-else>{{ bggLink ? "Paste a BoardGameGeek link to use its cover." : "Pick a match to use its cover." }}</p>
       <div class="rv-field" style="margin-top: 12px">
-        <label class="rv-label" for="rv-image">Image link <span class="rv-label-note">Optional</span></label>
-        <input id="rv-image" v-model="customImage" class="rv-input" type="url" maxlength="2000" placeholder="https://… to use a different image" autocomplete="off" @input="onCustomImageInput" />
-        <span v-if="customImage.trim()" class="rv-hint">Used instead of the match's cover. Clear it to go back.</span>
+        <label class="rv-label" for="rv-image">Your own image <span class="rv-label-note">Optional</span></label>
+        <span v-if="uploadedImage" class="rv-hint">Using your photo.<button type="button" class="rv-link-btn" @click="clearCustomImage">Remove it</button></span>
+        <template v-else>
+          <input id="rv-image" v-model="customImage" class="rv-input" type="url" maxlength="2000" placeholder="https://… to use a different image" autocomplete="off" @input="onCustomImageInput" />
+          <span v-if="customImage.trim()" class="rv-hint">Used instead of the match's cover. Clear it to go back.</span>
+        </template>
+        <label class="rv-btn rv-btn--ghost rv-btn--small rv-upload-btn" :class="{ 'rv-upload-btn--busy': uploading }">
+          <input type="file" accept="image/*" hidden :disabled="uploading" @change="onUpload" />
+          {{ uploading ? "Uploading…" : uploadedImage ? "Upload a different photo" : "Upload a photo" }}
+        </label>
+        <span v-if="uploadError" class="rv-hint rv-hint--over">{{ uploadError }}</span>
       </div>
     </aside>
   </form>
@@ -173,6 +181,37 @@ function setMatchImage(url: string | null) {
 
 function onCustomImageInput() {
   draft.imageUrl = customImage.value.trim() || matchImage;
+}
+
+function clearCustomImage() {
+  customImage.value = "";
+  onCustomImageInput();
+}
+
+// Or a photo of their own, uploaded to the site (it comes back as a "/review-images/…" path) and
+// used just like a pasted link.
+const uploadedImage = computed(() => customImage.value.startsWith("/review-images/"));
+const uploading = ref(false);
+const uploadError = ref("");
+
+async function onUpload(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  uploadError.value = "";
+  uploading.value = true;
+  try {
+    const res = await fetch("/api/reviews/image", { method: "POST", headers: { "Content-Type": file.type || "image/jpeg" }, body: file });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { uploadError.value = data.error ?? "Couldn't upload that photo."; return; }
+    customImage.value = data.url;
+    onCustomImageInput();
+  } catch {
+    uploadError.value = "Couldn't upload that photo — check your connection.";
+  } finally {
+    uploading.value = false;
+  }
 }
 
 // --- BoardGameGeek (board games): instead of searching, paste a game's BGG link and its name, year
@@ -383,7 +422,8 @@ async function save() {
   if (draft.typeId === null) { error.value = "Pick a type."; return; }
   if (draft.rating === null) { error.value = "Pick a star rating."; return; }
   if (summaryLength.value > SUMMARY_MAX) { error.value = `Keep the summary to ${SUMMARY_MAX} characters.`; return; }
-  if (customImage.value.trim() && !/^https:\/\/\S+$/.test(customImage.value.trim())) { error.value = "The image link needs to start with https://."; return; }
+  if (uploading.value) { error.value = "Wait for the photo to finish uploading."; return; }
+  if (customImage.value.trim() && !uploadedImage.value && !/^https:\/\/\S+$/.test(customImage.value.trim())) { error.value = "The image link needs to start with https://."; return; }
   saving.value = true;
   const res = await fetch(isEdit.value ? `/api/reviews/${route.params.id}` : "/api/reviews", {
     method: isEdit.value ? "PUT" : "POST",

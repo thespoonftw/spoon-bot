@@ -1,21 +1,37 @@
 import http from "http";
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
 import sanitizeHtml from "sanitize-html";
 import { EmbedBuilder, type Client, type Message } from "discord.js";
 import { config } from "./config";
+import { PHOTO_STORAGE_PATH } from "./photoStorage";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const sharp = require("sharp") as (input: Buffer) => { png(): { toBuffer(): Promise<Buffer> } };
+const sharp = require("sharp") as (input: Buffer) => {
+  png(): { toBuffer(): Promise<Buffer> };
+  rotate(): { resize(w: number, h: number, opts: object): { jpeg(opts: object): { toFile(p: string): Promise<unknown> } } };
+};
 import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
 import { dbListReviews, dbListMatchingReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetReviewPost, dbSetReviewPost, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, type ReviewInput, type ReviewRow } from "./db";
 
 const PROGRESS = new Set(["ongoing", "stopped", "finished"]);
 // Types done in one sitting, which don't ask for progress. Keep in sync with web/src/reviews/api.ts.
-const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album", "stage show"]);
+const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album", "stage show", "drink"]);
 // Types that don't ask for a year (a podcast runs for years; a stage show is a production, not a
-// release). Keep in sync with web/src/reviews/api.ts.
-const NO_YEAR_TYPES = new Set(["podcast", "stage show"]);
+// release; a drink isn't tied to one). Keep in sync with web/src/reviews/api.ts.
+const NO_YEAR_TYPES = new Set(["podcast", "stage show", "drink"]);
 const MAX_BODY_BYTES = 200 * 1024;
 const SUMMARY_MAX = 250; // Keep in sync with the editor (web/src/reviews/ReviewEditor.vue).
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
+
+// Photos people upload as a review's cover. They sit with the album photos (so they're backed up
+// with them) and are served without a login, as Discord fetches them for the post's thumbnail.
+// Reviews store them as a site path, e.g. "/review-images/<32 hex>.jpg".
+const REVIEW_IMAGES_DIR = path.join(PHOTO_STORAGE_PATH, "review-images");
+const REVIEW_IMAGE_PATH = /^\/review-images\/([0-9a-f]{32}\.jpg)$/;
+const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+// Uploaded covers are site paths; Discord needs the full address.
+const absoluteImageUrl = (url: string) => url.startsWith("/") ? `${getBaseUrl()}${url}` : url;
 
 let reviewsDiscordClient: Client | null = null;
 export function setReviewsDiscordClient(client: Client) {
@@ -80,7 +96,7 @@ async function buildReviewEmbed(client: Client, r: ReviewRow): Promise<EmbedBuil
     .setTitle(heading)
     .setURL(`${getBaseUrl()}/reviews/${r.id}`)
     .setDescription((r.summary ? `${top}\n\n${r.summary}` : top).slice(0, 4096));
-  if (r.imageUrl) embed.setThumbnail(r.imageUrl);
+  if (r.imageUrl) embed.setThumbnail(absoluteImageUrl(r.imageUrl));
   return embed;
 }
 
@@ -168,6 +184,31 @@ const SANITIZE_OPTS: sanitizeHtml.IOptions = {
   },
 };
 
+// Saves an uploaded photo as a review cover: turned upright, shrunk to at most 1200px and re-encoded
+// as JPEG (which also strips its location data). Returns its site path.
+function saveReviewImage(req: http.IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    // An oversized upload is read to the end but not kept, so the "too big" reply still gets through.
+    req.on("data", (chunk: Buffer) => {
+      size += chunk.length;
+      if (size <= MAX_IMAGE_BYTES) chunks.push(chunk);
+    });
+    req.on("error", reject);
+    req.on("end", async () => {
+      if (size > MAX_IMAGE_BYTES) { reject(new Error("too large")); return; }
+      try {
+        if (!fs.existsSync(PHOTO_STORAGE_PATH)) throw new Error(`Storage root missing: ${PHOTO_STORAGE_PATH}`);
+        fs.mkdirSync(REVIEW_IMAGES_DIR, { recursive: true });
+        const name = `${crypto.randomBytes(16).toString("hex")}.jpg`;
+        await sharp(Buffer.concat(chunks)).rotate().resize(1200, 1200, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: 85 }).toFile(path.join(REVIEW_IMAGES_DIR, name));
+        resolve(`/review-images/${name}`);
+      } catch (e) { reject(e); }
+    });
+  });
+}
+
 function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -201,9 +242,10 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   if (summary.length > SUMMARY_MAX) return `Keep the summary to ${SUMMARY_MAX} characters`;
   const cleanedBody = typeof b.bodyHtml === "string" ? sanitizeHtml(b.bodyHtml, SANITIZE_OPTS).trim() : "";
   const bodyHasText = sanitizeHtml(cleanedBody, { allowedTags: [], allowedAttributes: {} }).trim().length > 0;
-  // The cover is hotlinked: usually from where the lookups point, but any https:// image link can be pasted in.
+  // The cover is hotlinked: usually from where the lookups point, but any https:// image link can be
+  // pasted in. Or it's a photo uploaded here.
   const imageUrl = typeof b.imageUrl === "string" && b.imageUrl.trim() ? b.imageUrl.trim() : null;
-  if (imageUrl && (imageUrl.length > 2000 || !/^https:\/\/[^\s"'<>]+$/.test(imageUrl) || !isValidUrl(imageUrl))) return "Image link must be an https:// address";
+  if (imageUrl && !REVIEW_IMAGE_PATH.test(imageUrl) && (imageUrl.length > 2000 || !/^https:\/\/[^\s"'<>]+$/.test(imageUrl) || !isValidUrl(imageUrl))) return "Image link must be an https:// address";
   // The page the review was matched to: a Wikipedia article, Open Library work, TVmaze show, Apple
   // podcast, Apple Music album or BoardGameGeek game.
   const sourceUrl = typeof b.sourceUrl === "string" && (
@@ -244,8 +286,21 @@ function parseTypeInput(raw: unknown): { name: string; icon: string } | string {
 
 export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerResponse): boolean {
   const url = (req.url ?? "/").split("?")[0];
-  if (!url.startsWith("/api/reviews") && url !== "/api/review-types") return false;
   const method = req.method ?? "GET";
+
+  // GET /review-images/:name — an uploaded cover. Public (Discord fetches it); the random name is the
+  // only way to find one, and a given name never changes, so it can be cached for good.
+  if (url.startsWith("/review-images/")) {
+    const name = url.match(REVIEW_IMAGE_PATH)?.[1];
+    const filePath = name ? path.join(REVIEW_IMAGES_DIR, name) : "";
+    if (method !== "GET" || !name || !fs.existsSync(filePath)) { res.writeHead(404); res.end("Not found"); return true; }
+    const stream = fs.createReadStream(filePath);
+    stream.on("error", e => { console.error("[review-images] read failed for", filePath, e); if (!res.headersSent) { res.writeHead(500); res.end(); } else res.destroy(); });
+    stream.once("open", () => { res.writeHead(200, { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable" }); stream.pipe(res); });
+    return true;
+  }
+
+  if (!url.startsWith("/api/reviews") && url !== "/api/review-types") return false;
   const user = getSessionUser(getTokenFromRequest(req));
   if (!user) { send401(res); return true; }
 
@@ -293,6 +348,20 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
       // The editor's "Post to Discord" box; only an explicit false skips the post.
       if ((raw as { postToDiscord?: unknown }).postToDiscord !== false) announceReview(review).catch(e => console.error("Failed to announce review:", e));
     }).catch(() => { if (!res.headersSent) sendJson(res, 400, { error: "Invalid body" }); });
+    return true;
+  }
+
+  // POST /api/reviews/image — upload a cover photo (the raw image is the body); returns its { url }
+  if (url === "/api/reviews/image" && method === "POST") {
+    if (!(req.headers["content-type"] ?? "").startsWith("image/")) { sendJson(res, 400, { error: "That isn't an image" }); return true; }
+    saveReviewImage(req)
+      .then(imageUrl => sendJson(res, 201, { url: imageUrl }))
+      .catch(e => {
+        if (res.headersSent) return;
+        if ((e as Error).message === "too large") { sendJson(res, 413, { error: "That photo is too big (25MB max)" }); return; }
+        console.error("Review image upload failed:", e);
+        sendJson(res, 400, { error: "Couldn't use that photo — try a JPEG or PNG" });
+      });
     return true;
   }
 

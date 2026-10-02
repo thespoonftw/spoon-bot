@@ -96,12 +96,12 @@ export function pluralType(name: string): string {
 }
 
 export const progressLabel = (p: Progress) => PROGRESS_OPTIONS.find(o => o.value === p)?.label ?? p;
-// Films, board games, podcasts, albums and stage shows don't ask for progress (they're saved as finished) or show it.
+// Films, board games, podcasts, albums, stage shows and drinks don't ask for progress (they're saved as finished) or show it.
 // Keep in sync with NO_PROGRESS_TYPES in src/reviews.ts.
-const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album", "stage show"]);
+const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album", "stage show", "drink"]);
 export const hasProgress = (typeName: string) => !NO_PROGRESS_TYPES.has(typeName.trim().toLowerCase());
-// Podcasts run for years, and a stage show is reviewed as a production rather than a release, so neither asks for a year. Keep in sync with NO_YEAR_TYPES in src/reviews.ts.
-const NO_YEAR_TYPES = new Set(["podcast", "stage show"]);
+// Podcasts run for years, a stage show is reviewed as a production rather than a release, and a drink isn't tied to a year, so none of them ask for one. Keep in sync with NO_YEAR_TYPES in src/reviews.ts.
+const NO_YEAR_TYPES = new Set(["podcast", "stage show", "drink"]);
 export const hasYear = (typeName: string) => !NO_YEAR_TYPES.has(typeName.trim().toLowerCase());
 export const authorName = (r: Review) => r.authorFirstName || r.authorName;
 
@@ -224,6 +224,8 @@ const BUILT_IN_PROFILES: Record<string, WikiProfile> = {
   "stage show": { hint: "musical", suffixes: ["", " (musical)", " (play)", " (opera)"], match: /(musical|play|opera|operetta|ballet|pantomime|theatre|theater|stage)/i, creatorLabel: null, creatorProps: [], yearProps: [] },
   // Albums are matched on Apple Music, which gives the artist and year itself; P175 = performer.
   album: { hint: "album", suffixes: ["", " (album)"], match: /\balbum\b/i, creatorLabel: "Artist(s)", creatorProps: ["P175"], yearProps: ["P577"] },
+  // Drinks: beers, wines, spirits, cocktails and the like; P176 = manufacturer (the brewery or distillery).
+  drink: { hint: "drink", suffixes: ["", " (beer)", " (drink)", " (cocktail)"], match: /(beer|ale|lager|stout|porter|wine|whisk(e)?y|gin|vodka|rum|tequila|brandy|cognac|liqueur|cider|cocktail|drink|beverage)/i, creatorLabel: "Maker", creatorProps: ["P176"], yearProps: [] },
 };
 
 function wikiProfile(typeName: string): WikiProfile {

@@ -202,7 +202,8 @@ export function initDb() {
       ('Board Game', '🎲', '#5b4b8a', @now),
       ('Podcast',    '🎙️', '#2f7a78', @now),
       ('Album',      '💿', '#a33b5e', @now),
-      ('Stage Show', '🎭', '#b0632a', @now)
+      ('Stage Show', '🎭', '#b0632a', @now),
+      ('Drink',      '🍸', '#8a5a2b', @now)
   `).run({ now: new Date().toISOString() });
   // Migrate reviews from the original fixed media_type strings to review_types ids
   try {
