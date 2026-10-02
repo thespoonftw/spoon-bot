@@ -209,6 +209,14 @@ function saveReviewImage(req: http.IncomingMessage): Promise<string> {
   });
 }
 
+// A bad request body is the client's fault (400); anything else is a bug on our side, so it's logged.
+function sendBodyOrSaveError(res: http.ServerResponse, e: unknown): void {
+  if (res.headersSent) return;
+  if (e instanceof SyntaxError || (e as Error)?.message === "Body too large") { sendJson(res, 400, { error: "Invalid body" }); return; }
+  console.error("Review request failed:", e);
+  sendJson(res, 500, { error: "Something went wrong saving that — try again" });
+}
+
 function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -322,7 +330,7 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
       if (typeof input === "string") { sendJson(res, 400, { error: input }); return; }
       const { type, created } = dbCreateReviewType(input.name, input.icon, user.userId);
       sendJson(res, created ? 201 : 200, type);
-    }).catch(() => { if (!res.headersSent) sendJson(res, 400, { error: "Invalid body" }); });
+    }).catch(e => sendBodyOrSaveError(res, e));
     return true;
   }
   if (url === "/api/review-types") { sendJson(res, 405, { error: "Method not allowed" }); return true; }
@@ -350,7 +358,7 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
       sendJson(res, 201, review);
       // The editor's "Post to Discord" box; only an explicit false skips the post.
       if ((raw as { postToDiscord?: unknown }).postToDiscord !== false) announceReview(review).catch(e => console.error("Failed to announce review:", e));
-    }).catch(() => { if (!res.headersSent) sendJson(res, 400, { error: "Invalid body" }); });
+    }).catch(e => sendBodyOrSaveError(res, e));
     return true;
   }
 
@@ -414,7 +422,7 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
       const review = dbUpdateReview(id, input);
       sendJson(res, 200, review);
       if (review) updateReviewPost(review).catch(e => console.error("Failed to update review post:", e));
-    }).catch(() => { if (!res.headersSent) sendJson(res, 400, { error: "Invalid body" }); });
+    }).catch(e => sendBodyOrSaveError(res, e));
     return true;
   }
 

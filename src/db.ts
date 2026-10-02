@@ -893,7 +893,7 @@ export function dbCreateReview(userId: string, r: ReviewInput): ReviewRow {
   const now = new Date().toISOString();
   const info = db.prepare(`
     INSERT INTO reviews (user_id, title, type_id, rating, progress, summary, body_html, image_url, wiki_title, creator, year, source_url, season, platform, location, location_url, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(userId, r.title, r.typeId, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, r.creator, r.year, r.sourceUrl, r.season, r.platform, r.location, r.locationUrl, now, now);
   return dbGetReview(Number(info.lastInsertRowid))!;
 }
