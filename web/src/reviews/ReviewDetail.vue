@@ -16,7 +16,11 @@
         <h1 class="rv-detail-title">{{ review.title }}<span v-if="review.year" class="rv-detail-year">{{ review.year }}</span></h1>
         <TypeChip class="rv-detail-type" :name="review.typeName" :icon="review.typeIcon" :color="review.typeColor" />
       </div>
-      <p v-if="credits" class="rv-credit rv-credit--large">{{ credits }}</p>
+      <!-- A drink's location links to the map when it was picked from the place search. -->
+      <p v-if="credits && review.location && review.locationUrl && credits === `at ${review.location}`" class="rv-credit rv-credit--large">
+        at <a class="rv-credit-link" :href="review.locationUrl" target="_blank" rel="noopener noreferrer">{{ review.location }}</a>
+      </p>
+      <p v-else-if="credits" class="rv-credit rv-credit--large">{{ credits }}</p>
       <div class="rv-detail-meta">
         <StarRating :model-value="review.rating" />
         <span v-if="hasProgress(review.typeName)" class="rv-progress" :class="`rv-progress--${review.progress}`" style="font-size: 0.95rem">{{ progressLabel(review.progress) }}</span>

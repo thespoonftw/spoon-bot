@@ -185,6 +185,17 @@ body.rv-body {
 .rv-picker-caption strong { color: var(--rv-ink); }
 .rv-picker-caption a { color: var(--rv-accent); }
 .rv-upload-btn { align-self: flex-start; }
+
+/* Location search (drinks): suggestions drop down under the box. */
+.rv-place { position: relative; display: flex; flex-direction: column; gap: 8px; }
+.rv-place-list { position: absolute; top: 48px; left: 0; right: 0; z-index: 20; margin: 0; padding: 4px; list-style: none; background: var(--rv-card); border: 1.5px solid var(--rv-ink); border-radius: 10px; box-shadow: 0 14px 30px -16px rgba(31, 26, 23, 0.5); max-height: 320px; overflow-y: auto; }
+.rv-place-list li { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.rv-place-list li span { font-size: 0.8rem; color: var(--rv-muted); }
+.rv-place-list li.active { background: var(--rv-paper); }
+.rv-place-list li.rv-place-credit { font-size: 0.7rem; color: var(--rv-muted); cursor: default; padding: 4px 10px; }
+.rv-hint a { color: var(--rv-accent); }
+.rv-credit-link { text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.rv-credit-link:hover { color: var(--rv-accent); }
 .rv-upload-btn--busy { opacity: 0.5; cursor: default; }
 
 .rv-loading { color: var(--rv-muted); padding: 40px 0; text-align: center; font-style: italic; }

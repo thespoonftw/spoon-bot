@@ -26,6 +26,7 @@ export interface Review {
   season: number | null;
   platform: string | null;
   location: string | null;
+  locationUrl: string | null;
   createdAt: string;
   updatedAt: string;
   authorName: string;
@@ -38,7 +39,7 @@ export interface Review {
   myReviewId?: number | null;
 }
 
-export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyHtml" | "imageUrl" | "wikiTitle" | "creator" | "sourceUrl" | "platform" | "location"> & { typeId: number | null; rating: number | null; year: number | string | null; season: number | null };
+export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyHtml" | "imageUrl" | "wikiTitle" | "creator" | "sourceUrl" | "platform" | "location" | "locationUrl"> & { typeId: number | null; rating: number | null; year: number | string | null; season: number | null };
 
 // The line under the title on feed cards and review pages: "Season 2" for a series, "by Daft Punk"
 // for an album, just the author for a book (as book covers do), "for Nintendo Switch" for a game,
@@ -169,6 +170,40 @@ export type TypeExtra = "season" | "platform" | "location";
 export function typeExtra(typeName: string): TypeExtra | null {
   const key = typeName.trim().toLowerCase();
   return key === "series" ? "season" : key === "video game" ? "platform" : key === "drink" ? "location" : null;
+}
+
+// --- Places (a drink's location), from Photon: a free OpenStreetMap search made for typing ahead
+// (no key, browser-callable). Only places you'd get a drink are searched, and results lean towards
+// the UK. `label` is what's saved ("The Three Crowns, Hull"); `detail` is the dropdown's second line.
+export type PlaceResult = { name: string; label: string; detail: string; url: string };
+const PLACE_TAGS = ["amenity:pub", "amenity:bar", "amenity:biergarten", "amenity:nightclub", "amenity:restaurant", "amenity:cafe", "amenity:fast_food",
+  "craft:brewery", "craft:distillery", "craft:winery", "shop:alcohol", "shop:wine", "tourism:hotel", "tourism:wine_cellar"];
+const OSM_TYPES: Record<string, string> = { N: "node", W: "way", R: "relation" };
+type PhotonFeature = { properties: { osm_type?: string; osm_id?: number; osm_value?: string; name?: string; street?: string; city?: string; locality?: string; district?: string; county?: string; country?: string; countrycode?: string } };
+
+export async function searchPlaces(query: string, signal?: AbortSignal): Promise<PlaceResult[]> {
+  const params = new URLSearchParams({ q: query, limit: "8", lang: "en", lat: "53.5", lon: "-1.5", zoom: "6" });
+  for (const tag of PLACE_TAGS) params.append("osm_tag", tag);
+  const res = await fetch(`https://photon.komoot.io/api/?${params}`, { signal });
+  if (!res.ok) throw new Error(`Photon responded ${res.status}`);
+  const features = ((await res.json())?.features ?? []) as PhotonFeature[];
+  const seen = new Set<string>();
+  return features.flatMap(({ properties: p }) => {
+    const osmType = OSM_TYPES[p.osm_type ?? ""];
+    if (!p.name || !osmType || !p.osm_id) return [];
+    const url = `https://www.openstreetmap.org/${osmType}/${p.osm_id}`;
+    if (seen.has(url)) return [];
+    seen.add(url);
+    const town = p.city ?? p.locality ?? p.district ?? p.county;
+    const kind = (p.osm_value ?? "").replace(/_/g, " ");
+    const where = [p.street, town, p.countrycode === "GB" ? null : p.country].filter(Boolean).join(", ");
+    return [{
+      name: p.name,
+      label: town && town !== p.name ? `${p.name}, ${town}` : p.name,
+      detail: [kind && kind[0].toUpperCase() + kind.slice(1), where].filter(Boolean).join(" · "),
+      url,
+    }];
+  });
 }
 
 // Offered for every game, after the platforms the matched game was actually released on.

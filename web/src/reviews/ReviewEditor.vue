@@ -61,7 +61,7 @@
         </div>
         <div v-if="extra === 'location'" class="rv-field">
           <label class="rv-label" for="rv-location">Location <span class="rv-label-note">Optional</span></label>
-          <input id="rv-location" v-model="draft.location" class="rv-input" maxlength="100" placeholder="Where did you have it?" autocomplete="off" />
+          <PlaceSearch id="rv-location" v-model:location="draft.location" v-model:locationUrl="draft.locationUrl" />
         </div>
         <div v-if="extra === 'platform'" class="rv-field">
           <label class="rv-label" for="rv-platform">Platform</label>
@@ -144,6 +144,7 @@ import { clearReviewCache, PROGRESS_OPTIONS, hasProgress, hasYear, usesBggLink, 
 import StarRating from "./StarRating.vue";
 import RichTextEditor from "./RichTextEditor.vue";
 import ReviewCover from "./ReviewCover.vue";
+import PlaceSearch from "./PlaceSearch.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -154,7 +155,7 @@ const postToDiscord = ref(true);
 const draft = reactive<ReviewDraft>({
   title: "", typeId: null, rating: null, progress: "finished",
   summary: "", bodyHtml: "", imageUrl: null, wikiTitle: null, sourceUrl: null, creator: "", year: "",
-  season: null, platform: null, location: null,
+  season: null, platform: null, location: null, locationUrl: null,
 });
 const bodyHtml = computed({ get: () => draft.bodyHtml ?? "", set: (v: string) => { draft.bodyHtml = v; } });
 const loading = ref(isEdit.value);
@@ -411,7 +412,7 @@ onMounted(async () => {
   });
   // The rating, write-up, progress, platform (how you played it) and location are only kept when editing.
   if (isEdit.value) {
-    Object.assign(draft, { rating: r.rating, progress: r.progress, summary: r.summary ?? "", bodyHtml: r.bodyHtml ?? "", platform: r.platform, location: r.location });
+    Object.assign(draft, { rating: r.rating, progress: r.progress, summary: r.summary ?? "", bodyHtml: r.bodyHtml ?? "", platform: r.platform, location: r.location, locationUrl: r.locationUrl });
   }
   if (r.imageUrl && !LOOKUP_IMAGE.test(r.imageUrl)) customImage.value = r.imageUrl;
   else matchImage = r.imageUrl;
@@ -439,6 +440,7 @@ async function save() {
       season: extra.value === "season" ? draft.season : null,
       platform: extra.value === "platform" ? draft.platform : null,
       location: extra.value === "location" ? draft.location : null,
+      locationUrl: extra.value === "location" ? draft.locationUrl : null,
       ...(isEdit.value ? {} : { postToDiscord: postToDiscord.value }),
     }),
   });

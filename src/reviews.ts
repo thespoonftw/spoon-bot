@@ -83,7 +83,7 @@ async function buildReviewEmbed(client: Client, r: ReviewRow): Promise<EmbedBuil
   // Radiohead"), a book's author on the line under it, as on the site.
   const type = r.typeName.toLowerCase();
   const heading = `${r.title}${r.year ? ` (${r.year})` : ""}${type === "album" && r.creator ? ` by ${r.creator}` : ""}`.slice(0, 200);
-  const extra = [type === "book" ? r.creator : null, r.season != null ? `Season ${r.season}` : null, r.platform, r.location ? `at ${r.location}` : null].filter(Boolean).join(" · ");
+  const extra = [type === "book" ? r.creator : null, r.season != null ? `Season ${r.season}` : null, r.platform, r.location ? `at ${r.locationUrl ? `[${r.location.replace(/[[\]]/g, "")}](${r.locationUrl})` : r.location}` : null].filter(Boolean).join(" · ");
   // A blank line keeps the summary apart from the stars.
   const top = [extra || null, stars].filter(Boolean).join("\n");
   const embed = new EmbedBuilder()
@@ -265,7 +265,9 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   if (season !== null && (!Number.isInteger(season) || season < 0 || season > 500)) return "Season must be a whole number";
   const platform = typeof b.platform === "string" && b.platform.trim() ? b.platform.trim().slice(0, 60) : null;
   const location = typeof b.location === "string" && b.location.trim() ? b.location.trim().slice(0, 100) : null;
-  return { title, typeId, rating, progress, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null, imageUrl, wikiTitle, creator, year: rawYear, sourceUrl, season, platform, location };
+  // A place picked from the location search links to its OpenStreetMap page.
+  const locationUrl = location && typeof b.locationUrl === "string" && /^https:\/\/www\.openstreetmap\.org\/(node|way|relation)\/\d+$/.test(b.locationUrl) ? b.locationUrl : null;
+  return { title, typeId, rating, progress, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null, imageUrl, wikiTitle, creator, year: rawYear, sourceUrl, season, platform, location, locationUrl };
 }
 
 // Only the author can edit a review; admins can also delete one (to take something down).
