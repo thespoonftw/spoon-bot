@@ -93,6 +93,11 @@ body.rv-body {
 .rv-filters button { background: none; border: none; font: 600 1rem var(--rv-sans); color: var(--rv-muted); padding: 8px 0; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; flex-shrink: 0; white-space: nowrap; }
 .rv-filters button.active { color: var(--rv-ink); border-bottom-color: var(--rv-accent); }
 .rv-filter-icon { font-size: 1.25rem; line-height: 1; }
+/* Narrow screens: keep every tab on one row, spread edge to edge, with the emoji shrinking a little on the smallest phones. */
+@media (max-width: 600px) {
+  .rv-filters { flex-wrap: nowrap; justify-content: space-between; gap: 4px; }
+  .rv-filter-icon { font-size: min(1.25rem, 5.2vw); }
+}
 /* In the masthead's style (bold italic serif), a size down. */
 .rv-filter-heading { font-size: clamp(1.9rem, 5.5vw, 2.6rem); line-height: 1; font-weight: 700; font-style: italic; margin: -6px 0 20px !important; }
 
