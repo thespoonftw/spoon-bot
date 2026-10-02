@@ -12,7 +12,7 @@ const sharp = require("sharp") as (input: Buffer) => {
   rotate(): { resize(w: number, h: number, opts: object): { jpeg(opts: object): { toFile(p: string): Promise<unknown> } } };
 };
 import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbListReviews, dbListMatchingReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetReviewPost, dbSetReviewPost, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, type ReviewInput, type ReviewRow } from "./db";
+import { dbListReviews, dbListMatchingReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetReviewPost, dbSetReviewPost, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, dbSetReviewTypeColor, type ReviewInput, type ReviewRow } from "./db";
 
 const PROGRESS = new Set(["ongoing", "stopped", "finished"]);
 // Types done in one sitting, which don't ask for progress. Keep in sync with web/src/reviews/api.ts.
@@ -311,7 +311,7 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
     return true;
   }
 
-  if (!url.startsWith("/api/reviews") && url !== "/api/review-types") return false;
+  if (!url.startsWith("/api/reviews") && !url.startsWith("/api/review-types")) return false;
   const user = getSessionUser(getTokenFromRequest(req));
   if (!user) { send401(res); return true; }
 
@@ -334,6 +334,21 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
     return true;
   }
   if (url === "/api/review-types") { sendJson(res, 405, { error: "Method not allowed" }); return true; }
+
+  // PATCH /api/review-types/:id — admins set a type's colour ({ color: "#rrggbb" })
+  const typeMatch = url.match(/^\/api\/review-types\/(\d+)$/);
+  if (typeMatch && method === "PATCH") {
+    if ((dbGetUserById(user.userId)?.level ?? 0) < 2) { sendJson(res, 403, { error: "Only admins can change types" }); return true; }
+    readJsonBody(req).then(raw => {
+      const color = raw && typeof raw === "object" ? (raw as Record<string, unknown>).color : undefined;
+      if (typeof color !== "string" || !/^#[0-9a-f]{6}$/i.test(color)) { sendJson(res, 400, { error: "Colour must be a hex code like #a33b5e" }); return; }
+      const id = Number(typeMatch[1]);
+      if (!dbSetReviewTypeColor(id, color.toLowerCase())) { sendJson(res, 404, { error: "No such type" }); return; }
+      sendJson(res, 200, dbGetReviewType(id));
+    }).catch(e => sendBodyOrSaveError(res, e));
+    return true;
+  }
+  if (url.startsWith("/api/review-types/")) { sendJson(res, typeMatch ? 405 : 404, { error: typeMatch ? "Method not allowed" : "Not found" }); return true; }
 
   // GET /api/reviews?typeId=&userId=&limit=&offset= — newest first, across all users
   if (url === "/api/reviews" && method === "GET") {

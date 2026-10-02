@@ -140,6 +140,13 @@ export async function fetchReviewTypes(): Promise<ReviewType[]> {
   return types;
 }
 
+// Admin only. Clears the cache so every page picks up the new colour.
+export async function setReviewTypeColor(id: number, color: string): Promise<boolean> {
+  const res = await fetch(`/api/review-types/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ color }) });
+  if (res.ok) clearReviewCache();
+  return res.ok;
+}
+
 export async function fetchReviewProfile(userId: string): Promise<ReviewProfile | null> {
   const hit = getCached<ReviewProfile>(`profile:${userId}`);
   if (hit) return hit;

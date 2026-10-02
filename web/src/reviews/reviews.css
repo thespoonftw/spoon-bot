@@ -250,3 +250,13 @@ body.rv-body {
 .rv-login-confirm { background: var(--rv-card); border: 1px solid var(--rv-rule); border-radius: 16px; padding: 28px 24px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .rv-login-confirm strong { color: var(--rv-ink); }
 .rv-avatar--xl { width: 72px; height: 72px; font-size: 1.8rem; }
+
+/* Admin: review types */
+.rv-admin h2 { font-size: 1.8rem; margin-bottom: 6px; }
+.rv-admin-intro { color: var(--rv-muted); margin-bottom: 20px; }
+.rv-admin-types { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.rv-admin-types li { display: flex; align-items: center; gap: 12px; background: var(--rv-card); border: 1px solid var(--rv-rule); border-radius: 12px; padding: 10px 14px; flex-wrap: wrap; }
+.rv-admin-icon { font-size: 1.4rem; width: 1.6rem; text-align: center; }
+.rv-admin-count { font-size: 0.85rem; color: var(--rv-muted); margin-left: auto; }
+.rv-admin-types input[type="color"] { width: 44px; height: 32px; padding: 0; border: 1px solid var(--rv-rule); border-radius: 6px; background: none; cursor: pointer; }
+.rv-admin-status { font-size: 0.8rem; color: var(--rv-muted); min-width: 6em; }

@@ -856,6 +856,11 @@ export function dbCreateReviewType(name: string, icon: string, createdBy: string
   return { type: dbGetReviewType(Number(info.lastInsertRowid))!, created: true };
 }
 
+// Admins can recolour any type; returns false if there's no such type.
+export function dbSetReviewTypeColor(id: number, color: string): boolean {
+  return db.prepare("UPDATE review_types SET color = ? WHERE id = ?").run(color, id).changes > 0;
+}
+
 const REVIEW_SELECT = `
   SELECT r.id, r.user_id AS userId, r.title, r.type_id AS typeId, r.rating, r.progress,
          r.summary, r.body_html AS bodyHtml, r.image_url AS imageUrl, r.wiki_title AS wikiTitle, r.creator, r.year, r.source_url AS sourceUrl, r.season, r.platform, r.location, r.location_url AS locationUrl,

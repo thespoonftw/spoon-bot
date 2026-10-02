@@ -21,6 +21,7 @@ import ReviewProfileView from "./reviews/ReviewProfileView.vue";
 import ReviewsLogin from "./reviews/ReviewsLogin.vue";
 import ReviewsLoginSent from "./reviews/ReviewsLoginSent.vue";
 import ReviewsAuthVerify from "./reviews/ReviewsAuthVerify.vue";
+import ReviewTypesAdmin from "./reviews/ReviewTypesAdmin.vue";
 import "./style.css";
 
 function applyMobileZoom() {
@@ -61,6 +62,7 @@ const router = createRouter({
         { path: "", component: ReviewsHome },
         { path: "new", component: ReviewEditor },
         { path: "people/:userId", component: ReviewProfileView },
+        { path: "types", component: ReviewTypesAdmin },
         { path: ":id(\\d+)", component: ReviewDetail },
         { path: ":id(\\d+)/edit", component: ReviewEditor },
       ],

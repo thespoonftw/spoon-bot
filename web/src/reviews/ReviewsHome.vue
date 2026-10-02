@@ -2,7 +2,7 @@
   <div>
     <nav v-if="filterTypes.length > 1" class="rv-filters">
       <button :class="{ active: !typeId }" @click="setType(null)">All</button>
-      <button v-for="t in filterTypes" :key="t.id" :class="{ active: typeId === t.id }" :title="pluralType(t.name)" :aria-label="pluralType(t.name)" @click="setType(t.id)">
+      <button v-for="t in filterTypes" :key="t.id" :class="{ active: typeId === t.id }" :style="typeId === t.id ? { borderBottomColor: t.color } : undefined" :title="pluralType(t.name)" :aria-label="pluralType(t.name)" @click="setType(t.id)">
         <span class="rv-filter-icon">{{ t.icon }}</span>
       </button>
     </nav>
