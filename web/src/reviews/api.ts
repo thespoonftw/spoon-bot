@@ -25,6 +25,7 @@ export interface Review {
   sourceUrl: string | null;
   season: number | null;
   platform: string | null;
+  location: string | null;
   createdAt: string;
   updatedAt: string;
   authorName: string;
@@ -37,17 +38,19 @@ export interface Review {
   myReviewId?: number | null;
 }
 
-export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyHtml" | "imageUrl" | "wikiTitle" | "creator" | "sourceUrl" | "platform"> & { typeId: number | null; rating: number | null; year: number | string | null; season: number | null };
+export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyHtml" | "imageUrl" | "wikiTitle" | "creator" | "sourceUrl" | "platform" | "location"> & { typeId: number | null; rating: number | null; year: number | string | null; season: number | null };
 
 // The line under the title on feed cards and review pages: "Season 2" for a series, "by Daft Punk"
-// for an album, just the author for a book (as book covers do), "for Nintendo Switch" for a game.
+// for an album, just the author for a book (as book covers do), "for Nintendo Switch" for a game,
+// "at The Crown" for a drink.
 // Other types don't have one.
-export function cardCredit(r: { typeName: string; creator: string | null; season: number | null; platform: string | null }): string | null {
+export function cardCredit(r: { typeName: string; creator: string | null; season: number | null; platform: string | null; location: string | null }): string | null {
   if (r.season != null) return `Season ${r.season}`;
   const type = r.typeName.trim().toLowerCase();
   if (type === "album" && r.creator) return `by ${r.creator}`;
   if (type === "book" && r.creator) return r.creator;
   if (type === "video game" && r.platform) return `for ${r.platform}`;
+  if (type === "drink" && r.location) return `at ${r.location}`;
   return null;
 }
 
@@ -160,12 +163,12 @@ export interface MatchCandidate {
 }
 export interface MatchDetails { creator: string | null; year: number | null; platforms?: string[] }
 
-// The optional extra detail some types have: which season of a series, or which platform a game was
-// played on.
-export type TypeExtra = "season" | "platform";
+// The optional extra detail some types have: which season of a series, which platform a game was
+// played on, or where a drink was had.
+export type TypeExtra = "season" | "platform" | "location";
 export function typeExtra(typeName: string): TypeExtra | null {
   const key = typeName.trim().toLowerCase();
-  return key === "series" ? "season" : key === "video game" ? "platform" : null;
+  return key === "series" ? "season" : key === "video game" ? "platform" : key === "drink" ? "location" : null;
 }
 
 // Offered for every game, after the platforms the matched game was actually released on.
@@ -224,8 +227,8 @@ const BUILT_IN_PROFILES: Record<string, WikiProfile> = {
   "stage show": { hint: "musical", suffixes: ["", " (musical)", " (play)", " (opera)"], match: /(musical|play|opera|operetta|ballet|pantomime|theatre|theater|stage)/i, creatorLabel: null, creatorProps: [], yearProps: [] },
   // Albums are matched on Apple Music, which gives the artist and year itself; P175 = performer.
   album: { hint: "album", suffixes: ["", " (album)"], match: /\balbum\b/i, creatorLabel: "Artist(s)", creatorProps: ["P175"], yearProps: ["P577"] },
-  // Drinks: beers, wines, spirits, cocktails and the like; P176 = manufacturer (the brewery or distillery).
-  drink: { hint: "drink", suffixes: ["", " (beer)", " (drink)", " (cocktail)"], match: /(beer|ale|lager|stout|porter|wine|whisk(e)?y|gin|vodka|rum|tequila|brandy|cognac|liqueur|cider|cocktail|drink|beverage)/i, creatorLabel: "Maker", creatorProps: ["P176"], yearProps: [] },
+  // Drinks: beers, wines, spirits, cocktails and the like, matched on Wikipedia for the cover only.
+  drink: { hint: "drink", suffixes: ["", " (beer)", " (drink)", " (cocktail)"], match: /(beer|ale|lager|stout|porter|wine|whisk(e)?y|gin|vodka|rum|tequila|brandy|cognac|liqueur|cider|cocktail|drink|beverage)/i, creatorLabel: null, creatorProps: [], yearProps: [] },
 };
 
 function wikiProfile(typeName: string): WikiProfile {

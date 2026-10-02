@@ -59,6 +59,10 @@
             <option v-for="s in seasonOptions" :key="s.number" :value="s.number">Season {{ s.number }}{{ s.year ? ` (${s.year})` : "" }}</option>
           </select>
         </div>
+        <div v-if="extra === 'location'" class="rv-field">
+          <label class="rv-label" for="rv-location">Location <span class="rv-label-note">Optional</span></label>
+          <input id="rv-location" v-model="draft.location" class="rv-input" maxlength="100" placeholder="Where did you have it?" autocomplete="off" />
+        </div>
         <div v-if="extra === 'platform'" class="rv-field">
           <label class="rv-label" for="rv-platform">Platform</label>
           <select id="rv-platform" v-model="draft.platform" class="rv-select">
@@ -150,7 +154,7 @@ const postToDiscord = ref(true);
 const draft = reactive<ReviewDraft>({
   title: "", typeId: null, rating: null, progress: "finished",
   summary: "", bodyHtml: "", imageUrl: null, wikiTitle: null, sourceUrl: null, creator: "", year: "",
-  season: null, platform: null,
+  season: null, platform: null, location: null,
 });
 const bodyHtml = computed({ get: () => draft.bodyHtml ?? "", set: (v: string) => { draft.bodyHtml = v; } });
 const loading = ref(isEdit.value);
@@ -162,7 +166,7 @@ const types = ref<ReviewType[]>([]);
 const selectedType = computed(() => types.value.find(t => t.id === draft.typeId) ?? null);
 // null for types without a creator field (films and series).
 const creatorFieldLabel = computed(() => creatorLabel(selectedType.value?.name ?? ""));
-// "season" for series, "platform" for video games, null otherwise.
+// "season" for series, "platform" for video games, "location" for drinks, null otherwise.
 const extra = computed(() => typeExtra(selectedType.value?.name ?? ""));
 // Keep in sync with SUMMARY_MAX in src/reviews.ts.
 const SUMMARY_MAX = 250;
@@ -405,9 +409,9 @@ onMounted(async () => {
     sourceUrl: matchSource(r)?.url ?? null,
     creator: r.creator ?? "", year: r.year ?? "", season: r.season,
   });
-  // The rating, write-up, progress and platform (how you played it) are only kept when editing.
+  // The rating, write-up, progress, platform (how you played it) and location are only kept when editing.
   if (isEdit.value) {
-    Object.assign(draft, { rating: r.rating, progress: r.progress, summary: r.summary ?? "", bodyHtml: r.bodyHtml ?? "", platform: r.platform });
+    Object.assign(draft, { rating: r.rating, progress: r.progress, summary: r.summary ?? "", bodyHtml: r.bodyHtml ?? "", platform: r.platform, location: r.location });
   }
   if (r.imageUrl && !LOOKUP_IMAGE.test(r.imageUrl)) customImage.value = r.imageUrl;
   else matchImage = r.imageUrl;
@@ -434,6 +438,7 @@ async function save() {
       creator: creatorFieldLabel.value ? draft.creator : null,
       season: extra.value === "season" ? draft.season : null,
       platform: extra.value === "platform" ? draft.platform : null,
+      location: extra.value === "location" ? draft.location : null,
       ...(isEdit.value ? {} : { postToDiscord: postToDiscord.value }),
     }),
   });

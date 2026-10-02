@@ -83,7 +83,7 @@ async function buildReviewEmbed(client: Client, r: ReviewRow): Promise<EmbedBuil
   // Radiohead"), a book's author on the line under it, as on the site.
   const type = r.typeName.toLowerCase();
   const heading = `${r.title}${r.year ? ` (${r.year})` : ""}${type === "album" && r.creator ? ` by ${r.creator}` : ""}`.slice(0, 200);
-  const extra = [type === "book" ? r.creator : null, r.season != null ? `Season ${r.season}` : null, r.platform].filter(Boolean).join(" · ");
+  const extra = [type === "book" ? r.creator : null, r.season != null ? `Season ${r.season}` : null, r.platform, r.location ? `at ${r.location}` : null].filter(Boolean).join(" · ");
   // A blank line keeps the summary apart from the stars.
   const top = [extra || null, stars].filter(Boolean).join("\n");
   const embed = new EmbedBuilder()
@@ -260,11 +260,12 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   const creator = typeof b.creator === "string" && b.creator.trim() ? b.creator.trim().slice(0, 200) : null;
   const rawYear = b.year === null || b.year === undefined || b.year === "" || NO_YEAR_TYPES.has(type.name.toLowerCase()) ? null : Number(b.year);
   if (rawYear !== null && (!Number.isInteger(rawYear) || rawYear < 0 || rawYear > 3000)) return "Year must be a whole number";
-  // Season (series) and platform (video games) are optional extras; null means "not specified".
+  // Season (series), platform (video games) and location (drinks) are optional extras; null means "not specified".
   const season = b.season === null || b.season === undefined || b.season === "" ? null : Number(b.season);
   if (season !== null && (!Number.isInteger(season) || season < 0 || season > 500)) return "Season must be a whole number";
   const platform = typeof b.platform === "string" && b.platform.trim() ? b.platform.trim().slice(0, 60) : null;
-  return { title, typeId, rating, progress, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null, imageUrl, wikiTitle, creator, year: rawYear, sourceUrl, season, platform };
+  const location = typeof b.location === "string" && b.location.trim() ? b.location.trim().slice(0, 100) : null;
+  return { title, typeId, rating, progress, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null, imageUrl, wikiTitle, creator, year: rawYear, sourceUrl, season, platform, location };
 }
 
 // Only the author can edit a review; admins can also delete one (to take something down).
