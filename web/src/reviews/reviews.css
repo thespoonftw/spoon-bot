@@ -184,7 +184,9 @@ body.rv-body {
 .rv-picker-caption { font-size: 0.8rem; color: var(--rv-muted); margin-top: 8px; line-height: 1.35; }
 .rv-picker-caption strong { color: var(--rv-ink); }
 .rv-picker-caption a { color: var(--rv-accent); }
-.rv-upload-btn { align-self: flex-start; }
+.rv-upload-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.rv-upload-btn--camera { display: none; }
+@media (pointer: coarse) { .rv-upload-btn--camera { display: inline-flex; } }
 
 /* Location search (drinks): suggestions drop down under the box. */
 .rv-place { position: relative; display: flex; flex-direction: column; gap: 8px; }

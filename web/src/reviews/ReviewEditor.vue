@@ -127,10 +127,17 @@
           <input id="rv-image" v-model="customImage" class="rv-input" type="url" maxlength="2000" placeholder="https://… to use a different image" autocomplete="off" @input="onCustomImageInput" />
           <span v-if="customImage.trim()" class="rv-hint">Used instead of the match's cover. Clear it to go back.</span>
         </template>
-        <label class="rv-btn rv-btn--ghost rv-btn--small rv-upload-btn" :class="{ 'rv-upload-btn--busy': uploading }">
-          <input type="file" accept="image/*" hidden :disabled="uploading" @change="onUpload" />
-          {{ uploading ? "Uploading…" : uploadedImage ? "Upload a different photo" : "Upload a photo" }}
-        </label>
+        <!-- Phones also get a button straight to the camera (some phones' photo pickers don't offer it). -->
+        <div class="rv-upload-btns">
+          <label class="rv-btn rv-btn--ghost rv-btn--small rv-upload-btn rv-upload-btn--camera" :class="{ 'rv-upload-btn--busy': uploading }">
+            <input type="file" accept="image/*" capture="environment" hidden :disabled="uploading" @change="onUpload" />
+            📷 Take a photo
+          </label>
+          <label class="rv-btn rv-btn--ghost rv-btn--small rv-upload-btn" :class="{ 'rv-upload-btn--busy': uploading }">
+            <input type="file" accept="image/*" hidden :disabled="uploading" @change="onUpload" />
+            {{ uploading ? "Uploading…" : uploadedImage ? "Upload a different photo" : "Upload a photo" }}
+          </label>
+        </div>
         <span v-if="uploadError" class="rv-hint rv-hint--over">{{ uploadError }}</span>
       </div>
     </aside>
