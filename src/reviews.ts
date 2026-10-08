@@ -15,8 +15,8 @@ import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
 import { dbListReviews, dbListMatchingReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetReviewPost, dbSetReviewPost, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, dbSetReviewTypeColor, type ReviewInput, type ReviewRow } from "./db";
 
 const PROGRESS = new Set(["ongoing", "stopped", "finished"]);
-// Types done in one sitting, which don't ask for progress. Keep in sync with web/src/reviews/api.ts.
-const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album", "stage show", "drink"]);
+// Types done in one sitting (and the "other" catch-all), which don't ask for progress. Keep in sync with web/src/reviews/api.ts.
+const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album", "stage show", "drink", "other"]);
 // Types that don't ask for a year (a podcast runs for years; a stage show is a production, not a
 // release; a drink isn't tied to one). Keep in sync with web/src/reviews/api.ts.
 const NO_YEAR_TYPES = new Set(["podcast", "stage show", "drink"]);

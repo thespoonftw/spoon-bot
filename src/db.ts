@@ -207,7 +207,8 @@ export function initDb() {
       ('Podcast',    '🎙️', '#2f7a78', @now),
       ('Album',      '💿', '#a33b5e', @now),
       ('Stage Show', '🎭', '#b0632a', @now),
-      ('Drink',      '🍸', '#8a5a2b', @now)
+      ('Drink',      '🍸', '#8a5a2b', @now),
+      ('Other',      '📦', '#4a5d6b', @now)
   `).run({ now: new Date().toISOString() });
   // Migrate reviews from the original fixed media_type strings to review_types ids
   try {
@@ -838,7 +839,7 @@ export function dbListReviewTypes(): ReviewType[] {
     FROM review_types t
     LEFT JOIN reviews r ON r.type_id = t.id
     LEFT JOIN users u ON u.user_id = t.created_by
-    GROUP BY t.id ORDER BY t.id
+    GROUP BY t.id ORDER BY t.name = 'Other' COLLATE NOCASE, t.id -- the catch-all goes last
   `).all() as ReviewType[];
 }
 

@@ -93,16 +93,16 @@ export const RATING_LABELS = ["Awful", "Bad", "Weak", "Good", "Great", "Amazing"
 
 // A type's name for a list of them: Books, Films, Video Games, Series (already plural), Shows.
 export function pluralType(name: string): string {
-  if (/s$/i.test(name)) return name;
+  if (/s$|^other$/i.test(name)) return name;
   if (/[^aeiou]y$/i.test(name)) return name.slice(0, -1) + "ies";
   if (/(x|ch|sh)$/i.test(name)) return name + "es";
   return name + "s";
 }
 
 export const progressLabel = (p: Progress) => PROGRESS_OPTIONS.find(o => o.value === p)?.label ?? p;
-// Films, board games, podcasts, albums, stage shows and drinks don't ask for progress (they're saved as finished) or show it.
+// Films, board games, podcasts, albums, stage shows, drinks and "other" don't ask for progress (they're saved as finished) or show it.
 // Keep in sync with NO_PROGRESS_TYPES in src/reviews.ts.
-const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album", "stage show", "drink"]);
+const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album", "stage show", "drink", "other"]);
 export const hasProgress = (typeName: string) => !NO_PROGRESS_TYPES.has(typeName.trim().toLowerCase());
 // Podcasts run for years, a stage show is reviewed as a production rather than a release, and a drink isn't tied to a year, so none of them ask for one. Keep in sync with NO_YEAR_TYPES in src/reviews.ts.
 const NO_YEAR_TYPES = new Set(["podcast", "stage show", "drink"]);
@@ -271,6 +271,8 @@ const BUILT_IN_PROFILES: Record<string, WikiProfile> = {
   album: { hint: "album", suffixes: ["", " (album)"], match: /\balbum\b/i, creatorLabel: "Artist(s)", creatorProps: ["P175"], yearProps: ["P577"] },
   // Drinks: beers, wines, spirits, cocktails and the like, matched on Wikipedia for the cover only.
   drink: { hint: "drink", suffixes: ["", " (beer)", " (drink)", " (cocktail)"], match: /(beer|ale|lager|stout|porter|wine|whisk(e)?y|gin|vodka|rum|tequila|brandy|cognac|liqueur|cider|cocktail|drink|beverage)/i, creatorLabel: null, creatorProps: [], yearProps: [] },
+  // Other: the catch-all, so no search hint, and any page counts as the right kind of thing.
+  other: { hint: "", suffixes: [""], match: /./, creatorLabel: null, creatorProps: [], yearProps: GENERIC_YEAR_PROPS },
 };
 
 function wikiProfile(typeName: string): WikiProfile {
