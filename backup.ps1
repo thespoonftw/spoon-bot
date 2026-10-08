@@ -5,7 +5,7 @@ $plink = "C:\Program Files\PuTTY\plink.exe"
 $pscp = "C:\Program Files\PuTTY\pscp.exe"
 $password = (Get-Content (Join-Path $PSScriptRoot ".server-password") -Raw).Trim()
 $auth = @("-batch", "-pw", $password, "-hostkey", "f5:db:e8:20:b7:b2:dc:91:6a:c2:ab:b3:cc:40:0a:e0")
-$server = "spoon@192.168.1.50"
+$server = "spoon@100.124.96.73"
 
 function Remote([string]$cmd) {
     $out = & $plink @auth $server $cmd
