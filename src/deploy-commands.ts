@@ -44,6 +44,21 @@ const commands = [
       .setName("album")
       .setDescription("Start a photo album for this event channel")
       .toJSON(),
+    new SlashCommandBuilder()
+      .setName("location")
+      .setDescription("Share your live location in this channel")
+      .addIntegerOption(o => o
+        .setName("duration")
+        .setDescription("How long to share for (default 1 hour)")
+        .addChoices(
+          { name: "15 minutes", value: 15 },
+          { name: "30 minutes", value: 30 },
+          { name: "1 hour", value: 60 },
+          { name: "2 hours", value: 120 },
+          { name: "4 hours", value: 240 },
+          { name: "8 hours", value: 480 },
+        ))
+      .toJSON(),
   ] : []),
 ];
 

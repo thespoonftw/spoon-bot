@@ -22,6 +22,7 @@ import { startWebServer, setAlbumDiscordClient, setUpdateEventMessages } from ".
 import { initAuth } from "./auth";
 import { startArchipelagoRelay } from "./archipelago";
 import { setReviewsDiscordClient } from "./reviews";
+import { startLocationShares, handleLocationInteractions } from "./location";
 
 dotenv.config();
 
@@ -47,6 +48,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   startWebServer();
   setAlbumDiscordClient(readyClient);
   setReviewsDiscordClient(readyClient);
+  if (config.albumsEnabled) startLocationShares(readyClient);
   setUpdateEventMessages(updateEventMessages);
   await initAuth(readyClient);
   startArchipelagoRelay(readyClient);
@@ -192,6 +194,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await handleDatePickerInteractions(interaction);
     await handleGroupInteractions(interaction, interaction.guild);
     await handleBirthdayInteractions(interaction);
+    await handleLocationInteractions(interaction);
   } catch (error) {
     console.error("Unhandled interaction error:", error);
     try {

@@ -6,6 +6,7 @@ import AlbumList from "./views/AlbumList.vue";
 import AlbumView from "./views/AlbumView.vue";
 import UsersView from "./views/UsersView.vue";
 import ShareView from "./views/ShareView.vue";
+import LocationShareView from "./views/LocationShareView.vue";
 import StatusView from "./views/StatusView.vue";
 import DatabaseView from "./views/DatabaseView.vue";
 import SearchView from "./views/SearchView.vue";
@@ -45,6 +46,7 @@ const router = createRouter({
     { path: "/login/sent", component: MagicLinkSent, meta: { public: true } },
     { path: "/auth/verify/:token", component: AuthVerify, meta: { public: true } },
     { path: "/share/:token", component: ShareView, meta: { public: true } },
+    { path: "/location/:token", component: LocationShareView, meta: { public: true } },
     { path: "/", component: LandingView },
     { path: "/albums", component: AlbumList },
     { path: "/album/:channelId", component: AlbumView },
