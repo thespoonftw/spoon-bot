@@ -39,23 +39,27 @@ export function setReviewsDiscordClient(client: Client) {
   if (config.reviewsChannelId) getStarEmojis(client);
 }
 
-// Embed text can't be coloured, so the stars are two of the bot's own (application) emoji: a gold
-// filled star and a grey empty one. They're created on first use and found by name after that;
-// if that fails the post falls back to plain ★/☆.
-const STAR_SVG = (fill: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 24 24"><path fill="${fill}" d="M12 1.5l3.1 6.9 7.4.7-5.6 5 1.7 7.4L12 17.6l-6.6 3.9 1.7-7.4-5.6-5 7.4-.7z"/></svg>`;
-let starEmojis: Promise<{ full: string; empty: string } | null> | null = null;
-function getStarEmojis(client: Client): Promise<{ full: string; empty: string } | null> {
+// Embed text can't be coloured, so the stars are three of the bot's own (application) emoji: a gold
+// filled star, a half-gold half star and a grey empty one. They're created on first use and found by
+// name after that; if that fails the post falls back to plain ★/½/☆.
+const STAR_PATH = "M12 1.5l3.1 6.9 7.4.7-5.6 5 1.7 7.4L12 17.6l-6.6 3.9 1.7-7.4-5.6-5 7.4-.7z";
+const GOLD = "#f5b301", GREY = "#80848e";
+const STAR_SVG = (fill: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 24 24"><path fill="${fill}" d="${STAR_PATH}"/></svg>`;
+const HALF_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 24 24"><defs><clipPath id="l"><rect width="12" height="24"/></clipPath></defs><path fill="${GREY}" d="${STAR_PATH}"/><path fill="${GOLD}" clip-path="url(#l)" d="${STAR_PATH}"/></svg>`;
+type StarEmojis = { full: string; half: string; empty: string };
+let starEmojis: Promise<StarEmojis | null> | null = null;
+function getStarEmojis(client: Client): Promise<StarEmojis | null> {
   starEmojis ??= (async () => {
     const app = client.application;
     if (!app) return null;
     const existing = await app.emojis.fetch();
-    const ensure = async (name: string, fill: string) => {
+    const ensure = async (name: string, svg: string) => {
       const found = existing.find(e => e.name === name);
       if (found) return found.toString();
-      const png = await sharp(Buffer.from(STAR_SVG(fill))).png().toBuffer();
+      const png = await sharp(Buffer.from(svg)).png().toBuffer();
       return (await app.emojis.create({ attachment: png, name })).toString();
     };
-    return { full: await ensure("review_star", "#f5b301"), empty: await ensure("review_star_empty", "#80848e") };
+    return { full: await ensure("review_star", STAR_SVG(GOLD)), half: await ensure("review_star_half", HALF_STAR_SVG), empty: await ensure("review_star_empty", STAR_SVG(GREY)) };
   })().catch(e => { console.error("Failed to set up review star emoji:", e); starEmojis = null; return null; });
   return starEmojis;
 }
@@ -77,7 +81,9 @@ async function reviewAuthor(client: Client, r: ReviewRow): Promise<{ name: strin
 // title, credit line, stars and summary, with the cover beside.
 async function buildReviewEmbed(client: Client, r: ReviewRow): Promise<EmbedBuilder> {
   const [emoji, author] = await Promise.all([getStarEmojis(client), reviewAuthor(client, r)]);
-  const stars = emoji ? emoji.full.repeat(r.rating) + emoji.empty.repeat(5 - r.rating) : "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
+  const { full, half, empty } = emoji ?? { full: "★", half: "½", empty: "☆" };
+  const whole = Math.floor(r.rating), hasHalf = r.rating > whole;
+  const stars = full.repeat(whole) + (hasHalf ? half : "") + empty.repeat(5 - whole - (hasHalf ? 1 : 0));
   const article = /^[aeiou]/i.test(r.typeName) ? "an" : "a";
   // Only albums and books name who made it: an album in the title ("OK Computer (1997) by
   // Radiohead"), a book's author on the line under it, as on the site.
@@ -241,7 +247,7 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   const type = Number.isInteger(typeId) ? dbGetReviewType(typeId) : undefined;
   if (!type) return "Pick a type";
   const rating = Number(b.rating);
-  if (!Number.isInteger(rating) || rating < 0 || rating > 5) return "Rating must be 0–5 stars";
+  if (!Number.isInteger(rating * 2) || rating < 0.5 || rating > 5) return "Rating must be 0.5–5 stars, in half stars";
   // Some types don't ask for progress, so they're always saved as finished.
   const progress = NO_PROGRESS_TYPES.has(type.name.toLowerCase()) ? "finished" : String(b.progress ?? "");
   if (!PROGRESS.has(progress)) return "Progress must be ongoing, stopped or finished";

@@ -88,8 +88,11 @@ export const PROGRESS_OPTIONS: { value: Progress; label: string }[] = [
   { value: "finished", label: "Finished" },
 ];
 
-// A word for each star rating, 0–5.
-export const RATING_LABELS = ["Awful", "Bad", "Weak", "Good", "Great", "Amazing"];
+// A word for each star rating, 0.5–5 in half stars (indexed by twice the rating).
+const RATING_LABELS = ["", "Travesty", "Awful", "Bad", "Weak", "OK", "Decent", "Good", "Great", "Amazing", "Outstanding"];
+export const ratingLabel = (rating: number) => RATING_LABELS[Math.round(rating * 2)] ?? "";
+// "3.5 stars", "1 star"
+export const starsText = (rating: number) => `${rating} star${rating === 1 ? "" : "s"}`;
 
 // A type's name for a list of them: Books, Films, Video Games, Series (already plural), Shows.
 export function pluralType(name: string): string {
