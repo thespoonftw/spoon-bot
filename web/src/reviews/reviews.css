@@ -12,6 +12,7 @@ body.rv-body {
   --rv-accent-ink: #fff8f0;
   --rv-star: #d99a1e;
   --rv-star-empty: #d9cfbd;
+  --rv-star-pale: #f1ebdf; /* empty stars on shown ratings, faint so half stars read clearly */
   --rv-serif: "Fraunces", Georgia, "Times New Roman", serif;
   --rv-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   background: var(--rv-paper);
@@ -74,10 +75,12 @@ body.rv-body {
 
 /* Stars */
 .rv-stars { display: inline-flex; align-items: center; gap: 2px; color: var(--rv-star); line-height: 1; }
-.rv-stars .off { color: var(--rv-star-empty); }
+.rv-stars .off { color: var(--rv-star-pale); }
 /* A half star: gold left half, grey right half. */
-.rv-stars .half { background: linear-gradient(90deg, var(--rv-star) 50%, var(--rv-star-empty) 50%); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.rv-stars--input .rv-star { cursor: pointer; font-size: 2rem; padding: 0 2px; color: var(--rv-star-empty); line-height: 1; user-select: none; }
+.rv-stars .half { background: linear-gradient(90deg, var(--rv-star) 50%, var(--rv-star-pale) 50%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* The picker keeps the darker empty colour so you can see what to tap; big for fingers. */
+.rv-stars--input .half { background-image: linear-gradient(90deg, var(--rv-star) 50%, var(--rv-star-empty) 50%); }
+.rv-stars--input .rv-star { cursor: pointer; font-size: 4rem; padding: 0; color: var(--rv-star-empty); line-height: 1; user-select: none; -webkit-tap-highlight-color: transparent; }
 .rv-stars--input .rv-star.on { color: var(--rv-star); }
 .rv-stars--input .rv-star.half { color: transparent; }
 .rv-stars--input { gap: 14px; flex-wrap: wrap; }
