@@ -1,11 +1,19 @@
 <template>
   <div>
-    <nav v-if="filterTypes.length > 1" class="rv-filters">
+    <nav v-if="filterTypes.length > 1" ref="navEl" class="rv-filters">
+      <!-- An invisible copy of every tab, measured to work out how many fit on the row. -->
+      <div class="rv-filters-measure" aria-hidden="true">
+        <div ref="measureEl" class="rv-filters">
+          <button tabindex="-1">All</button>
+          <button v-for="t in filterTypes" :key="t.id" tabindex="-1"><span class="rv-filter-icon">{{ t.icon }}</span></button>
+          <button tabindex="-1"><span>More</span> ▾</button>
+        </div>
+      </div>
       <button :class="{ active: !typeId }" @click="setType(null)">All</button>
       <button v-for="t in shownTypes" :key="t.id" :class="{ active: typeId === t.id }" :style="typeId === t.id ? { borderBottomColor: t.color } : undefined" :title="pluralType(t.name)" :aria-label="pluralType(t.name)" @click="setType(t.id)">
         <span class="rv-filter-icon">{{ t.icon }}</span>
       </button>
-      <!-- The rest of the types, in a menu. When one of them is picked, the button shows its emoji. -->
+      <!-- The types that don't fit, in a menu. When one of them is picked, the button shows its emoji. -->
       <div v-if="moreTypes.length" ref="moreEl" class="rv-filter-more">
         <button :class="{ active: activeInMore }" :style="activeInMore ? { borderBottomColor: activeType!.color } : undefined" :aria-expanded="moreOpen" aria-haspopup="menu" @click="moreOpen = !moreOpen">
           <span v-if="activeInMore" class="rv-filter-icon">{{ activeType!.icon }}</span>
@@ -59,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { getCached, setCached, pluralType, authorName, formatReviewDate, fetchReviewTypes, hasProgress, progressLabel, cardCredit, type Review, type ReviewType } from "./api";
 import ReviewCover from "./ReviewCover.vue";
@@ -80,16 +88,36 @@ const total = ref(cachedFeed?.total ?? 0);
 const loading = ref(false);
 const error = ref("");
 
-// Only types that have reviews get a tab (plus the active one, so a filtered URL still shows its tab).
-const filterTypes = computed(() => types.value.filter(t => t.reviewCount > 0 || t.id === typeId.value));
+// Every type gets a tab, most-reviewed first (ties keep the usual order, so "Other" stays last).
+const filterTypes = computed(() => [...types.value].sort((a, b) => b.reviewCount - a.reviewCount));
 const activeType = computed(() => types.value.find(t => t.id === typeId.value) ?? null);
-// Only the first few get their own tab, so the row fits on a phone; the rest go under "More".
-const MAX_TABS = 7;
-const shownTypes = computed(() => filterTypes.value.length > MAX_TABS + 1 ? filterTypes.value.slice(0, MAX_TABS) : filterTypes.value);
+// As many tabs as fit on one row; on narrow screens the rest go under "More".
+const fitCount = ref(Infinity);
+const shownTypes = computed(() => filterTypes.value.slice(0, fitCount.value));
 const moreTypes = computed(() => filterTypes.value.slice(shownTypes.value.length));
 const activeInMore = computed(() => moreTypes.value.some(t => t.id === typeId.value));
 const moreOpen = ref(false);
 const moreEl = ref<HTMLElement | null>(null);
+const navEl = ref<HTMLElement | null>(null);
+const measureEl = ref<HTMLElement | null>(null);
+
+// Measures the invisible copy of the tabs (All, each type, More) against the row's width.
+function fitTabs() {
+  const nav = navEl.value, measure = measureEl.value;
+  if (!nav || !measure) return;
+  const gap = parseFloat(getComputedStyle(nav).columnGap) || 0;
+  const widths = [...measure.children].map(c => (c as HTMLElement).offsetWidth);
+  const more = widths.pop()!;
+  const [all, ...tabs] = widths;
+  const room = nav.clientWidth;
+  if (tabs.reduce((used, w) => used + gap + w, all) <= room) { fitCount.value = tabs.length; return; }
+  let used = all + gap + more, count = 0;
+  while (count < tabs.length && used + gap + tabs[count] <= room) used += gap + tabs[count++];
+  fitCount.value = count;
+}
+const resizeObserver = new ResizeObserver(() => fitTabs());
+watch(navEl, (el, old) => { if (old) resizeObserver.unobserve(old); if (el) resizeObserver.observe(el); });
+watch(filterTypes, () => nextTick(fitTabs));
 function closeMoreOnOutsideClick(e: MouseEvent) {
   if (moreOpen.value && !moreEl.value?.contains(e.target as Node)) moreOpen.value = false;
 }
@@ -117,9 +145,11 @@ function setType(id: number | null) {
   router.replace({ query: id ? { type: String(id) } : {} });
 }
 
-onUnmounted(() => document.removeEventListener("click", closeMoreOnOutsideClick));
+onUnmounted(() => { document.removeEventListener("click", closeMoreOnOutsideClick); resizeObserver.disconnect(); });
 onMounted(async () => {
   document.addEventListener("click", closeMoreOnOutsideClick);
+  // Emoji can change width once the font loads.
+  document.fonts?.ready.then(fitTabs);
   await Promise.all([cachedFeed ? null : load(true), fetchReviewTypes().then(t => { types.value = t; })]);
 });
 </script>
