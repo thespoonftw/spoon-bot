@@ -15,11 +15,11 @@ import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
 import { dbListReviews, dbListMatchingReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetReviewPost, dbSetReviewPost, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, dbSetReviewTypeColor, type ReviewInput, type ReviewRow } from "./db";
 
 const PROGRESS = new Set(["ongoing", "stopped", "finished"]);
-// Types done in one sitting (and the "other" catch-all), which don't ask for progress. Keep in sync with web/src/reviews/api.ts.
-const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album", "stage show", "drink", "other"]);
+// Types done in one sitting (a meal, a wargame battle) (and the "other" catch-all), which don't ask for progress. Keep in sync with web/src/reviews/api.ts.
+const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album", "stage show", "drink", "food", "wargame", "other"]);
 // Types that don't ask for a year (a podcast runs for years; a stage show is a production, not a
-// release; a drink isn't tied to one). Keep in sync with web/src/reviews/api.ts.
-const NO_YEAR_TYPES = new Set(["podcast", "stage show", "drink"]);
+// release; a drink or a meal isn't tied to one). Keep in sync with web/src/reviews/api.ts.
+const NO_YEAR_TYPES = new Set(["podcast", "stage show", "drink", "food"]);
 const MAX_BODY_BYTES = 200 * 1024;
 const SUMMARY_MAX = 250; // Keep in sync with the editor (web/src/reviews/ReviewEditor.vue).
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
@@ -152,7 +152,7 @@ async function deleteReviewPost(r: ReviewRow, saved: { channelId: string; messag
   if (message?.deletable) await message.delete();
 }
 
-// Board games are matched by pasting a BoardGameGeek link. BGG's official API needs a registered
+// Board games and wargames are matched by pasting a BoardGameGeek link. BGG's official API needs a registered
 // token, but the endpoint behind its own game pages answers without one (and without CORS, hence
 // this proxy). It's undocumented, so it may change or close.
 function isValidUrl(s: string): boolean {
@@ -274,7 +274,7 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   const creator = typeof b.creator === "string" && b.creator.trim() ? b.creator.trim().slice(0, 200) : null;
   const rawYear = b.year === null || b.year === undefined || b.year === "" || NO_YEAR_TYPES.has(type.name.toLowerCase()) ? null : Number(b.year);
   if (rawYear !== null && (!Number.isInteger(rawYear) || rawYear < 0 || rawYear > 3000)) return "Year must be a whole number";
-  // Season (series), platform (video games) and location (drinks) are optional extras; null means "not specified".
+  // Season (series), platform (video games) and location (drinks and food) are optional extras; null means "not specified".
   const season = b.season === null || b.season === undefined || b.season === "" ? null : Number(b.season);
   if (season !== null && (!Number.isInteger(season) || season < 0 || season > 500)) return "Season must be a whole number";
   const platform = typeof b.platform === "string" && b.platform.trim() ? b.platform.trim().slice(0, 60) : null;

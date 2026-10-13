@@ -16,7 +16,7 @@
         </div>
       </div>
 
-      <!-- Board games: the pasted BGG link fills in the title, so it goes above it. -->
+      <!-- Board games and wargames: the pasted BGG link fills in the title, so it goes above it. -->
       <div v-if="bggLink" class="rv-field rv-editor-lead">
         <label class="rv-label" for="rv-bgg">BoardGameGeek link</label>
         <input id="rv-bgg" v-model="bggInput" class="rv-input" placeholder="https://boardgamegeek.com/boardgame/…" autocomplete="off" @input="onBggInput" />
@@ -174,7 +174,7 @@ const types = ref<ReviewType[]>([]);
 const selectedType = computed(() => types.value.find(t => t.id === draft.typeId) ?? null);
 // null for types without a creator field (films and series).
 const creatorFieldLabel = computed(() => creatorLabel(selectedType.value?.name ?? ""));
-// "season" for series, "platform" for video games, "location" for drinks, null otherwise.
+// "season" for series, "platform" for video games, "location" for drinks and food, null otherwise.
 const extra = computed(() => typeExtra(selectedType.value?.name ?? ""));
 // Keep in sync with SUMMARY_MAX in src/reviews.ts.
 const SUMMARY_MAX = 250;
@@ -226,7 +226,7 @@ async function onUpload(e: Event) {
   }
 }
 
-// --- BoardGameGeek (board games): instead of searching, paste a game's BGG link and its name, year
+// --- BoardGameGeek (board games and wargames): instead of searching, paste a game's BGG link and its name, year
 // and box art are filled in from it.
 const bggLink = computed(() => usesBggLink(selectedType.value?.name ?? ""));
 const bggInput = ref("");

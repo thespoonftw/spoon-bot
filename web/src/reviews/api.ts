@@ -43,7 +43,7 @@ export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyH
 
 // The line under the title on feed cards and review pages: "Season 2" for a series, "by Daft Punk"
 // for an album, just the author for a book (as book covers do), "for Nintendo Switch" for a game,
-// "at The Crown" for a drink.
+// "at The Crown" for a drink or food.
 // Other types don't have one.
 export function cardCredit(r: { typeName: string; creator: string | null; season: number | null; platform: string | null; location: string | null }): string | null {
   if (r.season != null) return `Season ${r.season}`;
@@ -51,7 +51,7 @@ export function cardCredit(r: { typeName: string; creator: string | null; season
   if (type === "album" && r.creator) return `by ${r.creator}`;
   if (type === "book" && r.creator) return r.creator;
   if (type === "video game" && r.platform) return `for ${r.platform}`;
-  if (type === "drink" && r.location) return `at ${r.location}`;
+  if ((type === "drink" || type === "food") && r.location) return `at ${r.location}`;
   return null;
 }
 
@@ -59,9 +59,9 @@ export type MatchSource = "openlibrary" | "tvmaze" | "applepodcasts" | "applemus
 export const SOURCE_NAMES: Record<MatchSource, string> = { openlibrary: "Open Library", tvmaze: "TVmaze", applepodcasts: "Apple Podcasts", applemusic: "Apple Music", bgg: "BoardGameGeek", wikipedia: "Wikipedia" };
 const SOURCE_HOSTS: Record<MatchSource, string> = { openlibrary: "https://openlibrary.org/", tvmaze: "https://www.tvmaze.com/", applepodcasts: "https://podcasts.apple.com/", applemusic: "https://music.apple.com/", bgg: "https://boardgamegeek.com/", wikipedia: "https://en.wikipedia.org/" };
 
-// Board games are matched by pasting a BoardGameGeek link rather than searching (BGG's search
+// Board games and wargames are matched by pasting a BoardGameGeek link rather than searching (BGG's search
 // can't be used without a registered API token); the server looks the game up by its id.
-export const usesBggLink = (typeName: string) => typeName.trim().toLowerCase() === "board game";
+export const usesBggLink = (typeName: string) => ["board game", "wargame"].includes(typeName.trim().toLowerCase());
 export const parseBggId = (text: string) => text.match(/boardgamegeek\.com\/(?:boardgame|boardgameexpansion)\/(\d{1,9})/)?.[1] ?? null;
 export interface BggGame { name: string; year: number | null; imageUrl: string | null; url: string | null }
 export async function fetchBggGame(id: string, signal?: AbortSignal): Promise<BggGame | null> {
@@ -103,12 +103,12 @@ export function pluralType(name: string): string {
 }
 
 export const progressLabel = (p: Progress) => PROGRESS_OPTIONS.find(o => o.value === p)?.label ?? p;
-// Films, board games, podcasts, albums, stage shows, drinks and "other" don't ask for progress (they're saved as finished) or show it.
+// Films, board games, wargames, podcasts, albums, stage shows, drinks, food and "other" don't ask for progress (they're saved as finished) or show it.
 // Keep in sync with NO_PROGRESS_TYPES in src/reviews.ts.
-const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album", "stage show", "drink", "other"]);
+const NO_PROGRESS_TYPES = new Set(["film", "board game", "podcast", "album", "stage show", "drink", "food", "wargame", "other"]);
 export const hasProgress = (typeName: string) => !NO_PROGRESS_TYPES.has(typeName.trim().toLowerCase());
-// Podcasts run for years, a stage show is reviewed as a production rather than a release, and a drink isn't tied to a year, so none of them ask for one. Keep in sync with NO_YEAR_TYPES in src/reviews.ts.
-const NO_YEAR_TYPES = new Set(["podcast", "stage show", "drink"]);
+// Podcasts run for years, a stage show is reviewed as a production rather than a release, and a drink or a meal isn't tied to a year, so none of them ask for one. Keep in sync with NO_YEAR_TYPES in src/reviews.ts.
+const NO_YEAR_TYPES = new Set(["podcast", "stage show", "drink", "food"]);
 export const hasYear = (typeName: string) => !NO_YEAR_TYPES.has(typeName.trim().toLowerCase());
 export const authorName = (r: Review) => r.authorFirstName || r.authorName;
 
@@ -175,11 +175,11 @@ export interface MatchCandidate {
 export interface MatchDetails { creator: string | null; year: number | null; platforms?: string[] }
 
 // The optional extra detail some types have: which season of a series, which platform a game was
-// played on, or where a drink was had.
+// played on, or where a drink or meal was had.
 export type TypeExtra = "season" | "platform" | "location";
 export function typeExtra(typeName: string): TypeExtra | null {
   const key = typeName.trim().toLowerCase();
-  return key === "series" ? "season" : key === "video game" ? "platform" : key === "drink" ? "location" : null;
+  return key === "series" ? "season" : key === "video game" ? "platform" : key === "drink" || key === "food" ? "location" : null;
 }
 
 // --- Places (a drink's location), from Photon: a free OpenStreetMap search made for typing ahead
@@ -274,6 +274,10 @@ const BUILT_IN_PROFILES: Record<string, WikiProfile> = {
   album: { hint: "album", suffixes: ["", " (album)"], match: /\balbum\b/i, creatorLabel: "Artist(s)", creatorProps: ["P175"], yearProps: ["P577"] },
   // Drinks: beers, wines, spirits, cocktails and the like, matched on Wikipedia for the cover only.
   drink: { hint: "drink", suffixes: ["", " (beer)", " (drink)", " (cocktail)"], match: /(beer|ale|lager|stout|porter|wine|whisk(e)?y|gin|vodka|rum|tequila|brandy|cognac|liqueur|cider|cocktail|drink|beverage)/i, creatorLabel: null, creatorProps: [], yearProps: [] },
+  // Food: dishes and meals, matched on Wikipedia for the cover only.
+  food: { hint: "food", suffixes: ["", " (food)", " (dish)"], match: /(food|dish|cuisine|meal|bread|cake|pastry|dessert|soup|stew|curry|sandwich|burger|pizza|pasta|noodle|sauce|cheese|sausage|pie|restaurant)/i, creatorLabel: null, creatorProps: [], yearProps: [] },
+  // Wargames are matched on BoardGameGeek like board games; this is only for anything typed without a link.
+  wargame: { hint: "wargame", suffixes: ["", " (wargame)", " (game)"], match: /(wargame|war game|miniature|tabletop|board game)/i, creatorLabel: null, creatorProps: [], yearProps: ["P577", "P571"] },
   // Other: the catch-all, so no search hint, and any page counts as the right kind of thing.
   other: { hint: "", suffixes: [""], match: /./, creatorLabel: null, creatorProps: [], yearProps: GENERIC_YEAR_PROPS },
 };

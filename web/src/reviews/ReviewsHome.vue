@@ -2,9 +2,21 @@
   <div>
     <nav v-if="filterTypes.length > 1" class="rv-filters">
       <button :class="{ active: !typeId }" @click="setType(null)">All</button>
-      <button v-for="t in filterTypes" :key="t.id" :class="{ active: typeId === t.id }" :style="typeId === t.id ? { borderBottomColor: t.color } : undefined" :title="pluralType(t.name)" :aria-label="pluralType(t.name)" @click="setType(t.id)">
+      <button v-for="t in shownTypes" :key="t.id" :class="{ active: typeId === t.id }" :style="typeId === t.id ? { borderBottomColor: t.color } : undefined" :title="pluralType(t.name)" :aria-label="pluralType(t.name)" @click="setType(t.id)">
         <span class="rv-filter-icon">{{ t.icon }}</span>
       </button>
+      <!-- The rest of the types, in a menu. When one of them is picked, the button shows its emoji. -->
+      <div v-if="moreTypes.length" ref="moreEl" class="rv-filter-more">
+        <button :class="{ active: activeInMore }" :style="activeInMore ? { borderBottomColor: activeType!.color } : undefined" :aria-expanded="moreOpen" aria-haspopup="menu" @click="moreOpen = !moreOpen">
+          <span v-if="activeInMore" class="rv-filter-icon">{{ activeType!.icon }}</span>
+          <span v-else>More</span> ▾
+        </button>
+        <div v-if="moreOpen" class="rv-filter-menu" role="menu">
+          <button v-for="t in moreTypes" :key="t.id" role="menuitem" :class="{ active: typeId === t.id }" @click="setType(t.id)">
+            <span class="rv-filter-icon">{{ t.icon }}</span> {{ pluralType(t.name) }}
+          </button>
+        </div>
+      </div>
     </nav>
     <!-- The tabs are just emoji, so the selected type is named above the list ("All" needs no heading). -->
     <h2 v-if="activeType && filterTypes.length > 1" class="rv-filter-heading">{{ pluralType(activeType.name) }}</h2>
@@ -47,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { getCached, setCached, pluralType, authorName, formatReviewDate, fetchReviewTypes, hasProgress, progressLabel, cardCredit, type Review, type ReviewType } from "./api";
 import ReviewCover from "./ReviewCover.vue";
@@ -71,6 +83,16 @@ const error = ref("");
 // Only types that have reviews get a tab (plus the active one, so a filtered URL still shows its tab).
 const filterTypes = computed(() => types.value.filter(t => t.reviewCount > 0 || t.id === typeId.value));
 const activeType = computed(() => types.value.find(t => t.id === typeId.value) ?? null);
+// Only the first few get their own tab, so the row fits on a phone; the rest go under "More".
+const MAX_TABS = 7;
+const shownTypes = computed(() => filterTypes.value.length > MAX_TABS + 1 ? filterTypes.value.slice(0, MAX_TABS) : filterTypes.value);
+const moreTypes = computed(() => filterTypes.value.slice(shownTypes.value.length));
+const activeInMore = computed(() => moreTypes.value.some(t => t.id === typeId.value));
+const moreOpen = ref(false);
+const moreEl = ref<HTMLElement | null>(null);
+function closeMoreOnOutsideClick(e: MouseEvent) {
+  if (moreOpen.value && !moreEl.value?.contains(e.target as Node)) moreOpen.value = false;
+}
 
 async function load(reset: boolean) {
   loading.value = true;
@@ -95,7 +117,9 @@ function setType(id: number | null) {
   router.replace({ query: id ? { type: String(id) } : {} });
 }
 
+onUnmounted(() => document.removeEventListener("click", closeMoreOnOutsideClick));
 onMounted(async () => {
+  document.addEventListener("click", closeMoreOnOutsideClick);
   await Promise.all([cachedFeed ? null : load(true), fetchReviewTypes().then(t => { types.value = t; })]);
 });
 </script>

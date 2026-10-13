@@ -96,6 +96,11 @@ body.rv-body {
 .rv-filters button { background: none; border: none; font: 600 1rem var(--rv-sans); color: var(--rv-muted); padding: 8px 0; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; flex-shrink: 0; white-space: nowrap; }
 .rv-filters button.active { color: var(--rv-ink); border-bottom-color: var(--rv-accent); }
 .rv-filter-icon { font-size: 1.25rem; line-height: 1; }
+.rv-filter-more { position: relative; display: flex; }
+.rv-filter-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 190px; display: flex; flex-direction: column; background: var(--rv-card); border: 1px solid var(--rv-rule); border-radius: 12px; padding: 6px; box-shadow: 0 12px 28px -14px rgba(31, 26, 23, 0.5); }
+.rv-filters .rv-filter-menu button { display: flex; align-items: center; gap: 10px; text-align: left; padding: 9px 10px; border: none; border-radius: 8px; margin: 0; }
+.rv-filters .rv-filter-menu button:hover { background: var(--rv-paper); color: var(--rv-ink); }
+.rv-filters .rv-filter-menu button.active { color: var(--rv-ink); background: var(--rv-paper); }
 /* Narrow screens: keep every tab on one row, spread edge to edge, with the emoji shrinking a little on the smallest phones. */
 @media (max-width: 600px) {
   .rv-filters { flex-wrap: nowrap; justify-content: space-between; gap: 4px; }
