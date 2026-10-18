@@ -55,9 +55,9 @@ export function cardCredit(r: { typeName: string; creator: string | null; season
   return null;
 }
 
-export type MatchSource = "openlibrary" | "tvmaze" | "applepodcasts" | "applemusic" | "bgg" | "wikipedia";
-export const SOURCE_NAMES: Record<MatchSource, string> = { openlibrary: "Open Library", tvmaze: "TVmaze", applepodcasts: "Apple Podcasts", applemusic: "Apple Music", bgg: "BoardGameGeek", wikipedia: "Wikipedia" };
-const SOURCE_HOSTS: Record<MatchSource, string> = { openlibrary: "https://openlibrary.org/", tvmaze: "https://www.tvmaze.com/", applepodcasts: "https://podcasts.apple.com/", applemusic: "https://music.apple.com/", bgg: "https://boardgamegeek.com/", wikipedia: "https://en.wikipedia.org/" };
+export type MatchSource = "openlibrary" | "tvmaze" | "applepodcasts" | "applemusic" | "bgg" | "imdb" | "steam" | "wikipedia";
+export const SOURCE_NAMES: Record<MatchSource, string> = { openlibrary: "Open Library", tvmaze: "TVmaze", applepodcasts: "Apple Podcasts", applemusic: "Apple Music", bgg: "BoardGameGeek", imdb: "IMDb", steam: "Steam", wikipedia: "Wikipedia" };
+const SOURCE_HOSTS: Record<MatchSource, string> = { openlibrary: "https://openlibrary.org/", tvmaze: "https://www.tvmaze.com/", applepodcasts: "https://podcasts.apple.com/", applemusic: "https://music.apple.com/", bgg: "https://boardgamegeek.com/", imdb: "https://www.imdb.com/", steam: "https://store.steampowered.com/", wikipedia: "https://en.wikipedia.org/" };
 
 // Board games and wargames are matched by pasting a BoardGameGeek link rather than searching (BGG's search
 // can't be used without a registered API token); the server looks the game up by its id.
@@ -486,15 +486,36 @@ async function searchAppleMusic(title: string, signal?: AbortSignal): Promise<Ma
     });
 }
 
+// Films on IMDb and games on Steam, searched by the server (neither site can be called from the
+// browser). Results arrive with their details already filled in.
+async function searchViaServer(site: "imdb" | "steam", title: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
+  const res = await fetch(`/api/reviews/search/${site}?${new URLSearchParams({ q: title })}`, { signal });
+  if (!res.ok) return [];
+  const results = (await res.json()) as (Pick<MatchCandidate, "url" | "label" | "description" | "imageUrl"> & { details: MatchDetails })[];
+  return results.map(r => ({ ...r, source: site, wikiTitle: null, wikidataId: null }));
+}
+
+// IMDb or Steam results alongside Wikipedia's. Theirs come first when one has exactly the title
+// typed; otherwise Wikipedia's lead, since a near-miss there is more often the right thing (a
+// console-only game isn't on Steam at all). Either search failing just leaves the other's results.
+async function searchWithWikipedia(site: "imdb" | "steam", title: string, typeName: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
+  const settle = (p: Promise<MatchCandidate[]>) => p.catch(e => { if ((e as Error).name === "AbortError") throw e; return [] as MatchCandidate[]; });
+  const [theirs, wiki] = await Promise.all([settle(searchViaServer(site, title, signal)), settle(searchWikipedia(title, typeName, signal))]);
+  const wanted = title.trim().toLowerCase();
+  return theirs.some(c => c.label.trim().toLowerCase() === wanted) ? [...theirs, ...wiki] : [...wiki, ...theirs];
+}
+
 // Candidates for the editor's dropdown, best first. Books use Open Library, series TVmaze, podcasts
 // Apple Podcasts and albums Apple Music (all cover far more than Wikipedia and have proper
-// artwork); everything else uses Wikipedia.
+// artwork); films add IMDb and games Steam to Wikipedia; everything else uses Wikipedia.
 export async function searchMatches(title: string, typeName: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
   switch (typeName.trim().toLowerCase()) {
     case "book": return searchOpenLibrary(title, signal);
     case "series": return searchTvmaze(title, signal);
     case "podcast": return searchApplePodcasts(title, signal);
     case "album": return searchAppleMusic(title, signal);
+    case "film": return searchWithWikipedia("imdb", title, typeName, signal);
+    case "video game": return searchWithWikipedia("steam", title, typeName, signal);
     default: return searchWikipedia(title, typeName, signal);
   }
 }

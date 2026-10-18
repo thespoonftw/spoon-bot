@@ -182,7 +182,7 @@ const summaryLength = computed(() => (draft.summary ?? "").trim().length);
 
 // --- Cover: the matched page's image, unless an image link has been pasted in, which then sticks
 // through match and season changes. Clearing the link goes back to the match's image.
-const LOOKUP_IMAGE = /^https:\/\/(cf\.geekdo-images\.com|(upload|thumb)\.wikimedia\.org|covers\.openlibrary\.org|static\.tvmaze\.com|is\d+-ssl\.mzstatic\.com)\//;
+const LOOKUP_IMAGE = /^https:\/\/(cf\.geekdo-images\.com|(upload|thumb)\.wikimedia\.org|covers\.openlibrary\.org|static\.tvmaze\.com|is\d+-ssl\.mzstatic\.com|m\.media-amazon\.com|shared\.akamai\.steamstatic\.com)\//;
 const customImage = ref("");
 let matchImage: string | null = null;
 

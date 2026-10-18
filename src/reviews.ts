@@ -187,6 +187,92 @@ async function fetchBggGame(id: string): Promise<{ name: string; year: number | 
   };
 }
 
+// Films are also searched on IMDb and video games on Steam. Neither allows calls from the browser
+// (no CORS), so the server searches them for the editor, shaped like the editor's other matches.
+// IMDb's is the undocumented endpoint behind its own search box; Steam's is its store search, plus
+// each result's store details for the developer and year. Results are cached briefly, since the
+// editor searches as you type.
+const IMDB_TITLE_URL = /^https:\/\/www\.imdb\.com\/title\/tt\d{1,10}\/$/;
+const STEAM_APP_URL = /^https:\/\/store\.steampowered\.com\/app\/\d{1,10}\/$/;
+type ExternalMatch = { url: string; label: string; description: string; imageUrl: string | null; details: { creator: string | null; year: number | null; platforms?: string[] } };
+const searchCache = new Map<string, { at: number; results: Promise<ExternalMatch[]> }>();
+
+function cachedSearch(key: string, search: () => Promise<ExternalMatch[]>): Promise<ExternalMatch[]> {
+  const now = Date.now();
+  for (const [k, v] of searchCache) if (now - v.at > 10 * 60_000) searchCache.delete(k);
+  const hit = searchCache.get(key);
+  if (hit) return hit.results;
+  const results = search();
+  searchCache.set(key, { at: now, results });
+  results.catch(() => searchCache.delete(key));
+  return results;
+}
+
+type ImdbSuggestion = { id?: string; l?: string; qid?: string; y?: number; s?: string; i?: { imageUrl?: string } };
+const IMDB_FILM_KINDS = new Set(["movie", "tvMovie", "short", "video", "tvSpecial"]);
+
+async function searchImdb(query: string): Promise<ExternalMatch[]> {
+  const first = /^[a-z0-9]/i.test(query) ? query[0].toLowerCase() : "x";
+  const res = await fetch(`https://v3.sg.media-imdb.com/suggestion/${first}/${encodeURIComponent(query)}.json`, { signal: AbortSignal.timeout(10_000) });
+  if (!res.ok) throw new Error(`IMDb responded ${res.status}`);
+  const items = (((await res.json()) as { d?: ImdbSuggestion[] } | null)?.d ?? []);
+  return items
+    .filter(i => i.id && /^tt\d{1,10}$/.test(i.id) && i.l && IMDB_FILM_KINDS.has(i.qid ?? ""))
+    .slice(0, 8)
+    .map(i => {
+      const image = i.i?.imageUrl;
+      return {
+        url: `https://www.imdb.com/title/${i.id}/`,
+        label: i.l!,
+        description: [i.y, i.s].filter(Boolean).join(", "),
+        // Ask IMDb's image server for a 600px-wide poster rather than the full-size original.
+        imageUrl: image && /^https:\/\/m\.media-amazon\.com\/images\/M\/[^\s"'<>?]+\._V1_\.jpg$/.test(image) ? image.replace(/\._V1_\.jpg$/, "._V1_SX600.jpg") : null,
+        details: { creator: null, year: typeof i.y === "number" ? i.y : null },
+      };
+    });
+}
+
+type SteamSearchItem = { type?: string; name?: string; id?: number; platforms?: { windows?: boolean; mac?: boolean; linux?: boolean } };
+type SteamDetails = { developers?: string[]; release_date?: { date?: string } };
+// Soundtracks, artbooks and the like are listed on Steam as apps of their own.
+const STEAM_EXTRAS = /\b(soundtrack|ost|artbook|art book|demo|playtest|dedicated server|sdk)\b/i;
+const steamImageBase = (id: number) => `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${id}`;
+
+async function steamDetails(id: number): Promise<SteamDetails | null> {
+  const res = await fetch(`https://store.steampowered.com/api/appdetails?appids=${id}&cc=GB&l=english&filters=developers,release_date`, { signal: AbortSignal.timeout(10_000) });
+  if (!res.ok) return null;
+  const entry = ((await res.json()) as Record<string, { success?: boolean; data?: SteamDetails }> | null)?.[id];
+  return entry?.success ? entry.data ?? null : null;
+}
+
+// The portrait library art (like a box cover) where the game has it, otherwise the wide store header.
+async function steamCover(id: number): Promise<string> {
+  const portrait = `${steamImageBase(id)}/library_600x900.jpg`;
+  const res = await fetch(portrait, { method: "HEAD", signal: AbortSignal.timeout(5_000) }).catch(() => null);
+  return res?.ok ? portrait : `${steamImageBase(id)}/header.jpg`;
+}
+
+async function searchSteam(query: string): Promise<ExternalMatch[]> {
+  const res = await fetch(`https://store.steampowered.com/api/storesearch/?${new URLSearchParams({ term: query, cc: "GB", l: "english" })}`, { signal: AbortSignal.timeout(10_000) });
+  if (!res.ok) throw new Error(`Steam responded ${res.status}`);
+  const items = (((await res.json()) as { items?: SteamSearchItem[] } | null)?.items ?? [])
+    .filter((i): i is SteamSearchItem & { id: number; name: string } => i.type === "app" && Number.isInteger(i.id) && !!i.name && !STEAM_EXTRAS.test(i.name))
+    .slice(0, 6);
+  return Promise.all(items.map(async i => {
+    const [details, imageUrl] = await Promise.all([steamDetails(i.id).catch(() => null), steamCover(i.id)]);
+    const year = Number(details?.release_date?.date?.match(/\b(\d{4})\b/)?.[1]) || null;
+    const developer = details?.developers?.slice(0, 2).join(" & ") || null;
+    const platforms = [i.platforms?.windows ? "PC" : null, i.platforms?.mac ? "Mac" : null].filter((p): p is string => !!p);
+    return {
+      url: `https://store.steampowered.com/app/${i.id}/`,
+      label: i.name,
+      description: [developer, year].filter(Boolean).join(", "),
+      imageUrl,
+      details: { creator: developer, year, platforms },
+    };
+  }));
+}
+
 // The long review is rich text from a contenteditable editor, rendered with v-html — so it is
 // sanitised here on write against a small allowlist matching the editor's toolbar.
 const SANITIZE_OPTS: sanitizeHtml.IOptions = {
@@ -273,6 +359,8 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   // podcast, Apple Music album or BoardGameGeek game.
   const sourceUrl = typeof b.sourceUrl === "string" && (
     BGG_GAME_URL.test(b.sourceUrl) ||
+    IMDB_TITLE_URL.test(b.sourceUrl) ||
+    STEAM_APP_URL.test(b.sourceUrl) ||
     /^https:\/\/en\.wikipedia\.org\/wiki\/[^\s"'<>]+$/.test(b.sourceUrl) ||
     /^https:\/\/openlibrary\.org\/works\/OL\d+W$/.test(b.sourceUrl) ||
     /^https:\/\/www\.tvmaze\.com\/shows\/\d+\/[a-z0-9-]+$/.test(b.sourceUrl) ||
@@ -426,6 +514,18 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
     fetchBggGame(bggMatch[1])
       .then(game => game ? sendJson(res, 200, game) : sendJson(res, 404, { error: "Not found" }))
       .catch(e => { console.error("BGG lookup failed:", e); if (!res.headersSent) sendJson(res, 502, { error: "Couldn't reach BoardGameGeek" }); });
+    return true;
+  }
+
+  // GET /api/reviews/search/imdb?q= and /api/reviews/search/steam?q= — films on IMDb, games on Steam
+  const searchMatch = url.match(/^\/api\/reviews\/search\/(imdb|steam)$/);
+  if (searchMatch && method === "GET") {
+    const site = searchMatch[1] as "imdb" | "steam";
+    const query = (new URL(req.url ?? "/", "http://x").searchParams.get("q") ?? "").trim().slice(0, 100);
+    if (query.length < 2) { sendJson(res, 200, []); return true; }
+    cachedSearch(`${site}:${query.toLowerCase()}`, () => site === "imdb" ? searchImdb(query) : searchSteam(query))
+      .then(results => sendJson(res, 200, results))
+      .catch(e => { console.error(`${site} search failed:`, e); if (!res.headersSent) sendJson(res, 502, { error: `Couldn't reach ${site === "imdb" ? "IMDb" : "Steam"}` }); });
     return true;
   }
 
