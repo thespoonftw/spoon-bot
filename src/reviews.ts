@@ -78,7 +78,9 @@ async function reviewAuthor(client: Client, r: ReviewRow): Promise<{ name: strin
 
 // A review's Discord card, mirroring the feed card: a header of the reviewer's avatar and
 // "Name reviewed a 🎬 Film" (the header is plain text, so no mention or markdown), then the linked
-// title, credit line, stars and summary, with the cover beside.
+// title, credit line, stars and summary, with the cover beside. The title links to the page the
+// review was matched to (BoardGameGeek, Wikipedia…), or the review itself if it wasn't matched, and a
+// "See the full review." link follows when there's more to read than the summary.
 async function buildReviewEmbed(client: Client, r: ReviewRow): Promise<EmbedBuilder> {
   const [emoji, author] = await Promise.all([getStarEmojis(client), reviewAuthor(client, r)]);
   const { full, half, empty } = emoji ?? { full: "★", half: "½", empty: "☆" };
@@ -92,6 +94,10 @@ async function buildReviewEmbed(client: Client, r: ReviewRow): Promise<EmbedBuil
   const extra = [type === "book" ? r.creator : null, r.season != null ? `Season ${r.season}` : null, r.platform, r.location ? `at ${r.locationUrl ? `[${r.location.replace(/[[\]]/g, "")}](${r.locationUrl})` : r.location}` : null].filter(Boolean).join(" · ");
   // A blank line keeps the summary apart from the stars.
   const top = [extra || null, stars].filter(Boolean).join("\n");
+  const reviewUrl = `${getBaseUrl()}/reviews/${r.id}`;
+  // Reviews saved before sourceUrl existed only have wikiTitle.
+  const sourceUrl = r.sourceUrl ?? (r.wikiTitle ? `https://en.wikipedia.org/wiki/${encodeURIComponent(r.wikiTitle.replace(/ /g, "_"))}` : null);
+  const more = r.bodyHtml ? `\n\n[See the full review.](${reviewUrl})` : "";
   const embed = new EmbedBuilder()
     .setColor(r.typeColor as `#${string}`)
     .setAuthor({
@@ -100,8 +106,8 @@ async function buildReviewEmbed(client: Client, r: ReviewRow): Promise<EmbedBuil
       url: `${getBaseUrl()}/reviews/people/${encodeURIComponent(r.userId)}`,
     })
     .setTitle(heading)
-    .setURL(`${getBaseUrl()}/reviews/${r.id}`)
-    .setDescription((r.summary ? `${top}\n\n${r.summary}` : top).slice(0, 4096));
+    .setURL(sourceUrl ?? reviewUrl)
+    .setDescription((r.summary ? `${top}\n\n${r.summary}` : top).slice(0, 4096 - more.length) + more);
   if (r.imageUrl) embed.setThumbnail(absoluteImageUrl(r.imageUrl));
   return embed;
 }
