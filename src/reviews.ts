@@ -140,14 +140,17 @@ async function findReviewPost(client: Client, r: ReviewRow, saved: { channelId: 
 }
 
 // Brings a review's Discord post up to date after an edit, in whichever channel it was posted.
-async function updateReviewPost(r: ReviewRow): Promise<void> {
+// Returns whether a post was found and updated.
+export async function updateReviewPost(r: ReviewRow): Promise<boolean> {
   const client = reviewsDiscordClient;
-  if (!client) return;
+  if (!client) return false;
   const saved = dbGetReviewPost(r.id);
   const message = await findReviewPost(client, r, saved);
   if (message && !saved) dbSetReviewPost(r.id, message.channelId, message.id);
+  if (!message?.editable) return false;
   // Clearing the text too tidies up posts from when the "@User reviewed…" line sat above the card.
-  if (message?.editable) await message.edit({ content: "", embeds: [await buildReviewEmbed(client, r)] });
+  await message.edit({ content: "", embeds: [await buildReviewEmbed(client, r)] });
+  return true;
 }
 
 // Removes a deleted review's Discord post. `saved` is read before the review is deleted.
