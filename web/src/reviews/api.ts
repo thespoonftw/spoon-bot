@@ -501,8 +501,11 @@ async function searchViaServer(site: "imdb" | "steam", title: string, signal?: A
 async function searchWithWikipedia(site: "imdb" | "steam", title: string, typeName: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
   const settle = (p: Promise<MatchCandidate[]>) => p.catch(e => { if ((e as Error).name === "AbortError") throw e; return [] as MatchCandidate[]; });
   const [theirs, wiki] = await Promise.all([settle(searchViaServer(site, title, signal)), settle(searchWikipedia(title, typeName, signal))]);
+  // Steam puts "Hades II" above "Hades", so an exact title is moved to the top of theirs too.
   const wanted = title.trim().toLowerCase();
-  return theirs.some(c => c.label.trim().toLowerCase() === wanted) ? [...theirs, ...wiki] : [...wiki, ...theirs];
+  const exact = (c: MatchCandidate) => c.label.trim().toLowerCase() === wanted ? 1 : 0;
+  const ranked = theirs.map((c, index) => ({ c, index })).sort((a, b) => exact(b.c) - exact(a.c) || a.index - b.index).map(x => x.c);
+  return ranked.some(exact) ? [...ranked, ...wiki] : [...wiki, ...ranked];
 }
 
 // Candidates for the editor's dropdown, best first. Books use Open Library, series TVmaze, podcasts
