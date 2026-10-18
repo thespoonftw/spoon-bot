@@ -3,14 +3,15 @@
 //   set -a; source .env.snek; set +a; npx ts-node src/refresh-review-posts.ts
 import { Client, GatewayIntentBits } from "discord.js";
 import dotenv from "dotenv";
-import { dbListReviews } from "./db";
+import { initDb, dbListReviews } from "./db";
 import { setReviewsDiscordClient, updateReviewPost } from "./reviews";
 
 dotenv.config();
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMembers] });
 
-client.once("ready", async () => {
+client.once("clientReady", async () => {
+  initDb();
   setReviewsDiscordClient(client);
   const { reviews } = dbListReviews({ limit: -1, offset: 0 });
   let updated = 0;
