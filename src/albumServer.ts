@@ -29,6 +29,29 @@ export function setUpdateEventMessages(fn: UpdateEventMessagesFn) { updateEventM
 let albumDiscordClient: Client | null = null;
 export function setAlbumDiscordClient(client: Client) { albumDiscordClient = client; }
 
+// Site uploads arrive one photo per request, so each person's batch is gathered up and announced in
+// the event's Discord channel once they've gone quiet for a bit.
+const UPLOAD_ANNOUNCE_DELAY_MS = 2 * 60 * 1000;
+const pendingUploadAnnouncements = new Map<string, { count: number; timer: NodeJS.Timeout }>();
+
+function queueUploadAnnouncement(channelId: string, userId: string, name: string): void {
+  if (channelId.startsWith("web_") || !eventStates.has(channelId)) return;
+  const key = `${channelId}:${userId}`;
+  const existing = pendingUploadAnnouncements.get(key);
+  if (existing) clearTimeout(existing.timer);
+  const count = (existing?.count ?? 0) + 1;
+  const timer = setTimeout(async () => {
+    pendingUploadAnnouncements.delete(key);
+    try {
+      const channel = await albumDiscordClient?.channels.fetch(channelId);
+      if (!channel?.isSendable()) return;
+      const photos = count === 1 ? "1 photo" : `${count} photos`;
+      await channel.send(`**${name}** uploaded **${photos}** to the album. ${getBaseUrl()}/album/${channelId}`);
+    } catch (e) { console.error("Failed to announce site upload to Discord:", e); }
+  }, UPLOAD_ANNOUNCE_DELAY_MS);
+  pendingUploadAnnouncements.set(key, { count, timer });
+}
+
 const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "application/javascript", ".css": "text/css",
   ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2",
@@ -403,6 +426,7 @@ export function startWebServer(): void {
           const photoUrl = `/uploads/${channelId}/${name}`;
           const photo = dbAddUploadedPhoto(channelId, photoUrl, name, uploader.userId, width, height, takenAt, undefined, undefined, filename);
           uploadLog(channelId, who, filename, `ok (${width}x${height})`);
+          queueUploadAnnouncement(channelId, uploader.userId, who);
           sendJson(res, 201, photo);
         });
         // Write-side failure — most likely EIO from the photo drive dropping mid-upload.

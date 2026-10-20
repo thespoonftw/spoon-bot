@@ -206,6 +206,9 @@ interface PendingUpload {
 }
 const pendingUploads = new Map<string, PendingUpload>();
 
+// From this many images in one message, the prompt suggests uploading on the site instead.
+const LARGE_BATCH_SIZE = 4;
+
 export async function handleAlbumMessageCreate(message: Message): Promise<void> {
   if (!dbHasAlbum(message.channelId)) return;
   const imageAttachments = [...message.attachments.values()].filter(a => a.contentType?.startsWith("image/"));
@@ -233,7 +236,11 @@ export async function handleAlbumMessageCreate(message: Message): Promise<void> 
     new ButtonBuilder().setCustomId(`album_upload_${pendingId}`).setLabel("Upload").setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`album_ignore_${pendingId}`).setLabel("Ignore").setStyle(ButtonStyle.Secondary),
   );
-  await message.reply({ content: `Upload ${label} to the album?`, components: [row] });
+  let content = `Upload ${label} to the album?`;
+  if (imageAttachments.length >= LARGE_BATCH_SIZE) {
+    content += `\n-# Got lots of photos? Upload them on the site instead, so they go straight to the album without being shared with Discord: ${getBaseUrl()}/album/${message.channelId}`;
+  }
+  await message.reply({ content, components: [row] });
 }
 
 async function processUpload(pending: PendingUpload): Promise<number> {
