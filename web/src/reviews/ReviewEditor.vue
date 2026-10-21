@@ -320,9 +320,16 @@ async function lookup() {
     // Keep the current match selectable even if the new search didn't return it (e.g. an existing review).
     if (draft.sourceUrl && !found.some(c => c.url === draft.sourceUrl)) found.unshift(savedMatch());
     candidates.value = found;
-    if (!userPicked.value) applyPage(found[0] ?? null);
-    wikiStatus.value = !found.length ? "Nothing found — fill in the details yourself."
-      : userPicked.value ? "" : "Best match picked automatically — change it if it's wrong.";
+    // A pasted link (an Apple Music album) finds just that, so it's picked and its name becomes the title.
+    const pastedLink = /^https?:\/\//i.test(title) && found[0]?.source === "applemusic";
+    if (pastedLink) {
+      userPicked.value = true;
+      draft.title = skipLookupFor = found[0].label;
+    }
+    if (!userPicked.value || pastedLink) applyPage(found[0] ?? null);
+    const linkTip = selectedType.value?.name.trim().toLowerCase() === "album" ? " Or paste its Apple Music link as the title." : "";
+    wikiStatus.value = !found.length ? `Nothing found — fill in the details yourself.${linkTip}`
+      : userPicked.value ? "" : `Best match picked automatically — change it if it's wrong.${linkTip}`;
   } catch (e) {
     if ((e as Error).name !== "AbortError") wikiStatus.value = "Couldn't search right now — fill in the details yourself.";
   }

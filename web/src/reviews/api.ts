@@ -454,20 +454,61 @@ async function searchApplePodcasts(title: string, signal?: AbortSignal): Promise
     }));
 }
 
-type AppleAlbum = { collectionName: string; artistName?: string; collectionViewUrl?: string; artworkUrl100?: string; releaseDate?: string; trackCount?: number };
+type AppleAlbum = { wrapperType?: string; collectionName: string; artistName?: string; collectionViewUrl?: string; artworkUrl100?: string; releaseDate?: string; trackCount?: number };
+type AppleArtist = { artistId?: number; artistName?: string };
 
-// Searches Apple Music's albums (same free iTunes search as podcasts). The artist and release year
-// come with each result, and the 100px artwork URL can be asked for at 600px instead.
-async function searchAppleMusic(title: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
-  const res = await fetch(`https://itunes.apple.com/search?${new URLSearchParams({ media: "music", entity: "album", limit: "15", term: title })}`, { signal });
+// An Apple Music album link pasted in as the title (the slug is optional, and a ?i= track is ignored).
+const APPLE_ALBUM_LINK = /music\.apple\.com\/[a-z]{2}\/album\/(?:[^/?\s]+\/)?(\d{1,12})/;
+// "Tame Impala - Currents" → "tame impala currents", for comparing names.
+const normaliseName = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}&]+/gu, " ").trim();
+
+async function itunes(endpoint: "search" | "lookup", params: Record<string, string>, signal?: AbortSignal): Promise<unknown[]> {
+  const res = await fetch(`https://itunes.apple.com/${endpoint}?${new URLSearchParams(params)}`, { signal });
   if (!res.ok) return [];
-  const results = ((await res.json())?.results ?? []) as AppleAlbum[];
-  const wanted = title.trim().toLowerCase();
+  return (await res.json())?.results ?? [];
+}
+
+// An artist's albums named what's left of the title once the artist's name is taken out of it
+// ("Tame Impala - Currents", "Currents by Tame Impala"). Apple's album search leaves some albums
+// out entirely (it never returns Currents), but looking up the artist's albums finds them.
+async function albumsByNamedArtist(title: string, signal?: AbortSignal): Promise<{ albums: AppleAlbum[]; names: string[] }> {
+  const query = normaliseName(title);
+  const artists = (await itunes("search", { media: "music", entity: "musicArtist", limit: "3", term: title }, signal)) as AppleArtist[];
+  const found = await Promise.all(artists.map(async a => {
+    const artist = normaliseName(a.artistName ?? "");
+    if (!a.artistId || !artist || !` ${query} `.includes(` ${artist} `)) return null;
+    const name = ` ${query} `.replace(` ${artist} `, " ").replace(/^\s*(by\s+)?|(\s+by)?\s*$/g, "").trim();
+    if (!name) return null;
+    const albums = (await itunes("lookup", { id: String(a.artistId), entity: "album", limit: "200" }, signal)) as AppleAlbum[];
+    return { name, albums: albums.filter(al => al.wrapperType === "collection" && normaliseName(al.collectionName) === name) };
+  }));
+  const hits = found.filter((f): f is NonNullable<typeof f> => !!f);
+  return { albums: hits.flatMap(h => h.albums), names: hits.map(h => h.name) };
+}
+
+// Searches Apple Music's albums (same free iTunes search as podcasts), or looks up a pasted album
+// link. The artist and release year come with each result, and the 100px artwork URL can be asked
+// for at 600px instead.
+async function searchAppleMusic(title: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
+  const linkId = title.match(APPLE_ALBUM_LINK)?.[1];
+  let results: AppleAlbum[];
+  const wanted = new Set([normaliseName(title)]);
+  if (linkId) {
+    results = ((await itunes("lookup", { id: linkId, entity: "album" }, signal)) as AppleAlbum[]).filter(a => a.wrapperType === "collection");
+  } else {
+    const settle = <T>(p: Promise<T>, empty: T) => p.catch(e => { if ((e as Error).name === "AbortError") throw e; return empty; });
+    const [searched, byArtist] = await Promise.all([
+      settle(itunes("search", { media: "music", entity: "album", limit: "15", term: title }, signal) as Promise<AppleAlbum[]>, []),
+      settle(albumsByNamedArtist(title, signal), { albums: [], names: [] }),
+    ]);
+    results = [...byArtist.albums, ...searched];
+    byArtist.names.forEach(n => wanted.add(n));
+  }
   const seen = new Set<string>();
   return results
     .map(a => ({ a, url: a.collectionViewUrl?.split("?")[0] ?? "" }))
     .filter(({ url }) => /^https:\/\/music\.apple\.com\/[a-z]{2}\/album\/[^/?]+\/\d+$/.test(url) && !seen.has(url) && !!seen.add(url))
-    .map(({ a, url }, index) => ({ a, url, index, exact: a.collectionName.trim().toLowerCase() === wanted ? 1 : 0 }))
+    .map(({ a, url }, index) => ({ a, url, index, exact: wanted.has(normaliseName(a.collectionName)) ? 1 : 0 }))
     .sort((x, y) => y.exact - x.exact || x.index - y.index)
     .slice(0, 8)
     .map(({ a, url }) => {
