@@ -36,9 +36,11 @@ window.addEventListener('resize', applyMobileZoom);
 
 const router = createRouter({
   history: createWebHistory(),
-  scrollBehavior(to, _from, savedPosition) {
+  scrollBehavior(to, from, savedPosition) {
     if (savedPosition) return savedPosition;
     if (to.path === '/albums') return false;
+    // Only the query changed (e.g. an album's sort) — stay put.
+    if (to.path === from.path) return false;
     return { top: 0 };
   },
   routes: [

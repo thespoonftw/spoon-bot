@@ -46,7 +46,7 @@ function queueUploadAnnouncement(channelId: string, userId: string, name: string
       const channel = await albumDiscordClient?.channels.fetch(channelId);
       if (!channel?.isSendable()) return;
       const photos = count === 1 ? "1 photo" : `${count} photos`;
-      await channel.send(`**${name}** uploaded **${photos}** to the album. ${getBaseUrl()}/album/${channelId}`);
+      await channel.send(`**${name}** uploaded **${photos}** to the album. ${getBaseUrl()}/album/${channelId}?sort=newest`);
     } catch (e) { console.error("Failed to announce site upload to Discord:", e); }
   }, UPLOAD_ANNOUNCE_DELAY_MS);
   pendingUploadAnnouncements.set(key, { count, timer });

@@ -365,11 +365,17 @@ async function loadAlbum() {
     const sortedMembers = (data.members ?? []).slice().sort(byName);
     album.value = { ...data, members: sortedMembers };
     allMembers.value = sortedMembers;
-    const hasMultipleLocations = (data.locations?.length ?? 0) > 1;
-    if (route.query.sort === 'location' && hasMultipleLocations) {
-      sortBy.value = 'location';
-      const locId = parseInt(route.query.loc as string);
-      if (!isNaN(locId)) priorityLocId.value = locId;
+    const sort = route.query.sort as string | undefined;
+    if (sort === 'location') {
+      if ((data.locations?.length ?? 0) > 1) {
+        sortBy.value = 'location';
+        const locId = parseInt(route.query.loc as string);
+        if (!isNaN(locId)) priorityLocId.value = locId;
+      }
+    } else if (sort === 'date') {
+      if (data.startDate) sortBy.value = 'date';
+    } else if (sort === 'uploader' || sort === 'newest' || sort === 'tagging') {
+      sortBy.value = sort;
     }
   }
   if (checkRes.ok) {
@@ -380,6 +386,17 @@ async function loadAlbum() {
   }
   loading.value = false;
 }
+
+// Keep the chosen sort in the URL so links and refreshes open the album the same way.
+watch([sortBy, priorityLocId], () => {
+  if (loading.value) return;
+  const query = { ...route.query };
+  delete query.sort;
+  delete query.loc;
+  if (sortBy.value !== 'popular') query.sort = sortBy.value;
+  if (sortBy.value === 'location' && priorityLocId.value !== null) query.loc = String(priorityLocId.value);
+  router.replace({ query });
+});
 
 onMounted(loadAlbum);
 watch(() => route.params.channelId, (_, oldId) => { if (oldId !== undefined) loadAlbum(); });
