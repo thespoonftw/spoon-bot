@@ -346,16 +346,20 @@ async function searchWikipedia(title: string, typeName: string, signal?: AbortSi
     .map(p => ({ p, score: wikiScore(p, title, typeName) }))
     .sort((a, b) => b.score - a.score || a.p.index - b.p.index)
     .slice(0, 8)
-    .map(({ p }) => ({
-      source: "wikipedia" as const,
-      url: wikiUrl(p.title),
-      label: p.title,
-      description: p.description ?? "",
-      imageUrl: p.thumbnail && WIKIMEDIA_IMAGE.test(p.thumbnail.source) ? p.thumbnail.source.split("?")[0] : null,
-      wikiTitle: p.title,
-      wikidataId: p.pageprops?.wikibase_item ?? null,
-      details: null,
-    }));
+    .map(({ p }) => wikiCandidate(p));
+}
+
+function wikiCandidate(p: WikiPage): MatchCandidate {
+  return {
+    source: "wikipedia",
+    url: wikiUrl(p.title),
+    label: p.title,
+    description: p.description ?? "",
+    imageUrl: p.thumbnail && WIKIMEDIA_IMAGE.test(p.thumbnail.source) ? p.thumbnail.source.split("?")[0] : null,
+    wikiTitle: p.title,
+    wikidataId: p.pageprops?.wikibase_item ?? null,
+    details: null,
+  };
 }
 
 type OpenLibraryDoc = { key: string; title: string; author_name?: string[]; first_publish_year?: number; cover_i?: number; edition_count?: number };
@@ -457,8 +461,10 @@ async function searchApplePodcasts(title: string, signal?: AbortSignal): Promise
 type AppleAlbum = { wrapperType?: string; collectionName: string; artistName?: string; collectionViewUrl?: string; artworkUrl100?: string; releaseDate?: string; trackCount?: number };
 type AppleArtist = { artistId?: number; artistName?: string };
 
-// An Apple Music album link pasted in as the title (the slug is optional, and a ?i= track is ignored).
-const APPLE_ALBUM_LINK = /music\.apple\.com\/[a-z]{2}\/album\/(?:[^/?\s]+\/)?(\d{1,12})/;
+// Album links pasted into the editor: Apple Music (the slug is optional, and a ?i= track is
+// ignored) or Wikipedia (desktop or mobile).
+const APPLE_ALBUM_LINK = /music\.apple\.com\/[a-z]{2}\/album\/(?:[^/?#\s]+\/)?(\d{1,12})/;
+const WIKIPEDIA_LINK = /en(?:\.m)?\.wikipedia\.org\/wiki\/([^?#\s]+)/;
 // "Tame Impala - Currents" → "tame impala currents", for comparing names.
 const normaliseName = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}&]+/gu, " ").trim();
 
@@ -486,45 +492,60 @@ async function albumsByNamedArtist(title: string, signal?: AbortSignal): Promise
   return { albums: hits.flatMap(h => h.albums), names: hits.map(h => h.name) };
 }
 
-// Searches Apple Music's albums (same free iTunes search as podcasts), or looks up a pasted album
-// link. The artist and release year come with each result, and the 100px artwork URL can be asked
-// for at 600px instead.
+// Searches Apple Music's albums (same free iTunes search as podcasts). The artist and release year
+// come with each result.
 async function searchAppleMusic(title: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
-  const linkId = title.match(APPLE_ALBUM_LINK)?.[1];
-  let results: AppleAlbum[];
-  const wanted = new Set([normaliseName(title)]);
-  if (linkId) {
-    results = ((await itunes("lookup", { id: linkId, entity: "album" }, signal)) as AppleAlbum[]).filter(a => a.wrapperType === "collection");
-  } else {
-    const settle = <T>(p: Promise<T>, empty: T) => p.catch(e => { if ((e as Error).name === "AbortError") throw e; return empty; });
-    const [searched, byArtist] = await Promise.all([
-      settle(itunes("search", { media: "music", entity: "album", limit: "15", term: title }, signal) as Promise<AppleAlbum[]>, []),
-      settle(albumsByNamedArtist(title, signal), { albums: [], names: [] }),
-    ]);
-    results = [...byArtist.albums, ...searched];
-    byArtist.names.forEach(n => wanted.add(n));
-  }
+  const settle = <T>(p: Promise<T>, empty: T) => p.catch(e => { if ((e as Error).name === "AbortError") throw e; return empty; });
+  const [searched, byArtist] = await Promise.all([
+    settle(itunes("search", { media: "music", entity: "album", limit: "15", term: title }, signal) as Promise<AppleAlbum[]>, []),
+    settle(albumsByNamedArtist(title, signal), { albums: [], names: [] }),
+  ]);
+  const wanted = new Set([normaliseName(title), ...byArtist.names]);
   const seen = new Set<string>();
-  return results
-    .map(a => ({ a, url: a.collectionViewUrl?.split("?")[0] ?? "" }))
-    .filter(({ url }) => /^https:\/\/music\.apple\.com\/[a-z]{2}\/album\/[^/?]+\/\d+$/.test(url) && !seen.has(url) && !!seen.add(url))
-    .map(({ a, url }, index) => ({ a, url, index, exact: wanted.has(normaliseName(a.collectionName)) ? 1 : 0 }))
+  return [...byArtist.albums, ...searched]
+    .map(a => ({ a, c: appleAlbumCandidate(a) }))
+    .filter((x): x is { a: AppleAlbum; c: MatchCandidate } => !!x.c && !seen.has(x.c.url) && !!seen.add(x.c.url))
+    .map(({ a, c }, index) => ({ c, index, exact: wanted.has(normaliseName(a.collectionName)) ? 1 : 0 }))
     .sort((x, y) => y.exact - x.exact || x.index - y.index)
     .slice(0, 8)
-    .map(({ a, url }) => {
-      const year = a.releaseDate ? Number(a.releaseDate.slice(0, 4)) || null : null;
-      const art = a.artworkUrl100?.replace(/\/100x100bb\.jpg$/, "/600x600bb.jpg");
-      return {
-        source: "applemusic" as const,
-        url,
-        label: a.collectionName,
-        description: [a.artistName, year].filter(Boolean).join(", "),
-        imageUrl: art && /^https:\/\/is\d+-ssl\.mzstatic\.com\//.test(art) ? art : null,
-        wikiTitle: null,
-        wikidataId: null,
-        details: { creator: a.artistName ?? null, year },
-      };
-    });
+    .map(({ c }) => c);
+}
+
+// The 100px artwork URL can be asked for at 600px instead.
+function appleAlbumCandidate(a: AppleAlbum): MatchCandidate | null {
+  const url = a.collectionViewUrl?.split("?")[0] ?? "";
+  if (!/^https:\/\/music\.apple\.com\/[a-z]{2}\/album\/[^/?]+\/\d+$/.test(url)) return null;
+  const year = a.releaseDate ? Number(a.releaseDate.slice(0, 4)) || null : null;
+  const art = a.artworkUrl100?.replace(/\/100x100bb\.jpg$/, "/600x600bb.jpg");
+  return {
+    source: "applemusic",
+    url,
+    label: a.collectionName,
+    description: [a.artistName, year].filter(Boolean).join(", "),
+    imageUrl: art && /^https:\/\/is\d+-ssl\.mzstatic\.com\//.test(art) ? art : null,
+    wikiTitle: null,
+    wikidataId: null,
+    details: { creator: a.artistName ?? null, year },
+  };
+}
+
+// The album an Apple Music or Wikipedia link points to, for when the search doesn't find it.
+// Undefined means the text isn't one of those links; null means the link's album wasn't found.
+export async function findAlbumByLink(text: string, signal?: AbortSignal): Promise<MatchCandidate | null | undefined> {
+  const appleId = text.match(APPLE_ALBUM_LINK)?.[1];
+  if (appleId) {
+    const albums = (await itunes("lookup", { id: appleId, entity: "album" }, signal)) as AppleAlbum[];
+    const album = albums.find(a => a.wrapperType === "collection");
+    return album ? appleAlbumCandidate(album) : null;
+  }
+  const wikiPath = text.match(WIKIPEDIA_LINK)?.[1];
+  if (wikiPath) {
+    let pageTitle: string;
+    try { pageTitle = decodeURIComponent(wikiPath).replace(/_/g, " "); } catch { return null; }
+    const page = (await wikiQuery({ titles: pageTitle }, signal))[0];
+    return page && page.missing === undefined ? wikiCandidate(page) : null;
+  }
+  return undefined;
 }
 
 // Films on IMDb and games on Steam, searched by the server (neither site can be called from the

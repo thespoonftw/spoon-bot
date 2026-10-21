@@ -31,6 +31,16 @@
         <input id="rv-title" v-model="draft.title" class="rv-input rv-input--title" maxlength="200" placeholder="What are you reviewing?" autocomplete="off" />
       </div>
 
+      <!-- Albums: Apple's search misses some, so a link to the album can be pasted instead. -->
+      <div v-if="albumLink" class="rv-field">
+        <label class="rv-label" for="rv-album-link">Album link <span class="rv-label-note">Optional</span></label>
+        <input id="rv-album-link" v-model="albumLinkInput" class="rv-input" placeholder="https://music.apple.com/… or https://en.wikipedia.org/…" autocomplete="off" @input="onAlbumLinkInput" />
+        <span class="rv-hint">
+          <template v-if="albumLinkStatus">{{ albumLinkStatus }}</template>
+          <template v-else>Or find the album manually on <a href="https://music.apple.com/" target="_blank" rel="noopener noreferrer">Apple Music ↗</a> or <a href="https://en.wikipedia.org/" target="_blank" rel="noopener noreferrer">Wikipedia ↗</a> and paste its link here.</template>
+        </span>
+      </div>
+
       <div v-if="!bggLink" class="rv-field">
         <label class="rv-label" for="rv-match">Match</label>
         <select id="rv-match" class="rv-select" :value="draft.sourceUrl ?? NO_PAGE" :disabled="!candidates.length" @change="onPageChange">
@@ -147,7 +157,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { clearReviewCache, PROGRESS_OPTIONS, hasProgress, hasYear, usesBggLink, parseBggId, fetchBggGame, SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
+import { clearReviewCache, PROGRESS_OPTIONS, hasProgress, hasYear, usesBggLink, parseBggId, fetchBggGame, SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, findAlbumByLink, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
 import StarRating from "./StarRating.vue";
 import RichTextEditor from "./RichTextEditor.vue";
 import ReviewCover from "./ReviewCover.vue";
@@ -258,6 +268,36 @@ async function onBggInput() {
   }
 }
 
+// --- Album link (albums): a pasted Apple Music or Wikipedia link becomes the chosen match, for
+// albums the search doesn't find. Its name fills in the title, as picking a match does.
+const albumLink = computed(() => selectedType.value?.name.trim().toLowerCase() === "album");
+const albumLinkInput = ref("");
+const albumLinkStatus = ref("");
+let albumLinkInflight: AbortController | null = null;
+
+async function onAlbumLinkInput() {
+  albumLinkInflight?.abort();
+  const text = albumLinkInput.value.trim();
+  if (!text) { albumLinkStatus.value = ""; return; }
+  albumLinkInflight = new AbortController();
+  albumLinkStatus.value = "Getting details…";
+  try {
+    const album = await findAlbumByLink(text, albumLinkInflight.signal);
+    if (album === undefined) { albumLinkStatus.value = "That doesn't look like an Apple Music or Wikipedia link."; return; }
+    if (!album) { albumLinkStatus.value = "Couldn't find that album."; return; }
+    if (!candidates.value.some(c => c.url === album.url)) candidates.value = [album, ...candidates.value];
+    userPicked.value = true;
+    wikiStatus.value = "";
+    Object.assign(autoFilled, { creator: true, year: true });
+    const name = album.source === "wikipedia" ? album.label.replace(/\s*\(.*\)\s*$/, "") : album.label;
+    if (name !== draft.title) draft.title = skipLookupFor = name;
+    applyPage(album);
+    albumLinkStatus.value = `Matched: ${album.label}${album.description ? ` — ${album.description}` : ""}`;
+  } catch (e) {
+    if ((e as Error).name !== "AbortError") albumLinkStatus.value = "Couldn't look that link up — fill in the details yourself.";
+  }
+}
+
 // --- Season (series): the matched TVmaze show's seasons. Picking one moves the year and cover to
 // that season; "Whole series" goes back to the show's own.
 const seasonOptions = ref<SeasonOption[]>([]);
@@ -320,16 +360,9 @@ async function lookup() {
     // Keep the current match selectable even if the new search didn't return it (e.g. an existing review).
     if (draft.sourceUrl && !found.some(c => c.url === draft.sourceUrl)) found.unshift(savedMatch());
     candidates.value = found;
-    // A pasted link (an Apple Music album) finds just that, so it's picked and its name becomes the title.
-    const pastedLink = /^https?:\/\//i.test(title) && found[0]?.source === "applemusic";
-    if (pastedLink) {
-      userPicked.value = true;
-      draft.title = skipLookupFor = found[0].label;
-    }
-    if (!userPicked.value || pastedLink) applyPage(found[0] ?? null);
-    const linkTip = selectedType.value?.name.trim().toLowerCase() === "album" ? " Or paste its Apple Music link as the title." : "";
-    wikiStatus.value = !found.length ? `Nothing found — fill in the details yourself.${linkTip}`
-      : userPicked.value ? "" : `Best match picked automatically — change it if it's wrong.${linkTip}`;
+    if (!userPicked.value) applyPage(found[0] ?? null);
+    wikiStatus.value = !found.length ? "Nothing found — fill in the details yourself."
+      : userPicked.value ? "" : "Best match picked automatically — change it if it's wrong.";
   } catch (e) {
     if ((e as Error).name !== "AbortError") wikiStatus.value = "Couldn't search right now — fill in the details yourself.";
   }
