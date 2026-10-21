@@ -570,15 +570,23 @@ async function searchWithWikipedia(site: "imdb" | "steam", title: string, typeNa
   return ranked.some(exact) ? [...ranked, ...wiki] : [...wiki, ...ranked];
 }
 
-// Candidates for the editor's dropdown, best first. Books use Open Library, series TVmaze, podcasts
-// Apple Podcasts and albums Apple Music (all cover far more than Wikipedia and have proper
-// artwork); films add IMDb and games Steam to Wikipedia; everything else uses Wikipedia.
+// Apple Music's albums first (they have the artwork, artist and year), then Wikipedia's, which has
+// some Apple doesn't. Either search failing just leaves the other's results.
+async function searchAlbums(title: string, typeName: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
+  const settle = (p: Promise<MatchCandidate[]>) => p.catch(e => { if ((e as Error).name === "AbortError") throw e; return [] as MatchCandidate[]; });
+  const [apple, wiki] = await Promise.all([settle(searchAppleMusic(title, signal)), settle(searchWikipedia(title, typeName, signal))]);
+  return [...apple, ...wiki];
+}
+
+// Candidates for the editor's dropdown, best first. Books use Open Library, series TVmaze and
+// podcasts Apple Podcasts (all cover far more than Wikipedia and have proper artwork); albums add
+// Apple Music, films IMDb and games Steam to Wikipedia; everything else uses Wikipedia.
 export async function searchMatches(title: string, typeName: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
   switch (typeName.trim().toLowerCase()) {
     case "book": return searchOpenLibrary(title, signal);
     case "series": return searchTvmaze(title, signal);
     case "podcast": return searchApplePodcasts(title, signal);
-    case "album": return searchAppleMusic(title, signal);
+    case "album": return searchAlbums(title, typeName, signal);
     case "film": return searchWithWikipedia("imdb", title, typeName, signal);
     case "video game": return searchWithWikipedia("steam", title, typeName, signal);
     default: return searchWikipedia(title, typeName, signal);

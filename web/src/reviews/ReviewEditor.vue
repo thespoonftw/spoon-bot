@@ -31,16 +31,6 @@
         <input id="rv-title" v-model="draft.title" class="rv-input rv-input--title" maxlength="200" placeholder="What are you reviewing?" autocomplete="off" />
       </div>
 
-      <!-- Albums: Apple's search misses some, so a link to the album can be pasted instead. -->
-      <div v-if="albumLink" class="rv-field">
-        <label class="rv-label" for="rv-album-link">Album link <span class="rv-label-note">Optional</span></label>
-        <input id="rv-album-link" v-model="albumLinkInput" class="rv-input" placeholder="https://music.apple.com/… or https://en.wikipedia.org/…" autocomplete="off" @input="onAlbumLinkInput" />
-        <span class="rv-hint">
-          <template v-if="albumLinkStatus">{{ albumLinkStatus }}</template>
-          <template v-else>Or find the album manually on <a href="https://music.apple.com/" target="_blank" rel="noopener noreferrer">Apple Music ↗</a> or <a href="https://en.wikipedia.org/" target="_blank" rel="noopener noreferrer">Wikipedia ↗</a> and paste its link here.</template>
-        </span>
-      </div>
-
       <div v-if="!bggLink" class="rv-field">
         <label class="rv-label" for="rv-match">Match</label>
         <select id="rv-match" class="rv-select" :value="draft.sourceUrl ?? NO_PAGE" :disabled="!candidates.length" @change="onPageChange">
@@ -50,6 +40,16 @@
           <option :value="NO_PAGE">{{ candidates.length ? "None of these" : "—" }}</option>
         </select>
         <span class="rv-hint">{{ wikiStatus }}</span>
+      </div>
+
+      <!-- Albums with no match picked: the search misses some, so a link to the album can be pasted instead. -->
+      <div v-if="albumLink && !draft.sourceUrl" class="rv-field">
+        <label class="rv-label" for="rv-album-link">Album link <span class="rv-label-note">Optional</span></label>
+        <input id="rv-album-link" v-model="albumLinkInput" class="rv-input" placeholder="https://music.apple.com/… or https://en.wikipedia.org/…" autocomplete="off" @input="onAlbumLinkInput" />
+        <span class="rv-hint">
+          <template v-if="albumLinkStatus">{{ albumLinkStatus }}</template>
+          <template v-else>Alternatively find the album on <a href="https://music.apple.com/" target="_blank" rel="noopener noreferrer">Apple Music ↗</a> or <a href="https://en.wikipedia.org/" target="_blank" rel="noopener noreferrer">Wikipedia ↗</a> and paste its link here.</template>
+        </span>
       </div>
 
       <div v-if="hasYear(selectedType?.name ?? '') || creatorFieldLabel || extra" class="rv-editor-row">
@@ -269,7 +269,8 @@ async function onBggInput() {
 }
 
 // --- Album link (albums): a pasted Apple Music or Wikipedia link becomes the chosen match, for
-// albums the search doesn't find. Its name fills in the title, as picking a match does.
+// albums the search doesn't find. Its name fills in the title, as picking a match does. The box
+// only shows while no match is picked, so it's cleared once the link matches.
 const albumLink = computed(() => selectedType.value?.name.trim().toLowerCase() === "album");
 const albumLinkInput = ref("");
 const albumLinkStatus = ref("");
@@ -292,7 +293,7 @@ async function onAlbumLinkInput() {
     const name = album.source === "wikipedia" ? album.label.replace(/\s*\(.*\)\s*$/, "") : album.label;
     if (name !== draft.title) draft.title = skipLookupFor = name;
     applyPage(album);
-    albumLinkStatus.value = `Matched: ${album.label}${album.description ? ` — ${album.description}` : ""}`;
+    albumLinkInput.value = albumLinkStatus.value = "";
   } catch (e) {
     if ((e as Error).name !== "AbortError") albumLinkStatus.value = "Couldn't look that link up — fill in the details yourself.";
   }
