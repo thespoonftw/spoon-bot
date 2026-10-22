@@ -42,6 +42,10 @@
         <span class="feature-icon">🗄️</span>
         <h2>Database</h2>
       </router-link>
+      <a href="/chewsday" class="feature-card feature-card--small">
+        <span class="feature-icon">🍽️</span>
+        <h2>Chewsday</h2>
+      </a>
     </div>
   </div>
 </template>
