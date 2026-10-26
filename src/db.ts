@@ -123,7 +123,10 @@ export function initDb() {
       last_message_at   TEXT,
       last_online_at    TEXT,
       last_voice_at     TEXT,
-      first_tracked_at  TEXT NOT NULL
+      first_tracked_at  TEXT NOT NULL,
+      removal_flag      INTEGER NOT NULL DEFAULT 0,
+      removal_by        TEXT,
+      removal_at        TEXT
     );
   `);
   // Add new columns to existing DBs (safe to run repeatedly — fails silently if column exists)
@@ -172,6 +175,9 @@ export function initDb() {
     "ALTER TABLE reviews ADD COLUMN discord_message_id TEXT",
     "ALTER TABLE discord_members DROP COLUMN location",
     "DROP TABLE IF EXISTS site_settings",
+    "ALTER TABLE discord_members ADD COLUMN removal_flag INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE discord_members ADD COLUMN removal_by TEXT",
+    "ALTER TABLE discord_members ADD COLUMN removal_at TEXT",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
@@ -947,13 +953,15 @@ export function dbDeleteReview(id: number): void {
 
 export type DiscordMemberRow = {
   discordId: string; note: string | null; noteBy: string | null; noteAt: string | null;
+  removalFlag: number; removalBy: string | null; removalAt: string | null;
   messageCount: number; voiceSeconds: number; onlineSeconds: number; presenceSeconds: number;
   lastMessageAt: string | null; lastOnlineAt: string | null; lastVoiceAt: string | null; firstTrackedAt: string;
 };
 
 export function dbGetDiscordMembers(): DiscordMemberRow[] {
   return db.prepare(`
-    SELECT discord_id AS discordId, note, note_by AS noteBy, note_at AS noteAt, message_count AS messageCount,
+    SELECT discord_id AS discordId, note, note_by AS noteBy, note_at AS noteAt,
+      removal_flag AS removalFlag, removal_by AS removalBy, removal_at AS removalAt, message_count AS messageCount,
       voice_seconds AS voiceSeconds, online_seconds AS onlineSeconds, presence_seconds AS presenceSeconds,
       last_message_at AS lastMessageAt, last_online_at AS lastOnlineAt, last_voice_at AS lastVoiceAt, first_tracked_at AS firstTrackedAt
     FROM discord_members
@@ -996,6 +1004,15 @@ export function dbRecordDiscordSamples(samples: DiscordMemberSample[], seconds: 
       });
     }
   })();
+}
+
+// Flags a member as someone we're thinking of removing from the server, for everyone to see.
+export function dbSetDiscordMemberRemoval(discordId: string, flagged: boolean, by: string): void {
+  const now = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO discord_members (discord_id, removal_flag, removal_by, removal_at, first_tracked_at) VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(discord_id) DO UPDATE SET removal_flag = excluded.removal_flag, removal_by = excluded.removal_by, removal_at = excluded.removal_at
+  `).run(discordId, flagged ? 1 : 0, flagged ? by : null, flagged ? now : null, now);
 }
 
 export function dbSetDiscordMemberNote(discordId: string, note: string | null, by: string): void {

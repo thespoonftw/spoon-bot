@@ -3,7 +3,7 @@ import { PresenceUpdateStatus, type Client, type Guild, type Message, type Role 
 import { config } from "./config";
 import { sendJson, send401, isValidSession, getSessionUser, getTokenFromRequest } from "./auth";
 import { getBirthday } from "./birthdays";
-import { dbCountDiscordMessage, dbRecordDiscordSamples, dbGetDiscordMembers, dbSetDiscordMemberNote, dbGetRealNamesByDiscordId, dbGetUserById, dbFindUserByDiscordId, dbAddDiscordUser, dbUpdateUserFirstName, dbUpdateUserSurname } from "./db";
+import { dbCountDiscordMessage, dbRecordDiscordSamples, dbGetDiscordMembers, dbSetDiscordMemberNote, dbSetDiscordMemberRemoval, dbGetRealNamesByDiscordId, dbGetUserById, dbFindUserByDiscordId, dbAddDiscordUser, dbUpdateUserFirstName, dbUpdateUserSurname } from "./db";
 
 // The member list on the site's /snek page, and the stats behind it. Discord keeps no history of
 // who was online or in voice, so the bot samples everyone once a minute and adds it up itself.
@@ -63,6 +63,12 @@ function snekRole(guild: Guild): Role | undefined {
 // Real names are the site's, shared with the Users page, so only admins change them (as there).
 const isAdmin = (userId: string) => (dbGetUserById(userId)?.level ?? 0) >= 2;
 
+// Who made a change, as shown on hover: their first name on the site, else their Discord name.
+function editorName(token: string): string {
+  const user = getSessionUser(token)!;
+  return dbGetUserById(user.userId)?.firstName || user.displayName;
+}
+
 function listMembers(viewerId: string) {
   const guild = client?.guilds.cache.get(config.guildId);
   if (!guild) return null;
@@ -88,6 +94,9 @@ function listMembers(viewerId: string) {
       note: s?.note ?? null,
       noteBy: s?.noteBy ?? null,
       noteAt: s?.noteAt ?? null,
+      removal: !!s?.removalFlag,
+      removalBy: s?.removalBy ?? null,
+      removalAt: s?.removalAt ?? null,
       messageCount: s?.messageCount ?? 0,
       voiceSeconds: s?.voiceSeconds ?? 0,
       onlinePct: s && s.presenceSeconds > 0 ? Math.round(100 * s.onlineSeconds / s.presenceSeconds) : null,
@@ -106,9 +115,9 @@ function readJson(req: http.IncomingMessage): Promise<Record<string, unknown>> {
   });
 }
 
-// GET /api/snek/members, PUT /api/snek/members/:id/note and PUT /api/snek/members/:id/name, for
-// web/src/views/SnekView.vue. Any logged-in user can read the list and edit the notes, which
-// everyone sees; names are admin-only.
+// GET /api/snek/members and PUT /api/snek/members/:id/(note|removal|name), for
+// web/src/views/SnekView.vue. Any logged-in user can read the list and set the notes and removal
+// flags, which everyone sees; names are admin-only.
 export function handleSnekRoutes(req: http.IncomingMessage, res: http.ServerResponse): boolean {
   const url = (req.url ?? "/").split("?")[0];
   if (!url.startsWith("/api/snek/")) return false;
@@ -127,10 +136,21 @@ export function handleSnekRoutes(req: http.IncomingMessage, res: http.ServerResp
   if (noteMatch && method === "PUT") {
     readJson(req).then(body => {
       const note = typeof body.note === "string" ? body.note.trim().slice(0, MAX_NOTE_LENGTH) : "";
-      const user = getSessionUser(token)!;
-      const by = dbGetUserById(user.userId)?.firstName || user.displayName;
+      const by = editorName(token);
       dbSetDiscordMemberNote(noteMatch[1], note || null, by);
       sendJson(res, 200, { note: note || null, noteBy: by, noteAt: new Date().toISOString() });
+    }).catch(() => sendJson(res, 400, { error: "Bad request" }));
+    return true;
+  }
+
+  // { removal: true/false }: the "thinking of removing them" flag.
+  const removalMatch = url.match(/^\/api\/snek\/members\/(\d+)\/removal$/);
+  if (removalMatch && method === "PUT") {
+    readJson(req).then(body => {
+      const flagged = body.removal === true;
+      const by = editorName(token);
+      dbSetDiscordMemberRemoval(removalMatch[1], flagged, by);
+      sendJson(res, 200, { removal: flagged, removalBy: flagged ? by : null, removalAt: flagged ? new Date().toISOString() : null });
     }).catch(() => sendJson(res, 400, { error: "Bad request" }));
     return true;
   }

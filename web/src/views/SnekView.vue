@@ -21,7 +21,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="m in section.members" :key="m.discordId">
+            <tr v-for="m in section.members" :key="m.discordId" :class="{ 'snek-row--removal': m.removal }">
               <td class="snek-avatar-cell">
                 <img :src="m.avatarUrl" class="snek-avatar" />
                 <span v-if="m.status" class="snek-status" :class="'snek-status--' + m.status" :title="m.status"></span>
@@ -53,6 +53,9 @@
                   {{ m.note || '+ note' }}
                 </div>
               </td>
+              <td class="snek-removal-cell" :title="m.removal && m.removalBy ? `Ticked by ${m.removalBy}, ${new Date(m.removalAt!).toLocaleDateString()}` : 'Thinking of removing them from the server'">
+                <input type="checkbox" :checked="m.removal" @change="setRemoval(m, ($event.target as HTMLInputElement).checked)" />
+              </td>
             </tr>
           </tbody>
         </table>
@@ -69,10 +72,11 @@ import PageHeader from "../components/PageHeader.vue";
 interface SnekMember {
   discordId: string; displayName: string; username: string; avatarUrl: string; isSnek: boolean; joinedAt: string | null;
   birthday: string | null; realName: string | null; status: string | null; note: string | null; noteBy: string | null; noteAt: string | null;
+  removal: boolean; removalBy: string | null; removalAt: string | null;
   messageCount: number; voiceSeconds: number; onlinePct: number | null; lastSeenAt: string | null;
 }
 interface SnekData { snekRole: string | null; presenceTracking: boolean; trackingSince: string | null; canEditNames: boolean; members: SnekMember[] }
-type SortKey = 'name' | 'realName' | 'birthday' | 'messages' | 'voice' | 'online' | 'lastSeen';
+type SortKey = 'name' | 'realName' | 'birthday' | 'messages' | 'voice' | 'online' | 'lastSeen' | 'removal';
 
 const vFocus = { mounted: (el: HTMLElement) => el.focus() };
 
@@ -85,6 +89,7 @@ const columns: { key: SortKey | 'note'; label: string; sort: boolean }[] = [
   { key: 'online', label: 'Online %', sort: true },
   { key: 'lastSeen', label: 'Last seen', sort: true },
   { key: 'note', label: 'Note', sort: false },
+  { key: 'removal', label: 'Delete', sort: true },
 ];
 
 const data = ref<SnekData | null>(null);
@@ -114,6 +119,7 @@ function sortValue(m: SnekMember): string | number | null {
     case 'voice': return m.voiceSeconds;
     case 'online': return m.onlinePct;
     case 'lastSeen': return m.status && m.status !== 'offline' ? '9' : m.lastSeenAt;
+    case 'removal': return m.removal ? 1 : null;
   }
 }
 
@@ -144,7 +150,7 @@ function setSort(key: SortKey | 'note') {
   else {
     sortKey.value = key;
     // Numbers and dates read best biggest/latest first.
-    sortDesc.value = ['messages', 'voice', 'online', 'lastSeen'].includes(key);
+    sortDesc.value = ['messages', 'voice', 'online', 'lastSeen', 'removal'].includes(key);
   }
 }
 
@@ -188,6 +194,13 @@ async function saveField(m: SnekMember, field: EditableField) {
   else error.value = `Couldn't save that ${api}.`;
 }
 
+async function setRemoval(m: SnekMember, removal: boolean) {
+  m.removal = removal;
+  const res = await fetch(`/api/snek/members/${m.discordId}/removal`, { method: 'PUT', headers: authJsonHeaders(), body: JSON.stringify({ removal }) });
+  if (res.ok) Object.assign(m, await res.json());
+  else { m.removal = !removal; error.value = "Couldn't save that."; }
+}
+
 onMounted(async () => {
   const res = await fetch('/api/snek/members', { headers: authHeaders() });
   if (res.ok) data.value = await res.json();
@@ -222,6 +235,10 @@ onMounted(async () => {
 .snek-nowrap { white-space: nowrap; }
 .snek-note-cell { min-width: 180px; max-width: 320px; }
 .snek-name-cell { min-width: 120px; }
+.snek-removal-cell { text-align: center; }
+.snek-removal-cell input { width: 16px; height: 16px; cursor: pointer; accent-color: #f38ba8; }
+.snek-table tbody tr.snek-row--removal { background: rgba(243, 139, 168, 0.12); }
+.snek-table tbody tr.snek-row--removal:hover { background: rgba(243, 139, 168, 0.18); }
 .snek-editable { cursor: pointer; border-radius: 6px; padding: 4px 6px; margin: -4px -6px; word-break: break-word; user-select: text; }
 .snek-editable:hover { background: #45475a; }
 .snek-editable.empty { color: #6c7086; font-size: 0.85em; opacity: 0; white-space: nowrap; }
