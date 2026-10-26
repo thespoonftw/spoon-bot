@@ -60,16 +60,13 @@ function snekRole(guild: Guild): Role | undefined {
   return guild.roles.cache.find(r => /^sneks?$/i.test(r.name));
 }
 
-// Real names are the site's, shared with the Users page, so only admins change them (as there).
-const isAdmin = (userId: string) => (dbGetUserById(userId)?.level ?? 0) >= 2;
-
 // Who made a change, as shown on hover: their first name on the site, else their Discord name.
 function editorName(token: string): string {
   const user = getSessionUser(token)!;
   return dbGetUserById(user.userId)?.firstName || user.displayName;
 }
 
-function listMembers(viewerId: string) {
+function listMembers() {
   const guild = client?.guilds.cache.get(config.guildId);
   if (!guild) return null;
   const role = snekRole(guild);
@@ -103,7 +100,7 @@ function listMembers(viewerId: string) {
       lastSeenAt: latest(s?.lastOnlineAt, s?.lastMessageAt, s?.lastVoiceAt),
     };
   });
-  return { snekRole: role?.name ?? null, presenceTracking, trackingSince, canEditNames: isAdmin(viewerId), members };
+  return { snekRole: role?.name ?? null, presenceTracking, trackingSince, members };
 }
 
 function readJson(req: http.IncomingMessage): Promise<Record<string, unknown>> {
@@ -116,8 +113,8 @@ function readJson(req: http.IncomingMessage): Promise<Record<string, unknown>> {
 }
 
 // GET /api/snek/members and PUT /api/snek/members/:id/(note|removal|name), for
-// web/src/views/SnekView.vue. Any logged-in user can read the list and set the notes and removal
-// flags, which everyone sees; names are admin-only.
+// web/src/views/SnekView.vue. Any logged-in user can read the list and set the names, notes and
+// removal flags, which everyone sees.
 export function handleSnekRoutes(req: http.IncomingMessage, res: http.ServerResponse): boolean {
   const url = (req.url ?? "/").split("?")[0];
   if (!url.startsWith("/api/snek/")) return false;
@@ -126,7 +123,7 @@ export function handleSnekRoutes(req: http.IncomingMessage, res: http.ServerResp
   if (!isValidSession(token)) { send401(res); return true; }
 
   if (url === "/api/snek/members" && method === "GET") {
-    const list = listMembers(getSessionUser(token)!.userId);
+    const list = listMembers();
     if (!list) sendJson(res, 503, { error: "The bot isn't connected to the server right now." });
     else sendJson(res, 200, list);
     return true;
@@ -159,7 +156,6 @@ export function handleSnekRoutes(req: http.IncomingMessage, res: http.ServerResp
   // site doesn't know yet gets a site user, the same as adding them on the Users page.
   const nameMatch = url.match(/^\/api\/snek\/members\/(\d+)\/name$/);
   if (nameMatch && method === "PUT") {
-    if (!isAdmin(getSessionUser(token)!.userId)) { sendJson(res, 403, { error: "Only admins can edit names" }); return true; }
     readJson(req).then(body => {
       const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ").slice(0, MAX_NAME_LENGTH) : "";
       const discordId = nameMatch[1];

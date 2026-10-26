@@ -30,8 +30,7 @@
                 <div class="snek-name">{{ m.displayName }}</div>
                 <div class="snek-username">@{{ m.username }}</div>
               </td>
-              <td v-if="!data?.canEditNames">{{ m.realName ?? '' }}</td>
-              <td v-else class="snek-name-cell">
+              <td class="snek-name-cell">
                 <input v-if="isEditing(m, 'realName')" v-model="draft" class="snek-edit-input" maxlength="60" placeholder="First Surname"
                   @keydown.enter.prevent="saveField(m, 'realName')" @keydown.esc="editing = null" @blur="saveField(m, 'realName')" v-focus />
                 <div v-else class="snek-editable" :class="{ empty: !m.realName }" @click="startEdit(m, 'realName')">
@@ -79,7 +78,7 @@ interface SnekMember {
   removal: Removal; removalBy: string | null; removalAt: string | null;
   messageCount: number; voiceSeconds: number; onlinePct: number | null; lastSeenAt: string | null;
 }
-interface SnekData { snekRole: string | null; presenceTracking: boolean; trackingSince: string | null; canEditNames: boolean; members: SnekMember[] }
+interface SnekData { snekRole: string | null; presenceTracking: boolean; trackingSince: string | null; members: SnekMember[] }
 type SortKey = 'name' | 'realName' | 'birthday' | 'messages' | 'voice' | 'online' | 'lastSeen' | 'removal';
 
 const vFocus = { mounted: (el: HTMLElement) => el.focus() };
