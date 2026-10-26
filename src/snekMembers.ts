@@ -3,7 +3,7 @@ import { PresenceUpdateStatus, type Client, type Guild, type Message, type Role 
 import { config } from "./config";
 import { sendJson, send401, isValidSession, getSessionUser, getTokenFromRequest } from "./auth";
 import { getBirthday } from "./birthdays";
-import { dbCountDiscordMessage, dbRecordDiscordSamples, dbGetDiscordMembers, dbSetDiscordMemberNote, dbSetDiscordMemberRemoval, dbGetRealNamesByDiscordId, dbGetUserById, dbFindUserByDiscordId, dbAddDiscordUser, dbUpdateUserFirstName, dbUpdateUserSurname, REMOVAL_FLAGS, type RemovalFlag } from "./db";
+import { dbCountDiscordMessage, dbRecordDiscordSamples, dbGetDiscordMembers, dbSetDiscordMemberNote, dbSetDiscordMemberRemoval, dbGetRealNamesByDiscordId, dbGetUserById, dbSetDiscordMemberRealName, REMOVAL_FLAGS, type RemovalFlag } from "./db";
 
 // The member list on the site's /snek page, and the stats behind it. Discord keeps no history of
 // who was online or in voice, so the bot samples everyone once a minute and adds it up itself.
@@ -66,6 +66,12 @@ function editorName(token: string): string {
   return dbGetUserById(user.userId)?.firstName || user.displayName;
 }
 
+const joinName = (n: { firstName: string | null; surname: string | null } | undefined) =>
+  n ? [n.firstName, n.surname].filter(Boolean).join(" ") || null : null;
+
+// The real name the photo site has for them, if they're one of its users.
+const siteName = (discordId: string) => joinName(dbGetRealNamesByDiscordId().get(discordId));
+
 function listMembers() {
   const guild = client?.guilds.cache.get(config.guildId);
   if (!guild) return null;
@@ -77,7 +83,6 @@ function listMembers() {
 
   const members = [...guild.members.cache.values()].filter(m => !m.user.bot).map(m => {
     const s = stats.get(m.id);
-    const name = realNames.get(m.id);
     return {
       discordId: m.id,
       displayName: m.displayName,
@@ -86,7 +91,8 @@ function listMembers() {
       isSnek: !!role && m.roles.cache.has(role.id),
       joinedAt: m.joinedAt?.toISOString() ?? null,
       birthday: getBirthday(m.id) ?? null,
-      realName: name ? [name.firstName, name.surname].filter(Boolean).join(" ") : null,
+      // A name typed in on this page wins over the site's.
+      realName: s?.realName ?? joinName(realNames.get(m.id)),
       status: presenceTracking ? (m.presence?.status ?? "offline") : null,
       note: s?.note ?? null,
       noteBy: s?.noteBy ?? null,
@@ -152,24 +158,14 @@ export function handleSnekRoutes(req: http.IncomingMessage, res: http.ServerResp
     return true;
   }
 
-  // { name: "First Surname" }: the first word is the first name, the rest the surname. A member the
-  // site doesn't know yet gets a site user, the same as adding them on the Users page.
+  // { name }: the name this page shows for them. It's kept here, not on the site's users, so the Users
+  // page is untouched; a blank name goes back to showing the site's name, if it has one.
   const nameMatch = url.match(/^\/api\/snek\/members\/(\d+)\/name$/);
   if (nameMatch && method === "PUT") {
     readJson(req).then(body => {
       const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ").slice(0, MAX_NAME_LENGTH) : "";
-      const discordId = nameMatch[1];
-      let userId = dbFindUserByDiscordId(discordId)?.userId;
-      if (!userId) {
-        const member = client?.guilds.cache.get(config.guildId)?.members.cache.get(discordId);
-        if (!member) { sendJson(res, 404, { error: "Not a member of the server" }); return; }
-        dbAddDiscordUser(discordId, member.user.displayName, member.user.displayAvatarURL({ extension: "png", size: 128 }));
-        userId = discordId;
-      }
-      const [firstName, ...rest] = name ? name.split(" ") : [];
-      dbUpdateUserFirstName(userId, firstName ?? null);
-      dbUpdateUserSurname(userId, rest.join(" ") || null);
-      sendJson(res, 200, { realName: name || null });
+      dbSetDiscordMemberRealName(nameMatch[1], name || null);
+      sendJson(res, 200, { realName: name || siteName(nameMatch[1]) });
     }).catch(() => sendJson(res, 400, { error: "Bad request" }));
     return true;
   }

@@ -126,7 +126,8 @@ export function initDb() {
       first_tracked_at  TEXT NOT NULL,
       removal_flag      INTEGER NOT NULL DEFAULT 0,
       removal_by        TEXT,
-      removal_at        TEXT
+      removal_at        TEXT,
+      real_name         TEXT
     );
   `);
   // Add new columns to existing DBs (safe to run repeatedly — fails silently if column exists)
@@ -178,6 +179,7 @@ export function initDb() {
     "ALTER TABLE discord_members ADD COLUMN removal_flag INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE discord_members ADD COLUMN removal_by TEXT",
     "ALTER TABLE discord_members ADD COLUMN removal_at TEXT",
+    "ALTER TABLE discord_members ADD COLUMN real_name TEXT",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
@@ -953,7 +955,7 @@ export function dbDeleteReview(id: number): void {
 
 export type DiscordMemberRow = {
   discordId: string; note: string | null; noteBy: string | null; noteAt: string | null;
-  removalFlag: number; removalBy: string | null; removalAt: string | null;
+  removalFlag: number; removalBy: string | null; removalAt: string | null; realName: string | null;
   messageCount: number; voiceSeconds: number; onlineSeconds: number; presenceSeconds: number;
   lastMessageAt: string | null; lastOnlineAt: string | null; lastVoiceAt: string | null; firstTrackedAt: string;
 };
@@ -961,7 +963,7 @@ export type DiscordMemberRow = {
 export function dbGetDiscordMembers(): DiscordMemberRow[] {
   return db.prepare(`
     SELECT discord_id AS discordId, note, note_by AS noteBy, note_at AS noteAt,
-      removal_flag AS removalFlag, removal_by AS removalBy, removal_at AS removalAt, message_count AS messageCount,
+      removal_flag AS removalFlag, removal_by AS removalBy, removal_at AS removalAt, real_name AS realName, message_count AS messageCount,
       voice_seconds AS voiceSeconds, online_seconds AS onlineSeconds, presence_seconds AS presenceSeconds,
       last_message_at AS lastMessageAt, last_online_at AS lastOnlineAt, last_voice_at AS lastVoiceAt, first_tracked_at AS firstTrackedAt
     FROM discord_members
@@ -1016,6 +1018,14 @@ export function dbSetDiscordMemberRemoval(discordId: string, flag: RemovalFlag |
     INSERT INTO discord_members (discord_id, removal_flag, removal_by, removal_at, first_tracked_at) VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(discord_id) DO UPDATE SET removal_flag = excluded.removal_flag, removal_by = excluded.removal_by, removal_at = excluded.removal_at
   `).run(discordId, flag ? REMOVAL_FLAGS[flag] : 0, flag ? by : null, flag ? now : null, now);
+}
+
+// The Snek page's own name for a member, separate from the site's users.
+export function dbSetDiscordMemberRealName(discordId: string, realName: string | null): void {
+  db.prepare(`
+    INSERT INTO discord_members (discord_id, real_name, first_tracked_at) VALUES (?, ?, ?)
+    ON CONFLICT(discord_id) DO UPDATE SET real_name = excluded.real_name
+  `).run(discordId, realName, new Date().toISOString());
 }
 
 export function dbSetDiscordMemberNote(discordId: string, note: string | null, by: string): void {
