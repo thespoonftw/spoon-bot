@@ -56,7 +56,7 @@
               <td class="snek-removal-cell">
                 <button class="snek-removal" :class="m.removal ? 'snek-removal--' + m.removal : ''" @click="cycleRemoval(m)"
                   :title="m.removal && m.removalBy ? `${m.removal === 'delete' ? 'Delete' : 'Maybe'}, set by ${m.removalBy}, ${new Date(m.removalAt!).toLocaleDateString()}` : 'Thinking of removing them from the server?'">
-                  {{ m.removal === 'delete' ? '✓' : m.removal === 'maybe' ? '~' : '' }}
+                  {{ m.removal === 'delete' ? '✕' : m.removal === 'maybe' ? '~' : '' }}
                 </button>
               </td>
             </tr>
