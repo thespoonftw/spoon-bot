@@ -35,10 +35,6 @@
         <span class="feature-icon">⭐</span>
         <h2>Reviews</h2>
       </router-link>
-      <router-link to="/snek" class="feature-card">
-        <span class="feature-icon">🐍</span>
-        <h2>Snek</h2>
-      </router-link>
     </div>
 
     <div v-if="(currentUser?.level ?? 0) >= 2" class="landing-admin-row">
