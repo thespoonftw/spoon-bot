@@ -1,6 +1,6 @@
 <template>
   <div class="page snek-page">
-    <PageHeader back-to="/" title="Snek Server" :subtitle="subtitle" />
+    <PageHeader back-to="/" :title="data?.title ?? 'Snek Server'" :subtitle="subtitle" :editable="!!data" @edit="startTitleEdit" />
 
     <p v-if="data && !data.presenceTracking" class="snek-notice">
       Online % and last seen need the bot's Presence intent, which is switched off in the Discord Developer Portal.
@@ -31,6 +31,13 @@
                 <div class="snek-username">@{{ m.username }}</div>
               </td>
               <td>{{ m.realName ?? '' }}</td>
+              <td class="snek-location-cell">
+                <input v-if="isEditing(m, 'location')" v-model="draft" class="snek-edit-input" maxlength="100"
+                  @keydown.enter.prevent="saveField(m, 'location')" @keydown.esc="editing = null" @blur="saveField(m, 'location')" v-focus />
+                <div v-else class="snek-editable" :class="{ empty: !m.location }" @click="startEdit(m, 'location')">
+                  {{ m.location || '+ location' }}
+                </div>
+              </td>
               <td class="snek-nowrap">{{ m.birthday ? formatBirthday(m.birthday) : '' }}</td>
               <td class="snek-num">{{ m.messageCount }}</td>
               <td class="snek-num snek-nowrap">{{ formatDuration(m.voiceSeconds) }}</td>
@@ -39,9 +46,9 @@
                 {{ m.status && m.status !== 'offline' ? 'Online now' : m.lastSeenAt ? timeAgo(m.lastSeenAt) : '' }}
               </td>
               <td class="snek-note-cell">
-                <textarea v-if="editingId === m.discordId" v-model="draft" class="snek-note-input" rows="2" maxlength="500"
-                  @keydown.enter.exact.prevent="saveNote(m)" @keydown.esc="editingId = null" @blur="saveNote(m)" v-focus></textarea>
-                <div v-else class="snek-note" :class="{ empty: !m.note }" @click="startEdit(m)"
+                <textarea v-if="isEditing(m, 'note')" v-model="draft" class="snek-edit-input" rows="2" maxlength="500"
+                  @keydown.enter.exact.prevent="saveField(m, 'note')" @keydown.esc="editing = null" @blur="saveField(m, 'note')" v-focus></textarea>
+                <div v-else class="snek-editable snek-note" :class="{ empty: !m.note }" @click="startEdit(m, 'note')"
                   :title="m.note && m.noteBy ? `${m.noteBy}, ${new Date(m.noteAt!).toLocaleDateString()}` : 'Add a note'">
                   {{ m.note || '+ note' }}
                 </div>
@@ -51,6 +58,20 @@
         </table>
       </div>
     </template>
+  </div>
+
+  <div class="modal-overlay" v-if="editingTitle">
+    <div class="modal">
+      <button class="modal-close" @click="editingTitle = false">✕</button>
+      <h2>Rename Page</h2>
+      <div class="form-group">
+        <label>Title</label>
+        <input v-model="titleDraft" type="text" maxlength="60" @keydown.enter="saveTitle" v-focus />
+      </div>
+      <div class="modal-actions">
+        <button class="btn-primary" @click="saveTitle" :disabled="!titleDraft.trim()">Save</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -62,16 +83,17 @@ import PageHeader from "../components/PageHeader.vue";
 interface SnekMember {
   discordId: string; displayName: string; username: string; avatarUrl: string; isSnek: boolean; joinedAt: string | null;
   birthday: string | null; realName: string | null; status: string | null; note: string | null; noteBy: string | null; noteAt: string | null;
-  messageCount: number; voiceSeconds: number; onlinePct: number | null; lastSeenAt: string | null;
+  location: string | null; messageCount: number; voiceSeconds: number; onlinePct: number | null; lastSeenAt: string | null;
 }
-interface SnekData { snekRole: string | null; presenceTracking: boolean; trackingSince: string | null; members: SnekMember[] }
-type SortKey = 'name' | 'realName' | 'birthday' | 'messages' | 'voice' | 'online' | 'lastSeen';
+interface SnekData { title: string; snekRole: string | null; presenceTracking: boolean; trackingSince: string | null; members: SnekMember[] }
+type SortKey = 'name' | 'realName' | 'location' | 'birthday' | 'messages' | 'voice' | 'online' | 'lastSeen';
 
 const vFocus = { mounted: (el: HTMLElement) => el.focus() };
 
 const columns: { key: SortKey | 'note'; label: string; sort: boolean }[] = [
   { key: 'name', label: 'Discord', sort: true },
   { key: 'realName', label: 'Name', sort: true },
+  { key: 'location', label: 'Location', sort: true },
   { key: 'birthday', label: 'Birthday', sort: true },
   { key: 'messages', label: 'Messages', sort: true },
   { key: 'voice', label: 'Voice', sort: true },
@@ -85,8 +107,11 @@ const loading = ref(true);
 const error = ref('');
 const sortKey = ref<SortKey>('name');
 const sortDesc = ref(false);
-const editingId = ref<string | null>(null);
+type EditableField = 'note' | 'location';
+const editing = ref<{ id: string; field: EditableField } | null>(null);
 const draft = ref('');
+const editingTitle = ref(false);
+const titleDraft = ref('');
 
 const subtitle = computed(() => data.value?.trackingSince
   ? `Stats since ${new Date(data.value.trackingSince).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`
@@ -99,6 +124,7 @@ function sortValue(m: SnekMember): string | number | null {
   switch (sortKey.value) {
     case 'name': return m.displayName.toLowerCase();
     case 'realName': return m.realName?.toLowerCase() || null;
+    case 'location': return m.location?.toLowerCase() || null;
     case 'birthday': return birthdayKey(m.birthday);
     case 'messages': return m.messageCount;
     case 'voice': return m.voiceSeconds;
@@ -160,19 +186,34 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function startEdit(m: SnekMember) {
-  editingId.value = m.discordId;
-  draft.value = m.note ?? '';
+const isEditing = (m: SnekMember, field: EditableField) => editing.value?.id === m.discordId && editing.value.field === field;
+
+function startEdit(m: SnekMember, field: EditableField) {
+  editing.value = { id: m.discordId, field };
+  draft.value = m[field] ?? '';
 }
 
-async function saveNote(m: SnekMember) {
-  if (editingId.value !== m.discordId) return;
-  editingId.value = null;
-  const note = draft.value.trim();
-  if (note === (m.note ?? '')) return;
-  const res = await fetch(`/api/snek/members/${m.discordId}/note`, { method: 'PUT', headers: authJsonHeaders(), body: JSON.stringify({ note }) });
+async function saveField(m: SnekMember, field: EditableField) {
+  if (!isEditing(m, field)) return;
+  editing.value = null;
+  const value = draft.value.trim();
+  if (value === (m[field] ?? '')) return;
+  const res = await fetch(`/api/snek/members/${m.discordId}/${field}`, { method: 'PUT', headers: authJsonHeaders(), body: JSON.stringify({ [field]: value }) });
   if (res.ok) Object.assign(m, await res.json());
-  else error.value = "Couldn't save that note.";
+  else error.value = `Couldn't save that ${field}.`;
+}
+
+function startTitleEdit() {
+  titleDraft.value = data.value?.title ?? '';
+  editingTitle.value = true;
+}
+
+async function saveTitle() {
+  const title = titleDraft.value.trim();
+  if (!title || !data.value) return;
+  const res = await fetch('/api/snek/title', { method: 'PUT', headers: authJsonHeaders(), body: JSON.stringify({ title }) });
+  if (res.ok) { data.value.title = (await res.json()).title; editingTitle.value = false; }
+  else error.value = "Couldn't rename the page.";
 }
 
 onMounted(async () => {
@@ -208,10 +249,12 @@ onMounted(async () => {
 .snek-num { text-align: right; font-variant-numeric: tabular-nums; }
 .snek-nowrap { white-space: nowrap; }
 .snek-note-cell { min-width: 180px; max-width: 320px; }
-.snek-note { cursor: pointer; border-radius: 6px; padding: 4px 6px; margin: -4px -6px; white-space: pre-wrap; word-break: break-word; user-select: text; }
-.snek-note:hover { background: #45475a; }
-.snek-note.empty { color: #6c7086; font-size: 0.85em; opacity: 0; }
-tr:hover .snek-note.empty { opacity: 1; }
-.snek-note-input { width: 100%; background: #1e1e2e; border: 1px solid #cba6f7; border-radius: 6px; padding: 4px 6px; color: #cdd6f4; font: inherit; resize: vertical; outline: none; }
-@media (hover: none) { .snek-note.empty { opacity: 1; } }
+.snek-location-cell { min-width: 110px; max-width: 180px; }
+.snek-editable { cursor: pointer; border-radius: 6px; padding: 4px 6px; margin: -4px -6px; word-break: break-word; user-select: text; }
+.snek-editable:hover { background: #45475a; }
+.snek-editable.empty { color: #6c7086; font-size: 0.85em; opacity: 0; white-space: nowrap; }
+tr:hover .snek-editable.empty { opacity: 1; }
+.snek-note { white-space: pre-wrap; }
+.snek-edit-input { width: 100%; background: #1e1e2e; border: 1px solid #cba6f7; border-radius: 6px; padding: 4px 6px; color: #cdd6f4; font: inherit; resize: vertical; outline: none; }
+@media (hover: none) { .snek-editable.empty { opacity: 1; } }
 </style>

@@ -123,7 +123,12 @@ export function initDb() {
       last_message_at   TEXT,
       last_online_at    TEXT,
       last_voice_at     TEXT,
-      first_tracked_at  TEXT NOT NULL
+      first_tracked_at  TEXT NOT NULL,
+      location          TEXT
+    );
+    CREATE TABLE IF NOT EXISTS site_settings (
+      key    TEXT PRIMARY KEY,
+      value  TEXT NOT NULL
     );
   `);
   // Add new columns to existing DBs (safe to run repeatedly — fails silently if column exists)
@@ -170,6 +175,7 @@ export function initDb() {
     "ALTER TABLE reviews ADD COLUMN location_url TEXT",
     "ALTER TABLE reviews ADD COLUMN discord_channel_id TEXT",
     "ALTER TABLE reviews ADD COLUMN discord_message_id TEXT",
+    "ALTER TABLE discord_members ADD COLUMN location TEXT",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
@@ -944,14 +950,14 @@ export function dbDeleteReview(id: number): void {
 // ── Discord member stats (the /snek page) ────────────────────────────────────
 
 export type DiscordMemberRow = {
-  discordId: string; note: string | null; noteBy: string | null; noteAt: string | null;
+  discordId: string; note: string | null; noteBy: string | null; noteAt: string | null; location: string | null;
   messageCount: number; voiceSeconds: number; onlineSeconds: number; presenceSeconds: number;
   lastMessageAt: string | null; lastOnlineAt: string | null; lastVoiceAt: string | null; firstTrackedAt: string;
 };
 
 export function dbGetDiscordMembers(): DiscordMemberRow[] {
   return db.prepare(`
-    SELECT discord_id AS discordId, note, note_by AS noteBy, note_at AS noteAt, message_count AS messageCount,
+    SELECT discord_id AS discordId, note, note_by AS noteBy, note_at AS noteAt, location, message_count AS messageCount,
       voice_seconds AS voiceSeconds, online_seconds AS onlineSeconds, presence_seconds AS presenceSeconds,
       last_message_at AS lastMessageAt, last_online_at AS lastOnlineAt, last_voice_at AS lastVoiceAt, first_tracked_at AS firstTrackedAt
     FROM discord_members
@@ -1002,6 +1008,21 @@ export function dbSetDiscordMemberNote(discordId: string, note: string | null, b
     INSERT INTO discord_members (discord_id, note, note_by, note_at, first_tracked_at) VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(discord_id) DO UPDATE SET note = excluded.note, note_by = excluded.note_by, note_at = excluded.note_at
   `).run(discordId, note, by, now, now);
+}
+
+export function dbSetDiscordMemberLocation(discordId: string, location: string | null): void {
+  db.prepare(`
+    INSERT INTO discord_members (discord_id, location, first_tracked_at) VALUES (?, ?, ?)
+    ON CONFLICT(discord_id) DO UPDATE SET location = excluded.location
+  `).run(discordId, location, new Date().toISOString());
+}
+
+export function dbGetSetting(key: string): string | undefined {
+  return (db.prepare("SELECT value FROM site_settings WHERE key = ?").get(key) as { value: string } | undefined)?.value;
+}
+
+export function dbSetSetting(key: string, value: string): void {
+  db.prepare("INSERT INTO site_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(key, value);
 }
 
 // Real names the site knows, keyed by Discord ID.

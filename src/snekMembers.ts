@@ -3,13 +3,17 @@ import { PresenceUpdateStatus, type Client, type Guild, type Message, type Role 
 import { config } from "./config";
 import { sendJson, send401, isValidSession, getSessionUser, getTokenFromRequest } from "./auth";
 import { getBirthday } from "./birthdays";
-import { dbCountDiscordMessage, dbRecordDiscordSamples, dbGetDiscordMembers, dbSetDiscordMemberNote, dbGetRealNamesByDiscordId, dbGetUserById } from "./db";
+import { dbCountDiscordMessage, dbRecordDiscordSamples, dbGetDiscordMembers, dbSetDiscordMemberNote, dbGetRealNamesByDiscordId, dbGetUserById, dbSetDiscordMemberLocation, dbGetSetting, dbSetSetting } from "./db";
 
 // The member list on the site's /snek page, and the stats behind it. Discord keeps no history of
 // who was online or in voice, so the bot samples everyone once a minute and adds it up itself.
 
 const SAMPLE_INTERVAL_S = 60;
 const MAX_NOTE_LENGTH = 500;
+const MAX_LOCATION_LENGTH = 100;
+const MAX_TITLE_LENGTH = 60;
+const TITLE_SETTING = "snek_page_title";
+const DEFAULT_TITLE = "Snek Server";
 
 let client: Client | null = null;
 let presenceTracking = false;
@@ -84,13 +88,14 @@ function listMembers() {
       note: s?.note ?? null,
       noteBy: s?.noteBy ?? null,
       noteAt: s?.noteAt ?? null,
+      location: s?.location ?? null,
       messageCount: s?.messageCount ?? 0,
       voiceSeconds: s?.voiceSeconds ?? 0,
       onlinePct: s && s.presenceSeconds > 0 ? Math.round(100 * s.onlineSeconds / s.presenceSeconds) : null,
       lastSeenAt: latest(s?.lastOnlineAt, s?.lastMessageAt, s?.lastVoiceAt),
     };
   });
-  return { snekRole: role?.name ?? null, presenceTracking, trackingSince, members };
+  return { title: dbGetSetting(TITLE_SETTING) ?? DEFAULT_TITLE, snekRole: role?.name ?? null, presenceTracking, trackingSince, members };
 }
 
 function readJson(req: http.IncomingMessage): Promise<Record<string, unknown>> {
@@ -102,8 +107,9 @@ function readJson(req: http.IncomingMessage): Promise<Record<string, unknown>> {
   });
 }
 
-// GET /api/snek/members and PUT /api/snek/members/:id/note, for web/src/views/SnekView.vue.
-// Any logged-in user can read the list and edit the notes, which everyone sees.
+// GET /api/snek/members, PUT /api/snek/members/:id/note, PUT /api/snek/members/:id/location and
+// PUT /api/snek/title, for web/src/views/SnekView.vue. Any logged-in user can read the list and edit
+// the notes, locations and page title, which everyone sees.
 export function handleSnekRoutes(req: http.IncomingMessage, res: http.ServerResponse): boolean {
   const url = (req.url ?? "/").split("?")[0];
   if (!url.startsWith("/api/snek/")) return false;
@@ -126,6 +132,25 @@ export function handleSnekRoutes(req: http.IncomingMessage, res: http.ServerResp
       const by = dbGetUserById(user.userId)?.firstName || user.displayName;
       dbSetDiscordMemberNote(noteMatch[1], note || null, by);
       sendJson(res, 200, { note: note || null, noteBy: by, noteAt: new Date().toISOString() });
+    }).catch(() => sendJson(res, 400, { error: "Bad request" }));
+    return true;
+  }
+
+  const locationMatch = url.match(/^\/api\/snek\/members\/(\d+)\/location$/);
+  if (locationMatch && method === "PUT") {
+    readJson(req).then(body => {
+      const location = typeof body.location === "string" ? body.location.trim().slice(0, MAX_LOCATION_LENGTH) : "";
+      dbSetDiscordMemberLocation(locationMatch[1], location || null);
+      sendJson(res, 200, { location: location || null });
+    }).catch(() => sendJson(res, 400, { error: "Bad request" }));
+    return true;
+  }
+
+  if (url === "/api/snek/title" && method === "PUT") {
+    readJson(req).then(body => {
+      const title = typeof body.title === "string" ? body.title.trim().slice(0, MAX_TITLE_LENGTH) : "";
+      dbSetSetting(TITLE_SETTING, title || DEFAULT_TITLE);
+      sendJson(res, 200, { title: title || DEFAULT_TITLE });
     }).catch(() => sendJson(res, 400, { error: "Bad request" }));
     return true;
   }
