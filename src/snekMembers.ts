@@ -3,7 +3,7 @@ import { PresenceUpdateStatus, type Client, type Guild, type Message, type Role 
 import { config } from "./config";
 import { sendJson, send401, isValidSession, getSessionUser, getTokenFromRequest } from "./auth";
 import { getBirthday } from "./birthdays";
-import { dbCountDiscordMessage, dbRecordDiscordSamples, dbGetDiscordMembers, dbSetDiscordMemberNote, dbSetDiscordMemberRemoval, dbGetRealNamesByDiscordId, dbGetUserById, dbFindUserByDiscordId, dbAddDiscordUser, dbUpdateUserFirstName, dbUpdateUserSurname } from "./db";
+import { dbCountDiscordMessage, dbRecordDiscordSamples, dbGetDiscordMembers, dbSetDiscordMemberNote, dbSetDiscordMemberRemoval, dbGetRealNamesByDiscordId, dbGetUserById, dbFindUserByDiscordId, dbAddDiscordUser, dbUpdateUserFirstName, dbUpdateUserSurname, REMOVAL_FLAGS, type RemovalFlag } from "./db";
 
 // The member list on the site's /snek page, and the stats behind it. Discord keeps no history of
 // who was online or in voice, so the bot samples everyone once a minute and adds it up itself.
@@ -94,7 +94,7 @@ function listMembers(viewerId: string) {
       note: s?.note ?? null,
       noteBy: s?.noteBy ?? null,
       noteAt: s?.noteAt ?? null,
-      removal: !!s?.removalFlag,
+      removal: (Object.keys(REMOVAL_FLAGS) as RemovalFlag[]).find(k => REMOVAL_FLAGS[k] === s?.removalFlag) ?? null,
       removalBy: s?.removalBy ?? null,
       removalAt: s?.removalAt ?? null,
       messageCount: s?.messageCount ?? 0,
@@ -143,14 +143,14 @@ export function handleSnekRoutes(req: http.IncomingMessage, res: http.ServerResp
     return true;
   }
 
-  // { removal: true/false }: the "thinking of removing them" flag.
+  // { removal: "delete" | "maybe" | null }: the "thinking of removing them" flag.
   const removalMatch = url.match(/^\/api\/snek\/members\/(\d+)\/removal$/);
   if (removalMatch && method === "PUT") {
     readJson(req).then(body => {
-      const flagged = body.removal === true;
+      const flag = body.removal === "delete" || body.removal === "maybe" ? body.removal : null;
       const by = editorName(token);
-      dbSetDiscordMemberRemoval(removalMatch[1], flagged, by);
-      sendJson(res, 200, { removal: flagged, removalBy: flagged ? by : null, removalAt: flagged ? new Date().toISOString() : null });
+      dbSetDiscordMemberRemoval(removalMatch[1], flag, by);
+      sendJson(res, 200, { removal: flag, removalBy: flag ? by : null, removalAt: flag ? new Date().toISOString() : null });
     }).catch(() => sendJson(res, 400, { error: "Bad request" }));
     return true;
   }

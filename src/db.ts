@@ -1007,12 +1007,15 @@ export function dbRecordDiscordSamples(samples: DiscordMemberSample[], seconds: 
 }
 
 // Flags a member as someone we're thinking of removing from the server, for everyone to see.
-export function dbSetDiscordMemberRemoval(discordId: string, flagged: boolean, by: string): void {
+// removal_flag: 0 = no, 1 = delete, 2 = maybe.
+export const REMOVAL_FLAGS = { delete: 1, maybe: 2 } as const;
+export type RemovalFlag = keyof typeof REMOVAL_FLAGS;
+export function dbSetDiscordMemberRemoval(discordId: string, flag: RemovalFlag | null, by: string): void {
   const now = new Date().toISOString();
   db.prepare(`
     INSERT INTO discord_members (discord_id, removal_flag, removal_by, removal_at, first_tracked_at) VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(discord_id) DO UPDATE SET removal_flag = excluded.removal_flag, removal_by = excluded.removal_by, removal_at = excluded.removal_at
-  `).run(discordId, flagged ? 1 : 0, flagged ? by : null, flagged ? now : null, now);
+  `).run(discordId, flag ? REMOVAL_FLAGS[flag] : 0, flag ? by : null, flag ? now : null, now);
 }
 
 export function dbSetDiscordMemberNote(discordId: string, note: string | null, by: string): void {

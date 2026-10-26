@@ -21,7 +21,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="m in section.members" :key="m.discordId" :class="{ 'snek-row--removal': m.removal }">
+            <tr v-for="m in section.members" :key="m.discordId" :class="m.removal ? 'snek-row--' + m.removal : ''">
               <td class="snek-avatar-cell">
                 <img :src="m.avatarUrl" class="snek-avatar" />
                 <span v-if="m.status" class="snek-status" :class="'snek-status--' + m.status" :title="m.status"></span>
@@ -53,8 +53,11 @@
                   {{ m.note || '+ note' }}
                 </div>
               </td>
-              <td class="snek-removal-cell" :title="m.removal && m.removalBy ? `Ticked by ${m.removalBy}, ${new Date(m.removalAt!).toLocaleDateString()}` : 'Thinking of removing them from the server'">
-                <input type="checkbox" :checked="m.removal" @change="setRemoval(m, ($event.target as HTMLInputElement).checked)" />
+              <td class="snek-removal-cell">
+                <button class="snek-removal" :class="m.removal ? 'snek-removal--' + m.removal : ''" @click="cycleRemoval(m)"
+                  :title="m.removal && m.removalBy ? `${m.removal === 'delete' ? 'Delete' : 'Maybe'}, set by ${m.removalBy}, ${new Date(m.removalAt!).toLocaleDateString()}` : 'Thinking of removing them from the server?'">
+                  {{ m.removal === 'delete' ? '✓' : m.removal === 'maybe' ? '~' : '' }}
+                </button>
               </td>
             </tr>
           </tbody>
@@ -69,10 +72,11 @@ import { ref, computed, onMounted } from "vue";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 import PageHeader from "../components/PageHeader.vue";
 
+type Removal = 'maybe' | 'delete' | null;
 interface SnekMember {
   discordId: string; displayName: string; username: string; avatarUrl: string; isSnek: boolean; joinedAt: string | null;
   birthday: string | null; realName: string | null; status: string | null; note: string | null; noteBy: string | null; noteAt: string | null;
-  removal: boolean; removalBy: string | null; removalAt: string | null;
+  removal: Removal; removalBy: string | null; removalAt: string | null;
   messageCount: number; voiceSeconds: number; onlinePct: number | null; lastSeenAt: string | null;
 }
 interface SnekData { snekRole: string | null; presenceTracking: boolean; trackingSince: string | null; canEditNames: boolean; members: SnekMember[] }
@@ -119,7 +123,7 @@ function sortValue(m: SnekMember): string | number | null {
     case 'voice': return m.voiceSeconds;
     case 'online': return m.onlinePct;
     case 'lastSeen': return m.status && m.status !== 'offline' ? '9' : m.lastSeenAt;
-    case 'removal': return m.removal ? 1 : null;
+    case 'removal': return m.removal === 'delete' ? 2 : m.removal === 'maybe' ? 1 : null;
   }
 }
 
@@ -194,11 +198,16 @@ async function saveField(m: SnekMember, field: EditableField) {
   else error.value = `Couldn't save that ${api}.`;
 }
 
-async function setRemoval(m: SnekMember, removal: boolean) {
+// Each click steps blank → maybe → delete → blank.
+const NEXT_REMOVAL: Record<string, Removal> = { none: 'maybe', maybe: 'delete', delete: null };
+
+async function cycleRemoval(m: SnekMember) {
+  const previous = m.removal;
+  const removal = NEXT_REMOVAL[previous ?? 'none'];
   m.removal = removal;
   const res = await fetch(`/api/snek/members/${m.discordId}/removal`, { method: 'PUT', headers: authJsonHeaders(), body: JSON.stringify({ removal }) });
   if (res.ok) Object.assign(m, await res.json());
-  else { m.removal = !removal; error.value = "Couldn't save that."; }
+  else { m.removal = previous; error.value = "Couldn't save that."; }
 }
 
 onMounted(async () => {
@@ -236,9 +245,14 @@ onMounted(async () => {
 .snek-note-cell { min-width: 180px; max-width: 320px; }
 .snek-name-cell { min-width: 120px; }
 .snek-removal-cell { text-align: center; }
-.snek-removal-cell input { width: 16px; height: 16px; cursor: pointer; accent-color: #f38ba8; }
-.snek-table tbody tr.snek-row--removal { background: rgba(243, 139, 168, 0.12); }
-.snek-table tbody tr.snek-row--removal:hover { background: rgba(243, 139, 168, 0.18); }
+.snek-removal { width: 20px; height: 20px; border-radius: 4px; border: 2px solid #6c7086; background: transparent; color: #1e1e2e; font-weight: 800; font-size: 0.85em; line-height: 1; padding: 0; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.snek-removal:hover { border-color: #a6adc8; }
+.snek-removal--maybe { background: #f9e2af; border-color: #f9e2af; font-size: 1.05em; }
+.snek-removal--delete { background: #f38ba8; border-color: #f38ba8; }
+.snek-table tbody tr.snek-row--maybe { background: rgba(249, 226, 175, 0.10); }
+.snek-table tbody tr.snek-row--maybe:hover { background: rgba(249, 226, 175, 0.16); }
+.snek-table tbody tr.snek-row--delete { background: rgba(243, 139, 168, 0.12); }
+.snek-table tbody tr.snek-row--delete:hover { background: rgba(243, 139, 168, 0.18); }
 .snek-editable { cursor: pointer; border-radius: 6px; padding: 4px 6px; margin: -4px -6px; word-break: break-word; user-select: text; }
 .snek-editable:hover { background: #45475a; }
 .snek-editable.empty { color: #6c7086; font-size: 0.85em; opacity: 0; white-space: nowrap; }
