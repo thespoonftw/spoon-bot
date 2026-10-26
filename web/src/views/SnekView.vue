@@ -37,6 +37,7 @@
                   {{ m.realName || '+ name' }}
                 </div>
               </td>
+              <td class="snek-nowrap">{{ m.joinedAt ? formatDate(m.joinedAt) : '' }}</td>
               <td class="snek-num">{{ m.messageCount }}</td>
               <td class="snek-num snek-nowrap">{{ formatDuration(m.voiceSeconds) }}</td>
               <td class="snek-num">{{ m.onlinePct === null ? '' : m.onlinePct + '%' }}</td>
@@ -78,13 +79,14 @@ interface SnekMember {
   messageCount: number; voiceSeconds: number; onlinePct: number | null; lastSeenAt: string | null;
 }
 interface SnekData { snekRole: string | null; presenceTracking: boolean; trackingSince: string | null; members: SnekMember[] }
-type SortKey = 'name' | 'realName' | 'messages' | 'voice' | 'online' | 'lastSeen' | 'removal';
+type SortKey = 'name' | 'realName' | 'joined' | 'messages' | 'voice' | 'online' | 'lastSeen' | 'removal';
 
 const vFocus = { mounted: (el: HTMLElement) => el.focus() };
 
 const columns: { key: SortKey | 'note'; label: string; sort: boolean }[] = [
   { key: 'name', label: 'Discord', sort: true },
   { key: 'realName', label: 'Name', sort: true },
+  { key: 'joined', label: 'Joined', sort: true },
   { key: 'messages', label: 'Messages', sort: true },
   { key: 'voice', label: 'Voice', sort: true },
   { key: 'online', label: 'Online %', sort: true },
@@ -113,6 +115,7 @@ function sortValue(m: SnekMember): string | number | null {
   switch (sortKey.value) {
     case 'name': return m.displayName.toLowerCase();
     case 'realName': return m.realName?.toLowerCase() || null;
+    case 'joined': return m.joinedAt;
     case 'messages': return m.messageCount;
     case 'voice': return m.voiceSeconds;
     case 'online': return m.onlinePct;
@@ -158,6 +161,8 @@ function formatDuration(seconds: number): string {
   return h ? `${h}h ${m}m` : `${m}m`;
 }
 
+const formatDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+
 function timeAgo(iso: string): string {
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
   if (mins < 60) return mins <= 1 ? 'Just now' : `${mins} mins ago`;
@@ -165,7 +170,7 @@ function timeAgo(iso: string): string {
   if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
   const days = Math.round(hours / 24);
   if (days < 60) return days === 1 ? 'Yesterday' : `${days} days ago`;
-  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return formatDate(iso);
 }
 
 const isEditing = (m: SnekMember, field: EditableField) => editing.value?.id === m.discordId && editing.value.field === field;
