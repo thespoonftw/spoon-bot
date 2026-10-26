@@ -2,7 +2,6 @@ import http from "http";
 import { PresenceUpdateStatus, type Client, type Guild, type Message, type Role } from "discord.js";
 import { config } from "./config";
 import { sendJson, send401, isValidSession, getSessionUser, getTokenFromRequest } from "./auth";
-import { getBirthday } from "./birthdays";
 import { dbCountDiscordMessage, dbRecordDiscordSamples, dbGetDiscordMembers, dbSetDiscordMemberNote, dbSetDiscordMemberRemoval, dbGetRealNamesByDiscordId, dbGetUserById, dbSetDiscordMemberRealName, REMOVAL_FLAGS, type RemovalFlag } from "./db";
 
 // The member list on the site's /snek page, and the stats behind it. Discord keeps no history of
@@ -90,7 +89,6 @@ function listMembers() {
       avatarUrl: m.displayAvatarURL({ extension: "png", size: 64 }),
       isSnek: !!role && m.roles.cache.has(role.id),
       joinedAt: m.joinedAt?.toISOString() ?? null,
-      birthday: getBirthday(m.id) ?? null,
       // A name typed in on this page wins over the site's.
       realName: s?.realName ?? joinName(realNames.get(m.id)),
       status: presenceTracking ? (m.presence?.status ?? "offline") : null,

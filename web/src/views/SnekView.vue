@@ -37,7 +37,6 @@
                   {{ m.realName || '+ name' }}
                 </div>
               </td>
-              <td class="snek-nowrap">{{ m.birthday ? formatBirthday(m.birthday) : '' }}</td>
               <td class="snek-num">{{ m.messageCount }}</td>
               <td class="snek-num snek-nowrap">{{ formatDuration(m.voiceSeconds) }}</td>
               <td class="snek-num">{{ m.onlinePct === null ? '' : m.onlinePct + '%' }}</td>
@@ -74,19 +73,18 @@ import PageHeader from "../components/PageHeader.vue";
 type Removal = 'maybe' | 'delete' | null;
 interface SnekMember {
   discordId: string; displayName: string; username: string; avatarUrl: string; isSnek: boolean; joinedAt: string | null;
-  birthday: string | null; realName: string | null; status: string | null; note: string | null; noteBy: string | null; noteAt: string | null;
+  realName: string | null; status: string | null; note: string | null; noteBy: string | null; noteAt: string | null;
   removal: Removal; removalBy: string | null; removalAt: string | null;
   messageCount: number; voiceSeconds: number; onlinePct: number | null; lastSeenAt: string | null;
 }
 interface SnekData { snekRole: string | null; presenceTracking: boolean; trackingSince: string | null; members: SnekMember[] }
-type SortKey = 'name' | 'realName' | 'birthday' | 'messages' | 'voice' | 'online' | 'lastSeen' | 'removal';
+type SortKey = 'name' | 'realName' | 'messages' | 'voice' | 'online' | 'lastSeen' | 'removal';
 
 const vFocus = { mounted: (el: HTMLElement) => el.focus() };
 
 const columns: { key: SortKey | 'note'; label: string; sort: boolean }[] = [
   { key: 'name', label: 'Discord', sort: true },
   { key: 'realName', label: 'Name', sort: true },
-  { key: 'birthday', label: 'Birthday', sort: true },
   { key: 'messages', label: 'Messages', sort: true },
   { key: 'voice', label: 'Voice', sort: true },
   { key: 'online', label: 'Online %', sort: true },
@@ -110,14 +108,11 @@ const subtitle = computed(() => data.value?.trackingSince
   ? `Stats since ${new Date(data.value.trackingSince).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`
   : undefined);
 
-// Birthdays sort by when they fall in the year, "DD/MM" → MMDD.
-const birthdayKey = (b: string | null) => b ? b.split('/').reverse().join('') : null;
 
 function sortValue(m: SnekMember): string | number | null {
   switch (sortKey.value) {
     case 'name': return m.displayName.toLowerCase();
     case 'realName': return m.realName?.toLowerCase() || null;
-    case 'birthday': return birthdayKey(m.birthday);
     case 'messages': return m.messageCount;
     case 'voice': return m.voiceSeconds;
     case 'online': return m.onlinePct;
@@ -155,12 +150,6 @@ function setSort(key: SortKey | 'note') {
     // Numbers and dates read best biggest/latest first.
     sortDesc.value = ['messages', 'voice', 'online', 'lastSeen', 'removal'].includes(key);
   }
-}
-
-function formatBirthday(date: string): string {
-  const [day, month] = date.split('/').map(Number);
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${day} ${months[month - 1]}`;
 }
 
 function formatDuration(seconds: number): string {
