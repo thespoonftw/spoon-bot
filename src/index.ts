@@ -3,6 +3,7 @@ import {
   Client,
   Events,
   GatewayIntentBits,
+  IntentsBitField,
   OverwriteType,
   Partials,
   PermissionFlagsBits,
@@ -23,6 +24,7 @@ import { initAuth } from "./auth";
 import { startArchipelagoRelay } from "./archipelago";
 import { setReviewsDiscordClient } from "./reviews";
 import { startLocationShares, handleLocationInteractions } from "./location";
+import { hasPresenceIntent, startSnekTracking, countSnekMessage } from "./snekMembers";
 
 dotenv.config();
 
@@ -33,6 +35,7 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildVoiceStates,
   ],
   partials: [Partials.Message, Partials.Reaction, Partials.Channel],
 });
@@ -49,6 +52,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   setAlbumDiscordClient(readyClient);
   setReviewsDiscordClient(readyClient);
   if (config.albumsEnabled) startLocationShares(readyClient);
+  if (config.albumsEnabled) startSnekTracking(readyClient, presenceIntent);
   setUpdateEventMessages(updateEventMessages);
   await initAuth(readyClient);
   startArchipelagoRelay(readyClient);
@@ -147,6 +151,7 @@ if (eventStates.size > 0) {
 
 client.on(Events.MessageCreate, async (message: Message) => {
   if (message.author.bot) return;
+  if (config.albumsEnabled) countSnekMessage(message);
   await handleAlbumMessageCreate(message).catch(e => console.error("Album message create error:", e));
 
   if (process.env.HEADER_MESSAGE_ID && message.channelId === config.eventChannelId) {
@@ -222,4 +227,11 @@ process.on('exit', (code) => { console.log(`Process exiting with code ${code}`);
 process.on('SIGTERM', () => { console.log('Received SIGTERM'); process.exit(0); });
 process.on('SIGHUP', () => { console.log('Received SIGHUP'); process.exit(0); });
 
-client.login(process.env.DISCORD_TOKEN);
+// Presences (online time on the /snek page) are asked for only when the Developer Portal allows them,
+// since asking without that permission gets the login refused.
+let presenceIntent = false;
+hasPresenceIntent(process.env.DISCORD_TOKEN ?? "").then(allowed => {
+  presenceIntent = allowed;
+  if (allowed) client.options.intents = new IntentsBitField(client.options.intents).add(GatewayIntentBits.GuildPresences).freeze();
+  return client.login(process.env.DISCORD_TOKEN);
+});

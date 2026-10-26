@@ -111,6 +111,20 @@ export function initDb() {
       updated_at  TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS reviews_created_at ON reviews(created_at);
+    CREATE TABLE IF NOT EXISTS discord_members (
+      discord_id        TEXT PRIMARY KEY,
+      note              TEXT,
+      note_by           TEXT,
+      note_at           TEXT,
+      message_count     INTEGER NOT NULL DEFAULT 0,
+      voice_seconds     INTEGER NOT NULL DEFAULT 0,
+      online_seconds    INTEGER NOT NULL DEFAULT 0,
+      presence_seconds  INTEGER NOT NULL DEFAULT 0,
+      last_message_at   TEXT,
+      last_online_at    TEXT,
+      last_voice_at     TEXT,
+      first_tracked_at  TEXT NOT NULL
+    );
   `);
   // Add new columns to existing DBs (safe to run repeatedly — fails silently if column exists)
   for (const sql of [
@@ -925,4 +939,73 @@ export function dbSetReviewPost(id: number, channelId: string, messageId: string
 
 export function dbDeleteReview(id: number): void {
   db.prepare("DELETE FROM reviews WHERE id = ?").run(id);
+}
+
+// ── Discord member stats (the /snek page) ────────────────────────────────────
+
+export type DiscordMemberRow = {
+  discordId: string; note: string | null; noteBy: string | null; noteAt: string | null;
+  messageCount: number; voiceSeconds: number; onlineSeconds: number; presenceSeconds: number;
+  lastMessageAt: string | null; lastOnlineAt: string | null; lastVoiceAt: string | null; firstTrackedAt: string;
+};
+
+export function dbGetDiscordMembers(): DiscordMemberRow[] {
+  return db.prepare(`
+    SELECT discord_id AS discordId, note, note_by AS noteBy, note_at AS noteAt, message_count AS messageCount,
+      voice_seconds AS voiceSeconds, online_seconds AS onlineSeconds, presence_seconds AS presenceSeconds,
+      last_message_at AS lastMessageAt, last_online_at AS lastOnlineAt, last_voice_at AS lastVoiceAt, first_tracked_at AS firstTrackedAt
+    FROM discord_members
+  `).all() as DiscordMemberRow[];
+}
+
+export function dbCountDiscordMessage(discordId: string): void {
+  const now = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO discord_members (discord_id, message_count, last_message_at, first_tracked_at) VALUES (?, 1, ?, ?)
+    ON CONFLICT(discord_id) DO UPDATE SET message_count = message_count + 1, last_message_at = excluded.last_message_at
+  `).run(discordId, now, now);
+}
+
+// One tick of the presence/voice sampler: each member gets `seconds` of observed time, plus online
+// and/or voice time if they were online or in a voice channel at that moment. `online` is null when
+// the bot can't see presences, so that time isn't counted towards anyone's online %.
+export type DiscordMemberSample = { discordId: string; online: boolean | null; inVoice: boolean };
+export function dbRecordDiscordSamples(samples: DiscordMemberSample[], seconds: number): void {
+  const now = new Date().toISOString();
+  const stmt = db.prepare(`
+    INSERT INTO discord_members (discord_id, voice_seconds, online_seconds, presence_seconds, last_online_at, last_voice_at, first_tracked_at)
+    VALUES (@id, @voice, @online, @observed, @lastOnline, @lastVoice, @now)
+    ON CONFLICT(discord_id) DO UPDATE SET
+      voice_seconds = voice_seconds + excluded.voice_seconds,
+      online_seconds = online_seconds + excluded.online_seconds,
+      presence_seconds = presence_seconds + excluded.presence_seconds,
+      last_online_at = COALESCE(excluded.last_online_at, last_online_at),
+      last_voice_at = COALESCE(excluded.last_voice_at, last_voice_at)
+  `);
+  db.transaction(() => {
+    for (const s of samples) {
+      stmt.run({
+        id: s.discordId, now,
+        voice: s.inVoice ? seconds : 0,
+        online: s.online ? seconds : 0,
+        observed: s.online === null ? 0 : seconds,
+        lastOnline: s.online ? now : null,
+        lastVoice: s.inVoice ? now : null,
+      });
+    }
+  })();
+}
+
+export function dbSetDiscordMemberNote(discordId: string, note: string | null, by: string): void {
+  const now = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO discord_members (discord_id, note, note_by, note_at, first_tracked_at) VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(discord_id) DO UPDATE SET note = excluded.note, note_by = excluded.note_by, note_at = excluded.note_at
+  `).run(discordId, note, by, now, now);
+}
+
+// Real names the site knows, keyed by Discord ID.
+export function dbGetRealNamesByDiscordId(): Map<string, { firstName: string | null; surname: string | null }> {
+  const rows = db.prepare("SELECT discord_id AS discordId, first_name AS firstName, surname FROM users WHERE discord_id IS NOT NULL AND (first_name IS NOT NULL OR surname IS NOT NULL)").all() as { discordId: string; firstName: string | null; surname: string | null }[];
+  return new Map(rows.map(r => [r.discordId, { firstName: r.firstName, surname: r.surname }]));
 }

@@ -9,6 +9,7 @@ import ShareView from "./views/ShareView.vue";
 import LocationShareView from "./views/LocationShareView.vue";
 import StatusView from "./views/StatusView.vue";
 import DatabaseView from "./views/DatabaseView.vue";
+import SnekView from "./views/SnekView.vue";
 import SearchView from "./views/SearchView.vue";
 import MapView from "./views/MapView.vue";
 import LoginView from "./views/LoginView.vue";
@@ -57,6 +58,7 @@ const router = createRouter({
     { path: "/users", component: UsersView },
     { path: "/status", component: StatusView },
     { path: "/database", component: DatabaseView },
+    { path: "/snek", component: SnekView },
     {
       path: "/reviews", component: ReviewsLayout,
       children: [

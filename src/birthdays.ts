@@ -22,6 +22,11 @@ function persistBirthdays() {
   fs.writeFileSync(BIRTHDAYS_FILE, JSON.stringify(birthdays, null, 2));
 }
 
+// "DD/MM", or undefined if the tracker doesn't have them.
+export function getBirthday(userId: string): string | undefined {
+  return birthdays.find(b => b.userId === userId)?.date;
+}
+
 function sortedBirthdays(): BirthdayEntry[] {
   return [...birthdays].sort((a, b) => {
     const [ad, am] = a.date.split("/").map(Number);
