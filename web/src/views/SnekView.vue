@@ -48,8 +48,8 @@
                 <textarea v-if="isEditing(m, 'note')" v-model="draft" class="snek-edit-input" rows="2" maxlength="500"
                   @keydown.enter.exact.prevent="saveField(m, 'note')" @keydown.esc="editing = null" @blur="saveField(m, 'note')" v-focus></textarea>
                 <div v-else class="snek-editable snek-note" :class="{ empty: !m.note }" @click="startEdit(m, 'note')"
-                  :title="m.note && m.noteBy ? `${m.noteBy}, ${new Date(m.noteAt!).toLocaleDateString()}` : 'Add a note'">
-                  {{ m.note || '+ note' }}
+                  :title="m.note && m.noteBy ? `${m.noteBy}, ${new Date(m.noteAt!).toLocaleDateString()}` : 'Add a source'">
+                  {{ m.note || '+ source' }}
                 </div>
               </td>
               <td class="snek-removal-cell">
@@ -79,11 +79,11 @@ interface SnekMember {
   messageCount: number; voiceSeconds: number; onlinePct: number | null; lastSeenAt: string | null;
 }
 interface SnekData { snekRole: string | null; presenceTracking: boolean; trackingSince: string | null; members: SnekMember[] }
-type SortKey = 'name' | 'realName' | 'joined' | 'messages' | 'voice' | 'online' | 'lastSeen' | 'removal';
+type SortKey = 'name' | 'realName' | 'joined' | 'messages' | 'voice' | 'online' | 'lastSeen' | 'note' | 'removal';
 
 const vFocus = { mounted: (el: HTMLElement) => el.focus() };
 
-const columns: { key: SortKey | 'note'; label: string; sort: boolean }[] = [
+const columns: { key: SortKey; label: string; sort: boolean }[] = [
   { key: 'name', label: 'Discord', sort: true },
   { key: 'realName', label: 'Name', sort: true },
   { key: 'joined', label: 'Joined', sort: true },
@@ -91,7 +91,7 @@ const columns: { key: SortKey | 'note'; label: string; sort: boolean }[] = [
   { key: 'voice', label: 'Voice', sort: true },
   { key: 'online', label: 'Online %', sort: true },
   { key: 'lastSeen', label: 'Last seen', sort: true },
-  { key: 'note', label: 'Note', sort: false },
+  { key: 'note', label: 'Source', sort: true },
   { key: 'removal', label: 'Delete', sort: true },
 ];
 
@@ -120,6 +120,7 @@ function sortValue(m: SnekMember): string | number | null {
     case 'voice': return m.voiceSeconds;
     case 'online': return m.onlinePct;
     case 'lastSeen': return m.status && m.status !== 'offline' ? '9' : m.lastSeenAt;
+    case 'note': return m.note?.toLowerCase() || null;
     case 'removal': return m.removal === 'delete' ? 2 : m.removal === 'maybe' ? 1 : null;
   }
 }
@@ -145,8 +146,7 @@ const sections = computed(() => {
   ].filter(s => s.members.length > 0);
 });
 
-function setSort(key: SortKey | 'note') {
-  if (key === 'note') return;
+function setSort(key: SortKey) {
   if (sortKey.value === key) sortDesc.value = !sortDesc.value;
   else {
     sortKey.value = key;
@@ -188,7 +188,7 @@ async function saveField(m: SnekMember, field: EditableField) {
   const api = fieldApi[field];
   const res = await fetch(`/api/snek/members/${m.discordId}/${api}`, { method: 'PUT', headers: authJsonHeaders(), body: JSON.stringify({ [api]: value }) });
   if (res.ok) Object.assign(m, await res.json());
-  else error.value = `Couldn't save that ${api}.`;
+  else error.value = `Couldn't save that ${field === 'note' ? 'source' : 'name'}.`;
 }
 
 // Each click steps blank → maybe → delete → blank.
