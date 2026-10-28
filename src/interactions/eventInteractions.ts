@@ -20,7 +20,7 @@ import {
 } from "../eventBuilders";
 import { updateJoinMessage, updateInnerMessage, updateEventMessages } from "../messageSync";
 import { hasAlbum, getAlbumUrl, handleAlbumInteractions, startAlbumForChannel } from "../albums";
-import { dbAddAlbumMember, dbRemoveAlbumMember, dbUpsertUser } from "../db";
+import { dbAddAlbumMember, dbUpsertUser } from "../db";
 import { handleGearMenuInteractions, buildEventModalComponents } from "./gearMenuInteractions";
 import { parseCreateDateText } from "../dateUtils";
 
@@ -262,40 +262,6 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     }
 
     await channel.send(`**${interaction.user.displayName}** joined.`);
-    return;
-  }
-
-  // Leave button
-  if (interaction.isButton() && interaction.customId.startsWith("leave_event_")) {
-    const channelId = interaction.customId.slice("leave_event_".length);
-    const g = interaction.guild;
-    if (!g) return;
-
-    const channel = g.channels.cache.get(channelId);
-    if (!channel || channel.type !== ChannelType.GuildText) {
-      await interaction.reply({ content: "Event channel not found.", ephemeral: true });
-      return;
-    }
-
-    const state = eventStates.get(channelId);
-    if (state && !state.members.has(interaction.user.id)) {
-      await interaction.reply({ content: "You haven't joined this event.", ephemeral: true });
-      return;
-    }
-
-    await interaction.deferUpdate();
-    await channel.permissionOverwrites.delete(interaction.user.id);
-
-    if (state) {
-      state.members.delete(interaction.user.id);
-      persistState();
-      await updateJoinMessage(g, channelId);
-      await updateInnerMessage(g, channelId);
-    }
-
-    if (hasAlbum(channelId)) dbRemoveAlbumMember(channelId, interaction.user.id);
-
-    await channel.send(`**${interaction.user.displayName}** left.`);
     return;
   }
 

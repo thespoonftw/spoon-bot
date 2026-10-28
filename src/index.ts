@@ -17,6 +17,7 @@ import { updateEventMessages, updateGroupMessages } from "./messageSync";
 import { handleEventInteractions } from "./interactions/eventInteractions";
 import { handleDatePickerInteractions } from "./interactions/datePickerInteractions";
 import { handleGroupInteractions } from "./interactions/groupInteractions";
+import { handleLeaveInteractions } from "./interactions/leaveInteractions";
 import { loadBirthdays, handleBirthdayInteractions, scheduleBirthdayAnnouncements } from "./birthdays";
 import { loadAlbums, handleAlbumReaction, handleAlbumMessageCreate, handleAlbumUploadInteraction } from "./albums";
 import { startWebServer, setAlbumDiscordClient, setUpdateEventMessages } from "./albumServer";
@@ -198,6 +199,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await handleEventInteractions(interaction, interaction.guild);
     await handleDatePickerInteractions(interaction);
     await handleGroupInteractions(interaction, interaction.guild);
+    await handleLeaveInteractions(interaction);
     await handleBirthdayInteractions(interaction);
     await handleLocationInteractions(interaction);
   } catch (error) {

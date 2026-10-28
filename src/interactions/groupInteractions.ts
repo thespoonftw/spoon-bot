@@ -9,10 +9,10 @@ import {
 } from "discord.js";
 import type { Guild, Interaction } from "discord.js";
 import { config } from "../config";
-import { eventStates, groupStates, persistState, persistGroupState } from "../state";
+import { groupStates, persistGroupState } from "../state";
 import type { GroupState } from "../types";
 import { buildGroupJoinEmbed, buildGroupPinEmbed, groupJoinComponents, groupLeaveComponents } from "../groupBuilders";
-import { updateJoinMessage, updateInnerMessage, updateGroupMessages } from "../messageSync";
+import { updateGroupMessages } from "../messageSync";
 
 function buildGroupModalComponents(prefill?: GroupState): ActionRowBuilder<TextInputBuilder>[] {
   return [
@@ -110,47 +110,6 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
     return;
   }
 
-  // /leave command (group branch)
-  if (interaction.isChatInputCommand() && interaction.commandName === "leave") {
-    const channelId = interaction.channelId;
-    const g = interaction.guild;
-    if (!g) return;
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-    // Event leave
-    const eventState = eventStates.get(channelId);
-    if (eventState) {
-      const channel = g.channels.cache.get(channelId);
-      if (channel && channel.type === ChannelType.GuildText) {
-        await channel.permissionOverwrites.delete(interaction.user.id);
-        eventState.members.delete(interaction.user.id);
-        persistState();
-        await updateJoinMessage(g, channelId);
-        await updateInnerMessage(g, channelId);
-        await channel.send(`**${interaction.user.displayName}** left.`);
-      }
-      await interaction.deleteReply();
-      return;
-    }
-
-    // Group leave
-    const groupState = groupStates.get(channelId);
-    if (groupState) {
-      const channel = g.channels.cache.get(channelId);
-      groupState.members.delete(interaction.user.id);
-      persistGroupState();
-      if (channel?.isTextBased()) {
-        await (channel as TextChannel).permissionOverwrites.delete(interaction.user.id);
-      }
-      await updateGroupMessages(g, channelId);
-      await interaction.deleteReply();
-      return;
-    }
-
-    await interaction.editReply({ content: "This isn't an event or group channel." });
-    return;
-  }
-
   // group_join_ button
   if (interaction.isButton() && interaction.customId.startsWith("group_join_")) {
     const channelId = interaction.customId.slice("group_join_".length);
@@ -167,23 +126,6 @@ export async function handleGroupInteractions(interaction: Interaction, guild: G
     if (groupChannel?.isTextBased()) {
       await (groupChannel as TextChannel).permissionOverwrites.edit(userId, { ViewChannel: true });
       await (groupChannel as TextChannel).send(`**${displayName}** joined.`);
-    }
-    await updateGroupMessages(interaction.guild!, channelId);
-    return;
-  }
-
-  // group_leave_ button
-  if (interaction.isButton() && interaction.customId.startsWith("group_leave_")) {
-    const channelId = interaction.customId.slice("group_leave_".length);
-    const state = groupStates.get(channelId);
-    if (!state) { await interaction.reply({ content: "Group not found.", flags: MessageFlags.Ephemeral }); return; }
-    const userId = interaction.user.id;
-    state.members.delete(userId);
-    persistGroupState();
-    await interaction.deferUpdate().catch((e) => { console.error('deferUpdate failed (leave):', e); });
-    const groupChannel = interaction.guild?.channels.cache.get(channelId);
-    if (groupChannel?.isTextBased()) {
-      await (groupChannel as TextChannel).permissionOverwrites.delete(userId);
     }
     await updateGroupMessages(interaction.guild!, channelId);
     return;
