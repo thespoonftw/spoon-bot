@@ -1,9 +1,9 @@
 import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   ChannelType,
+  LabelBuilder,
   MessageFlags,
+  ModalBuilder,
+  StringSelectMenuBuilder,
   TextChannel,
 } from "discord.js";
 import type { ButtonInteraction, ChatInputCommandInteraction, Guild, Interaction } from "discord.js";
@@ -14,14 +14,22 @@ import { dbRemoveAlbumMember } from "../db";
 
 type LeaveKind = "event" | "group";
 
-// Leaving an event or group (its Leave button, or /leave in its channel) first asks, in a popup only
-// the leaver sees, whether to post "X left." in the channel or to go quietly.
+// Leaving an event or group (its Leave button, or /leave in its channel) first opens a modal asking
+// whether to post "X left." in the channel or to go quietly. Closing the modal leaves nothing.
 async function showLeaveChoice(interaction: ButtonInteraction | ChatInputCommandInteraction, kind: LeaveKind, channelId: string, name: string) {
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`leavechoice_${kind}_loud_${channelId}`).setLabel("Leave").setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId(`leavechoice_${kind}_silent_${channelId}`).setLabel("Leave silently").setStyle(ButtonStyle.Secondary),
+  const title = `Leave ${name}?`;
+  const modal = new ModalBuilder()
+    .setCustomId(`leavemodal_${kind}_${channelId}`)
+    .setTitle(title.length > 45 ? `${title.slice(0, 43)}…?` : title);
+  modal.addLabelComponents(
+    new LabelBuilder().setLabel("Tell the channel you left?").setStringSelectMenuComponent(
+      new StringSelectMenuBuilder().setCustomId("mode").addOptions(
+        { label: `Post "${leaverName(interaction)} left."`, value: "loud", default: true },
+        { label: "Leave silently", value: "silent" },
+      ),
+    ),
   );
-  await interaction.reply({ content: `Leave **${name}**?`, components: [row], flags: MessageFlags.Ephemeral });
+  await interaction.showModal(modal);
 }
 
 function leaverName(interaction: Interaction): string {
@@ -100,12 +108,13 @@ export async function handleLeaveInteractions(interaction: Interaction): Promise
     return;
   }
 
-  // Popup choice: leavechoice_{event|group}_{loud|silent}_{channelId}
-  if (interaction.isButton() && interaction.customId.startsWith("leavechoice_")) {
-    const [, kind, mode, channelId] = interaction.customId.split("_");
-    await interaction.deferUpdate();
+  // Modal submit: leavemodal_{event|group}_{channelId}
+  if (interaction.isModalSubmit() && interaction.customId.startsWith("leavemodal_")) {
+    const [, kind, channelId] = interaction.customId.split("_");
+    const silent = interaction.fields.getStringSelectValues("mode")[0] === "silent";
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const leave = kind === "group" ? leaveGroup : leaveEvent;
-    await leave(g, channelId, interaction.user.id, leaverName(interaction), mode === "silent");
+    await leave(g, channelId, interaction.user.id, leaverName(interaction), silent);
     await interaction.deleteReply().catch(() => {});
     return;
   }
