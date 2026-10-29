@@ -161,31 +161,11 @@ async function deleteReviewPost(r: ReviewRow, saved: { channelId: string; messag
   if (message?.deletable) await message.delete();
 }
 
-// Board games and wargames are matched by pasting a BoardGameGeek link. BGG's official API needs a registered
-// token, but the endpoint behind its own game pages answers without one (and without CORS, hence
-// this proxy). It's undocumented, so it may change or close.
 function isValidUrl(s: string): boolean {
   try { new URL(s); return true; } catch { return false; }
 }
 
 const BGG_GAME_URL =/^https:\/\/boardgamegeek\.com\/(boardgame|boardgameexpansion)\/\d+\/[^\s"'<>/?]+$/;
-type BggItem = { name?: string; yearpublished?: string; canonical_link?: string; images?: { previewthumb?: string } };
-
-async function fetchBggGame(id: string): Promise<{ name: string; year: number | null; imageUrl: string | null; url: string | null } | null> {
-  const res = await fetch(`https://api.geekdo.com/api/geekitems?objectid=${id}&objecttype=thing`, { signal: AbortSignal.timeout(10_000) });
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`BGG responded ${res.status}`);
-  const item = ((await res.json()) as { item?: BggItem } | null)?.item;
-  if (!item?.name) return null;
-  const year = Number(item.yearpublished);
-  const image = item.images?.previewthumb ?? null;
-  return {
-    name: item.name,
-    year: Number.isInteger(year) && year > 0 ? year : null,
-    imageUrl: image && /^https:\/\/cf\.geekdo-images\.com\//.test(image) ? image : null,
-    url: item.canonical_link && BGG_GAME_URL.test(item.canonical_link) ? item.canonical_link : null,
-  };
-}
 
 // Films are also searched on IMDb and video games on Steam. Neither allows calls from the browser
 // (no CORS), so the server searches them for the editor, shaped like the editor's other matches.
@@ -272,6 +252,83 @@ async function searchSteam(query: string): Promise<ExternalMatch[]> {
     };
   }));
 }
+
+// Board games and wargames are searched on BoardGameGeek, through its official XML API (which needs
+// the registered token in BGG_TOKEN). Its search only gives names and years, in alphabetical order,
+// so the likeliest names are looked up for their box art, designers and how many people have rated
+// them, and the most rated come first. A pasted BGG link is looked up the same way.
+const BGG_API = "https://boardgamegeek.com/xmlapi2";
+const XML_ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+const xmlText = (s: string) => s.replace(/&(#\d+|#x[0-9a-f]+|amp|lt|gt|quot|apos);/gi, (_, e: string) =>
+  e[0] !== "#" ? XML_ENTITIES[e.toLowerCase()] : String.fromCodePoint(e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : Number(e.slice(1))));
+const xmlItems = (xml: string) => [...xml.matchAll(/<item\s+type="(\w+)"\s+id="(\d+)"[^>]*>([\s\S]*?)<\/item>/g)].map(m => ({ type: m[1], id: m[2], body: m[3] }));
+// The value="" of the first <tag> (optionally of a given type="").
+function xmlValue(body: string, tag: string, type?: string): string | null {
+  const v = body.match(new RegExp(`<${tag}\\s${type ? `type="${type}"\\s` : ""}[^>]*?value="([^"]*)"`))?.[1];
+  return v === undefined ? null : xmlText(v);
+}
+
+async function bggFetch(path: string): Promise<string> {
+  const token = process.env.BGG_TOKEN;
+  if (!token) throw new Error("BGG_TOKEN isn't set");
+  const res = await fetch(`${BGG_API}/${path}`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) });
+  if (!res.ok) throw new Error(`BGG responded ${res.status}`);
+  return res.text();
+}
+
+type BggGame = ExternalMatch & { year: number | null; rated: number };
+
+// Up to 20 games (the most BGG gives at once), by id.
+async function bggGames(ids: string[]): Promise<BggGame[]> {
+  if (!ids.length) return [];
+  const xml = await bggFetch(`thing?id=${ids.join(",")}&stats=1`);
+  return xmlItems(xml).filter(i => i.type === "boardgame" || i.type === "boardgameexpansion").flatMap(i => {
+    const label = xmlValue(i.body, "name", "primary");
+    if (!label) return [];
+    const published = Number(xmlValue(i.body, "yearpublished"));
+    const year = Number.isInteger(published) && published > 0 ? published : null;
+    const designers = [...i.body.matchAll(/<link\s+type="boardgamedesigner"[^>]*?value="([^"]*)"/g)].map(m => xmlText(m[1])).filter(d => d !== "(Uncredited)").slice(0, 3);
+    const creator = designers.length > 2 ? `${designers.slice(0, -1).join(", ")} & ${designers[designers.length - 1]}` : designers.join(" & ") || null;
+    const image = i.body.match(/<image>\s*([^<\s]+)\s*<\/image>/)?.[1] ?? null;
+    // BGG's own page addresses end in the name, lower-cased and hyphenated.
+    const slug = label.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "game";
+    return [{
+      url: `https://boardgamegeek.com/${i.type}/${i.id}/${slug}`,
+      label,
+      description: [creator, year].filter(Boolean).join(", "),
+      imageUrl: image && /^https:\/\/cf\.geekdo-images\.com\/[^\s"'<>]+$/.test(image) ? image : null,
+      details: { creator, year },
+      year,
+      rated: Number(xmlValue(i.body, "usersrated")) || 0,
+    }];
+  });
+}
+
+async function fetchBggGame(id: string): Promise<{ name: string; year: number | null; creator: string | null; imageUrl: string | null; url: string } | null> {
+  const game = (await bggGames([id]))[0];
+  return game ? { name: game.label, year: game.year, creator: game.details.creator, imageUrl: game.imageUrl, url: game.url } : null;
+}
+
+async function searchBgg(query: string): Promise<ExternalMatch[]> {
+  const xml = await bggFetch(`search?${new URLSearchParams({ query, type: "boardgame,boardgameexpansion" })}`);
+  const wanted = query.toLowerCase();
+  // An exact name first, then names starting with what was typed, then the rest; shorter names
+  // (more often the base game than a spin-off) first within each.
+  const closeness = (name: string) => name === wanted ? 0 : name.startsWith(wanted) ? 1 : 2;
+  const names = new Map(xmlItems(xml).map(i => [i.id, (xmlValue(i.body, "name") ?? "").toLowerCase()]));
+  const likeliest = [...names].sort(([, a], [, b]) => closeness(a) - closeness(b) || a.length - b.length).slice(0, 20).map(([id]) => id);
+  const exact = (g: BggGame) => g.label.toLowerCase() === wanted ? 1 : 0;
+  return (await bggGames(likeliest))
+    .sort((a, b) => exact(b) - exact(a) || b.rated - a.rated)
+    .slice(0, 8)
+    .map(({ url, label, description, imageUrl, details }) => ({ url, label, description, imageUrl, details }));
+}
+
+const SEARCH_SITES = {
+  imdb: { name: "IMDb", search: searchImdb },
+  steam: { name: "Steam", search: searchSteam },
+  bgg: { name: "BoardGameGeek", search: searchBgg },
+};
 
 // The long review is rich text from a contenteditable editor, rendered with v-html — so it is
 // sanitised here on write against a small allowlist matching the editor's toolbar.
@@ -508,7 +565,7 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
     return true;
   }
 
-  // GET /api/reviews/bgg/:id — a board game's name, year and box art from BoardGameGeek
+  // GET /api/reviews/bgg/:id — a board game's name, year, designers and box art from BoardGameGeek, for a pasted link
   const bggMatch = url.match(/^\/api\/reviews\/bgg\/(\d{1,9})$/);
   if (bggMatch && method === "GET") {
     fetchBggGame(bggMatch[1])
@@ -517,15 +574,15 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
     return true;
   }
 
-  // GET /api/reviews/search/imdb?q= and /api/reviews/search/steam?q= — films on IMDb, games on Steam
-  const searchMatch = url.match(/^\/api\/reviews\/search\/(imdb|steam)$/);
+  // GET /api/reviews/search/imdb?q=, /steam?q= and /bgg?q= — films on IMDb, games on Steam, board games on BoardGameGeek
+  const searchMatch = url.match(/^\/api\/reviews\/search\/(imdb|steam|bgg)$/);
   if (searchMatch && method === "GET") {
-    const site = searchMatch[1] as "imdb" | "steam";
+    const site = searchMatch[1] as keyof typeof SEARCH_SITES;
     const query = (new URL(req.url ?? "/", "http://x").searchParams.get("q") ?? "").trim().slice(0, 100);
     if (query.length < 2) { sendJson(res, 200, []); return true; }
-    cachedSearch(`${site}:${query.toLowerCase()}`, () => site === "imdb" ? searchImdb(query) : searchSteam(query))
+    cachedSearch(`${site}:${query.toLowerCase()}`, () => SEARCH_SITES[site].search(query))
       .then(results => sendJson(res, 200, results))
-      .catch(e => { console.error(`${site} search failed:`, e); if (!res.headersSent) sendJson(res, 502, { error: `Couldn't reach ${site === "imdb" ? "IMDb" : "Steam"}` }); });
+      .catch(e => { console.error(`${site} search failed:`, e); if (!res.headersSent) sendJson(res, 502, { error: `Couldn't reach ${SEARCH_SITES[site].name}` }); });
     return true;
   }
 

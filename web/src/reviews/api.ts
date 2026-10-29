@@ -59,16 +59,27 @@ export type MatchSource = "openlibrary" | "tvmaze" | "applepodcasts" | "applemus
 export const SOURCE_NAMES: Record<MatchSource, string> = { openlibrary: "Open Library", tvmaze: "TVmaze", applepodcasts: "Apple Podcasts", applemusic: "Apple Music", bgg: "BoardGameGeek", imdb: "IMDb", steam: "Steam", wikipedia: "Wikipedia" };
 const SOURCE_HOSTS: Record<MatchSource, string> = { openlibrary: "https://openlibrary.org/", tvmaze: "https://www.tvmaze.com/", applepodcasts: "https://podcasts.apple.com/", applemusic: "https://music.apple.com/", bgg: "https://boardgamegeek.com/", imdb: "https://www.imdb.com/", steam: "https://store.steampowered.com/", wikipedia: "https://en.wikipedia.org/" };
 
-// Board games and wargames are matched by pasting a BoardGameGeek link rather than searching (BGG's search
-// can't be used without a registered API token); the server looks the game up by its id.
-export const usesBggLink = (typeName: string) => ["board game", "wargame"].includes(typeName.trim().toLowerCase());
-export const parseBggId = (text: string) => text.match(/boardgamegeek\.com\/(?:boardgame|boardgameexpansion)\/(\d{1,9})/)?.[1] ?? null;
-export interface BggGame { name: string; year: number | null; imageUrl: string | null; url: string | null }
-export async function fetchBggGame(id: string, signal?: AbortSignal): Promise<BggGame | null> {
+// Board games and wargames are searched on BoardGameGeek. For a game the search misses, its BGG link
+// can be pasted instead, and the server looks the game up by its id.
+export const usesBgg = (typeName: string) => ["board game", "wargame"].includes(typeName.trim().toLowerCase());
+const parseBggId = (text: string) => text.match(/boardgamegeek\.com\/(?:boardgame|boardgameexpansion)\/(\d{1,9})/)?.[1] ?? null;
+interface BggGame { name: string; year: number | null; creator: string | null; imageUrl: string | null; url: string }
+
+// The game a BoardGameGeek link points to. Undefined means the text isn't a BGG game link; null
+// means the game wasn't found.
+export async function findBggGameByLink(text: string, signal?: AbortSignal): Promise<MatchCandidate | null | undefined> {
+  const id = parseBggId(text);
+  if (!id) return undefined;
   const res = await fetch(`/api/reviews/bgg/${id}`, { signal });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`BGG lookup failed: ${res.status}`);
-  return res.json();
+  const game = (await res.json()) as BggGame;
+  return {
+    source: "bgg", url: game.url, label: game.name,
+    description: [game.creator, game.year].filter(Boolean).join(", "),
+    imageUrl: game.imageUrl, wikiTitle: null, wikidataId: null,
+    details: { creator: game.creator, year: game.year },
+  };
 }
 
 export const wikiUrl = (pageTitle: string) => `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/ /g, "_"))}`;
@@ -263,21 +274,22 @@ const BUILT_IN_PROFILES: Record<string, WikiProfile> = {
   book: { hint: "book", suffixes: ["", " (novel)", " (book)"], match: /\b(novel|novella|book|memoir|comic|manga|poem|non-fiction)\b/i, creatorLabel: "Author(s)", creatorProps: ["P50", "P98"], yearProps: ["P577"] },
   film: { hint: "film", suffixes: ["", " (film)"], match: /\b(film|movie)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P577"] },
   series: { hint: "TV series", suffixes: ["", " (TV series)", " (miniseries)"], match: /\b(tv|television|series|miniseries|sitcom|anime|drama)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P580", "P577"] },
-  "board game": { hint: "board game", suffixes: ["", " (board game)", " (game)"], match: /\b(board game|card game|tabletop)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P577", "P571"] },
+  // Board games are matched on BoardGameGeek, which gives the designers and year itself; P178 = developer, P50 = author.
+  "board game": { hint: "board game", suffixes: ["", " (board game)", " (game)"], match: /\b(board game|card game|tabletop)\b/i, creatorLabel: "Designer(s)", creatorProps: ["P178", "P50"], yearProps: ["P577", "P571"] },
   // P178 = developer
   "video game": { hint: "video game", suffixes: ["", " (video game)"], match: /\bvideo game\b/i, creatorLabel: "Developer(s)", creatorProps: ["P178"], yearProps: ["P577"] },
   // Podcasts are matched on Apple Podcasts, not Wikipedia; this just says they have no creator field.
   podcast: { hint: "podcast", suffixes: ["", " (podcast)"], match: /\bpodcast\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P580", "P577"] },
   // Stage shows: musicals, plays, operas and the like, matched on Wikipedia for the cover only.
-  "stage show": { hint: "musical", suffixes: ["", " (musical)", " (play)", " (opera)"], match: /(musical|play|opera|operetta|ballet|pantomime|theatre|theater|stage)/i, creatorLabel: null, creatorProps: [], yearProps: [] },
+  "stage show": { hint: "musical", suffixes: ["", " (musical)", " (play)", " (opera)"], match: /\b(musical|play|opera|operetta|ballet|pantomime|theatre|theater|stage)\b/i, creatorLabel: null, creatorProps: [], yearProps: [] },
   // Albums are matched on Apple Music, which gives the artist and year itself; P175 = performer.
   album: { hint: "album", suffixes: ["", " (album)"], match: /\balbum\b/i, creatorLabel: "Artist(s)", creatorProps: ["P175"], yearProps: ["P577"] },
   // Drinks: beers, wines, spirits, cocktails and the like, matched on Wikipedia for the cover only.
   drink: { hint: "drink", suffixes: ["", " (beer)", " (drink)", " (cocktail)"], match: /(beer|ale|lager|stout|porter|wine|whisk(e)?y|gin|vodka|rum|tequila|brandy|cognac|liqueur|cider|cocktail|drink|beverage)/i, creatorLabel: null, creatorProps: [], yearProps: [] },
   // Food: dishes and meals, matched on Wikipedia for the cover only.
   food: { hint: "food", suffixes: ["", " (food)", " (dish)"], match: /(food|dish|cuisine|meal|bread|cake|pastry|dessert|soup|stew|curry|sandwich|burger|pizza|pasta|noodle|sauce|cheese|sausage|pie|restaurant)/i, creatorLabel: null, creatorProps: [], yearProps: [] },
-  // Wargames are matched on BoardGameGeek like board games; this is only for anything typed without a link.
-  wargame: { hint: "wargame", suffixes: ["", " (wargame)", " (game)"], match: /(wargame|war game|miniature|tabletop|board game)/i, creatorLabel: null, creatorProps: [], yearProps: ["P577", "P571"] },
+  // Wargames are matched on BoardGameGeek like board games, which gives the designers and year itself.
+  wargame: { hint: "wargame", suffixes: ["", " (wargame)", " (game)"], match: /\b(wargame|war game|miniature|tabletop|board game)\b/i, creatorLabel: "Designer(s)", creatorProps: ["P178", "P50"], yearProps: ["P577", "P571"] },
   // Other: the catch-all, so no search hint, and any page counts as the right kind of thing.
   other: { hint: "", suffixes: [""], match: /./, creatorLabel: null, creatorProps: [], yearProps: GENERIC_YEAR_PROPS },
 };
@@ -548,9 +560,9 @@ export async function findAlbumByLink(text: string, signal?: AbortSignal): Promi
   return undefined;
 }
 
-// Films on IMDb and games on Steam, searched by the server (neither site can be called from the
-// browser). Results arrive with their details already filled in.
-async function searchViaServer(site: "imdb" | "steam", title: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
+// Films on IMDb, games on Steam and board games on BoardGameGeek, searched by the server (none of
+// them can be called from the browser). Results arrive with their details already filled in.
+async function searchViaServer(site: "imdb" | "steam" | "bgg", title: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
   const res = await fetch(`/api/reviews/search/${site}?${new URLSearchParams({ q: title })}`, { signal });
   if (!res.ok) return [];
   const results = (await res.json()) as (Pick<MatchCandidate, "url" | "label" | "description" | "imageUrl"> & { details: MatchDetails })[];
@@ -579,9 +591,11 @@ async function searchAlbums(title: string, typeName: string, signal?: AbortSigna
 }
 
 // Candidates for the editor's dropdown, best first. Books use Open Library, series TVmaze and
-// podcasts Apple Podcasts (all cover far more than Wikipedia and have proper artwork); albums add
-// Apple Music, films IMDb and games Steam to Wikipedia; everything else uses Wikipedia.
+// podcasts Apple Podcasts and board games BoardGameGeek (all cover far more than Wikipedia and have
+// proper artwork); albums add Apple Music, films IMDb and games Steam to Wikipedia; everything else
+// uses Wikipedia.
 export async function searchMatches(title: string, typeName: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
+  if (usesBgg(typeName)) return searchViaServer("bgg", title, signal);
   switch (typeName.trim().toLowerCase()) {
     case "book": return searchOpenLibrary(title, signal);
     case "series": return searchTvmaze(title, signal);

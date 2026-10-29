@@ -2,7 +2,7 @@
   <p v-if="loading" class="rv-loading">Loading…</p>
   <form v-else class="rv-editor" @submit.prevent="save">
     <!-- On mobile this wrapper dissolves (display: contents) so the cover can sit between the
-         rv-editor-lead fields (type, BGG link, title) and the rest. -->
+         rv-editor-lead fields (type, title) and the rest. -->
     <div class="rv-editor-main">
       <p v-if="error" class="rv-error rv-editor-lead">{{ error }}</p>
 
@@ -16,22 +16,12 @@
         </div>
       </div>
 
-      <!-- Board games and wargames: the pasted BGG link fills in the title, so it goes above it. -->
-      <div v-if="bggLink" class="rv-field rv-editor-lead">
-        <label class="rv-label" for="rv-bgg">BoardGameGeek link</label>
-        <input id="rv-bgg" v-model="bggInput" class="rv-input" placeholder="https://boardgamegeek.com/boardgame/…" autocomplete="off" @input="onBggInput" />
-        <span class="rv-hint">
-          <template v-if="bggStatus">{{ bggStatus }}</template>
-          <template v-else>Find the game on <a href="https://boardgamegeek.com/" target="_blank" rel="noopener noreferrer">BoardGameGeek ↗</a> and paste its link here.</template>
-        </span>
-      </div>
-
       <div class="rv-field rv-editor-lead">
         <label class="rv-label" for="rv-title">Title</label>
         <input id="rv-title" v-model="draft.title" class="rv-input rv-input--title" maxlength="200" placeholder="What are you reviewing?" autocomplete="off" />
       </div>
 
-      <div v-if="!bggLink" class="rv-field">
+      <div class="rv-field">
         <label class="rv-label" for="rv-match">Match</label>
         <select id="rv-match" class="rv-select" :value="draft.sourceUrl ?? NO_PAGE" :disabled="!candidates.length" @change="onPageChange">
           <optgroup v-for="g in candidateGroups" :key="g.name" :label="g.name">
@@ -49,6 +39,16 @@
         <span class="rv-hint">
           <template v-if="albumLinkStatus">{{ albumLinkStatus }}</template>
           <template v-else>Alternatively find the album on <a href="https://music.apple.com/" target="_blank" rel="noopener noreferrer">Apple Music ↗</a> or <a href="https://en.wikipedia.org/" target="_blank" rel="noopener noreferrer">Wikipedia ↗</a> and paste its link here.</template>
+        </span>
+      </div>
+
+      <!-- Board games and wargames with no match picked: likewise, a BoardGameGeek link can be pasted. -->
+      <div v-if="bgg && !draft.sourceUrl" class="rv-field">
+        <label class="rv-label" for="rv-bgg">BoardGameGeek link <span class="rv-label-note">Optional</span></label>
+        <input id="rv-bgg" v-model="bggInput" class="rv-input" placeholder="https://boardgamegeek.com/boardgame/…" autocomplete="off" @input="onBggInput" />
+        <span class="rv-hint">
+          <template v-if="bggStatus">{{ bggStatus }}</template>
+          <template v-else>Alternatively find the game on <a href="https://boardgamegeek.com/" target="_blank" rel="noopener noreferrer">BoardGameGeek ↗</a> and paste its link here.</template>
         </span>
       </div>
 
@@ -129,7 +129,7 @@
         From {{ source.name }}<template v-if="selectedCandidate">: <strong>{{ selectedCandidate.label }}</strong></template><br />
         <a :href="source.url" target="_blank" rel="noopener noreferrer">View page ↗</a>
       </p>
-      <p class="rv-picker-caption" v-else>{{ bggLink ? "Paste a BoardGameGeek link to use its cover." : "Pick a match to use its cover." }}</p>
+      <p class="rv-picker-caption" v-else>Pick a match to use its cover.</p>
       <div class="rv-field" style="margin-top: 12px">
         <label class="rv-label" for="rv-image">Your own image <span class="rv-label-note">Optional</span></label>
         <span v-if="uploadedImage" class="rv-hint">Using your photo.<button type="button" class="rv-link-btn" @click="clearCustomImage">Remove it</button></span>
@@ -157,7 +157,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { clearReviewCache, PROGRESS_OPTIONS, hasProgress, hasYear, usesBggLink, parseBggId, fetchBggGame, SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, findAlbumByLink, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
+import { clearReviewCache, PROGRESS_OPTIONS, hasProgress, hasYear, usesBgg, findBggGameByLink, SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, findAlbumByLink, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
 import StarRating from "./StarRating.vue";
 import RichTextEditor from "./RichTextEditor.vue";
 import ReviewCover from "./ReviewCover.vue";
@@ -236,36 +236,39 @@ async function onUpload(e: Event) {
   }
 }
 
-// --- BoardGameGeek (board games and wargames): instead of searching, paste a game's BGG link and its name, year
-// and box art are filled in from it.
-const bggLink = computed(() => usesBggLink(selectedType.value?.name ?? ""));
+// --- BoardGameGeek link (board games and wargames): like the album link below, a pasted BGG link
+// becomes the chosen match, for games the search doesn't find.
+const bgg = computed(() => usesBgg(selectedType.value?.name ?? ""));
 const bggInput = ref("");
 // Empty shows the default hint, which links to BGG.
 const bggStatus = ref("");
-// The title the last pasted link filled in, so pasting a different link can replace it.
-let bggTitle = "";
 let bggInflight: AbortController | null = null;
 
 async function onBggInput() {
   bggInflight?.abort();
   const text = bggInput.value.trim();
   if (!text) { bggStatus.value = ""; return; }
-  const id = parseBggId(text);
-  if (!id) { bggStatus.value = "That doesn't look like a BoardGameGeek game link."; return; }
   bggInflight = new AbortController();
   bggStatus.value = "Getting details…";
   try {
-    const game = await fetchBggGame(id, bggInflight.signal);
+    const game = await findBggGameByLink(text, bggInflight.signal);
+    if (game === undefined) { bggStatus.value = "That doesn't look like a BoardGameGeek game link."; return; }
     if (!game) { bggStatus.value = "Couldn't find that game on BoardGameGeek."; return; }
-    draft.sourceUrl = game.url;
-    draft.wikiTitle = null;
-    setMatchImage(game.imageUrl);
-    if (!draft.title.trim() || draft.title === bggTitle) draft.title = bggTitle = game.name;
-    if (game.year) { draft.year = game.year; autoFilled.year = true; }
-    bggStatus.value = `Matched: ${game.name}${game.year ? ` (${game.year})` : ""}`;
+    pickLinkedMatch(game, game.label);
+    bggInput.value = bggStatus.value = "";
   } catch (e) {
     if ((e as Error).name !== "AbortError") bggStatus.value = "Couldn't reach BoardGameGeek — fill in the details yourself.";
   }
+}
+
+// A match found from a pasted link: added to the dropdown and picked, with its name as the title.
+function pickLinkedMatch(c: MatchCandidate, name: string) {
+  if (!candidates.value.some(o => o.url === c.url)) candidates.value = [c, ...candidates.value];
+  userPicked.value = true;
+  wikiStatus.value = "";
+  Object.assign(autoFilled, { creator: true, year: true });
+  if (name !== draft.title) draft.title = skipLookupFor = name;
+  applyPage(c);
 }
 
 // --- Album link (albums): a pasted Apple Music or Wikipedia link becomes the chosen match, for
@@ -286,13 +289,7 @@ async function onAlbumLinkInput() {
     const album = await findAlbumByLink(text, albumLinkInflight.signal);
     if (album === undefined) { albumLinkStatus.value = "That doesn't look like an Apple Music or Wikipedia link."; return; }
     if (!album) { albumLinkStatus.value = "Couldn't find that album."; return; }
-    if (!candidates.value.some(c => c.url === album.url)) candidates.value = [album, ...candidates.value];
-    userPicked.value = true;
-    wikiStatus.value = "";
-    Object.assign(autoFilled, { creator: true, year: true });
-    const name = album.source === "wikipedia" ? album.label.replace(/\s*\(.*\)\s*$/, "") : album.label;
-    if (name !== draft.title) draft.title = skipLookupFor = name;
-    applyPage(album);
+    pickLinkedMatch(album, album.source === "wikipedia" ? album.label.replace(/\s*\(.*\)\s*$/, "") : album.label);
     albumLinkInput.value = albumLinkStatus.value = "";
   } catch (e) {
     if ((e as Error).name !== "AbortError") albumLinkStatus.value = "Couldn't look that link up — fill in the details yourself.";
@@ -353,7 +350,7 @@ let detailsInflight: AbortController | null = null;
 async function lookup() {
   const title = draft.title.trim();
   searchInflight?.abort();
-  if (title.length < 2 || bggLink.value) { candidates.value = []; wikiStatus.value = "Type a title and we'll look it up."; return; }
+  if (title.length < 2) { candidates.value = []; wikiStatus.value = "Type a title and we'll look it up."; return; }
   searchInflight = new AbortController();
   wikiStatus.value = "Searching…";
   try {
@@ -465,7 +462,6 @@ onMounted(async () => {
   if (r.imageUrl && !LOOKUP_IMAGE.test(r.imageUrl)) customImage.value = r.imageUrl;
   else matchImage = r.imageUrl;
   loadSeasons(draft.sourceUrl);
-  if (matchSource(r)?.source === "bgg") { bggInput.value = draft.sourceUrl ?? ""; bggStatus.value = "Linked to BoardGameGeek."; }
   loading.value = false;
 });
 
