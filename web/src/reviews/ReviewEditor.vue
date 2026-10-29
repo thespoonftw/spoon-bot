@@ -23,7 +23,8 @@
 
       <div class="rv-field">
         <label class="rv-label" for="rv-match">Match</label>
-        <select id="rv-match" class="rv-select" :value="draft.sourceUrl ?? NO_PAGE" :disabled="!candidates.length" @change="onPageChange">
+        <select id="rv-match" class="rv-select" :value="draft.sourceUrl ?? (userPicked || !candidates.length ? NO_PAGE : UNPICKED)" :disabled="!candidates.length" @change="onPageChange">
+          <option v-if="!userPicked && candidates.length" :value="UNPICKED" disabled>Select match</option>
           <optgroup v-for="g in candidateGroups" :key="g.name" :label="g.name">
             <option v-for="c in g.items" :key="c.url" :value="c.url">{{ c.label }}{{ c.description ? ` — ${c.description}` : "" }}</option>
           </optgroup>
@@ -327,9 +328,11 @@ const otherPlatforms = computed(() => {
   return others;
 });
 
-// --- Match: re-searches as the title/type change and auto-selects the best page until the user picks
-// one. The chosen page (Wikipedia, or Open Library for books) supplies the cover, creator and year.
+// --- Match: re-searches as the title/type change, and nothing is picked until the user picks one.
+// The chosen page (Wikipedia, or Open Library for books) supplies the cover, creator and year.
 const NO_PAGE = "__none__";
+// The "Select match" placeholder, shown until something (or "None of these") is picked.
+const UNPICKED = "__unpicked__";
 const candidates = ref<MatchCandidate[]>([]);
 const candidateGroups = computed(() => (Object.keys(SOURCE_NAMES) as MatchSource[])
   .map(source => ({ name: SOURCE_NAMES[source], items: candidates.value.filter(c => c.source === source) }))
@@ -358,9 +361,8 @@ async function lookup() {
     // Keep the current match selectable even if the new search didn't return it (e.g. an existing review).
     if (draft.sourceUrl && !found.some(c => c.url === draft.sourceUrl)) found.unshift(savedMatch());
     candidates.value = found;
-    if (!userPicked.value) applyPage(found[0] ?? null);
     wikiStatus.value = !found.length ? "Nothing found — fill in the details yourself."
-      : userPicked.value ? "" : "Best match picked automatically — change it if it's wrong.";
+      : userPicked.value ? "" : "Pick the right one to fill in its details and cover.";
   } catch (e) {
     if ((e as Error).name !== "AbortError") wikiStatus.value = "Couldn't search right now — fill in the details yourself.";
   }
