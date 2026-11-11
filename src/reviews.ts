@@ -2,6 +2,8 @@ import http from "http";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import net from "net";
+import dns from "dns/promises";
 import sanitizeHtml from "sanitize-html";
 import { EmbedBuilder, type Client, type Message } from "discord.js";
 import { config } from "./config";
@@ -225,18 +227,25 @@ async function steamDetails(id: number): Promise<SteamDetails | null> {
   return entry?.success ? entry.data ?? null : null;
 }
 
-// The portrait library art (like a box cover), where the game has it at the usual address.
-async function steamPortrait(id: number): Promise<string | null> {
-  const portrait = `${steamImageBase(id)}/library_600x900.jpg`;
-  const res = await fetch(portrait, { method: "HEAD", signal: AbortSignal.timeout(5_000) }).catch(() => null);
-  return res?.ok ? portrait : null;
-}
+// Covers: the portrait library art (like a box cover) where the game has it, otherwise the wide store
+// header. Newer games keep their art in hashed folders that can't be guessed, so the real addresses
+// come from Steam's store API, which lists each game's artwork (one call covers every result).
+type SteamAssets = { asset_url_format?: string; library_capsule?: string; library_capsule_2x?: string; header?: string };
+const STEAM_ASSET_FILE = /^[0-9a-f]{40}\/[\w.-]+\.jpg$|^[\w.-]+\.jpg$/;
 
-// Otherwise the wide store header. Newer games keep their art in a hashed folder that can't be
-// guessed, so the header's real address comes from the app's details.
-function steamHeader(id: number, details: SteamDetails | null): string {
-  const header = details?.header_image;
-  return header && /^https:\/\/[^\s"'<>]+$/.test(header) ? header : `${steamImageBase(id)}/header.jpg`;
+async function steamCovers(ids: number[]): Promise<Map<number, string>> {
+  const covers = new Map<number, string>();
+  const input = { ids: ids.map(appid => ({ appid })), context: { language: "english", country_code: "GB" }, data_request: { include_assets: true } };
+  const res = await fetch(`https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?${new URLSearchParams({ input_json: JSON.stringify(input) })}`, { signal: AbortSignal.timeout(10_000) }).catch(() => null);
+  if (!res?.ok) return covers;
+  const items = ((await res.json().catch(() => null)) as { response?: { store_items?: { id?: number; assets?: SteamAssets }[] } } | null)?.response?.store_items ?? [];
+  for (const { id, assets } of items) {
+    if (!Number.isInteger(id) || !assets) continue;
+    const file = [assets.library_capsule_2x, assets.library_capsule, assets.header].find(f => f && STEAM_ASSET_FILE.test(f));
+    const version = assets.asset_url_format?.match(/\?t=(\d+)$/)?.[1];
+    if (file) covers.set(id!, `${steamImageBase(id!)}/${file}${version ? `?t=${version}` : ""}`);
+  }
+  return covers;
 }
 
 async function searchSteam(query: string): Promise<ExternalMatch[]> {
@@ -245,9 +254,11 @@ async function searchSteam(query: string): Promise<ExternalMatch[]> {
   const items = (((await res.json()) as { items?: SteamSearchItem[] } | null)?.items ?? [])
     .filter((i): i is SteamSearchItem & { id: number; name: string } => i.type === "app" && Number.isInteger(i.id) && !!i.name && !STEAM_EXTRAS.test(i.name))
     .slice(0, 6);
+  const coversPromise = steamCovers(items.map(i => i.id));
   return Promise.all(items.map(async i => {
-    const [details, portrait] = await Promise.all([steamDetails(i.id).catch(() => null), steamPortrait(i.id)]);
-    const imageUrl = portrait ?? steamHeader(i.id, details);
+    const [details, covers] = await Promise.all([steamDetails(i.id).catch(() => null), coversPromise]);
+    const header = details?.header_image;
+    const imageUrl = covers.get(i.id) ?? (header && /^https:\/\/[^\s"'<>]+$/.test(header) ? header : `${steamImageBase(i.id)}/header.jpg`);
     const year = Number(details?.release_date?.date?.match(/\b(\d{4})\b/)?.[1]) || null;
     const developer = details?.developers?.slice(0, 2).join(" & ") || null;
     const platforms = [i.platforms?.windows ? "PC" : null, i.platforms?.mac ? "Mac" : null].filter((p): p is string => !!p);
@@ -330,6 +341,72 @@ async function searchBgg(query: string): Promise<ExternalMatch[]> {
     .sort((a, b) => exact(b) - exact(a) || b.rated - a.rated)
     .slice(0, 8)
     .map(({ url, label, description, imageUrl, details }) => ({ url, label, description, imageUrl, details }));
+}
+
+// A web page's share image (what sites set for link previews: og:image, twitter:image), for when a
+// page's link is pasted as a cover. The server fetches whatever link it's given, so only public
+// https addresses are fetched (not this machine, the home network or the tailnet), redirects are
+// followed by hand so each hop is checked, and only the start of the page is read.
+const isPrivateAddress = (ip: string): boolean => {
+  if (net.isIPv4(ip)) {
+    const [a, b] = ip.split(".").map(Number);
+    return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b < 128) || (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b < 32) || (a === 192 && b === 168) || a >= 224;
+  }
+  const v6 = ip.toLowerCase();
+  if (v6.startsWith("::ffff:")) return isPrivateAddress(v6.slice(7));
+  return v6 === "::" || v6 === "::1" || v6.startsWith("fc") || v6.startsWith("fd") || v6.startsWith("fe80") || v6.startsWith("ff");
+};
+
+async function isPublicHttpsUrl(link: string): Promise<URL | null> {
+  let u: URL;
+  try { u = new URL(link); } catch { return null; }
+  if (u.protocol !== "https:" || u.username || u.password || (u.port && u.port !== "443")) return null;
+  const host = u.hostname.replace(/^\[|\]$/g, "");
+  const addresses = net.isIP(host) ? [host] : (await dns.lookup(host, { all: true }).catch(() => [])).map(a => a.address);
+  return addresses.length && !addresses.some(isPrivateAddress) ? u : null;
+}
+
+const PAGE_IMAGE_TAGS = [/og:image:secure_url/i, /og:image(?::url)?$/i, /twitter:image(?::src)?$/i];
+const htmlAttr = (tag: string, name: string) => tag.match(new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, "i"))?.slice(1).find(v => v !== undefined) ?? null;
+const decodeHtml = (s: string) => s.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+
+async function findPageImage(link: string): Promise<string | null> {
+  let url = await isPublicHttpsUrl(link);
+  let res: Response | null = null;
+  for (let hop = 0; url && hop < 4; hop++) {
+    res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(8_000), headers: { "User-Agent": "Mozilla/5.0 (compatible; reviews-cover-lookup)", Accept: "text/html" } });
+    if (res.status < 300 || res.status >= 400) break;
+    const next = res.headers.get("location");
+    url = next ? await isPublicHttpsUrl(new URL(next, url).href) : null;
+    res = null;
+  }
+  if (!url || !res?.ok || !(res.headers.get("content-type") ?? "").includes("html") || !res.body) return null;
+  // The share tags are in the <head>, so the first 512KB is plenty.
+  let html = "";
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  while (html.length < 512 * 1024) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    html += decoder.decode(value, { stream: true });
+    if (/<\/head>/i.test(html)) break;
+  }
+  reader.cancel().catch(() => {});
+  const metas = (html.match(/<meta\b[^>]*>/gi) ?? []).map(tag => ({ key: htmlAttr(tag, "property") ?? htmlAttr(tag, "name") ?? "", content: htmlAttr(tag, "content") }));
+  const candidates: string[] = [];
+  for (const pattern of PAGE_IMAGE_TAGS) {
+    for (const m of metas) {
+      if (!m.content || !pattern.test(m.key)) continue;
+      try {
+        const image = new URL(decodeHtml(m.content.trim()), url).href;
+        if (/^https:\/\/[^\s"'<>]+$/.test(image) && image.length <= 2000) candidates.push(image);
+      } catch { /* not a usable link */ }
+    }
+  }
+  // AVIF isn't shown everywhere (Discord's embeds included), so another of the page's images is
+  // preferred where there is one.
+  return candidates.find(c => !/\.avif(\?|$)/i.test(c)) ?? candidates[0] ?? null;
 }
 
 const SEARCH_SITES = {
@@ -556,6 +633,16 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
         console.error("Review image upload failed:", e);
         sendJson(res, 400, { error: "Couldn't use that photo — try a JPEG or PNG" });
       });
+    return true;
+  }
+
+  // GET /api/reviews/page-image?url= — the share image of a web page, for when a page's link is
+  // pasted as the cover instead of the picture's own address. Returns { url } or 404.
+  if (url === "/api/reviews/page-image" && method === "GET") {
+    const pageUrl = new URL(req.url ?? "/", "http://x").searchParams.get("url") ?? "";
+    findPageImage(pageUrl)
+      .then(image => image ? sendJson(res, 200, { url: image }) : sendJson(res, 404, { error: "No image found on that page" }))
+      .catch(() => { if (!res.headersSent) sendJson(res, 404, { error: "No image found on that page" }); });
     return true;
   }
 

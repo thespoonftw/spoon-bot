@@ -136,7 +136,9 @@
         <span v-if="uploadedImage" class="rv-hint">Using your photo.<button type="button" class="rv-link-btn" @click="clearCustomImage">Remove it</button></span>
         <template v-else>
           <input id="rv-image" v-model="customImage" class="rv-input" type="url" maxlength="2000" placeholder="https://… to use a different image" autocomplete="off" @input="onCustomImageInput" />
-          <span v-if="customImageBroken" class="rv-hint rv-hint--over">That link isn't an image. Right-click the picture and choose "Copy image address", then paste that here.</span>
+          <span v-if="findingPageImage" class="rv-hint">That's a web page, not an image — looking for its picture…</span>
+          <span v-else-if="customImageBroken" class="rv-hint rv-hint--over">That link isn't an image, and its page has no picture to use. Right-click the picture you want and choose "Copy image address", then paste that here.</span>
+          <span v-else-if="customImage.trim() && customImage.trim() === pageImage" class="rv-hint">Using the picture from that page. Clear it to go back to the match's cover.</span>
           <span v-else-if="customImage.trim()" class="rv-hint">Used instead of the match's cover. Clear it to go back.</span>
         </template>
         <!-- Phones also get a button straight to the camera (some phones' photo pickers don't offer it). -->
@@ -207,17 +209,33 @@ function onCustomImageInput() {
   draft.imageUrl = customImage.value.trim() || matchImage;
 }
 
-// A pasted link is tried as an image, so a link to a web page (rather than to a picture on it) is
-// caught before it's saved as the cover.
+// A pasted link is tried as an image. If it's a web page rather than a picture, the page's own share
+// image (the one link previews show) is looked up and used instead; if it has none, the link is
+// flagged so it isn't saved as a cover that never shows.
 const customImageBroken = ref(false);
+const findingPageImage = ref(false);
+const pageImage = ref(""); // the image found on a pasted page, so the hint can say where it came from
 watch(customImage, link => {
   link = link.trim();
   customImageBroken.value = false;
+  findingPageImage.value = false;
   if (!link || link.startsWith("/review-images/") || !/^https:\/\/\S+$/.test(link)) return;
+  const stillCurrent = () => customImage.value.trim() === link;
   const img = new Image();
   img.referrerPolicy = "no-referrer";
-  img.onload = () => { if (customImage.value.trim() === link) customImageBroken.value = false; };
-  img.onerror = () => { if (customImage.value.trim() === link) customImageBroken.value = true; };
+  img.onerror = async () => {
+    if (!stillCurrent()) return;
+    if (link === pageImage.value) { customImageBroken.value = true; return; }
+    findingPageImage.value = true;
+    const res = await fetch(`/api/reviews/page-image?${new URLSearchParams({ url: link })}`).catch(() => null);
+    const found = res?.ok ? ((await res.json().catch(() => ({}))) as { url?: string }).url : undefined;
+    if (!stillCurrent()) return;
+    findingPageImage.value = false;
+    if (!found) { customImageBroken.value = true; return; }
+    pageImage.value = found;
+    customImage.value = found;
+    onCustomImageInput();
+  };
   img.src = link;
 });
 
@@ -490,6 +508,7 @@ async function save() {
   if (summaryLength.value > SUMMARY_MAX) { error.value = `Keep the summary to ${SUMMARY_MAX} characters.`; return; }
   if (uploading.value) { error.value = "Wait for the photo to finish uploading."; return; }
   if (customImage.value.trim() && !uploadedImage.value && !/^https:\/\/\S+$/.test(customImage.value.trim())) { error.value = "The image link needs to start with https://."; return; }
+  if (findingPageImage.value) { error.value = "Wait a moment — still looking for that page's picture."; return; }
   if (customImageBroken.value) { error.value = "The image link isn't an image — paste the picture's own address, or clear it."; return; }
   saving.value = true;
   const res = await fetch(isEdit.value ? `/api/reviews/${route.params.id}` : "/api/reviews", {
