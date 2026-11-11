@@ -51,7 +51,7 @@
             <span v-if="hasProgress(r.typeName)" class="rv-progress" :class="`rv-progress--${r.progress}`">{{ progressLabel(r.progress) }}</span>
           </div>
           <p v-if="r.summary" class="rv-card-summary">{{ r.summary }}</p>
-          <p v-if="r.bodyHtml" class="rv-card-more">Read the full review</p>
+          <p v-if="r.bodyHtml" class="rv-card-more">Read the full review.</p>
           <div class="rv-card-foot">
             <img v-if="r.authorAvatarUrl" :src="r.authorAvatarUrl" class="rv-avatar" alt="" />
             <span v-else class="rv-avatar">{{ authorName(r)[0] }}</span>
