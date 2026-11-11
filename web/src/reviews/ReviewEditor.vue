@@ -136,7 +136,8 @@
         <span v-if="uploadedImage" class="rv-hint">Using your photo.<button type="button" class="rv-link-btn" @click="clearCustomImage">Remove it</button></span>
         <template v-else>
           <input id="rv-image" v-model="customImage" class="rv-input" type="url" maxlength="2000" placeholder="https://… to use a different image" autocomplete="off" @input="onCustomImageInput" />
-          <span v-if="customImage.trim()" class="rv-hint">Used instead of the match's cover. Clear it to go back.</span>
+          <span v-if="customImageBroken" class="rv-hint rv-hint--over">That link isn't an image. Right-click the picture and choose "Copy image address", then paste that here.</span>
+          <span v-else-if="customImage.trim()" class="rv-hint">Used instead of the match's cover. Clear it to go back.</span>
         </template>
         <!-- Phones also get a button straight to the camera (some phones' photo pickers don't offer it). -->
         <div class="rv-upload-btns">
@@ -205,6 +206,20 @@ function setMatchImage(url: string | null) {
 function onCustomImageInput() {
   draft.imageUrl = customImage.value.trim() || matchImage;
 }
+
+// A pasted link is tried as an image, so a link to a web page (rather than to a picture on it) is
+// caught before it's saved as the cover.
+const customImageBroken = ref(false);
+watch(customImage, link => {
+  link = link.trim();
+  customImageBroken.value = false;
+  if (!link || link.startsWith("/review-images/") || !/^https:\/\/\S+$/.test(link)) return;
+  const img = new Image();
+  img.referrerPolicy = "no-referrer";
+  img.onload = () => { if (customImage.value.trim() === link) customImageBroken.value = false; };
+  img.onerror = () => { if (customImage.value.trim() === link) customImageBroken.value = true; };
+  img.src = link;
+});
 
 function clearCustomImage() {
   customImage.value = "";
@@ -475,6 +490,7 @@ async function save() {
   if (summaryLength.value > SUMMARY_MAX) { error.value = `Keep the summary to ${SUMMARY_MAX} characters.`; return; }
   if (uploading.value) { error.value = "Wait for the photo to finish uploading."; return; }
   if (customImage.value.trim() && !uploadedImage.value && !/^https:\/\/\S+$/.test(customImage.value.trim())) { error.value = "The image link needs to start with https://."; return; }
+  if (customImageBroken.value) { error.value = "The image link isn't an image — paste the picture's own address, or clear it."; return; }
   saving.value = true;
   const res = await fetch(isEdit.value ? `/api/reviews/${route.params.id}` : "/api/reviews", {
     method: isEdit.value ? "PUT" : "POST",

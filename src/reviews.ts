@@ -213,23 +213,30 @@ async function searchImdb(query: string): Promise<ExternalMatch[]> {
 }
 
 type SteamSearchItem = { type?: string; name?: string; id?: number; platforms?: { windows?: boolean; mac?: boolean; linux?: boolean } };
-type SteamDetails = { developers?: string[]; release_date?: { date?: string } };
+type SteamDetails = { developers?: string[]; release_date?: { date?: string }; header_image?: string };
 // Soundtracks, artbooks and the like are listed on Steam as apps of their own.
 const STEAM_EXTRAS = /\b(soundtrack|ost|artbook|art book|demo|playtest|dedicated server|sdk)\b/i;
 const steamImageBase = (id: number) => `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${id}`;
 
 async function steamDetails(id: number): Promise<SteamDetails | null> {
-  const res = await fetch(`https://store.steampowered.com/api/appdetails?appids=${id}&cc=GB&l=english&filters=developers,release_date`, { signal: AbortSignal.timeout(10_000) });
+  const res = await fetch(`https://store.steampowered.com/api/appdetails?appids=${id}&cc=GB&l=english&filters=basic,developers,release_date`, { signal: AbortSignal.timeout(10_000) });
   if (!res.ok) return null;
   const entry = ((await res.json()) as Record<string, { success?: boolean; data?: SteamDetails }> | null)?.[id];
   return entry?.success ? entry.data ?? null : null;
 }
 
-// The portrait library art (like a box cover) where the game has it, otherwise the wide store header.
-async function steamCover(id: number): Promise<string> {
+// The portrait library art (like a box cover), where the game has it at the usual address.
+async function steamPortrait(id: number): Promise<string | null> {
   const portrait = `${steamImageBase(id)}/library_600x900.jpg`;
   const res = await fetch(portrait, { method: "HEAD", signal: AbortSignal.timeout(5_000) }).catch(() => null);
-  return res?.ok ? portrait : `${steamImageBase(id)}/header.jpg`;
+  return res?.ok ? portrait : null;
+}
+
+// Otherwise the wide store header. Newer games keep their art in a hashed folder that can't be
+// guessed, so the header's real address comes from the app's details.
+function steamHeader(id: number, details: SteamDetails | null): string {
+  const header = details?.header_image;
+  return header && /^https:\/\/[^\s"'<>]+$/.test(header) ? header : `${steamImageBase(id)}/header.jpg`;
 }
 
 async function searchSteam(query: string): Promise<ExternalMatch[]> {
@@ -239,7 +246,8 @@ async function searchSteam(query: string): Promise<ExternalMatch[]> {
     .filter((i): i is SteamSearchItem & { id: number; name: string } => i.type === "app" && Number.isInteger(i.id) && !!i.name && !STEAM_EXTRAS.test(i.name))
     .slice(0, 6);
   return Promise.all(items.map(async i => {
-    const [details, imageUrl] = await Promise.all([steamDetails(i.id).catch(() => null), steamCover(i.id)]);
+    const [details, portrait] = await Promise.all([steamDetails(i.id).catch(() => null), steamPortrait(i.id)]);
+    const imageUrl = portrait ?? steamHeader(i.id, details);
     const year = Number(details?.release_date?.date?.match(/\b(\d{4})\b/)?.[1]) || null;
     const developer = details?.developers?.slice(0, 2).join(" & ") || null;
     const platforms = [i.platforms?.windows ? "PC" : null, i.platforms?.mac ? "Mac" : null].filter((p): p is string => !!p);
