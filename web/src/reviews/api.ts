@@ -35,7 +35,8 @@ export interface Review {
   canEdit?: boolean;
   canDelete?: boolean;
   // Only on a single review: other reviews of the same thing, and the viewer's own review of it.
-  others?: Review[];
+  // Without their full text; hasBody says whether there is one.
+  others?: (Review & { hasBody?: boolean })[];
   myReviewId?: number | null;
 }
 

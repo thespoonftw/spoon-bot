@@ -689,7 +689,7 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
 
   if (method === "GET") {
     // Other reviews of the same thing, for the bottom of the page (headline fields only).
-    const others = dbListMatchingReviews(existing).map(({ bodyHtml: _body, ...r }) => r);
+    const others = dbListMatchingReviews(existing).map(({ bodyHtml, ...r }) => ({ ...r, hasBody: !!bodyHtml }));
     // The viewer's own review of it, if they have one (so the page links to it instead of offering a new one).
     const myReviewId = existing.userId === user.userId ? existing.id : others.find(o => o.userId === user.userId)?.id ?? null;
     sendJson(res, 200, { ...existing, canEdit: user.userId === existing.userId, canDelete: canDelete(user.userId, existing.userId), others, myReviewId });
