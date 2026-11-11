@@ -89,6 +89,21 @@ function isAdminRequest(req: http.IncomingMessage): boolean {
   return !!user && (dbGetUserById(user.userId)?.level ?? 0) >= 2;
 }
 
+// Only someone who unlocked the share with its password can know this key (it needs the password hash).
+function shareAccessKey(shareToken: string, passwordHash: string): string {
+  return crypto.createHash("sha256").update(`${shareToken}:${passwordHash}:access`).digest("base64url");
+}
+
+// Share viewers fetch full-size photos with ?share=<token>&key=<key>, valid only for that share's album.
+function hasShareAccess(req: http.IncomingMessage, channelId: string): boolean {
+  const params = new URLSearchParams((req.url ?? "").split("?")[1] ?? "");
+  const shareToken = params.get("share");
+  const key = params.get("key");
+  if (!shareToken || !key) return false;
+  const share = dbGetAlbumShare(shareToken);
+  return !!share && share.channelId === channelId && key === shareAccessKey(shareToken, share.passwordHash);
+}
+
 export function startWebServer(): void {
   if (!config.albumsEnabled) return;
   const port = parseInt(process.env.ALBUM_PORT ?? "3000");
@@ -675,7 +690,10 @@ export function startWebServer(): void {
           if (hash !== share.passwordHash) { sendJson(res, 401, { error: "Wrong password" }); return; }
           const album = dbGetAlbumWithPhotos(share.channelId);
           if (!album) { sendJson(res, 404, { error: "Album not found" }); return; }
-          sendJson(res, 200, { groupName: album.groupName, dateText: album.dateText, photos: album.photos });
+          // Share viewers have no session, so full-size photos carry a key that proves they unlocked this share.
+          const key = shareAccessKey(shareToken, share.passwordHash);
+          const photos = album.photos.map(p => ({ ...p, url: `${p.url}?share=${shareToken}&key=${key}` }));
+          sendJson(res, 200, { groupName: album.groupName, dateText: album.dateText, photos });
         } catch { sendJson(res, 500, { error: "Failed" }); }
       });
       return;
@@ -716,10 +734,12 @@ export function startWebServer(): void {
 
     // GET /uploads/:channelId/:filename — serve uploaded photo files (auth required)
     if (url.startsWith("/uploads/")) {
-      if (!isValidSession(getTokenFromRequest(req))) { res.writeHead(401); res.end("Unauthorized"); return; }
       const parts = url.slice("/uploads/".length).split("/");
       if (parts.length < 2) { res.writeHead(400); res.end("Bad request"); return; }
       const [channelId, filename] = parts;
+      if (!isValidSession(getTokenFromRequest(req)) && !hasShareAccess(req, channelId)) {
+        res.writeHead(401); res.end("Unauthorized"); return;
+      }
       const filePath = path.resolve(PHOTO_STORAGE_PATH, channelId, filename);
       const storagePrefix = PHOTO_STORAGE_PATH + path.sep;
       if (!filePath.startsWith(storagePrefix) || !fs.existsSync(filePath)) {
