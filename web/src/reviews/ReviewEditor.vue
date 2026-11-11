@@ -12,7 +12,7 @@
   </div>
   <form v-else class="rv-editor" @submit.prevent="save">
     <!-- On mobile this wrapper dissolves (display: contents) so the cover can sit between the
-         rv-editor-lead fields (type, title) and the rest. -->
+         rv-editor-lead fields (type, title, match and its details) and the rating and write-up. -->
     <div class="rv-editor-main">
       <p v-if="error" class="rv-error rv-editor-lead">{{ error }}</p>
 
@@ -31,7 +31,7 @@
         <input id="rv-title" v-model="draft.title" class="rv-input rv-input--title" maxlength="200" placeholder="What are you reviewing?" autocomplete="off" />
       </div>
 
-      <div class="rv-field">
+      <div class="rv-field rv-editor-lead">
         <label class="rv-label" for="rv-match">Match</label>
         <select id="rv-match" class="rv-select" :value="draft.sourceUrl ?? (userPicked || !candidates.length ? NO_PAGE : UNPICKED)" :disabled="!candidates.length" @change="onPageChange">
           <option v-if="!userPicked && candidates.length" :value="UNPICKED" disabled>Select match</option>
@@ -44,7 +44,7 @@
       </div>
 
       <!-- Albums with no match picked: the search misses some, so a link to the album can be pasted instead. -->
-      <div v-if="albumLink && !draft.sourceUrl" class="rv-field">
+      <div v-if="albumLink && !draft.sourceUrl" class="rv-field rv-editor-lead">
         <label class="rv-label" for="rv-album-link">Album link <span class="rv-label-note">Optional</span></label>
         <input id="rv-album-link" v-model="albumLinkInput" class="rv-input" placeholder="https://music.apple.com/… or https://en.wikipedia.org/…" autocomplete="off" @input="onAlbumLinkInput" />
         <span class="rv-hint">
@@ -54,7 +54,7 @@
       </div>
 
       <!-- Board games and wargames with no match picked: likewise, a BoardGameGeek link can be pasted. -->
-      <div v-if="bgg && !draft.sourceUrl" class="rv-field">
+      <div v-if="bgg && !draft.sourceUrl" class="rv-field rv-editor-lead">
         <label class="rv-label" for="rv-bgg">BoardGameGeek link <span class="rv-label-note">Optional</span></label>
         <input id="rv-bgg" v-model="bggInput" class="rv-input" placeholder="https://boardgamegeek.com/boardgame/…" autocomplete="off" @input="onBggInput" />
         <span class="rv-hint">
@@ -63,7 +63,7 @@
         </span>
       </div>
 
-      <div v-if="hasYear(selectedType?.name ?? '') || creatorFieldLabel || extra" class="rv-editor-row">
+      <div v-if="hasYear(selectedType?.name ?? '') || creatorFieldLabel || extra" class="rv-editor-row rv-editor-lead">
         <!-- Year first and fixed-width, so it sits in the same place whether or not the type has a creator. -->
         <div v-if="hasYear(selectedType?.name ?? '')" class="rv-field rv-field--year">
           <label class="rv-label" for="rv-year">Year</label>
@@ -97,7 +97,7 @@
           </select>
         </div>
       </div>
-      <p v-if="detailsStatus" class="rv-hint" style="margin: -14px 0 18px">{{ detailsStatus }}</p>
+      <p v-if="detailsStatus" class="rv-hint rv-editor-lead" style="margin: -14px 0 18px">{{ detailsStatus }}</p>
 
       <div class="rv-editor-row">
         <div class="rv-field">
