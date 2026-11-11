@@ -468,15 +468,17 @@ onMounted(async () => {
   types.value = await fetchReviewTypes();
   // "Write your own review for this" opens /reviews/new?from=<id>: same thing, blank review.
   const fromId = isEdit.value ? null : parseInt(route.query.from as string) || null;
+  // A new review starts as the type whose tab it was started from (/reviews/new?type=<id>), else Film.
+  const startType = types.value.find(t => t.id === parseInt(route.query.type as string)) ?? types.value.find(t => t.name === "Film") ?? types.value[0];
   if (!isEdit.value && !fromId) {
-    draft.typeId = (types.value.find(t => t.name === "Film") ?? types.value[0])?.id ?? null;
+    draft.typeId = startType?.id ?? null;
     return;
   }
   loading.value = true;
   const res = await fetch(`/api/reviews/${isEdit.value ? route.params.id : fromId}`);
   if (!res.ok) {
     if (isEdit.value) error.value = "Couldn't load that review.";
-    else draft.typeId = (types.value.find(t => t.name === "Film") ?? types.value[0])?.id ?? null;
+    else draft.typeId = startType?.id ?? null;
     loading.value = false;
     return;
   }

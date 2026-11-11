@@ -35,7 +35,7 @@
     <div v-else-if="!reviews.length" class="rv-empty">
       <h2>Nothing here yet</h2>
       <p>Be the first to review {{ activeType ? `something in ${activeType.name}` : "something" }}.</p>
-      <p style="margin-top: 18px"><router-link to="/reviews/new" class="rv-btn">✎ Write a review</router-link></p>
+      <p style="margin-top: 18px"><router-link :to="typeId ? `/reviews/new?type=${typeId}` : '/reviews/new'" class="rv-btn">✎ Write a review</router-link></p>
     </div>
 
     <div v-else class="rv-feed">
@@ -51,11 +51,12 @@
             <span v-if="hasProgress(r.typeName)" class="rv-progress" :class="`rv-progress--${r.progress}`">{{ progressLabel(r.progress) }}</span>
           </div>
           <p v-if="r.summary" class="rv-card-summary">{{ r.summary }}</p>
-          <p v-if="r.bodyHtml" class="rv-card-more">Read the full review →</p>
+          <p v-if="r.bodyHtml" class="rv-card-more">Read the full review</p>
           <div class="rv-card-foot">
             <img v-if="r.authorAvatarUrl" :src="r.authorAvatarUrl" class="rv-avatar" alt="" />
             <span v-else class="rv-avatar">{{ authorName(r)[0] }}</span>
-            <span>{{ authorName(r) }} · {{ formatReviewDate(r.createdAt) }}</span>
+            <span>{{ authorName(r) }}</span>
+            <span class="rv-card-date">{{ formatReviewDate(r.createdAt) }}</span>
           </div>
         </div>
       </router-link>

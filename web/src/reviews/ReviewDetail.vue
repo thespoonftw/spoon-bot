@@ -56,11 +56,12 @@
             <span v-if="hasProgress(o.typeName)" class="rv-progress" :class="`rv-progress--${o.progress}`">{{ progressLabel(o.progress) }}</span>
           </div>
           <p v-if="o.summary" class="rv-card-summary">{{ o.summary }}</p>
-          <p v-if="o.hasBody" class="rv-card-more">Read the full review →</p>
+          <p v-if="o.hasBody" class="rv-card-more">Read the full review</p>
           <div class="rv-card-foot">
             <img v-if="o.authorAvatarUrl" :src="o.authorAvatarUrl" class="rv-avatar" alt="" />
             <span v-else class="rv-avatar">{{ authorName(o)[0] }}</span>
-            <span>{{ authorName(o) }} · {{ formatReviewDate(o.createdAt) }}</span>
+            <span>{{ authorName(o) }}</span>
+            <span class="rv-card-date">{{ formatReviewDate(o.createdAt) }}</span>
           </div>
         </div>
       </router-link>

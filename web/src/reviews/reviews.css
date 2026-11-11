@@ -124,8 +124,9 @@ body.rv-body {
 .rv-credit { font-size: 0.85rem; color: var(--rv-muted); margin-top: -3px; }
 .rv-credit--large { font: italic 500 1.15rem var(--rv-serif); margin: -6px 0 14px; }
 .rv-card-summary { font-size: 0.92rem; line-height: 1.45; color: var(--rv-ink-soft); overflow-wrap: anywhere; }
-.rv-card-more { font-size: 0.88rem; font-style: italic; color: var(--rv-accent); margin-top: -2px; }
+.rv-card-more { font-size: 0.88rem; font-style: italic; color: var(--rv-ink); margin-top: -2px; }
 .rv-card-foot { margin-top: auto; display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--rv-muted); padding-top: 4px; }
+.rv-card-date { margin-left: auto; white-space: nowrap; }
 
 .rv-cover { flex-shrink: 0; width: 112px; aspect-ratio: 2 / 3; border-radius: 8px; overflow: hidden; background: var(--rv-rule); display: flex; align-items: center; justify-content: center; font-size: 2rem; }
 .rv-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }

@@ -16,7 +16,7 @@
     <header class="rv-masthead">
       <h1><router-link :to="isPublic ? '/reviews/login' : '/reviews'">Reviews</router-link></h1>
       <!-- A single review offers "Write your own review for this" instead. -->
-      <router-link v-if="!isPublic && route.path !== '/reviews/new' && !isReviewPage" to="/reviews/new" class="rv-btn">✎ Write a review</router-link>
+      <router-link v-if="!isPublic && route.path !== '/reviews/new' && !isReviewPage" :to="newReviewLink" class="rv-btn">✎ Write a review</router-link>
     </header>
     <router-view :key="route.fullPath" />
   </div>
@@ -33,6 +33,8 @@ const router = useRouter();
 const { currentUser, reload } = useCurrentUser();
 const isPublic = computed(() => !!route.meta.public);
 const isReviewPage = computed(() => /^\/reviews\/\d+$/.test(route.path));
+// On a type's tab (/reviews?type=<id>), the new review starts as that type.
+const newReviewLink = computed(() => route.path === "/reviews" && /^\d+$/.test(String(route.query.type ?? "")) ? `/reviews/new?type=${route.query.type}` : "/reviews/new");
 const userName = computed(() => currentUser.value?.firstName || currentUser.value?.displayName || "");
 
 // The layout stays mounted across the login pages, so pick the user up once they're signed in.
