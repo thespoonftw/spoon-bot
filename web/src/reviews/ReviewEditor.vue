@@ -1,5 +1,15 @@
 <template>
   <p v-if="loading" class="rv-loading">Loading…</p>
+  <!-- From a Discord post's "Write your own review" link (/reviews/new?from=<id>&ask=1). -->
+  <div v-else-if="askAbout" class="rv-empty">
+    <h2>Write your own review</h2>
+    <p>Of <strong>{{ askAbout.title }}</strong>, or something else?</p>
+    <p class="rv-ask-btns">
+      <router-link v-if="askAbout.myReviewId" :to="`/reviews/${askAbout.myReviewId}`" class="rv-btn">See your review of {{ askAbout.title }}</router-link>
+      <router-link v-else :to="`/reviews/new?from=${askAbout.id}`" replace class="rv-btn">{{ askAbout.title }}</router-link>
+      <router-link :to="`/reviews/new?type=${askAbout.typeId}`" replace class="rv-btn rv-btn--ghost">Something else</router-link>
+    </p>
+  </div>
   <form v-else class="rv-editor" @submit.prevent="save">
     <!-- On mobile this wrapper dissolves (display: contents) so the cover can sit between the
          rv-editor-lead fields (type, title) and the rest. -->
@@ -179,7 +189,8 @@ const draft = reactive<ReviewDraft>({
   season: null, platform: null, location: null, locationUrl: null,
 });
 const bodyHtml = computed({ get: () => draft.bodyHtml ?? "", set: (v: string) => { draft.bodyHtml = v; } });
-const loading = ref(isEdit.value);
+const loading = ref(isEdit.value || !!route.query.ask);
+const askAbout = ref<{ id: number; title: string; typeId: number; myReviewId: number | null } | null>(null);
 const saving = ref(false);
 const error = ref("");
 
@@ -467,11 +478,14 @@ onUnmounted(() => { clearTimeout(debounce); bggInflight?.abort(); searchInflight
 onMounted(async () => {
   types.value = await fetchReviewTypes();
   // "Write your own review for this" opens /reviews/new?from=<id>: same thing, blank review.
+  // "Write your own review" on a Discord post adds &ask=1, so they're first asked whether it's the
+  // same thing (it's then filled in like "Write your own review for this") or something else.
   const fromId = isEdit.value ? null : parseInt(route.query.from as string) || null;
   // A new review starts as the type whose tab it was started from (/reviews/new?type=<id>), else Film.
   const startType = types.value.find(t => t.id === parseInt(route.query.type as string)) ?? types.value.find(t => t.name === "Film") ?? types.value[0];
   if (!isEdit.value && !fromId) {
     draft.typeId = startType?.id ?? null;
+    loading.value = false;
     return;
   }
   loading.value = true;
@@ -484,6 +498,11 @@ onMounted(async () => {
   }
   const r = await res.json();
   if (isEdit.value && !r.canEdit) { router.replace(`/reviews/${r.id}`); return; }
+  if (!isEdit.value && route.query.ask) {
+    askAbout.value = { id: r.id, title: r.title, typeId: r.typeId, myReviewId: r.myReviewId ?? null };
+    loading.value = false;
+    return;
+  }
   // Keep the saved page, cover and details; the search still fills the dropdown so they can be swapped.
   userPicked.value = true;
   Object.assign(autoFilled, { creator: !r.creator, year: r.year === null });

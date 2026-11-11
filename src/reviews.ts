@@ -81,8 +81,9 @@ async function reviewAuthor(client: Client, r: ReviewRow): Promise<{ name: strin
 // A review's Discord card, mirroring the feed card: a header of the reviewer's avatar and
 // "Name reviewed a 🎬 Film" (the header is plain text, so no mention or markdown), then the linked
 // title, credit line, stars and summary, with the cover beside. The title links to the page the
-// review was matched to (BoardGameGeek, Wikipedia…), or the review itself if it wasn't matched, and a
-// "See the full review." link follows when there's more to read than the summary.
+// review was matched to (BoardGameGeek, Wikipedia…), or the review itself if it wasn't matched. A
+// "See the full review" link follows when there's more to read than the summary, otherwise "Write
+// your own review" (the site then asks whether it's for the same thing or something else).
 async function buildReviewEmbed(client: Client, r: ReviewRow): Promise<EmbedBuilder> {
   const [emoji, author] = await Promise.all([getStarEmojis(client), reviewAuthor(client, r)]);
   const { full, half, empty } = emoji ?? { full: "★", half: "½", empty: "☆" };
@@ -99,7 +100,9 @@ async function buildReviewEmbed(client: Client, r: ReviewRow): Promise<EmbedBuil
   const reviewUrl = `${getBaseUrl()}/reviews/${r.id}`;
   // Reviews saved before sourceUrl existed only have wikiTitle.
   const sourceUrl = r.sourceUrl ?? (r.wikiTitle ? `https://en.wikipedia.org/wiki/${encodeURIComponent(r.wikiTitle.replace(/ /g, "_"))}` : null);
-  const more = r.bodyHtml ? `\n\n[See the full review.](${reviewUrl})` : "";
+  const more = r.bodyHtml
+    ? `\n\n[See the full review](${reviewUrl})`
+    : `\n\n[Write your own review](${getBaseUrl()}/reviews/new?from=${r.id}&ask=1)`;
   const embed = new EmbedBuilder()
     .setColor(r.typeColor as `#${string}`)
     .setAuthor({
