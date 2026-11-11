@@ -25,19 +25,11 @@
     <div class="gallery">
       <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item" @click="openLightbox(i)">
         <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
-        <div class="photo-meta">
-          <span v-if="photo.uploadedByName" class="uploader">{{ photo.uploadedByName }}</span>
-          <span v-if="photo.takenAt" class="upload-time">{{ formatTime(photo.takenAt) }}</span>
-        </div>
       </div>
     </div>
     <div class="gallery-mobile">
       <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(i)">
         <img :src="photo.url" loading="lazy" />
-        <div class="photo-meta">
-          <span v-if="photo.uploadedByName" class="uploader">{{ photo.uploadedByName }}</span>
-          <span v-if="photo.takenAt" class="upload-time">{{ formatTime(photo.takenAt) }}</span>
-        </div>
       </div>
     </div>
   </div>
@@ -49,7 +41,7 @@ import { useRoute } from "vue-router";
 import PhotoSwipe from "photoswipe";
 import "photoswipe/style.css";
 
-interface Photo { id: number; url: string; uploadedByName?: string; takenAt?: string; width?: number; height?: number }
+interface Photo { id: number; url: string; uploadedByName?: string; takenAt?: string; uploadedAt?: string; score?: number; width?: number; height?: number }
 interface Album { groupName: string; dateText?: string; photos: Photo[] }
 
 const route = useRoute();
@@ -70,7 +62,10 @@ async function unlock() {
   });
   loading.value = false;
   if (res.ok) {
-    album.value = await res.json();
+    const data: Album = await res.json();
+    // Most popular first (same order as the album page's Popularity sort)
+    data.photos.sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || (b.uploadedAt ?? "").localeCompare(a.uploadedAt ?? ""));
+    album.value = data;
   } else if (res.status === 401) {
     error.value = "Wrong password.";
   } else {
