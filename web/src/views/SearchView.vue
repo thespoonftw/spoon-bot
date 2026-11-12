@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <PageHeader back-to="/" title="Search Photos" />
+    <PageHeader back-to="/photos" title="Search Photos" />
 
     <div class="search-filters">
       <div class="search-filters-row">

@@ -1,6 +1,6 @@
 <template>
   <div class="map-page">
-    <PageHeader back-to="/" title="Map">
+    <PageHeader back-to="/photos" title="Map">
       <template v-if="pinCount !== null">
         <label class="search-filter-label">Filter:</label>
         <select v-model="filterMode" class="sort-select">

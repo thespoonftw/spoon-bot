@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <PageHeader back-to="/" title="Albums">
+    <PageHeader back-to="/photos" title="Albums">
       <button class="btn-primary btn-small" @click="showModal = true">Create Album</button>
     </PageHeader>
 

@@ -26,6 +26,7 @@ import ReviewsAuthVerify from "./reviews/ReviewsAuthVerify.vue";
 import ReviewTypesAdmin from "./reviews/ReviewTypesAdmin.vue";
 import ReviewsAppView from "./reviews/ReviewsAppView.vue";
 import AppsView from "./views/AppsView.vue";
+import PhotosView from "./views/PhotosView.vue";
 import { syncReviewsAppHead, registerReviewsServiceWorker, listenForInstallPrompt } from "./utils/reviewsApp";
 import "./style.css";
 
@@ -54,6 +55,7 @@ const router = createRouter({
     { path: "/share/:token", component: ShareView, meta: { public: true } },
     { path: "/location/:token", component: LocationShareView, meta: { public: true } },
     { path: "/", component: LandingView },
+    { path: "/photos", component: PhotosView },
     { path: "/albums", component: AlbumList },
     { path: "/album/:channelId", component: AlbumView },
     { path: "/search", component: SearchView },
