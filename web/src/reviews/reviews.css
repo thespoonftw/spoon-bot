@@ -75,13 +75,15 @@ body.rv-body.rv-dark {
 
 /* "Write a review": beside the category tabs on desktop (ReviewsHome); on phones a full-width bar
    that stays at the bottom of the screen (ReviewsLayout). */
-.rv-filters-row { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid var(--rv-rule); }
-.rv-filters-row .rv-filters { flex: 1; min-width: 0; margin-bottom: 0; border-bottom: none; }
-.rv-filters-write { flex-shrink: 0; margin-left: auto; }
+/* The tabs' underline stops at the last tab; the button sits at the far right. ReviewsHome fits the
+   tabs into the row's width less the button's. */
+.rv-filters-row { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.rv-filters-row .rv-filters { flex: 0 1 auto; min-width: 0; margin-bottom: 0; }
+.rv-filters-row .rv-filters-write { flex-shrink: 0; margin-left: auto; }
 .rv-write-bar { display: none; }
 @media (max-width: 600px) {
-  .rv-filters-write { display: none; }
-  .rv-filters-row { gap: 0; }
+  .rv-filters-row .rv-filters-write { display: none; }
+  .rv-filters-row .rv-filters { flex: 1; }
   .rv-write-bar { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--rv-paper); border-top: 1px solid var(--rv-rule); }
   .rv-write-bar .rv-btn { width: 100%; justify-content: center; padding: 13px 18px; }
   .rv.rv--write-bar { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }

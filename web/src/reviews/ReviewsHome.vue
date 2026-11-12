@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- The category tabs, with "Write a review" at their right on desktop (phones have a bottom bar). -->
-    <div class="rv-filters-row">
+    <div ref="rowEl" class="rv-filters-row">
     <nav v-if="filterTypes.length > 1" ref="navEl" class="rv-filters">
       <!-- An invisible copy of every tab, measured to work out how many fit on the row. -->
       <div class="rv-filters-measure" aria-hidden="true">
@@ -28,7 +28,7 @@
         </div>
       </div>
     </nav>
-    <router-link :to="typeId ? `/reviews/new?type=${typeId}` : '/reviews/new'" class="rv-btn rv-btn--small rv-filters-write">✎ Write a review</router-link>
+    <router-link :to="typeId ? `/reviews/new?type=${typeId}` : '/reviews/new'" class="rv-btn rv-filters-write">✎ Write a review</router-link>
     </div>
     <!-- The tabs are just emoji, so the selected type is named above the list ("All" needs no heading). -->
     <h2 v-if="activeType && filterTypes.length > 1" class="rv-filter-heading">{{ pluralType(activeType.name) }}</h2>
@@ -106,23 +106,28 @@ const moreOpen = ref(false);
 const moreEl = ref<HTMLElement | null>(null);
 const navEl = ref<HTMLElement | null>(null);
 const measureEl = ref<HTMLElement | null>(null);
+const rowEl = ref<HTMLElement | null>(null);
 
-// Measures the invisible copy of the tabs (All, each type, More) against the row's width.
+// Measures the invisible copy of the tabs (All, each type, More) against the room in the row: its
+// width less the "Write a review" button beside the tabs (desktop only; hidden, it measures 0).
+// The tabs only take the width they need, so the row is measured rather than the tabs themselves.
 function fitTabs() {
-  const nav = navEl.value, measure = measureEl.value;
-  if (!nav || !measure) return;
+  const nav = navEl.value, measure = measureEl.value, row = rowEl.value;
+  if (!nav || !measure || !row) return;
   const gap = parseFloat(getComputedStyle(nav).columnGap) || 0;
   const widths = [...measure.children].map(c => (c as HTMLElement).offsetWidth);
   const more = widths.pop()!;
   const [all, ...tabs] = widths;
-  const room = nav.clientWidth;
+  const write = row.querySelector<HTMLElement>(".rv-filters-write")?.offsetWidth ?? 0;
+  const room = row.clientWidth - (write ? write + (parseFloat(getComputedStyle(row).columnGap) || 0) : 0);
   if (tabs.reduce((used, w) => used + gap + w, all) <= room) { fitCount.value = tabs.length; return; }
   let used = all + gap + more, count = 0;
   while (count < tabs.length && used + gap + tabs[count] <= room) used += gap + tabs[count++];
   fitCount.value = count;
 }
 const resizeObserver = new ResizeObserver(() => fitTabs());
-watch(navEl, (el, old) => { if (old) resizeObserver.unobserve(old); if (el) resizeObserver.observe(el); });
+watch(rowEl, (el, old) => { if (old) resizeObserver.unobserve(old); if (el) resizeObserver.observe(el); });
+watch(navEl, (el) => { if (el) nextTick(fitTabs); });
 watch(filterTypes, () => nextTick(fitTabs));
 function closeMoreOnOutsideClick(e: MouseEvent) {
   if (moreOpen.value && !moreEl.value?.contains(e.target as Node)) moreOpen.value = false;
