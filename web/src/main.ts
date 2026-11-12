@@ -32,9 +32,10 @@ import "./style.css";
 
 function applyMobileZoom() {
   const breakpoint = 430;
-  document.documentElement.style.zoom = window.innerWidth < breakpoint
-    ? String(window.innerWidth / breakpoint)
-    : '';
+  const zoom = window.innerWidth < breakpoint ? window.innerWidth / breakpoint : 1;
+  document.documentElement.style.zoom = zoom === 1 ? '' : String(zoom);
+  // The screen's height in zoomed px, so a page can fill exactly one screen (vh units don't account for the zoom).
+  document.documentElement.style.setProperty('--screen-height', `${window.innerHeight / zoom}px`);
 }
 applyMobileZoom();
 window.addEventListener('resize', applyMobileZoom);

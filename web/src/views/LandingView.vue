@@ -1,5 +1,5 @@
 <template>
-  <div class="page">
+  <div class="page landing-page">
     <div class="landing-header">
       <h1>Brunch Projects</h1>
       <UserBadge class="landing-user-info" />

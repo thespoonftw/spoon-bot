@@ -14,6 +14,7 @@
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
           </button>
           <div v-if="menuOpen" class="rv-options-menu" role="menu">
+            <router-link v-if="!inApp" to="/" role="menuitem">Go to Directory</router-link>
             <router-link v-if="(currentUser.level ?? 0) >= 2" to="/reviews/types" role="menuitem">Types</router-link>
             <router-link v-if="showGetApp" to="/reviews/app" role="menuitem">Get the app</router-link>
             <button type="button" role="menuitemcheckbox" :aria-checked="darkMode" @click="darkMode = !darkMode">
@@ -44,6 +45,8 @@ import "./reviews.css";
 
 // "Get the app" is for phones (and tablets) that aren't already in the app.
 const showGetApp = (isIos() || isAndroid()) && !isStandalone();
+// In the installed Reviews app there's no way back to the rest of Brunch Projects; in a browser there is.
+const inApp = isStandalone();
 
 const route = useRoute();
 const router = useRouter();
