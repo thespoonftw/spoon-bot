@@ -448,8 +448,3 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .feature-card--disabled { opacity: 0.45; cursor: not-allowed; }
 .feature-card--disabled:hover { background: #313244; }
 .feature-card--disabled p { font-size: 0.85rem; }
-.landing-admin-cell { position: relative; display: flex; }
-.landing-card-button { border: none; font: inherit; cursor: pointer; width: 100%; }
-.landing-submenu { position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 20; background: #1e1e2e; border: 1px solid #45475a; border-radius: 12px; padding: 6px; display: flex; flex-direction: column; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-.landing-submenu-item { padding: 12px 14px; border-radius: 8px; color: #cdd6f4; text-decoration: none; font-size: 1.05rem; }
-.landing-submenu-item:hover { background: #313244; }

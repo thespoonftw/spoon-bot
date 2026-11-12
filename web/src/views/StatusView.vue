@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <PageHeader back-to="/" title="Status" />
+    <PageHeader back-to="/admin" title="Status" />
 
     <div v-if="status" class="status-grid">
       <div class="status-card storage-card">

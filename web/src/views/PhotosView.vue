@@ -1,6 +1,8 @@
 <template>
   <div class="page">
-    <PageHeader back-to="/" title="Photos" />
+    <PageHeader back-to="/" title="Photos">
+      <UserBadge />
+    </PageHeader>
     <div class="landing-grid">
       <router-link to="/albums" class="feature-card">
         <span class="feature-icon">📔</span>
@@ -20,4 +22,5 @@
 
 <script setup lang="ts">
 import PageHeader from "../components/PageHeader.vue";
+import UserBadge from "../components/UserBadge.vue";
 </script>

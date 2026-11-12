@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <PageHeader back-to="/" title="Database" />
+    <PageHeader back-to="/admin" title="Database" />
 
     <div class="db-layout">
       <div class="db-sidebar">

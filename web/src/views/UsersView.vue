@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <PageHeader back-to="/" title="Users">
+    <PageHeader back-to="/admin" title="Users">
       <button v-if="canEditGroups" class="btn-primary btn-small" @click="addingUser = true">Add User</button>
     </PageHeader>
 
