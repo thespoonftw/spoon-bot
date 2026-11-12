@@ -27,9 +27,9 @@
         <span class="feature-icon">👥</span>
         <h2>Users</h2>
       </router-link>
-      <router-link to="/status" class="feature-card">
-        <span class="feature-icon">📊</span>
-        <h2>Stats</h2>
+      <router-link to="/apps" class="feature-card">
+        <span class="feature-icon">📱</span>
+        <h2>Apps</h2>
       </router-link>
       <router-link to="/reviews" class="feature-card">
         <span class="feature-icon">⭐</span>
@@ -38,21 +38,20 @@
     </div>
 
     <div class="landing-admin-row">
-      <router-link to="/apps" class="feature-card feature-card--small">
-        <span class="feature-icon">📱</span>
-        <h2>Apps</h2>
+      <router-link to="/status" class="feature-card feature-card--small">
+        <span class="feature-icon">📊</span>
+        <h2>Stats</h2>
       </router-link>
-    </div>
-
-    <div v-if="(currentUser?.level ?? 0) >= 2" class="landing-admin-row">
-      <router-link to="/database" class="feature-card feature-card--small">
-        <span class="feature-icon">🗄️</span>
-        <h2>Database</h2>
-      </router-link>
-      <a href="/chewsday" class="feature-card feature-card--small">
-        <span class="feature-icon">🍽️</span>
-        <h2>Chewsday</h2>
-      </a>
+      <template v-if="(currentUser?.level ?? 0) >= 2">
+        <router-link to="/database" class="feature-card feature-card--small">
+          <span class="feature-icon">🗄️</span>
+          <h2>Database</h2>
+        </router-link>
+        <a href="/chewsday" class="feature-card feature-card--small">
+          <span class="feature-icon">🍽️</span>
+          <h2>Chewsday</h2>
+        </a>
+      </template>
     </div>
   </div>
 </template>
