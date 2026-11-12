@@ -27,7 +27,7 @@ export function useLoginSearch() {
 }
 
 // Asks the server to DM/email a magic link. `site` decides where the link lands and how it's worded.
-export async function requestLoginLink(userId: string, method: "discord" | "email", site?: "reviews"): Promise<{ ok: boolean; maskedEmail?: string }> {
+export async function requestLoginLink(userId: string, method: "discord" | "email", site?: "reviews"): Promise<{ ok: boolean; maskedEmail?: string; requestId?: string }> {
   const res = await fetch("/api/auth/request", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -35,7 +35,7 @@ export async function requestLoginLink(userId: string, method: "discord" | "emai
   });
   if (!res.ok) return { ok: false };
   const data = await res.json().catch(() => ({}));
-  return { ok: true, maskedEmail: data.maskedEmail };
+  return { ok: true, maskedEmail: data.maskedEmail, requestId: data.requestId };
 }
 
 // Exchanges a magic-link token for a session. The server sets the HttpOnly snek_session cookie on
@@ -45,4 +45,17 @@ export async function verifyLoginToken(token: string): Promise<boolean> {
   const res = await fetch(`/api/auth/verify/${token}`);
   const data = res.ok ? await res.json().catch(() => ({})) : {};
   return !!data.sessionToken;
+}
+
+// Signs in with the 6-digit code from a reviews login message, on the device that asked for it
+// (the installed iPhone app can't pick up a login made by tapping the link, which opens Safari).
+export async function verifyLoginCode(requestId: string, code: string): Promise<"ok" | "wrong" | "expired"> {
+  const res = await fetch("/api/auth/code", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId, code }),
+  });
+  const data = res.ok ? await res.json().catch(() => ({})) : {};
+  if (data.sessionToken) return "ok";
+  return data.error === "wrong" ? "wrong" : "expired";
 }

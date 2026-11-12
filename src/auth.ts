@@ -20,7 +20,12 @@ const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const ALLOWED_USER_IDS = (process.env.AUTH_USER_IDS ?? "148516020007600128").split(",");
 
 type UserInfo = { userId: string; displayName: string; avatarUrl: string };
-type MagicToken = { userId: string; expires: number };
+// A reviews-site login also carries a 6-digit code to type in on the device that asked for it.
+// The installed iPhone app keeps its own cookies apart from Safari, so the emailed link alone would
+// sign people into Safari, not the app. requestId is a secret only that device holds, so a code is
+// useless to anyone else; a few wrong guesses cancel the login.
+type MagicToken = { userId: string; expires: number; code?: string; requestId?: string; attempts?: number };
+const MAX_CODE_ATTEMPTS = 5;
 
 let discordClient: Client | null = null;
 const userInfoCache = new Map<string, UserInfo>();
@@ -83,6 +88,17 @@ async function refreshAllUserAvatars(client: Client): Promise<void> {
 const SESSION_COOKIE = "snek_session";
 const SESSION_MAX_AGE = 365 * 24 * 60 * 60;
 const SESSION_COOKIE_ATTRS = `; Max-Age=${SESSION_MAX_AGE}; Path=/; SameSite=Lax; HttpOnly`;
+
+// Signs this browser in as the user: a new session, set as the HttpOnly cookie on the response.
+function startSession(res: ServerResponse, userId: string): void {
+  const sessionToken = crypto.randomBytes(32).toString("hex");
+  sessions.set(sessionToken, userId);
+  persistSessions();
+  dbUpdateUserLastSeen(userId);
+  const cookieHeader = `${SESSION_COOKIE}=${sessionToken}${SESSION_COOKIE_ATTRS}`;
+  console.log(`[auth] setting cookie: ${cookieHeader.slice(0, 80)}`);
+  sendJson(res, 200, { sessionToken, userId }, { "Set-Cookie": cookieHeader });
+}
 
 export function getTokenFromRequest(req: IncomingMessage): string {
   const rawBearer = (req.headers["authorization"] ?? "").replace("Bearer ", "");
@@ -150,15 +166,18 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
         if (chosenMethod === "email" && !targetUser.email) { sendJson(res, 400, { error: "No email address on file" }); return; }
         if (chosenMethod === "discord" && !targetUser.discordId) { sendJson(res, 400, { error: "No Discord account on file" }); return; }
         const token = crypto.randomBytes(32).toString("hex");
-        magicTokens.set(token, { userId, expires: Date.now() + 15 * 60 * 1000 });
+        const code = isReviews ? String(crypto.randomInt(0, 1_000_000)).padStart(6, "0") : undefined;
+        const requestId = isReviews ? crypto.randomBytes(16).toString("hex") : undefined;
+        magicTokens.set(token, { userId, expires: Date.now() + 15 * 60 * 1000, code, requestId, attempts: 0 });
         const link = `${getBaseUrl()}${isReviews ? "/reviews" : ""}/auth/verify/${token}`;
         if (chosenMethod === "email") {
-          await sendMagicLinkEmail(targetUser.email!, link, siteName);
+          await sendMagicLinkEmail(targetUser.email!, link, siteName, code);
         } else {
           const user = await discordClient!.users.fetch(targetUser.discordId!);
-          await user.send(`🔗 Click here to log in to the ${siteName} site:\n${link}\n\n*This link expires in 15 minutes.*`);
+          const codeLine = code ? `\n\nUsing the app? Enter this code instead: **${code}**` : "";
+          await user.send(`🔗 Click here to log in to the ${siteName} site:\n${link}${codeLine}\n\n*This link expires in 15 minutes.*`);
         }
-        sendJson(res, 200, { ok: true, method: chosenMethod, maskedEmail: chosenMethod === "email" ? maskEmail(targetUser.email!) : undefined });
+        sendJson(res, 200, { ok: true, method: chosenMethod, maskedEmail: chosenMethod === "email" ? maskEmail(targetUser.email!) : undefined, requestId });
       } catch (e) {
         console.error("Auth request error:", e);
         sendJson(res, 500, { error: "Failed to send login link" });
@@ -172,13 +191,36 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     const magic = magicTokens.get(token);
     if (!magic || magic.expires < Date.now()) { sendJson(res, 200, { error: "Invalid or expired token" }); return true; }
     magicTokens.delete(token);
-    const sessionToken = crypto.randomBytes(32).toString("hex");
-    sessions.set(sessionToken, magic.userId);
-    persistSessions();
-    dbUpdateUserLastSeen(magic.userId);
-    const cookieHeader = `${SESSION_COOKIE}=${sessionToken}${SESSION_COOKIE_ATTRS}`;
-    console.log(`[auth/verify] setting cookie: ${cookieHeader.slice(0, 80)}`);
-    sendJson(res, 200, { sessionToken, userId: magic.userId }, { "Set-Cookie": cookieHeader });
+    startSession(res, magic.userId);
+    return true;
+  }
+
+  // The code from a reviews login message, typed in on the device that asked for it.
+  if (url === "/api/auth/code" && method === "POST") {
+    let body = "";
+    req.on("data", chunk => body += chunk);
+    req.on("end", () => {
+      let requestId = "", code = "";
+      try { ({ requestId, code } = JSON.parse(body)); } catch { /* handled below */ }
+      const entry = typeof requestId === "string" && requestId
+        ? [...magicTokens.entries()].find(([, m]) => m.requestId === requestId)
+        : undefined;
+      if (!entry || entry[1].expires < Date.now()) {
+        if (entry) magicTokens.delete(entry[0]);
+        sendJson(res, 200, { error: "expired" });
+        return;
+      }
+      const [token, magic] = entry;
+      const given = String(code ?? "").replace(/\D/g, "");
+      if (!magic.code || given.length !== 6 || !crypto.timingSafeEqual(Buffer.from(given), Buffer.from(magic.code))) {
+        magic.attempts = (magic.attempts ?? 0) + 1;
+        if (magic.attempts >= MAX_CODE_ATTEMPTS) { magicTokens.delete(token); sendJson(res, 200, { error: "expired" }); return; }
+        sendJson(res, 200, { error: "wrong" });
+        return;
+      }
+      magicTokens.delete(token);
+      startSession(res, magic.userId);
+    });
     return true;
   }
 

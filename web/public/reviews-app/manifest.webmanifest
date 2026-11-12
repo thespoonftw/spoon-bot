@@ -1,0 +1,16 @@
+{
+  "id": "/reviews",
+  "name": "Brunch Reviews",
+  "short_name": "Reviews",
+  "description": "Reviews of everything the group reads, watches, plays, eats and drinks.",
+  "start_url": "/reviews",
+  "scope": "/reviews",
+  "display": "standalone",
+  "background_color": "#f5f0e6",
+  "theme_color": "#f5f0e6",
+  "icons": [
+    { "src": "/reviews-app/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/reviews-app/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/reviews-app/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

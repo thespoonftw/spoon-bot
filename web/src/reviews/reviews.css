@@ -262,6 +262,19 @@ body.rv-body {
 .rv-login-user-text span { font-size: 0.8rem; color: var(--rv-muted); }
 .rv-login-confirm { background: var(--rv-card); border: 1px solid var(--rv-rule); border-radius: 16px; padding: 28px 24px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .rv-login-confirm strong { color: var(--rv-ink); }
+.rv-login-code { background: var(--rv-card); border: 1px solid var(--rv-rule); border-radius: 16px; padding: 20px; margin-bottom: 18px; }
+.rv-login-code label { display: block; font-weight: 600; margin-bottom: 12px; }
+.rv-login-code-row { display: flex; gap: 10px; justify-content: center; }
+.rv-login-code .rv-input { max-width: 170px; text-align: center; font: 600 1.4rem var(--rv-sans); letter-spacing: 0.2em; padding: 8px 10px; }
+.rv-login-code .rv-error { margin: 12px 0 0; }
+
+/* Get the app page */
+.rv-app { max-width: 520px; margin: 20px auto 0; text-align: center; }
+.rv-app-icon { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 6px 20px rgba(31, 26, 23, 0.15); }
+.rv-app h2 { font-size: 2rem; margin: 18px 0 6px; }
+.rv-app-steps { text-align: left; background: var(--rv-card); border: 1px solid var(--rv-rule); border-radius: 16px; padding: 18px 20px 18px 40px; margin: 0 0 18px; line-height: 1.6; }
+.rv-app-steps li + li { margin-top: 6px; }
+.rv-app-share { display: inline-block; vertical-align: -3px; width: 18px; height: 18px; }
 .rv-avatar--xl { width: 72px; height: 72px; font-size: 1.8rem; }
 
 /* Admin: review types */

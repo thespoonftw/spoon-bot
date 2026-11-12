@@ -37,6 +37,13 @@
       </router-link>
     </div>
 
+    <div class="landing-admin-row">
+      <router-link to="/apps" class="feature-card feature-card--small">
+        <span class="feature-icon">📱</span>
+        <h2>Apps</h2>
+      </router-link>
+    </div>
+
     <div v-if="(currentUser?.level ?? 0) >= 2" class="landing-admin-row">
       <router-link to="/database" class="feature-card feature-card--small">
         <span class="feature-icon">🗄️</span>

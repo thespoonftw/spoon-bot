@@ -56,7 +56,18 @@ function queueUploadAnnouncement(channelId: string, userId: string, name: string
 const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "application/javascript", ".css": "text/css",
   ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2",
+  ".webmanifest": "application/manifest+json",
 };
+
+// Head tags that make the reviews pages installable as the Brunch Reviews app (see web/public/reviews-app).
+const REVIEWS_APP_HEAD = [
+  `<link rel="manifest" href="/reviews-app/manifest.webmanifest" />`,
+  `<link rel="apple-touch-icon" href="/reviews-app/apple-touch-icon.png" />`,
+  `<meta name="apple-mobile-web-app-title" content="Reviews" />`,
+  `<meta name="mobile-web-app-capable" content="yes" />`,
+  `<meta name="apple-mobile-web-app-capable" content="yes" />`,
+  `<meta name="theme-color" content="#f5f0e6" />`,
+].join("\n  ");
 
 // Stream a file to the response, handling read errors (e.g. EIO from a failing drive / bad sector)
 // gracefully instead of letting the stream's unhandled "error" event crash the process. The 200
@@ -751,6 +762,18 @@ export function startWebServer(): void {
       return;
     }
 
+    // The installable Brunch Reviews app: its manifest, icons and service worker (from web/public).
+    // Not hashed, so browsers revalidate them each time.
+    if (url === "/reviews-sw.js" || url.startsWith("/reviews-app/")) {
+      const filePath = path.join(webDist, url);
+      if (!filePath.startsWith(webDist + path.sep) || !fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+        res.writeHead(404); res.end("Not found"); return;
+      }
+      res.writeHead(200, { "Content-Type": MIME[path.extname(filePath)] ?? "application/octet-stream", "Cache-Control": "no-cache" });
+      res.end(fs.readFileSync(filePath));
+      return;
+    }
+
     // Static files — assets have hashed names; everything else serves index.html for Vue Router
     const resolvedAsset = url.startsWith("/assets/") ? path.join(webDist, url) : path.join(webDist, "index.html");
     if (!resolvedAsset.startsWith(webDist) || !fs.existsSync(resolvedAsset)) {
@@ -760,8 +783,9 @@ export function startWebServer(): void {
     res.writeHead(200, { "Content-Type": mime });
     // Link previews read the page's title without running the app, so the reviews section's pages
     // are sent already titled "Brunch Reviews" (the app keeps the tab title in sync from then on).
+    // They also carry the app manifest, so phones offer to install Brunch Reviews from them.
     if (url === "/reviews" || url.startsWith("/reviews/")) {
-      res.end(fs.readFileSync(resolvedAsset, "utf8").replace("<title>Brunch Projects</title>", "<title>Brunch Reviews</title>"));
+      res.end(fs.readFileSync(resolvedAsset, "utf8").replace("<title>Brunch Projects</title>", `<title>Brunch Reviews</title>\n  ${REVIEWS_APP_HEAD}`));
       return;
     }
     res.end(fs.readFileSync(resolvedAsset));

@@ -58,10 +58,10 @@ const nameOf = (u: LoginUser) => u.firstName || u.displayName;
 async function send(u: LoginUser, method: "discord" | "email") {
   loading.value = true;
   error.value = "";
-  const { ok, maskedEmail } = await requestLoginLink(u.userId, method, "reviews");
+  const { ok, maskedEmail, requestId } = await requestLoginLink(u.userId, method, "reviews");
   loading.value = false;
   if (ok) {
-    router.push({ path: "/reviews/login/sent", query: { method, maskedEmail } });
+    router.push({ path: "/reviews/login/sent", query: { method, maskedEmail, r: requestId } });
   } else {
     error.value = "Couldn't send the login link — try again.";
     confirming.value = null;

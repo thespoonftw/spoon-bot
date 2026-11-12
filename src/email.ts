@@ -12,7 +12,10 @@ export function maskEmail(email: string): string {
   return `${maskedLocal}@${maskedDomain}.${tld}`;
 }
 
-export async function sendMagicLinkEmail(to: string, link: string, siteName = "Spoon Photos"): Promise<void> {
+export async function sendMagicLinkEmail(to: string, link: string, siteName = "Spoon Photos", code?: string): Promise<void> {
+  const codeHtml = code
+    ? `<p>Using the app? Enter this code instead:</p><p style="font-size:28px;font-weight:bold;letter-spacing:6px;font-family:monospace">${code}</p>`
+    : "";
   if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -21,7 +24,7 @@ export async function sendMagicLinkEmail(to: string, link: string, siteName = "S
       from: MAIL_FROM,
       to,
       subject: `Your ${siteName} login link`,
-      html: `<p>Click the link below to log in to the ${siteName} site:</p><p><a href="${link}">${link}</a></p><p>This link expires in 15 minutes.</p>`,
+      html: `<p>Click the link below to log in to the ${siteName} site:</p><p><a href="${link}">${link}</a></p>${codeHtml}<p>This link expires in 15 minutes.</p>`,
     }),
   });
   if (!res.ok) {

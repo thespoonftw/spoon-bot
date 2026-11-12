@@ -5,6 +5,7 @@
         <router-link to="/reviews" :class="{ active: route.path === '/reviews' }">All reviews</router-link>
         <router-link v-if="currentUser" :to="`/reviews/people/${currentUser.userId}`" :class="{ active: route.path === `/reviews/people/${currentUser.userId}` }">My reviews</router-link>
         <router-link v-if="(currentUser?.level ?? 0) >= 2" to="/reviews/types" :class="{ active: route.path === '/reviews/types' }">Types</router-link>
+        <router-link v-if="!standalone" to="/reviews/app" :class="{ active: route.path === '/reviews/app' }">Get the app</router-link>
       </nav>
       <div v-if="!isPublic && currentUser" class="rv-topbar-user">
         <img v-if="currentUser.avatarUrl" :src="currentUser.avatarUrl" class="rv-avatar" alt="" />
@@ -26,12 +27,16 @@
 import { computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCurrentUser } from "../composables/useCurrentUser";
+import { isStandalone } from "../utils/reviewsApp";
 import "./reviews.css";
+
+const standalone = isStandalone();
 
 const route = useRoute();
 const router = useRouter();
 const { currentUser, reload } = useCurrentUser();
-const isPublic = computed(() => !!route.meta.public);
+// Login pages drop the nav; pages open to all (the Get the app page) keep it for signed-in people.
+const isPublic = computed(() => !!route.meta.public && !(route.meta.openToAll && currentUser.value));
 const isReviewPage = computed(() => /^\/reviews\/\d+$/.test(route.path));
 // On a type's tab (/reviews?type=<id>), the new review starts as that type.
 const newReviewLink = computed(() => route.path === "/reviews" && /^\d+$/.test(String(route.query.type ?? "")) ? `/reviews/new?type=${route.query.type}` : "/reviews/new");

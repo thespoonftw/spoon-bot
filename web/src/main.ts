@@ -24,6 +24,9 @@ import ReviewsLogin from "./reviews/ReviewsLogin.vue";
 import ReviewsLoginSent from "./reviews/ReviewsLoginSent.vue";
 import ReviewsAuthVerify from "./reviews/ReviewsAuthVerify.vue";
 import ReviewTypesAdmin from "./reviews/ReviewTypesAdmin.vue";
+import ReviewsAppView from "./reviews/ReviewsAppView.vue";
+import AppsView from "./views/AppsView.vue";
+import { syncReviewsAppHead, registerReviewsServiceWorker, listenForInstallPrompt } from "./utils/reviewsApp";
 import "./style.css";
 
 function applyMobileZoom() {
@@ -59,12 +62,15 @@ const router = createRouter({
     { path: "/status", component: StatusView },
     { path: "/database", component: DatabaseView },
     { path: "/snek", component: SnekView },
+    { path: "/apps", component: AppsView },
     {
       path: "/reviews", component: ReviewsLayout,
       children: [
         { path: "login", component: ReviewsLogin, meta: { public: true } },
         { path: "login/sent", component: ReviewsLoginSent, meta: { public: true } },
         { path: "auth/verify/:token", component: ReviewsAuthVerify, meta: { public: true } },
+        // How to install the app: open to anyone, so the link can be passed around before signing in.
+        { path: "app", component: ReviewsAppView, meta: { public: true, openToAll: true } },
         { path: "", component: ReviewsHome },
         { path: "new", component: ReviewEditor },
         { path: "people/:userId", component: ReviewProfileView },
@@ -89,9 +95,14 @@ router.beforeEach(async (to) => {
 });
 
 // The browser tab names the section you're in: the reviews site is "Brunch Reviews", the rest "Brunch Projects".
+// The reviews section is also the installable Brunch Reviews app, so its pages carry the app manifest.
 router.afterEach((to) => {
-  document.title = to.path.startsWith("/reviews") ? "Brunch Reviews" : "Brunch Projects";
+  const inReviews = to.path.startsWith("/reviews");
+  document.title = inReviews ? "Brunch Reviews" : "Brunch Projects";
+  syncReviewsAppHead(inReviews);
+  if (inReviews) registerReviewsServiceWorker();
 });
+listenForInstallPrompt();
 
 const app = createApp(App);
 app.use(router).mount("#app");
