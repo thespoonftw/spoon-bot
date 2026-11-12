@@ -1,5 +1,5 @@
 <template>
-  <div class="page">
+  <div class="page landing-page">
     <div class="landing-header">
       <PageHeader back-to="/" title="Photos" />
       <UserBadge class="landing-user-info" />
