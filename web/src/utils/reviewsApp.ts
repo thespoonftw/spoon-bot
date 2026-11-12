@@ -7,17 +7,36 @@ import { ref } from "vue";
 // Chrome/Edge/Android hand over their install prompt once; keep it for the Get the app page's button.
 interface InstallPromptEvent extends Event { prompt(): Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> }
 export const installPrompt = ref<InstallPromptEvent | null>(null);
-export const installed = ref(false);
+
+// Once installed, browsers stop offering the prompt, so the Get the app page would otherwise fall
+// back to its manual instructions. Remember an install in this browser; Chrome can also be asked
+// outright (getInstalledRelatedApps, via related_applications in the manifest), which also catches
+// an uninstall.
+const INSTALLED_KEY = "reviewsAppInstalled";
+function readInstalledFlag() { try { return localStorage.getItem(INSTALLED_KEY) === "1"; } catch { return false; } }
+function setInstalled(value: boolean) {
+  installed.value = value;
+  try { value ? localStorage.setItem(INSTALLED_KEY, "1") : localStorage.removeItem(INSTALLED_KEY); } catch { /* private mode */ }
+}
+export const installed = ref(readInstalledFlag());
 
 export function listenForInstallPrompt() {
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     installPrompt.value = e as InstallPromptEvent;
+    // Only offered when the app isn't installed (e.g. it was removed since).
+    setInstalled(false);
   });
   window.addEventListener("appinstalled", () => {
     installPrompt.value = null;
-    installed.value = true;
+    setInstalled(true);
   });
+}
+
+/** Asks the browser whether the app is installed. Only meaningful from a page inside /reviews (the app's scope). */
+export function checkInstalled() {
+  const nav = navigator as { getInstalledRelatedApps?: () => Promise<unknown[]> };
+  nav.getInstalledRelatedApps?.().then((apps) => setInstalled(apps.length > 0)).catch(() => { /* unsupported here */ });
 }
 
 export async function promptInstall() {
@@ -26,7 +45,7 @@ export async function promptInstall() {
   await p.prompt();
   const { outcome } = await p.userChoice;
   installPrompt.value = null;
-  if (outcome === "accepted") installed.value = true;
+  if (outcome === "accepted") setInstalled(true);
 }
 
 /** Running as the installed app rather than in a browser tab. */

@@ -3,9 +3,13 @@
     <img src="/reviews-app/icon-192.png" class="rv-app-icon" alt="" />
     <h2>Get the app</h2>
 
-    <template v-if="standalone || installed">
-      <p class="rv-login-sub">You've got the Brunch Reviews app. It updates itself, so there's nothing else to do.</p>
+    <template v-if="standalone">
+      <p class="rv-login-sub">You have the Brunch Reviews app. It updates itself, so there's nothing else to do.</p>
       <router-link to="/reviews" class="rv-btn">Go to the reviews</router-link>
+    </template>
+
+    <template v-else-if="installed && !installPrompt">
+      <p class="rv-login-sub">You have the app. Open <strong>Reviews</strong> from your home screen. It updates itself, so there's nothing else to do.</p>
     </template>
 
     <template v-else>
@@ -44,7 +48,10 @@
 </template>
 
 <script setup lang="ts">
-import { installPrompt, installed, promptInstall, isStandalone, isIos, isAndroid } from "../utils/reviewsApp";
+import { onMounted } from "vue";
+import { installPrompt, installed, promptInstall, isStandalone, isIos, isAndroid, checkInstalled } from "../utils/reviewsApp";
+
+onMounted(checkInstalled);
 
 const standalone = isStandalone();
 const ios = isIos();
