@@ -1,4 +1,5 @@
 import { ref } from "vue";
+import { themeColor } from "./reviewsTheme";
 
 // The installable Brunch Reviews app (a PWA scoped to /reviews). Its manifest, icons and service
 // worker live in web/public; the server adds the head tags to /reviews pages it serves, and
@@ -62,7 +63,7 @@ const HEAD_TAGS: { selector: string; tag: string; attrs: Record<string, string> 
   { selector: 'meta[name="apple-mobile-web-app-title"]', tag: "meta", attrs: { name: "apple-mobile-web-app-title", content: "Reviews" } },
   { selector: 'meta[name="mobile-web-app-capable"]', tag: "meta", attrs: { name: "mobile-web-app-capable", content: "yes" } },
   { selector: 'meta[name="apple-mobile-web-app-capable"]', tag: "meta", attrs: { name: "apple-mobile-web-app-capable", content: "yes" } },
-  { selector: 'meta[name="theme-color"]', tag: "meta", attrs: { name: "theme-color", content: "#f5f0e6" } },
+  { selector: 'meta[name="theme-color"]', tag: "meta", attrs: { name: "theme-color", content: themeColor() } },
 ];
 
 /** Adds the app's head tags inside the reviews section and removes them elsewhere. */

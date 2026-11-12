@@ -11,7 +11,18 @@
         <img v-if="currentUser.avatarUrl" :src="currentUser.avatarUrl" class="rv-avatar" alt="" />
         <span v-else class="rv-avatar">{{ userName[0] }}</span>
         <span>{{ userName }}</span>
-        <button type="button" class="rv-link-btn" @click="logout">Log out</button>
+        <div ref="menuRoot" class="rv-options">
+          <button type="button" class="rv-options-btn" aria-label="Options" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+          </button>
+          <div v-if="menuOpen" class="rv-options-menu" role="menu">
+            <button type="button" role="menuitemcheckbox" :aria-checked="darkMode" @click="darkMode = !darkMode">
+              <span>Dark mode</span>
+              <span class="rv-switch" :class="{ 'rv-switch--on': darkMode }" aria-hidden="true"></span>
+            </button>
+            <button type="button" role="menuitem" @click="logout">Log out</button>
+          </div>
+        </div>
       </div>
     </div>
     <header class="rv-masthead">
@@ -24,10 +35,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCurrentUser } from "../composables/useCurrentUser";
 import { isStandalone, isIos, isAndroid } from "../utils/reviewsApp";
+import { darkMode, applyReviewsTheme, removeReviewsTheme } from "../utils/reviewsTheme";
 import "./reviews.css";
 
 // "Get the app" is for phones (and tablets) that aren't already in the app.
@@ -46,13 +58,33 @@ const userName = computed(() => currentUser.value?.firstName || currentUser.valu
 // The layout stays mounted across the login pages, so pick the user up once they're signed in.
 watch(isPublic, (pub) => { if (!pub && !currentUser.value) reload(); });
 
+// The ⋮ options menu: dark mode and log out. Closes on a tap elsewhere, Escape, or moving page.
+const menuOpen = ref(false);
+const menuRoot = ref<HTMLElement | null>(null);
+function onDocPointer(e: PointerEvent) {
+  if (menuOpen.value && menuRoot.value && !menuRoot.value.contains(e.target as Node)) menuOpen.value = false;
+}
+function onKey(e: KeyboardEvent) { if (e.key === "Escape") menuOpen.value = false; }
+watch(() => route.fullPath, () => { menuOpen.value = false; });
+
 async function logout() {
+  menuOpen.value = false;
   await fetch("/api/auth/logout", { method: "POST" });
   currentUser.value = null;
   router.push("/reviews/login");
 }
 
 // The body carries the section's palette and background, so overscroll and short pages match too.
-onMounted(() => document.body.classList.add("rv-body"));
-onUnmounted(() => document.body.classList.remove("rv-body"));
+onMounted(() => {
+  document.body.classList.add("rv-body");
+  applyReviewsTheme(darkMode.value);
+  document.addEventListener("pointerdown", onDocPointer);
+  document.addEventListener("keydown", onKey);
+});
+onUnmounted(() => {
+  document.body.classList.remove("rv-body");
+  removeReviewsTheme();
+  document.removeEventListener("pointerdown", onDocPointer);
+  document.removeEventListener("keydown", onKey);
+});
 </script>
