@@ -88,9 +88,9 @@ router.beforeEach(async (to) => {
   return { path: to.path.startsWith("/reviews") ? "/reviews/login" : "/login" };
 });
 
-// The browser tab names the section you're in: the reviews site is "Snek Reviews", the rest "Brunch Projects".
+// The browser tab names the section you're in: the reviews site is "Brunch Reviews", the rest "Brunch Projects".
 router.afterEach((to) => {
-  document.title = to.path.startsWith("/reviews") ? "Snek Reviews" : "Brunch Projects";
+  document.title = to.path.startsWith("/reviews") ? "Brunch Reviews" : "Brunch Projects";
 });
 
 const app = createApp(App);

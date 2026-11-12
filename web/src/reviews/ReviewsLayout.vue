@@ -14,7 +14,7 @@
       </div>
     </div>
     <header class="rv-masthead">
-      <h1><router-link :to="isPublic ? '/reviews/login' : '/reviews'">Snek Reviews</router-link></h1>
+      <h1><router-link :to="isPublic ? '/reviews/login' : '/reviews'">Brunch Reviews</router-link></h1>
       <!-- A single review offers "Write your own review for this" instead. -->
       <router-link v-if="!isPublic && route.path !== '/reviews/new' && !isReviewPage" :to="newReviewLink" class="rv-btn">✎ Write a review</router-link>
     </header>
