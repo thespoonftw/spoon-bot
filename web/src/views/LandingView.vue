@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <div class="landing-header">
-      <h1>Directory</h1>
+      <h1>Brunch Projects</h1>
       <UserBadge class="landing-user-info" />
     </div>
 

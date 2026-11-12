@@ -1,8 +1,9 @@
 <template>
   <div class="page">
-    <PageHeader back-to="/" title="Photos">
-      <UserBadge />
-    </PageHeader>
+    <div class="landing-header">
+      <PageHeader back-to="/" title="Photos" />
+      <UserBadge class="landing-user-info" />
+    </div>
     <div class="landing-grid">
       <router-link to="/albums" class="feature-card">
         <span class="feature-icon">📔</span>

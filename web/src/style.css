@@ -221,15 +221,21 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .header-left .back { margin-bottom: 0; }
 .user-info { display: flex; align-items: center; gap: 10px; }
 .user-name { color: #cdd6f4; font-size: 0.95rem; }
-.logout { background: #313244; border: none; border-radius: 8px; padding: 8px 16px; color: #cdd6f4; cursor: pointer; font-size: 0.9rem; }
-.logout:hover { background: #45475a; }
+.user-options { position: relative; display: flex; }
+.user-options-btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: none; border-radius: 50%; background: none; color: #a6adc8; cursor: pointer; }
+.user-options-btn:hover, .user-options-btn[aria-expanded="true"] { background: #45475a; color: #cdd6f4; }
+.user-options-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; min-width: 160px; display: flex; flex-direction: column; background: #1e1e2e; border: 1px solid #45475a; border-radius: 12px; padding: 6px; box-shadow: 0 12px 28px -14px rgba(0, 0, 0, 0.6); }
+.user-options-menu button { padding: 10px; border: none; border-radius: 8px; background: none; color: #cdd6f4; font: inherit; font-size: 0.9rem; text-align: left; cursor: pointer; }
+.user-options-menu button:hover { background: #313244; }
 
-.landing-header { display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.landing-header { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
 .landing-header h1 { margin-bottom: 0; }
+.landing-header .page-header { flex: 1; margin-bottom: 0; }
 .landing-user-info { justify-content: flex-end; }
+/* On phones your name and the ⋮ menu sit on their own line above the title, at the right. */
 @media (max-width: 767px) {
-  .landing-header { display: block; }
-  .landing-user-info { justify-content: flex-start; margin-top: 10px; }
+  .landing-header { flex-direction: column-reverse; align-items: stretch; gap: 10px; }
+  .landing-user-info { align-self: flex-end; }
 }
 .landing-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-top: 16px; }
 @media (min-width: 768px) { .landing-grid { grid-template-columns: repeat(3, 1fr); } }

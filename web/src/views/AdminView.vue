@@ -1,8 +1,9 @@
 <template>
   <div class="page">
-    <PageHeader back-to="/" title="Admin">
-      <UserBadge />
-    </PageHeader>
+    <div class="landing-header">
+      <PageHeader back-to="/" title="Admin" />
+      <UserBadge class="landing-user-info" />
+    </div>
     <div v-if="isAdmin" class="landing-grid">
       <router-link to="/status" class="feature-card">
         <span class="feature-icon">📊</span>
