@@ -268,6 +268,9 @@ body.rv-body {
 .rv-login-code .rv-input { max-width: 170px; text-align: center; font: 600 1.4rem var(--rv-sans); letter-spacing: 0.2em; padding: 8px 10px; }
 .rv-login-code .rv-error { margin: 12px 0 0; }
 
+/* Admin-only nav links (Types) stay off phones, where the nav is tight. */
+@media (max-width: 600px) { .rv-nav .rv-nav-desktop-only { display: none; } }
+
 /* Get the app page */
 .rv-app { max-width: 520px; margin: 20px auto 0; text-align: center; }
 .rv-app-icon { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 6px 20px rgba(31, 26, 23, 0.15); }
