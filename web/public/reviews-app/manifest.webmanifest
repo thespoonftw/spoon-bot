@@ -1,7 +1,7 @@
 {
   "id": "/reviews",
   "name": "Brunch Reviews",
-  "short_name": "Reviews",
+  "short_name": "Brunch Reviews",
   "description": "Reviews of everything the group reads, watches, plays, eats and drinks.",
   "start_url": "/reviews",
   "scope": "/reviews",

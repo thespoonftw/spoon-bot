@@ -63,7 +63,7 @@ const MIME: Record<string, string> = {
 const REVIEWS_APP_HEAD = [
   `<link rel="manifest" href="/reviews-app/manifest.webmanifest" />`,
   `<link rel="apple-touch-icon" href="/reviews-app/apple-touch-icon.png" />`,
-  `<meta name="apple-mobile-web-app-title" content="Reviews" />`,
+  `<meta name="apple-mobile-web-app-title" content="Brunch Reviews" />`,
   `<meta name="mobile-web-app-capable" content="yes" />`,
   `<meta name="apple-mobile-web-app-capable" content="yes" />`,
   `<meta name="theme-color" content="#f5f0e6" />`,

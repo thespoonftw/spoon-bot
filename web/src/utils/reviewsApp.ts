@@ -59,7 +59,7 @@ export const isAndroid = () => /Android/.test(navigator.userAgent);
 const HEAD_TAGS: { selector: string; tag: string; attrs: Record<string, string> }[] = [
   { selector: 'link[rel="manifest"]', tag: "link", attrs: { rel: "manifest", href: "/reviews-app/manifest.webmanifest" } },
   { selector: 'link[rel="apple-touch-icon"]', tag: "link", attrs: { rel: "apple-touch-icon", href: "/reviews-app/apple-touch-icon.png" } },
-  { selector: 'meta[name="apple-mobile-web-app-title"]', tag: "meta", attrs: { name: "apple-mobile-web-app-title", content: "Reviews" } },
+  { selector: 'meta[name="apple-mobile-web-app-title"]', tag: "meta", attrs: { name: "apple-mobile-web-app-title", content: "Brunch Reviews" } },
   { selector: 'meta[name="mobile-web-app-capable"]', tag: "meta", attrs: { name: "mobile-web-app-capable", content: "yes" } },
   { selector: 'meta[name="apple-mobile-web-app-capable"]', tag: "meta", attrs: { name: "apple-mobile-web-app-capable", content: "yes" } },
   { selector: 'meta[name="theme-color"]', tag: "meta", attrs: { name: "theme-color", content: "#f5f0e6" } },
