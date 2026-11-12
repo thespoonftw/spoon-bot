@@ -229,13 +229,17 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .user-options-menu button:hover { background: #313244; }
 
 .landing-header { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
-.landing-header h1 { margin-bottom: 0; }
-.landing-header .page-header { flex: 1; margin-bottom: 0; }
-.landing-user-info { justify-content: flex-end; }
-/* On phones your name and the ⋮ menu sit on their own line above the title, at the right. */
-@media (max-width: 767px) {
-  .landing-header { flex-direction: column-reverse; align-items: stretch; gap: 10px; }
-  .landing-user-info { align-self: flex-end; }
+.landing-header h1 { margin-bottom: 0; white-space: nowrap; }
+.landing-header .page-header { flex: 1; min-width: 0; margin-bottom: 0; }
+.landing-user-info { justify-content: flex-end; min-width: 0; }
+.landing-user-info .user-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* On phones everything drops a size so the title, your name and the ⋮ menu share one row (as on Brunch Reviews). */
+@media (max-width: 600px) {
+  .landing-header { gap: 8px; }
+  .landing-header h1 { font-size: 1.4rem; }
+  .landing-user-info { gap: 6px; font-size: 0.9rem; }
+  .landing-user-info .avatar { width: 26px; height: 26px; font-size: 0.8rem; }
+  .landing-user-info .user-name { max-width: 70px; font-size: 0.9rem; }
 }
 .landing-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-top: 16px; }
 @media (min-width: 768px) { .landing-grid { grid-template-columns: repeat(3, 1fr); } }
