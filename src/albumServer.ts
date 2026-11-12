@@ -759,9 +759,9 @@ export function startWebServer(): void {
     const mime = MIME[path.extname(resolvedAsset)] ?? "application/octet-stream";
     res.writeHead(200, { "Content-Type": mime });
     // Link previews read the page's title without running the app, so the reviews section's pages
-    // are sent already titled "Reviews" (the app keeps the tab title in sync from then on).
+    // are sent already titled "Snek Reviews" (the app keeps the tab title in sync from then on).
     if (url === "/reviews" || url.startsWith("/reviews/")) {
-      res.end(fs.readFileSync(resolvedAsset, "utf8").replace("<title>Spoon Photos</title>", "<title>Reviews</title>"));
+      res.end(fs.readFileSync(resolvedAsset, "utf8").replace("<title>Brunch Projects</title>", "<title>Snek Reviews</title>"));
       return;
     }
     res.end(fs.readFileSync(resolvedAsset));
