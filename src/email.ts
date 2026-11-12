@@ -13,9 +13,11 @@ export function maskEmail(email: string): string {
 }
 
 export async function sendMagicLinkEmail(to: string, link: string, siteName = "Spoon Photos", code?: string): Promise<void> {
-  const codeHtml = code
-    ? `<p>Using the app? Enter this code instead:</p><p style="font-size:28px;font-weight:bold;letter-spacing:6px;font-family:monospace">${code}</p>`
-    : "";
+  // A code (for the installed iPhone app) is sent instead of the link, not as well as it.
+  const subject = code ? `Your ${siteName} login code: ${code}` : `Your ${siteName} login link`;
+  const html = code
+    ? `<p>Your ${siteName} login code is:</p><p style="font-size:28px;font-weight:bold;letter-spacing:6px;font-family:monospace">${code}</p><p>Type it into the app. It expires in 15 minutes.</p>`
+    : `<p>Click the link below to log in to the ${siteName} site:</p><p><a href="${link}">${link}</a></p><p>This link expires in 15 minutes.</p>`;
   if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -23,8 +25,8 @@ export async function sendMagicLinkEmail(to: string, link: string, siteName = "S
     body: JSON.stringify({
       from: MAIL_FROM,
       to,
-      subject: `Your ${siteName} login link`,
-      html: `<p>Click the link below to log in to the ${siteName} site:</p><p><a href="${link}">${link}</a></p>${codeHtml}<p>This link expires in 15 minutes.</p>`,
+      subject,
+      html,
     }),
   });
   if (!res.ok) {

@@ -27,11 +27,12 @@ export function useLoginSearch() {
 }
 
 // Asks the server to DM/email a magic link. `site` decides where the link lands and how it's worded.
-export async function requestLoginLink(userId: string, method: "discord" | "email", site?: "reviews"): Promise<{ ok: boolean; maskedEmail?: string; requestId?: string }> {
+// withCode (the installed iPhone reviews app) gets a 6-digit code to type in instead of a link.
+export async function requestLoginLink(userId: string, method: "discord" | "email", site?: "reviews", withCode = false): Promise<{ ok: boolean; maskedEmail?: string; requestId?: string }> {
   const res = await fetch("/api/auth/request", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, method, site }),
+    body: JSON.stringify({ userId, method, site, withCode }),
   });
   if (!res.ok) return { ok: false };
   const data = await res.json().catch(() => ({}));
@@ -47,8 +48,7 @@ export async function verifyLoginToken(token: string): Promise<boolean> {
   return !!data.sessionToken;
 }
 
-// Signs in with the 6-digit code from a reviews login message, on the device that asked for it
-// (the installed iPhone app can't pick up a login made by tapping the link, which opens Safari).
+// Signs in with the 6-digit code from a reviews login message, on the device that asked for it.
 export async function verifyLoginCode(requestId: string, code: string): Promise<"ok" | "wrong" | "expired"> {
   const res = await fetch("/api/auth/code", {
     method: "POST",

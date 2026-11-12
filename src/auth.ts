@@ -20,10 +20,10 @@ const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const ALLOWED_USER_IDS = (process.env.AUTH_USER_IDS ?? "148516020007600128").split(",");
 
 type UserInfo = { userId: string; displayName: string; avatarUrl: string };
-// A reviews-site login also carries a 6-digit code to type in on the device that asked for it.
-// The installed iPhone app keeps its own cookies apart from Safari, so the emailed link alone would
-// sign people into Safari, not the app. requestId is a secret only that device holds, so a code is
-// useless to anyone else; a few wrong guesses cancel the login.
+// The installed iPhone Brunch Reviews app asks for a 6-digit code instead of a link: it keeps its
+// own cookies apart from Safari, so a tapped link would sign people into Safari, not the app.
+// requestId is a secret only that device holds, so a code is useless to anyone else; a few wrong
+// guesses cancel the login.
 type MagicToken = { userId: string; expires: number; code?: string; requestId?: string; attempts?: number };
 const MAX_CODE_ATTEMPTS = 5;
 
@@ -156,7 +156,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     req.on("data", chunk => body += chunk);
     req.on("end", async () => {
       try {
-        const { userId, method: deliveryMethod, site } = JSON.parse(body);
+        const { userId, method: deliveryMethod, site, withCode } = JSON.parse(body);
         // The reviews section has its own login pages, so its links land there and say so.
         const isReviews = site === "reviews";
         const siteName = isReviews ? "Spoon Reviews" : "Spoon Photos";
@@ -166,16 +166,18 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
         if (chosenMethod === "email" && !targetUser.email) { sendJson(res, 400, { error: "No email address on file" }); return; }
         if (chosenMethod === "discord" && !targetUser.discordId) { sendJson(res, 400, { error: "No Discord account on file" }); return; }
         const token = crypto.randomBytes(32).toString("hex");
-        const code = isReviews ? String(crypto.randomInt(0, 1_000_000)).padStart(6, "0") : undefined;
-        const requestId = isReviews ? crypto.randomBytes(16).toString("hex") : undefined;
+        const useCode = isReviews && withCode === true;
+        const code = useCode ? String(crypto.randomInt(0, 1_000_000)).padStart(6, "0") : undefined;
+        const requestId = useCode ? crypto.randomBytes(16).toString("hex") : undefined;
         magicTokens.set(token, { userId, expires: Date.now() + 15 * 60 * 1000, code, requestId, attempts: 0 });
         const link = `${getBaseUrl()}${isReviews ? "/reviews" : ""}/auth/verify/${token}`;
         if (chosenMethod === "email") {
           await sendMagicLinkEmail(targetUser.email!, link, siteName, code);
         } else {
           const user = await discordClient!.users.fetch(targetUser.discordId!);
-          const codeLine = code ? `\n\nUsing the app? Enter this code instead: **${code}**` : "";
-          await user.send(`🔗 Click here to log in to the ${siteName} site:\n${link}${codeLine}\n\n*This link expires in 15 minutes.*`);
+          await user.send(code
+            ? `🔑 Your ${siteName} login code is **${code}**\nType it into the app.\n\n*This code expires in 15 minutes.*`
+            : `🔗 Click here to log in to the ${siteName} site:\n${link}\n\n*This link expires in 15 minutes.*`);
         }
         sendJson(res, 200, { ok: true, method: chosenMethod, maskedEmail: chosenMethod === "email" ? maskEmail(targetUser.email!) : undefined, requestId });
       } catch (e) {

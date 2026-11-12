@@ -22,7 +22,7 @@
             at the bottom of the screen.
           </li>
           <li>Scroll down and tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
-          <li>Open <strong>Reviews</strong> from your home screen and sign in. When the login message arrives, type its <strong>6-digit code</strong> into the app; the link would sign you in to Safari instead.</li>
+          <li>Open <strong>Reviews</strong> from your home screen and sign in. The app sends you a 6-digit code to type in.</li>
         </ol>
       </template>
 

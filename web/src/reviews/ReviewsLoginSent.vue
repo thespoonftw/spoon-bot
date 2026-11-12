@@ -2,14 +2,13 @@
   <div class="rv-login">
     <h2>{{ method === "email" ? "Check your inbox" : "Check your DMs" }}</h2>
     <p class="rv-login-sub" v-if="method === 'email'">
-      We've emailed a login link to <strong v-if="maskedEmail">{{ maskedEmail }}</strong><template v-else>your email address</template>.
+      We've emailed a {{ what }} to <strong v-if="maskedEmail">{{ maskedEmail }}</strong><template v-else>your email address</template>.
     </p>
-    <p class="rv-login-sub" v-else>We've sent you a login link on Discord.</p>
+    <p class="rv-login-sub" v-else>We've sent you a {{ what }} on Discord.</p>
 
-    <!-- The message also has a code: the way in for the installed iPhone app, which can't pick up a
-         login made by tapping the link (that opens Safari, which keeps separate cookies). -->
+    <!-- Only the installed iPhone app is sent a code (see ReviewsLogin); everyone else gets a link. -->
     <form v-if="requestId" class="rv-login-code" @submit.prevent="submitCode">
-      <label for="rv-login-code">Or enter the 6-digit code from the message</label>
+      <label for="rv-login-code">Enter the 6-digit code</label>
       <div class="rv-login-code-row">
         <input id="rv-login-code" v-model="code" class="rv-input" type="text" inputmode="numeric"
                autocomplete="one-time-code" maxlength="7" placeholder="123456" :disabled="checking || expired" />
@@ -20,7 +19,7 @@
       <p v-if="codeError" class="rv-error">{{ codeError }}</p>
     </form>
 
-    <p class="rv-hint">The {{ requestId ? "link and code expire" : "link expires" }} in 15 minutes.</p>
+    <p class="rv-hint">The {{ requestId ? "code" : "link" }} expires in 15 minutes.</p>
     <p style="margin-top: 24px"><router-link to="/reviews/login" class="rv-btn rv-btn--ghost">← Use a different account</router-link></p>
   </div>
 </template>
@@ -35,6 +34,7 @@ const router = useRouter();
 const method = route.query.method as string | undefined;
 const maskedEmail = route.query.maskedEmail as string | undefined;
 const requestId = route.query.r as string | undefined;
+const what = requestId ? "6-digit login code" : "login link";
 
 const code = ref("");
 const digits = computed(() => code.value.replace(/\D/g, ""));
