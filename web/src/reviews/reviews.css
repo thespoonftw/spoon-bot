@@ -44,27 +44,48 @@ body.rv-body.rv-dark {
 .rv h1, .rv h2, .rv h3 { color: var(--rv-ink); margin: 0; font-family: var(--rv-serif); font-weight: 600; letter-spacing: -0.01em; }
 
 /* Masthead */
-.rv-topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; font-size: 0.85rem; color: var(--rv-muted); min-height: 24px; }
-.rv-topbar-user { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-.rv-nav { display: flex; gap: 18px; }
-.rv-nav a { text-decoration: none; font-weight: 600; color: var(--rv-muted); padding-bottom: 2px; border-bottom: 2px solid transparent; }
-.rv-nav a:hover { color: var(--rv-ink); }
-.rv-nav a.active { color: var(--rv-ink); border-bottom-color: var(--rv-accent); }
 .rv-link-btn { background: none; border: none; padding: 0; margin-left: 6px; font: inherit; color: var(--rv-muted); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .rv-link-btn:hover { color: var(--rv-accent); }
 .rv-options { position: relative; display: flex; }
 .rv-options-btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin: -4px -6px -4px 0; padding: 0; border: none; border-radius: 50%; background: none; color: var(--rv-muted); cursor: pointer; }
 .rv-options-btn:hover, .rv-options-btn[aria-expanded="true"] { background: var(--rv-rule); color: var(--rv-ink); }
 .rv-options-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; min-width: 190px; display: flex; flex-direction: column; background: var(--rv-card); border: 1px solid var(--rv-rule); border-radius: 12px; padding: 6px; box-shadow: 0 12px 28px -14px rgba(0, 0, 0, 0.5); }
-.rv-options-menu button { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px; border: none; border-radius: 8px; background: none; font: 600 0.9rem var(--rv-sans); color: var(--rv-ink); text-align: left; cursor: pointer; }
-.rv-options-menu button:hover { background: var(--rv-paper); }
+.rv-options-menu button, .rv-options-menu a { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px; border: none; border-radius: 8px; background: none; font: 600 0.9rem var(--rv-sans); color: var(--rv-ink); text-align: left; cursor: pointer; }
+.rv-options-menu a { text-decoration: none; }
+.rv-options-menu button:hover, .rv-options-menu a:hover { background: var(--rv-paper); }
 .rv-switch { position: relative; width: 34px; height: 20px; border-radius: 999px; background: var(--rv-rule); flex-shrink: 0; transition: background 0.15s; }
 .rv-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--rv-card); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); transition: transform 0.15s; }
 .rv-switch--on { background: var(--rv-accent); }
 .rv-switch--on::after { transform: translateX(14px); }
-.rv-masthead { border-bottom: 3px double var(--rv-ink); padding: 18px 0 16px; margin-bottom: 28px; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.rv-masthead h1 { font-size: clamp(2.6rem, 7vw, 4.2rem); line-height: 0.95; font-weight: 700; font-style: italic; }
+.rv-masthead { border-bottom: 3px double var(--rv-ink); padding: 8px 0 16px; margin-bottom: 28px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.rv-masthead h1 { font-size: clamp(2.6rem, 7vw, 4.2rem); line-height: 0.95; font-weight: 700; font-style: italic; white-space: nowrap; }
 .rv-masthead h1 a { text-decoration: none; }
+/* Your name (a link to My reviews) and the ⋮ menu, at the right of the title. */
+.rv-masthead-user { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 0.9rem; }
+.rv-me { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 10px 4px 4px; border-radius: 999px; text-decoration: none; font-weight: 600; color: var(--rv-muted); transition: background 0.15s, color 0.15s; }
+.rv-me:hover, .rv-me.active { background: var(--rv-rule); color: var(--rv-ink); }
+.rv-me .rv-avatar { width: 26px; height: 26px; }
+.rv-me-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 600px) {
+  /* A size down, so your name and the menu fit on the same row. */
+  .rv-masthead { gap: 8px; padding-top: 0; }
+  .rv-masthead h1 { font-size: 2rem; }
+  .rv-me-name { max-width: 90px; }
+}
+
+/* "Write a review": beside the category tabs on desktop (ReviewsHome); on phones a full-width bar
+   that stays at the bottom of the screen (ReviewsLayout). */
+.rv-filters-row { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid var(--rv-rule); }
+.rv-filters-row .rv-filters { flex: 1; min-width: 0; margin-bottom: 0; border-bottom: none; }
+.rv-filters-write { flex-shrink: 0; margin-left: auto; }
+.rv-write-bar { display: none; }
+@media (max-width: 600px) {
+  .rv-filters-write { display: none; }
+  .rv-filters-row { gap: 0; }
+  .rv-write-bar { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--rv-paper); border-top: 1px solid var(--rv-rule); }
+  .rv-write-bar .rv-btn { width: 100%; justify-content: center; padding: 13px 18px; }
+  .rv.rv--write-bar { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
+}
 
 /* Buttons & form controls */
 .rv-btn { display: inline-flex; align-items: center; gap: 8px; border: 1.5px solid var(--rv-ink); background: var(--rv-ink); color: var(--rv-paper); font: 600 0.95rem var(--rv-sans); padding: 10px 18px; border-radius: 999px; cursor: pointer; text-decoration: none; transition: background 0.15s, color 0.15s; }
@@ -295,8 +316,6 @@ body.rv-body.rv-dark {
 .rv-login-code .rv-input { max-width: 170px; text-align: center; font: 600 1.4rem var(--rv-sans); letter-spacing: 0.2em; padding: 8px 10px; }
 .rv-login-code .rv-error { margin: 12px 0 0; }
 
-/* Admin-only nav links (Types) stay off phones, where the nav is tight. */
-@media (max-width: 600px) { .rv-nav .rv-nav-desktop-only { display: none; } }
 
 /* Get the app page */
 .rv-app { max-width: 520px; margin: 20px auto 0; text-align: center; }

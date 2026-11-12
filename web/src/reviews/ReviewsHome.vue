@@ -1,5 +1,7 @@
 <template>
   <div>
+    <!-- The category tabs, with "Write a review" at their right on desktop (phones have a bottom bar). -->
+    <div class="rv-filters-row">
     <nav v-if="filterTypes.length > 1" ref="navEl" class="rv-filters">
       <!-- An invisible copy of every tab, measured to work out how many fit on the row. -->
       <div class="rv-filters-measure" aria-hidden="true">
@@ -26,6 +28,8 @@
         </div>
       </div>
     </nav>
+    <router-link :to="typeId ? `/reviews/new?type=${typeId}` : '/reviews/new'" class="rv-btn rv-btn--small rv-filters-write">✎ Write a review</router-link>
+    </div>
     <!-- The tabs are just emoji, so the selected type is named above the list ("All" needs no heading). -->
     <h2 v-if="activeType && filterTypes.length > 1" class="rv-filter-heading">{{ pluralType(activeType.name) }}</h2>
 
