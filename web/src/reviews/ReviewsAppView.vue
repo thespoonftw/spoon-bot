@@ -9,7 +9,7 @@
     </template>
 
     <template v-else-if="installed && !installPrompt">
-      <p class="rv-login-sub">You have the app. Open <strong>Brunch Reviews</strong> from your home screen. It updates itself, so there's nothing else to do.</p>
+      <p class="rv-login-sub">You have the app. Open <strong>Reviews</strong> from your home screen. It updates itself, so there's nothing else to do.</p>
     </template>
 
     <template v-else>
@@ -26,7 +26,7 @@
             at the bottom of the screen.
           </li>
           <li>Scroll down and tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
-          <li>Open <strong>Brunch Reviews</strong> from your home screen and sign in. The app sends you a 6-digit code to type in.</li>
+          <li>Open <strong>Reviews</strong> from your home screen and sign in. The app sends you a 6-digit code to type in.</li>
         </ol>
       </template>
 
