@@ -113,6 +113,17 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .photo-item-mobile { cursor: pointer; position: relative; }
 .photo-item-mobile img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
 .photo-vote-badge { position: absolute; bottom: 5px; left: 5px; background: rgba(0,0,0,0.5); color: #a6adc8; font-size: 0.7rem; font-weight: 600; height: 18px; border-radius: 9px; display: flex; align-items: center; padding: 0 6px; gap: 2px; pointer-events: none; }
+/* Desktop thumbnails: a 👍 · score · ⭐ bar fades in over the bottom of the photo on hover (it replaces the capsule). */
+.thumb-vote-bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: space-around; padding: 18px 10px 6px; background: linear-gradient(transparent, rgba(0,0,0,0.75)); border-radius: 0 0 6px 6px; opacity: 0; pointer-events: none; transition: opacity 0.15s; cursor: default; }
+.thumb-vote-btn { background: none; border: none; padding: 2px 10px; font-size: 1.3rem; line-height: 1; cursor: pointer; border-radius: 6px; filter: grayscale(1) opacity(0.6); }
+.thumb-vote-btn:hover { filter: grayscale(0.2) opacity(0.95); background: rgba(255,255,255,0.12); }
+.thumb-vote-btn.active { filter: none; }
+.thumb-vote-score { color: #fff; font-weight: 600; font-size: 1.05rem; min-width: 2ch; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
+.photo-item:focus-within .thumb-vote-bar { opacity: 1; pointer-events: auto; }
+@media (hover: hover) {
+  .photo-item:hover .thumb-vote-bar { opacity: 1; pointer-events: auto; }
+  .photo-item:hover .photo-vote-badge { opacity: 0; }
+}
 .photo-meta { display: flex; flex-direction: column; width: 220px; }
 .photo-item-mobile .photo-meta { width: 100%; padding: 4px 0; }
 .photo-item-mobile .photo-votes { width: 100%; }

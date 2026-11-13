@@ -12,6 +12,12 @@
           <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
 
           <span v-if="getVoteState(photo).score > 0" class="photo-vote-badge">{{ getVoteState(photo).score }}{{ getVoteState(photo).superCount > 0 ? " ★" : "" }}</span>
+          <!-- Shown on hover: vote without opening the photo -->
+          <div class="thumb-vote-bar" @click.stop>
+            <button type="button" class="thumb-vote-btn" :class="{ active: myVote(photo).liked }" :aria-pressed="myVote(photo).liked" aria-label="Like" @click="quickVote($event, photo, 'like')">👍</button>
+            <span class="thumb-vote-score">{{ getVoteState(photo).score }}</span>
+            <button type="button" class="thumb-vote-btn" :class="{ active: myVote(photo).starred }" :aria-pressed="myVote(photo).starred" aria-label="Star" @click="quickVote($event, photo, 'star')">⭐</button>
+          </div>
         </div>
       </div>
       <div class="gallery-mobile">
@@ -337,6 +343,26 @@ async function saveTagging() {
   }
 }
 
+// Votes are now just 👍 (like) and ⭐ (star). To the server a star is a super 👍. Older votes made with
+// other emojis still count: as a like, or as a star if they were super.
+function myVote(p: Photo) {
+  const st = getVoteState(p);
+  return { liked: !!st.userVote && !st.userIsSuper, starred: !!st.userVote && !!st.userIsSuper, current: st.userVote };
+}
+// Tapping a highlighted button takes the vote off; tapping the other one switches to it.
+function vote(p: Photo, kind: "like" | "star", x: number, y: number) {
+  const { liked, starred, current } = myVote(p);
+  const removing = kind === "like" ? liked : starred;
+  spawnFloat(x, y, kind === "like" ? "👍" : "⭐", removing);
+  // Sending the same emoji and super flag as the existing vote removes it on the server.
+  doVote(p.channelId, p.id, removing ? current! : "👍", kind === "star");
+}
+// Desktop thumbnails: vote from the bar that appears on hover, without opening the lightbox.
+function quickVote(e: MouseEvent, p: Photo, kind: "like" | "star") {
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  vote(p, kind, rect.left + rect.width / 2, rect.top + rect.height / 2);
+}
+
 function spawnFloat(x: number, y: number, voteType: string, grey = false) {
   const emoji = voteType === "fav" ? "⭐" : voteType === "up" ? "👍" : voteType;
   const span = document.createElement("span");
@@ -459,20 +485,6 @@ function openLightbox(index: number) {
   let lbHoverPopupEl: HTMLElement | null = null;
   let lbHoverHideTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // Votes are now just 👍 (like) and ⭐ (star). To the server a star is a super 👍. Older votes made with
-  // other emojis still count: as a like, or as a star if they were super.
-  function myVote(p: Photo) {
-    const st = getVoteState(p);
-    return { liked: !!st.userVote && !st.userIsSuper, starred: !!st.userVote && !!st.userIsSuper, current: st.userVote };
-  }
-  // Tapping a highlighted button takes the vote off; tapping the other one switches to it.
-  function vote(p: Photo, kind: "like" | "star", x: number, y: number) {
-    const { liked, starred, current } = myVote(p);
-    const removing = kind === "like" ? liked : starred;
-    spawnFloat(x, y, kind === "like" ? "👍" : "⭐", removing);
-    // Sending the same emoji and super flag as the existing vote removes it on the server.
-    doVote(p.channelId, p.id, removing ? current! : "👍", kind === "star");
-  }
   const voterRow = (v: VoteBreakdownRow) => {
     const name = v.firstName || v.displayName;
     return `<div class="vote-hover-row">${v.avatarUrl ? `<img src="${v.avatarUrl}" class="vote-hover-avatar" />` : `<span class="vote-hover-avatar vote-hover-initial">${name[0]}</span>`}<span class="vote-hover-name">${name}</span><span class="vote-hover-icon">${v.isSuper ? "⭐" : "👍"}</span></div>`;
