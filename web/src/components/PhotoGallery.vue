@@ -840,58 +840,76 @@ function openLightbox(index: number) {
         el.append(ta, actions);
       },
     });
+    // ⋮ photo options menu, just left of the close button (close is order 20).
     pswp.ui!.registerElement({
-      name: "caption-button",
-      order: 9,
-      isButton: true,
-      html: "💬",
+      name: "options-menu",
+      order: 15,
+      isButton: false,
       appendTo: "bar",
-      onClick: () => { showCaptionEditor(); },
-    });
-    pswp.ui!.registerElement({
-      name: "date-button",
-      order: 7,
-      isButton: true,
-      html: "📅",
-      appendTo: "bar",
-      onClick: () => {
-        const photo = frozenPhotos![pswp.currIndex];
-        if (!photo) return;
-        datePickerPhoto.value = photo;
-        datePickerValue.value = photo.takenAt ? photo.takenAt.slice(0, 10) : (props.albumStartDate ?? '');
-        if (!showDatePicker.value) dragDate.reset();
-        showDatePicker.value = true;
+      onInit: (el) => {
+        const editDate = () => {
+          const photo = frozenPhotos![pswp.currIndex];
+          if (!photo) return;
+          datePickerPhoto.value = photo;
+          datePickerValue.value = photo.takenAt ? photo.takenAt.slice(0, 10) : (props.albumStartDate ?? '');
+          if (!showDatePicker.value) dragDate.reset();
+          showDatePicker.value = true;
+        };
+        const editLocation = () => {
+          const photo = frozenPhotos![pswp.currIndex];
+          if (!photo) return;
+          locationPickerPhoto.value = photo;
+          if (!showLocationPicker.value) dragLocation.reset();
+          showLocationPicker.value = true;
+        };
+        const items: { label: string; action: () => void; danger?: boolean }[] = [
+          { label: "Edit Caption", action: showCaptionEditor },
+          { label: "Edit Date", action: editDate },
+        ];
+        if (props.albumLocations?.length) items.push({ label: "Edit Location", action: editLocation });
+        if (props.canDelete) items.push({ label: "Delete Photo", action: () => confirmDelete(frozenPhotos![pswp.currIndex]), danger: true });
+
+        el.classList.add("pswp-options");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "pswp__button pswp-options-btn";
+        btn.setAttribute("aria-label", "Photo options");
+        btn.setAttribute("aria-haspopup", "menu");
+        btn.innerHTML = `<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>`;
+        const menu = document.createElement("div");
+        menu.className = "user-options-menu pswp-options-menu";
+        menu.setAttribute("role", "menu");
+        menu.style.display = "none";
+        const setOpen = (open: boolean) => {
+          menu.style.display = open ? "flex" : "none";
+          btn.setAttribute("aria-expanded", String(open));
+        };
+        for (const item of items) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.setAttribute("role", "menuitem");
+          b.textContent = item.label;
+          if (item.danger) b.className = "menu-danger";
+          b.addEventListener("click", () => { setOpen(false); item.action(); });
+          menu.append(b);
+        }
+        btn.addEventListener("click", () => setOpen(menu.style.display === "none"));
+        el.append(btn, menu);
+
+        // Close on a tap elsewhere, Escape (before PhotoSwipe closes the lightbox), or moving to another photo.
+        const onDocPointer = (e: PointerEvent) => { if (!el.contains(e.target as Node)) setOpen(false); };
+        const onKey = (e: KeyboardEvent) => {
+          if (e.key === "Escape" && menu.style.display !== "none") { setOpen(false); e.stopImmediatePropagation(); e.preventDefault(); }
+        };
+        document.addEventListener("pointerdown", onDocPointer, true);
+        window.addEventListener("keydown", onKey, true);
+        pswp.on("change", () => setOpen(false));
+        pswp.on("destroy", () => {
+          document.removeEventListener("pointerdown", onDocPointer, true);
+          window.removeEventListener("keydown", onKey, true);
+        });
       },
     });
-    if (props.albumLocations?.length) {
-      pswp.ui!.registerElement({
-        name: "location-button",
-        order: 8,
-        isButton: true,
-        html: "📍",
-        appendTo: "bar",
-        onClick: () => {
-          const photo = frozenPhotos![pswp.currIndex];
-          if (photo) {
-            locationPickerPhoto.value = photo;
-            if (!showLocationPicker.value) dragLocation.reset();
-            showLocationPicker.value = true;
-          }
-        },
-      });
-    }
-    if (props.canDelete) {
-      pswp.ui!.registerElement({
-        name: "delete-button",
-        order: 10,
-        isButton: true,
-        html: "🗑",
-        appendTo: "bar",
-        onClick: () => {
-          confirmDelete(frozenPhotos![pswp.currIndex]);
-        },
-      });
-    }
     pswp.ui!.registerElement({
       name: "bottom-bar",
       order: 9,

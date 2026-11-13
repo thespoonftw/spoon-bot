@@ -3,8 +3,10 @@
 @media (min-width: 768px) { .desktop-only { display: revert !important; } .members-rows.desktop-only { display: flex !important; } .album-section-header.desktop-only { display: flex !important; } .mobile-only { display: none !important; } }
 
 :root { --pswp-root-z-index: 1500; --pswp-bg: #000; }
-.pswp__button--delete-button { display: flex !important; align-items: center; justify-content: center; width: 50px; height: 60px; font-size: 1.3em; background: none !important; opacity: 0.75; color: #fff; }
-.pswp__button--delete-button:hover { opacity: 1; }
+.pswp-options { position: relative; display: flex; }
+.pswp-options-btn { display: flex !important; align-items: center; justify-content: center; width: 50px; height: 60px; background: none !important; color: #fff; opacity: 0.75; }
+.pswp-options-btn:hover, .pswp-options-btn[aria-expanded="true"] { opacity: 1; }
+.pswp-options-menu { top: calc(100% - 6px); right: 4px; min-width: 170px; white-space: nowrap; }
 
 body { font-family: sans-serif; background: #1e1e2e; color: #cdd6f4; user-select: none; }
 input, textarea, select, .db-table td { user-select: text; }
