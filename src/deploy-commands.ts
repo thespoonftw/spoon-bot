@@ -41,7 +41,7 @@ const commands = [
     .toJSON(),
   new SlashCommandBuilder()
     .setName("customise")
-    .setDescription("Choose your name colour")
+    .setDescription("Choose your name colour and icon")
     .toJSON(),
   ...(config.albumsEnabled ? [
     new SlashCommandBuilder()
