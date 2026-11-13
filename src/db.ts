@@ -171,6 +171,7 @@ export function initDb() {
     "ALTER TABLE albums ADD COLUMN group_id INTEGER",
     "ALTER TABLE photos ADD COLUMN original_name TEXT",
     "ALTER TABLE users ADD COLUMN surname TEXT",
+    "ALTER TABLE site_groups ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE users ADD COLUMN discord_id TEXT",
     "ALTER TABLE users ADD COLUMN email TEXT",
     "ALTER TABLE reviews ADD COLUMN creator TEXT",
@@ -218,6 +219,8 @@ export function initDb() {
         (7, '676a',   '#b22222');
     `);
   }
+  // Groups from before they could be reordered keep their old (by id) order.
+  db.exec("UPDATE site_groups SET sort_order = id WHERE NOT EXISTS (SELECT 1 FROM site_groups WHERE sort_order != 0)");
   // Seed the built-in review types; users can add more from the review editor
   db.prepare(`
     INSERT OR IGNORE INTO review_types (id, name, icon, color, created_at) VALUES
@@ -550,7 +553,7 @@ export function dbUpdateUserLastSeen(userId: string) {
 }
 
 export function dbGetAllGroups(): SiteGroup[] {
-  return db.prepare("SELECT id, name, color FROM site_groups ORDER BY id").all() as SiteGroup[];
+  return db.prepare("SELECT id, name, color FROM site_groups ORDER BY sort_order, id").all() as SiteGroup[];
 }
 
 export type SiteGroupWithCounts = SiteGroup & { memberCount: number; albumCount: number };
@@ -560,7 +563,7 @@ export function dbGetGroupsWithCounts(): SiteGroupWithCounts[] {
     SELECT sg.id, sg.name, sg.color,
       (SELECT COUNT(*) FROM user_groups ug JOIN users u ON u.user_id = ug.user_id WHERE ug.group_id = sg.id AND u.level > 0) AS memberCount,
       (SELECT COUNT(*) FROM albums a WHERE a.group_id = sg.id) AS albumCount
-    FROM site_groups sg ORDER BY sg.id
+    FROM site_groups sg ORDER BY sg.sort_order, sg.id
   `).all() as SiteGroupWithCounts[];
 }
 
@@ -570,8 +573,16 @@ export function dbGroupNameTaken(name: string, exceptId?: number): boolean {
 }
 
 export function dbCreateGroup(name: string, color: string): SiteGroup {
-  const id = Number(db.prepare("INSERT INTO site_groups (name, color) VALUES (?, ?)").run(name, color).lastInsertRowid);
+  const id = Number(db.prepare(
+    "INSERT INTO site_groups (name, color, sort_order) VALUES (?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM site_groups))"
+  ).run(name, color).lastInsertRowid);
   return { id, name, color };
+}
+
+/** Sets the display order of groups to `orderedIds`, which should list every group. */
+export function dbReorderGroups(orderedIds: number[]): void {
+  const update = db.prepare("UPDATE site_groups SET sort_order = ? WHERE id = ?");
+  db.transaction(() => { orderedIds.forEach((id, i) => update.run(i + 1, id)); })();
 }
 
 export function dbUpdateGroup(id: number, name: string, color: string): boolean {
@@ -598,7 +609,7 @@ export function dbGetAllUsers(): UserRow[] {
   `).all() as Omit<UserRow, 'groups'>[];
   const memberships = db.prepare(`
     SELECT ug.user_id AS userId, sg.id, sg.name, sg.color
-    FROM user_groups ug JOIN site_groups sg ON sg.id = ug.group_id
+    FROM user_groups ug JOIN site_groups sg ON sg.id = ug.group_id ORDER BY sg.sort_order, sg.id
   `).all() as ({ userId: string } & SiteGroup)[];
   const byUser = new Map<string, SiteGroup[]>();
   for (const m of memberships) {
@@ -625,7 +636,7 @@ export function dbGetAssociatedUsers(userId: string): UserRow[] {
   `).all(userId) as Omit<UserRow, 'groups'>[];
   const memberships = db.prepare(`
     SELECT ug.user_id AS userId, sg.id, sg.name, sg.color
-    FROM user_groups ug JOIN site_groups sg ON sg.id = ug.group_id
+    FROM user_groups ug JOIN site_groups sg ON sg.id = ug.group_id ORDER BY sg.sort_order, sg.id
   `).all() as ({ userId: string } & SiteGroup)[];
   const byUser = new Map<string, SiteGroup[]>();
   for (const m of memberships) {
@@ -685,7 +696,7 @@ export function dbGetUserGroups(userId: string): SiteGroup[] {
   return db.prepare(`
     SELECT sg.id, sg.name, sg.color FROM user_groups ug
     JOIN site_groups sg ON sg.id = ug.group_id
-    WHERE ug.user_id = ? ORDER BY sg.id
+    WHERE ug.user_id = ? ORDER BY sg.sort_order, sg.id
   `).all(userId) as SiteGroup[];
 }
 

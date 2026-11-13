@@ -8,7 +8,11 @@
 
       <p v-if="loading" class="empty">Loading…</p>
       <div v-else class="groups-list">
-        <div v-for="g in groups" :key="g.id" class="group-row">
+        <div v-for="(g, i) in groups" :key="g.id" class="group-row"
+          :class="{ 'group-row-dragging': dragIndex === i, 'group-row-dragover': dragOverIndex === i && dragIndex !== i }"
+          @dragover.prevent="dragOverIndex = i" @drop.prevent="onDrop">
+          <span class="group-drag-handle" title="Drag to reorder" draggable="true"
+            @dragstart="onDragStart(i, $event)" @dragend="dragIndex = dragOverIndex = null">⠿</span>
           <input type="color" class="group-color" :value="g.color" :aria-label="`Colour for ${g.name}`"
             @input="g.color = ($event.target as HTMLInputElement).value" @change="save(g)" />
           <div class="group-row-main">
@@ -19,6 +23,10 @@
               <span>{{ plural(g.memberCount, "member") }} · {{ plural(g.albumCount, "album") }}</span>
               <span v-if="status[g.id]" class="group-status" :class="{ error: status[g.id].error }">{{ status[g.id].text }}</span>
             </div>
+          </div>
+          <div class="group-move">
+            <button class="btn-icon" title="Move up" :aria-label="`Move ${g.savedName} up`" :disabled="i === 0" @click="move(i, i - 1)">▲</button>
+            <button class="btn-icon" title="Move down" :aria-label="`Move ${g.savedName} down`" :disabled="i === groups.length - 1" @click="move(i, i + 1)">▼</button>
           </div>
           <button class="btn-icon" title="Delete group" :aria-label="`Delete ${g.savedName}`" @click="remove(g)">🗑️</button>
         </div>
@@ -31,6 +39,7 @@
         <button class="btn-primary btn-small" :disabled="adding || !newName.trim()">{{ adding ? "Adding…" : "Add group" }}</button>
       </form>
       <p v-if="addError" class="error">{{ addError }}</p>
+      <p v-if="orderError" class="error">{{ orderError }}</p>
     </template>
   </div>
 </template>
@@ -107,6 +116,34 @@ async function add() {
   adding.value = false;
 }
 
+// Reordering: drag by the handle on desktop, or the arrows (which also work on phones).
+const dragIndex = ref<number | null>(null);
+const dragOverIndex = ref<number | null>(null);
+const orderError = ref("");
+
+function onDragStart(i: number, e: DragEvent) {
+  dragIndex.value = i;
+  e.dataTransfer?.setData("text/plain", String(i)); // Firefox won't start a drag without data
+  const row = (e.target as HTMLElement).closest(".group-row");
+  if (row && e.dataTransfer) e.dataTransfer.setDragImage(row, 20, 20);
+}
+
+function onDrop() {
+  const from = dragIndex.value, to = dragOverIndex.value;
+  dragIndex.value = dragOverIndex.value = null;
+  if (from !== null && to !== null) move(from, to);
+}
+
+async function move(from: number, to: number) {
+  if (from === to || to < 0 || to >= groups.value.length) return;
+  const before = [...groups.value];
+  const [g] = groups.value.splice(from, 1);
+  groups.value.splice(to, 0, g);
+  orderError.value = "";
+  const res = await fetch("/api/admin/groups/order", { method: "PUT", headers: authJsonHeaders(), body: JSON.stringify({ ids: groups.value.map(x => x.id) }) });
+  if (!res.ok) { groups.value = before; orderError.value = "Couldn't save the new order"; }
+}
+
 onMounted(load);
 </script>
 
@@ -123,6 +160,14 @@ onMounted(load);
 .group-color::-webkit-color-swatch-wrapper { padding: 0; }
 .group-color::-webkit-color-swatch { border: 2px solid #45475a; border-radius: 8px; }
 .group-color::-moz-color-swatch { border: 2px solid #45475a; border-radius: 8px; }
+.group-drag-handle { color: #6c7086; font-size: 1.2rem; cursor: grab; user-select: none; padding: 4px 0; }
+.group-drag-handle:active { cursor: grabbing; }
+@media (hover: none) { .group-drag-handle { display: none; } }
+.group-row-dragging { opacity: 0.4; }
+.group-row-dragover { box-shadow: 0 -3px 0 #cba6f7; }
+.group-move { display: flex; flex-direction: column; }
+.group-move .btn-icon { font-size: 0.7rem; padding: 2px 6px; line-height: 1.2; color: #a6adc8; }
+.group-move .btn-icon:disabled { opacity: 0.25; cursor: default; }
 .group-status { font-size: 0.8rem; }
 .group-status.error { color: #f38ba8; }
 .group-add { display: flex; align-items: center; gap: 14px; margin-top: 20px; padding: 12px 16px; border: 1px dashed #45475a; border-radius: 10px; }

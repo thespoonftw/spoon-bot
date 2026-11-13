@@ -4,7 +4,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
-import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbGetAssociatedUsers, dbUpdateUserFirstName, dbUpdateUserSurname, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetGroupsWithCounts, dbGroupNameTaken, dbCreateGroup, dbUpdateGroup, dbDeleteGroup,dbGetUserGroups, dbAddDiscordUser, dbSearchLoginUsers, dbUpdateUserDiscordId, dbUpdateUserEmail, dbCreateGuestUser, dbFindUserByDiscordId, dbUnhideUser, dbFindUserByEmail } from "./db";
+import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbGetAssociatedUsers, dbUpdateUserFirstName, dbUpdateUserSurname, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetGroupsWithCounts, dbGroupNameTaken, dbCreateGroup, dbUpdateGroup, dbDeleteGroup, dbReorderGroups,dbGetUserGroups, dbAddDiscordUser, dbSearchLoginUsers, dbUpdateUserDiscordId, dbUpdateUserEmail, dbCreateGuestUser, dbFindUserByDiscordId, dbUnhideUser, dbFindUserByEmail } from "./db";
 import { sendMagicLinkEmail, maskEmail } from "./email";
 
 export function sendJson(res: ServerResponse, status: number, data: unknown, extraHeaders: Record<string, string> = {}): void {
@@ -252,6 +252,22 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     if (!sessions.has(getTokenFromRequest(req))) { send401(res); return true; }
     if (!isAdminRequest(req)) { sendJson(res, 403, { error: "Only admins can manage groups" }); return true; }
     sendJson(res, 200, dbGetGroupsWithCounts());
+    return true;
+  }
+
+  if (url === "/api/admin/groups/order" && method === "PUT") {
+    if (!sessions.has(getTokenFromRequest(req))) { send401(res); return true; }
+    if (!isAdminRequest(req)) { sendJson(res, 403, { error: "Only admins can manage groups" }); return true; }
+    let body = "";
+    req.on("data", chunk => body += chunk);
+    req.on("end", () => {
+      try {
+        const { ids } = JSON.parse(body);
+        if (!Array.isArray(ids) || !ids.every(id => Number.isInteger(id))) { sendJson(res, 400, { error: "ids must be a list of group ids" }); return; }
+        dbReorderGroups(ids);
+        sendJson(res, 200, { ok: true });
+      } catch { sendJson(res, 400, { error: "Couldn't save the order" }); }
+    });
     return true;
   }
 
