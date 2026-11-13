@@ -11,7 +11,7 @@
             <button class="btn-primary btn-small album-upload-header" @click="openUpload">Upload</button>
             <div ref="menuRoot" class="user-options">
               <button type="button" class="user-options-btn" aria-label="Album options" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
               </button>
               <div v-if="menuOpen" class="user-options-menu album-options-menu" role="menu">
                 <button type="button" role="menuitem" @click="menuPick(() => openEdit('name'))">Edit Album Name</button>
