@@ -11,13 +11,13 @@
         <div v-for="photo in section.photos" :key="photo.id" class="photo-item" @click="openLightbox(allPhotos.indexOf(photo))">
           <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
 
-          <span v-if="getVoteState(photo).score > 0" class="photo-vote-badge">{{ getVoteState(photo).score }}{{ getVoteState(photo).superCount > 0 ? " ♥" : "" }}</span>
+          <span v-if="getVoteState(photo).score > 0" class="photo-vote-badge">{{ getVoteState(photo).score }}{{ getVoteState(photo).superCount > 0 ? " ★" : "" }}</span>
         </div>
       </div>
       <div class="gallery-mobile">
         <div v-for="photo in section.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(allPhotos.indexOf(photo))">
           <img :src="thumbUrl(photo.url)" loading="lazy" />
-          <span v-if="getVoteState(photo).score > 0" class="photo-vote-badge">{{ getVoteState(photo).score }}{{ getVoteState(photo).superCount > 0 ? " ♥" : "" }}</span>
+          <span v-if="getVoteState(photo).score > 0" class="photo-vote-badge">{{ getVoteState(photo).score }}{{ getVoteState(photo).superCount > 0 ? " ★" : "" }}</span>
         </div>
       </div>
     </template>
@@ -127,7 +127,6 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
-import { Database } from 'emoji-picker-element';
 import MemberAvatar from "./MemberAvatar.vue";
 import PhotoSwipe from "photoswipe";
 import { TAGGING_ENABLED } from "../utils/features";
@@ -184,22 +183,9 @@ const dragDate = useDraggable();
 
 const votes = ref<Record<number, { score: number; superCount: number; userVote: string | null; userIsSuper: number }>>({});
 let refreshLightboxVotes: (() => void) | null = null;
-const DEFAULT_EMOJIS = ['👍','❤️','🔥','😂','😲','😢','🥰','🤔'];
-const emojiDb = new Database();
 type VoteBreakdownRow = { userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; reactType: string; isSuper: number };
 const hoverVoteCache = new Map<number, VoteBreakdownRow[]>();
 
-function getTopSideEmojis(photoId: number): [string | null, string | null] {
-  const data = hoverVoteCache.get(photoId);
-  if (!data) return [null, null];
-  const counts = new Map<string, number>();
-  for (const v of data) {
-    if (v.reactType !== '👍') counts.set(v.reactType, (counts.get(v.reactType) ?? 0) + 1);
-  }
-  const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  const result: [string | null, string | null] = [sorted[1]?.[0] ?? null, sorted[0]?.[0] ?? null];
-  return result;
-}
 const showTagging = ref(false);
 const showTaggingPicker = ref(false);
 const taggingPhoto = ref<Photo | null>(null);
@@ -238,7 +224,6 @@ watch(allPhotos, async (photos) => {
     const bulk: Record<number, VoteBreakdownRow[]> = await res.json();
     for (const [id, data] of Object.entries(bulk)) {
       hoverVoteCache.set(Number(id), data);
-      getTopSideEmojis(Number(id));
     }
   }
 }, { immediate: true });
@@ -363,10 +348,6 @@ function spawnFloat(x: number, y: number, voteType: string, grey = false) {
   span.addEventListener("animationend", () => span.remove());
 }
 
-function isRemovingVote(state: { userVote: string | null; userIsSuper: number }, reactType: string, isSuper: boolean) {
-  return state.userVote === reactType && !!state.userIsSuper === isSuper;
-}
-
 function confirmDelete(photo: Photo) { dragDelete.reset(); deletingPhoto.value = photo; }
 
 function handleEscape(e: KeyboardEvent) {
@@ -438,17 +419,14 @@ function openLightbox(index: number) {
   const onPopState = () => { closedByBack = true; pswp.close(); };
   window.addEventListener("popstate", onPopState, { once: true });
 
-  // Keyboard up to vote (up → super → neutral cycle)
+  // Keyboard: up arrow cycles none → like → star → none
   const onKeyDown = (e: KeyboardEvent) => {
     const p = frozenPhotos![pswp.currIndex];
     if (e.key === "ArrowUp") {
       e.preventDefault();
-      const state = getVoteState(p);
-      const wasUp = !!(state.userVote && !state.userIsSuper);
-      const newIsSuper = wasUp;  // first press = up, second = super
-      const reactType = state.userVote || '👍';
-      spawnFloat(window.innerWidth / 2, window.innerHeight / 2, reactType);
-      doVote(p.channelId, p.id, reactType, newIsSuper);
+      const { liked, starred } = myVote(p);
+      // like → star switches to a star; star → star takes it off; nothing → like
+      vote(p, liked || starred ? "star" : "like", window.innerWidth / 2, window.innerHeight / 2);
     }
   };
   window.addEventListener("keydown", onKeyDown);
@@ -478,48 +456,40 @@ function openLightbox(index: number) {
     pendingReopenIndex = null;
     if (idx !== null) nextTick(() => openLightbox(idx));
   });
-  let lbPickerOpen = false;
-  let lbSuperMode = false;
-  let lbCurrentVote: string | null = null;
-  const lbSideFetching = new Set<number>();
-  let lbBaseEmojis: string[] = DEFAULT_EMOJIS;
-  let lbPickerEl: HTMLElement | null = null;
-  let lbSuperBtn: HTMLButtonElement | null = null;
-  let lbRenderEmojis: ((emojis: string[], active?: string | null) => void) | null = null;
-  let lbPickerHideTimer: ReturnType<typeof setTimeout> | null = null;
   let lbHoverPopupEl: HTMLElement | null = null;
   let lbHoverHideTimer: ReturnType<typeof setTimeout> | null = null;
 
-  function openLbPicker() {
-    if (lbPickerHideTimer) { clearTimeout(lbPickerHideTimer); lbPickerHideTimer = null; }
-    if (!lbPickerEl) return;
-    const p = frozenPhotos?.[pswp.currIndex];
-    const state = p ? getVoteState(p) : null;
-    lbSuperMode = !!(state?.userVote && state?.userIsSuper);
-    lbCurrentVote = state?.userVote ?? null;
-    lbBaseEmojis = lbCurrentVote && !DEFAULT_EMOJIS.includes(lbCurrentVote)
-      ? [lbCurrentVote, ...DEFAULT_EMOJIS.slice(1)]
-      : DEFAULT_EMOJIS;
-    if (lbRenderEmojis) lbRenderEmojis(lbBaseEmojis, lbCurrentVote);
-    if (lbSuperBtn) lbSuperBtn.className = `ep-super-toggle${lbSuperMode ? " active" : ""}`;
-    lbPickerEl.style.display = "block";
-    lbPickerOpen = true;
-    const lbSearchInput = lbPickerEl.querySelector<HTMLInputElement>('.ep-search');
-    lbSearchInput?.focus();
+  // Votes are now just 👍 (like) and ⭐ (star). To the server a star is a super 👍. Older votes made with
+  // other emojis still count: as a like, or as a star if they were super.
+  function myVote(p: Photo) {
+    const st = getVoteState(p);
+    return { liked: !!st.userVote && !st.userIsSuper, starred: !!st.userVote && !!st.userIsSuper, current: st.userVote };
   }
-  function scheduledCloseLbPicker() {
-    lbPickerHideTimer = setTimeout(closeLbPicker, 150);
+  // Tapping a highlighted button takes the vote off; tapping the other one switches to it.
+  function vote(p: Photo, kind: "like" | "star", x: number, y: number) {
+    const { liked, starred, current } = myVote(p);
+    const removing = kind === "like" ? liked : starred;
+    spawnFloat(x, y, kind === "like" ? "👍" : "⭐", removing);
+    // Sending the same emoji and super flag as the existing vote removes it on the server.
+    doVote(p.channelId, p.id, removing ? current! : "👍", kind === "star");
   }
-  function cancelScheduledCloseLbPicker() {
-    if (lbPickerHideTimer) { clearTimeout(lbPickerHideTimer); lbPickerHideTimer = null; }
-  }
-  function closeLbPicker() {
-    if (lbPickerHideTimer) { clearTimeout(lbPickerHideTimer); lbPickerHideTimer = null; }
-    if (!lbPickerEl) return;
-    lbPickerEl.style.display = "none";
-    lbPickerOpen = false;
-    lbSuperMode = false;
-    if (lbSuperBtn) lbSuperBtn.className = "ep-super-toggle";
+  const voterRow = (v: VoteBreakdownRow) => {
+    const name = v.firstName || v.displayName;
+    return `<div class="vote-hover-row">${v.avatarUrl ? `<img src="${v.avatarUrl}" class="vote-hover-avatar" />` : `<span class="vote-hover-avatar vote-hover-initial">${name[0]}</span>`}<span class="vote-hover-name">${name}</span><span class="vote-hover-icon">${v.isSuper ? "⭐" : "👍"}</span></div>`;
+  };
+  // Who voted: a popup above the score, listing each person with 👍 or ⭐.
+  async function showVoters(p: Photo, anchor: HTMLElement) {
+    if (!getVoteState(p).score) return;
+    if (hoverVoteCache.has(p.id)) {
+      const data = hoverVoteCache.get(p.id)!;
+      if (data.length) showLbHoverPopup(anchor, data.map(voterRow).join(""));
+      return;
+    }
+    showLbHoverPopup(anchor, '<div class="vote-hover-empty">Fetching…</div>');
+    const data: VoteBreakdownRow[] = await fetchVoteBreakdown(p);
+    hoverVoteCache.set(p.id, data);
+    if (!data.length) { hideLbHoverPopup(); return; }
+    if ((lbHoverPopupEl as HTMLElement | null)?.style.display === "block") showLbHoverPopup(anchor, data.map(voterRow).join(""));
   }
 
   function showLbHoverPopup(anchorBtn: HTMLElement, content: string) {
@@ -541,7 +511,6 @@ function openLightbox(index: number) {
   }
 
   pswp.on("change", () => {
-    closeLbPicker();
     const hp = lbHoverPopupEl as HTMLElement | null; if (hp) hp.style.display = "none";
     if (showTagging.value) openTagging(frozenPhotos![pswp.currIndex]);
     if (showLocationPicker.value) locationPickerPhoto.value = frozenPhotos![pswp.currIndex];
@@ -756,100 +725,29 @@ function openLightbox(index: number) {
       isButton: false,
       appendTo: "root",
       onInit: (el) => {
-        // Mobile: single tap = vote, double tap = super 👍, long press = open picker
-        let lbTouchTimer: ReturnType<typeof setTimeout> | null = null;
-        let lbTouchIsLong = false;
-        let lbLastTapTime = 0;
-        el.addEventListener("touchstart", (e) => {
-          const emojiBtn = (e.target as Element).closest("[data-action='emoji-toggle']");
-          if (!emojiBtn) return;
-          lbTouchIsLong = false;
-          lbTouchTimer = setTimeout(() => {
-            lbTouchIsLong = true;
-            lbPickerOpen ? closeLbPicker() : openLbPicker();
-          }, 320);
-        }, { passive: true });
+        // Phones: tapping the score shows who voted (desktop does this on hover, below).
         el.addEventListener("touchmove", () => {
-          if (lbTouchTimer) { clearTimeout(lbTouchTimer); lbTouchTimer = null; }
           const hp = lbHoverPopupEl as HTMLElement | null; if (hp) hp.style.display = "none";
         }, { passive: true });
         el.addEventListener("touchend", (e) => {
-          if (lbTouchTimer) { clearTimeout(lbTouchTimer); lbTouchTimer = null; }
-          const isScore = !!(e.target as Element).closest("[data-action='score']");
-          if (!isScore) { const hp = lbHoverPopupEl as HTMLElement | null; if (hp) hp.style.display = "none"; }
-          const emojiBtn = (e.target as Element).closest("[data-action='emoji-toggle']");
-          if (emojiBtn) {
-            e.preventDefault();
-            if (lbTouchIsLong) return;
-            const now = Date.now();
-            const isDoubleTap = now - lbLastTapTime < 300;
-            lbLastTapTime = isDoubleTap ? 0 : now;
-            const p = frozenPhotos![pswp.currIndex];
-            const state = getVoteState(p);
-            const rect = (emojiBtn as HTMLElement).getBoundingClientRect();
-            if (isDoubleTap) {
-              spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, '👍', isRemovingVote(state, '👍', true));
-              doVote(p.channelId, p.id, '👍', true);
-            } else {
-              const reactType = state.userVote || '👍';
-              const isSuper = !!state.userIsSuper;
-              spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, reactType, isRemovingVote(state, reactType, isSuper));
-              doVote(p.channelId, p.id, reactType, isSuper);
-            }
-            return;
-          }
           const scoreBtn2 = (e.target as Element).closest("[data-action='score']") as HTMLElement | null;
-          if (scoreBtn2) {
-            e.preventDefault();
-            const hpEl2 = lbHoverPopupEl as HTMLElement | null;
-            if (hpEl2?.style.display === "block") { hpEl2.style.display = "none"; return; }
-            const p2 = frozenPhotos![pswp.currIndex];
-            if (!getVoteState(p2).score) return;
-            const mkRow = (avatarUrl: string | null, name: string, reactType: string, isSuper: number) =>
-              `<div class="vote-hover-row">${avatarUrl ? `<img src="${avatarUrl}" class="vote-hover-avatar" />` : `<span class="vote-hover-avatar vote-hover-initial">${name[0]}</span>`}<span class="vote-hover-name">${name}</span><span class="vote-hover-icon"><span class="super-side" style="visibility:${isSuper ? 'visible' : 'hidden'}">${reactType}</span><span class="${isSuper ? 'is-super-glow' : ''}">${reactType}</span><span class="super-side" style="visibility:${isSuper ? 'visible' : 'hidden'}">${reactType}</span></span></div>`;
-            (async () => {
-              if (hoverVoteCache.has(p2.id)) {
-                const data = hoverVoteCache.get(p2.id)!;
-                if (!data.length) return;
-                showLbHoverPopup(scoreBtn2, data.map(v => mkRow(v.avatarUrl, v.firstName || v.displayName, v.reactType, v.isSuper)).join(""));
-              } else {
-                showLbHoverPopup(scoreBtn2, '<div class="vote-hover-empty">Fetching…</div>');
-                const data: VoteBreakdownRow[] = await fetchVoteBreakdown(p2);
-                hoverVoteCache.set(p2.id, data);
-                if (!data.length) { hideLbHoverPopup(); return; }
-                const hpEl = lbHoverPopupEl as HTMLElement | null;
-                if (hpEl?.style.display === "block") showLbHoverPopup(scoreBtn2, data.map(v => mkRow(v.avatarUrl, v.firstName || v.displayName, v.reactType, v.isSuper)).join(""));
-              }
-            })();
-          }
+          if (!scoreBtn2) { const hp = lbHoverPopupEl as HTMLElement | null; if (hp) hp.style.display = "none"; return; }
+          e.preventDefault();
+          const hpEl2 = lbHoverPopupEl as HTMLElement | null;
+          if (hpEl2?.style.display === "block") { hpEl2.style.display = "none"; return; }
+          showVoters(frozenPhotos![pswp.currIndex], scoreBtn2);
         });
 
-        let lbDesktopLastClick = 0;
         el.addEventListener("click", (e) => {
-          const featBtn = (e.target as Element).closest("[data-action='tagged']") as HTMLElement | null;
-          if ((e.target as Element).closest("[data-action='emoji-toggle']")) {
-            if (window.innerWidth < 768) {
-              // handled by touchend
-            } else {
-              const now = Date.now();
-              const isDoubleClick = now - lbDesktopLastClick < 300;
-              lbDesktopLastClick = isDoubleClick ? 0 : now;
-              const p = frozenPhotos![pswp.currIndex];
-              const state = getVoteState(p);
-              const btn = (e.target as Element).closest("[data-action='emoji-toggle']") as HTMLElement;
-              const rect = btn.getBoundingClientRect();
-              if (isDoubleClick) {
-                spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, '👍', isRemovingVote(state, '👍', true));
-                doVote(p.channelId, p.id, '👍', true);
-              } else {
-                const reactType = state.userVote || '👍';
-                const isSuper = !!state.userIsSuper;
-                spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, reactType, isRemovingVote(state, reactType, isSuper));
-                doVote(p.channelId, p.id, reactType, isSuper);
-              }
-            }
+          const target = e.target as Element;
+          const likeBtn = target.closest("[data-action='like']") as HTMLElement | null;
+          const starBtn = target.closest("[data-action='star']") as HTMLElement | null;
+          const featBtn = target.closest("[data-action='tagged']") as HTMLElement | null;
+          if (likeBtn || starBtn) {
+            const p = frozenPhotos![pswp.currIndex];
+            const rect = (likeBtn ?? starBtn)!.getBoundingClientRect();
+            vote(p, starBtn ? "star" : "like", rect.left + rect.width / 2, rect.top + rect.height / 2);
           } else if (featBtn) {
-            closeLbPicker();
             const hp = lbHoverPopupEl as HTMLElement | null; if (hp) hp.style.display = "none";
             openTagging(frozenPhotos![pswp.currIndex], true);
           }
@@ -857,8 +755,8 @@ function openLightbox(index: number) {
 
         const update = () => {
           const p = frozenPhotos![pswp.currIndex];
-          const { score, userVote, userIsSuper } = getVoteState(p);
-          const voteActive = !!userVote;
+          const { score } = getVoteState(p);
+          const { liked, starred } = myVote(p);
           const taggedMs = props.members.filter(m => p.taggedIds?.includes(m.userId));
           const avStyle = (i: number) => `width:1.4em;height:1.4em;border-radius:50%;object-fit:cover;pointer-events:none;border:1.5px solid rgba(0,0,0,0.4);flex-shrink:0;${i > 0 ? "margin-left:-0.5em;" : ""}`;
           const taggedBtnContent = taggedMs.length >= 4
@@ -870,51 +768,22 @@ function openLightbox(index: number) {
               ).join("")}</span>`
             : "👥";
           const { dateHtml, uploaderHtml } = buildMetaHtml(p);
-          const [leftEmoji, rightEmoji] = getTopSideEmojis(p.id);
-          if (!hoverVoteCache.has(p.id) && score > 0 && !lbSideFetching.has(p.id)) {
-            lbSideFetching.add(p.id);
-            fetchVoteBreakdown(p).then(data => {
-              lbSideFetching.delete(p.id);
-              hoverVoteCache.set(p.id, data);
-              if (frozenPhotos?.[pswp.currIndex]?.id === p.id) update();
-            });
-          }
           el.innerHTML = `
             <div class="pswp-meta-left">${dateHtml}</div>
             <div class="pswp-meta-right">${uploaderHtml}</div>
             <div class="pswp-votes">
-              <button data-action="emoji-toggle" class="pswp-vote-btn${voteActive ? (userIsSuper ? " active-fav" : " active-up") : ""}"><span class="super-side" style="visibility:${userIsSuper ? 'visible' : 'hidden'}">${userVote || '👍'}</span><span${userIsSuper ? ' class="is-super-glow"' : ''}>${userVote || '👍'}</span><span class="super-side" style="visibility:${userIsSuper ? 'visible' : 'hidden'}">${userVote || '👍'}</span></button>
-              <button data-action="score" class="pswp-vote-btn pswp-vote-score"><span class="score-side-emoji" style="visibility:${leftEmoji ? 'visible' : 'hidden'}">${leftEmoji || '?'}</span><span>${score}</span><span class="score-side-emoji" style="visibility:${rightEmoji ? 'visible' : 'hidden'}">${rightEmoji || '?'}</span></button>
+              <button data-action="like" class="pswp-vote-btn${liked ? " active-up" : ""}" aria-label="Like" aria-pressed="${liked}">👍</button>
+              <button data-action="score" class="pswp-vote-btn pswp-vote-score"><span>${score}</span></button>
+              <button data-action="star" class="pswp-vote-btn${starred ? " active-fav" : ""}" aria-label="Star" aria-pressed="${starred}">⭐</button>
               ${TAGGING_ENABLED ? `<button data-action="tagged" class="pswp-vote-btn${taggedMs.length ? " active-fav" : ""}">${taggedBtnContent}</button>` : ""}
             </div>
           `;
           // Desktop hover behaviours — listeners attached fresh each update (buttons are recreated by innerHTML)
           if (window.innerWidth >= 768) {
-            const emojiBtn = el.querySelector("[data-action='emoji-toggle']") as HTMLElement | null;
             const scoreBtn = el.querySelector("[data-action='score']") as HTMLElement | null;
             const taggedBtn2 = el.querySelector("[data-action='tagged']") as HTMLElement | null;
-            if (emojiBtn) {
-              emojiBtn.addEventListener("mouseenter", openLbPicker);
-              emojiBtn.addEventListener("mouseleave", scheduledCloseLbPicker);
-            }
             if (scoreBtn && score > 0) {
-              scoreBtn.addEventListener("mouseenter", async () => {
-                const mkRow = (avatarUrl: string | null, name: string, reactType: string, isSuper: number) =>
-                  `<div class="vote-hover-row">${avatarUrl ? `<img src="${avatarUrl}" class="vote-hover-avatar" />` : `<span class="vote-hover-avatar vote-hover-initial">${name[0]}</span>`}<span class="vote-hover-name">${name}</span><span class="vote-hover-icon"><span class="super-side" style="visibility:${isSuper ? 'visible' : 'hidden'}">${reactType}</span><span class="${isSuper ? 'is-super-glow' : ''}">${reactType}</span><span class="super-side" style="visibility:${isSuper ? 'visible' : 'hidden'}">${reactType}</span></span></div>`;
-                if (hoverVoteCache.has(p.id)) {
-                  const data = hoverVoteCache.get(p.id)!;
-                  if (!data.length) return;
-                  showLbHoverPopup(scoreBtn!, data.map(v => mkRow(v.avatarUrl, v.firstName || v.displayName, v.reactType, v.isSuper)).join(""));
-                } else {
-                  showLbHoverPopup(scoreBtn!, '<div class="vote-hover-empty">Fetching…</div>');
-                  const data = await fetchVoteBreakdown(p);
-                  hoverVoteCache.set(p.id, data);
-                  getTopSideEmojis(p.id);
-                  if (!data.length) { hideLbHoverPopup(); return; }
-                  const hpEl = lbHoverPopupEl as HTMLElement | null;
-                  if (hpEl?.style.display === "block") showLbHoverPopup(scoreBtn!, data.map((v: VoteBreakdownRow) => mkRow(v.avatarUrl, v.firstName || v.displayName, v.reactType, v.isSuper)).join(""));
-                }
-              });
+              scoreBtn.addEventListener("mouseenter", () => showVoters(p, scoreBtn));
               scoreBtn.addEventListener("mouseleave", hideLbHoverPopup);
             }
             if (taggedBtn2 && taggedMs.length) {
@@ -939,81 +808,6 @@ function openLightbox(index: number) {
         refreshLightboxVotes = update;
         pswp.on("change", update);
         update();
-      },
-    });
-
-    pswp.ui!.registerElement({
-      name: "lb-emoji-picker",
-      order: 16,
-      isButton: false,
-      appendTo: "root",
-      onInit: (el) => {
-        lbPickerEl = el;
-        el.className = "emoji-picker-wrap";
-        el.style.cssText = "display:none;position:absolute;bottom:90px;left:50%;transform:translateX(-50%);z-index:20;width:320px";
-        el.addEventListener("click", e => e.stopPropagation());
-        el.addEventListener("mouseenter", cancelScheduledCloseLbPicker);
-        el.addEventListener("mouseleave", scheduledCloseLbPicker);
-
-        const searchRow = document.createElement("div");
-        searchRow.className = "ep-search-row";
-        const searchInput = document.createElement("input");
-        searchInput.className = "ep-search";
-        searchInput.placeholder = "Search emoji…";
-        searchInput.addEventListener("keydown", e => e.stopPropagation());
-        searchInput.addEventListener("mousedown", e => e.stopPropagation());
-        const superBtn = document.createElement("button");
-        superBtn.className = "ep-super-toggle";
-        superBtn.textContent = "Super";
-        lbSuperBtn = superBtn;
-        superBtn.addEventListener("click", e => {
-          e.stopPropagation();
-          lbSuperMode = !lbSuperMode;
-          superBtn.className = `ep-super-toggle${lbSuperMode ? " active" : ""}`;
-          const p = frozenPhotos?.[pswp.currIndex];
-          if (p && lbCurrentVote) doVote(p.channelId, p.id, lbCurrentVote, lbSuperMode);
-        });
-        const closeBtn = document.createElement("button");
-        closeBtn.className = "ep-close-btn";
-        closeBtn.textContent = "✕";
-        closeBtn.addEventListener("click", (e) => { e.stopPropagation(); closeLbPicker(); });
-        searchRow.append(searchInput, superBtn, closeBtn);
-
-        const emojiGrid = document.createElement("div");
-        emojiGrid.className = "ep-emoji-grid";
-
-        const renderEmojis = (emojis: string[], active?: string | null) => {
-          emojiGrid.innerHTML = "";
-          for (const em of emojis) {
-            const btn = document.createElement("button");
-            btn.className = "ep-emoji-btn" + (em === active ? " ep-emoji-active" : "");
-            btn.textContent = em;
-            btn.addEventListener("click", (ev) => {
-              ev.stopPropagation();
-              const p = frozenPhotos![pswp.currIndex];
-              const rect = btn.getBoundingClientRect();
-              spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, em, isRemovingVote(getVoteState(p), em, lbSuperMode));
-              doVote(p.channelId, p.id, em, lbSuperMode);
-              closeLbPicker();
-            });
-            emojiGrid.appendChild(btn);
-          }
-        };
-        lbRenderEmojis = renderEmojis;
-        renderEmojis(DEFAULT_EMOJIS);
-
-        let lbSearchTimer: ReturnType<typeof setTimeout> | null = null;
-        searchInput.addEventListener("input", () => {
-          if (lbSearchTimer) clearTimeout(lbSearchTimer);
-          const q = searchInput.value.trim();
-          if (!q) { renderEmojis(lbBaseEmojis, lbCurrentVote); return; }
-          lbSearchTimer = setTimeout(async () => {
-            const results = await emojiDb.getEmojiBySearchQuery(q);
-            renderEmojis((results as any[]).map((r: any) => r.unicode).filter(Boolean).slice(0, 8), lbCurrentVote);
-          }, 150);
-        });
-
-        el.append(searchRow, emojiGrid);
       },
     });
 
