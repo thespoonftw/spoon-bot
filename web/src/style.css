@@ -119,7 +119,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .thumb-vote-btn:hover { filter: grayscale(0.2) opacity(0.95); background: rgba(255,255,255,0.12); }
 .thumb-vote-btn.active { filter: none; }
 .thumb-vote-score { color: #fff; font-weight: 600; font-size: 1.05rem; min-width: 2ch; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
-.photo-item:focus-within .thumb-vote-bar { opacity: 1; pointer-events: auto; }
+/* Keyboard focus keeps it open; a mouse click doesn't, so it hides again when the cursor leaves. */
+.photo-item:has(:focus-visible) .thumb-vote-bar { opacity: 1; pointer-events: auto; }
 @media (hover: hover) {
   .photo-item:hover .thumb-vote-bar { opacity: 1; pointer-events: auto; }
   .photo-item:hover .photo-vote-badge { opacity: 0; }
