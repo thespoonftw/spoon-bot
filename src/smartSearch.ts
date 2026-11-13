@@ -12,15 +12,20 @@ import path from "path";
 import type * as Transformers from "@huggingface/transformers";
 import { DATA_DIR } from "./state";
 import { PHOTO_STORAGE_PATH } from "./photoStorage";
-import { dbGetPhotosNeedingEmbedding, dbSaveEmbedding, dbLoadEmbeddings, dbEmbeddingStatus } from "./db";
+import { dbGetPhotosNeedingEmbedding, dbSaveEmbedding, dbLoadEmbeddings, dbEmbeddingStatus, dbClearFailedEmbeddings } from "./db";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const sharp = require("sharp") as typeof import("sharp").default;
 
 const MODEL_ID = "Xenova/clip-vit-base-patch16";
 // Embeddings from different models aren't comparable, so each is stored with the model that made it;
 // changing MODEL_ID makes the indexer redo the whole library.
 export const SMART_MODEL_KEY = MODEL_ID;
-// Minimum query/photo similarity to count as a match. Tuned on the real library with the "a photo of"
-// prompt: real matches scored ~0.25–0.31, the best of unrelated photos ~0.21–0.23.
-const MATCH_THRESHOLD = 0.24;
+// A photo matches if its similarity to the query is at least MATCH_FLOOR and within MATCH_WINDOW of the
+// query's best match. Tuned by eye on the whole library (Nov 2026, "a photo of" prompt): matches above
+// ~0.28 were nearly all right, 0.26–0.27 mixed, ~0.25 mostly wrong. How high the best match scores
+// varies by word, so the window trims the long tail of loose matches for common subjects.
+const MATCH_FLOOR = 0.26;
+const MATCH_WINDOW = 0.06;
 const MAX_RESULTS = 500;
 // Leave half the server's 4 cores for the bot and web server while the backlog is processed.
 const THREADS = 2;
@@ -68,24 +73,37 @@ function normalise(data: ArrayLike<number>): Float32Array {
   return v;
 }
 
-async function embedImage(m: Models, filePath: string): Promise<Float32Array> {
-  const image = await m.t.RawImage.read(filePath);
+/** Decodes to 256px RGB (plenty for CLIP's 224px input). `lenient` accepts truncated files, using what's there. */
+async function decode(m: Models, file: string, lenient: boolean): Promise<Transformers.RawImage> {
+  const { data, info } = await sharp(file, { failOn: lenient ? "none" : "warning" })
+    .rotate().resize(256, 256, { fit: "outside", withoutEnlargement: true })
+    .removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  return new m.t.RawImage(new Uint8ClampedArray(data.buffer, data.byteOffset, data.length), info.width, info.height, info.channels);
+}
+
+/**
+ * Prefers the thumbnail (much quicker to decode). Some thumbnails were cut short when they were made,
+ * so a thumbnail that won't decode cleanly falls back to the original, read leniently.
+ */
+async function embedPhoto(m: Models, channelId: string, filename: string): Promise<Float32Array> {
+  const thumb = path.join(PHOTO_STORAGE_PATH, channelId, "thumbs", filename);
+  const full = path.join(PHOTO_STORAGE_PATH, channelId, filename);
+  let image: Transformers.RawImage | null = null;
+  if (fs.existsSync(thumb)) image = await decode(m, thumb, false).catch(() => null);
+  if (!image) {
+    if (!fs.existsSync(full)) throw new Error("file not found");
+    image = await decode(m, full, true);
+  }
   const inputs = await m.processor(image);
   const { image_embeds } = await m.vision(inputs);
   return normalise(image_embeds.data as Float32Array);
 }
 
-/** The thumbnail (256px, plenty for CLIP's 224px input and much quicker to decode), else the original. */
-function photoFile(channelId: string, filename: string): string | null {
-  const thumb = path.join(PHOTO_STORAGE_PATH, channelId, "thumbs", filename);
-  if (fs.existsSync(thumb)) return thumb;
-  const full = path.join(PHOTO_STORAGE_PATH, channelId, filename);
-  return fs.existsSync(full) ? full : null;
-}
-
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 async function indexLoop(): Promise<void> {
+  // Photos that couldn't be read get another go each start, in case a fix (or a re-upload) helps.
+  dbClearFailedEmbeddings(SMART_MODEL_KEY);
   // Copied out of the Buffer: SQLite's buffers needn't be 4-byte aligned for a Float32Array view.
   for (const row of dbLoadEmbeddings(SMART_MODEL_KEY)) index.set(row.id, new Float32Array(new Uint8Array(row.embedding).buffer));
   console.log(`[smart-search] ${index.size} photo embeddings loaded`);
@@ -102,10 +120,9 @@ async function indexLoop(): Promise<void> {
     if (!batch.length) { await sleep(IDLE_POLL_MS); continue; }
     const batchStart = Date.now();
     for (const p of batch) {
-      const file = p.filename ? photoFile(p.channelId, p.filename) : null;
       try {
-        if (!file) throw new Error("file not found");
-        const vec = await embedImage(models, file);
+        if (!p.filename) throw new Error("no file");
+        const vec = await embedPhoto(models, p.channelId, p.filename);
         dbSaveEmbedding(p.id, SMART_MODEL_KEY, Buffer.from(vec.buffer));
         index.set(p.id, vec);
       } catch (e) {
@@ -139,13 +156,15 @@ export async function smartSearchPhotoIds(query: string): Promise<number[]> {
   const { text_embeds } = await m.text(tokens);
   const qv = normalise(text_embeds.data as Float32Array);
   const hits: { id: number; score: number }[] = [];
+  let best = 0;
   for (const [id, v] of index) {
     let score = 0;
     for (let i = 0; i < v.length; i++) score += v[i] * qv[i];
-    if (score >= MATCH_THRESHOLD) hits.push({ id, score });
+    if (score >= MATCH_FLOOR) hits.push({ id, score });
+    if (score > best) best = score;
   }
-  hits.sort((a, b) => b.score - a.score);
-  return hits.slice(0, MAX_RESULTS).map(h => h.id);
+  const cutoff = Math.max(MATCH_FLOOR, best - MATCH_WINDOW);
+  return hits.filter(h => h.score >= cutoff).sort((a, b) => b.score - a.score).slice(0, MAX_RESULTS).map(h => h.id);
 }
 
 export function smartSearchStatus(): { ready: boolean; indexed: number; total: number } {

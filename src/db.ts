@@ -805,6 +805,10 @@ export function dbSaveEmbedding(photoId: number, model: string, embedding: Buffe
     .run(photoId, model, embedding, new Date().toISOString());
 }
 
+export function dbClearFailedEmbeddings(model: string): void {
+  db.prepare("DELETE FROM photo_embeddings WHERE model = ? AND embedding IS NULL").run(model);
+}
+
 export function dbLoadEmbeddings(model: string): { id: number; embedding: Buffer }[] {
   return db.prepare(`
     SELECT e.photo_id AS id, e.embedding FROM photo_embeddings e JOIN photos p ON p.id = e.photo_id
