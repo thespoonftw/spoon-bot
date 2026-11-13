@@ -137,11 +137,14 @@ export function initDb() {
       removal_at        TEXT,
       real_name         TEXT
     );
-    CREATE TABLE IF NOT EXISTS custom_icon_roles (
-      discord_id  TEXT PRIMARY KEY,
-      role_id     TEXT NOT NULL
+    CREATE TABLE IF NOT EXISTS icon_roles (
+      role_id  TEXT PRIMARY KEY
     );
   `);
+  // custom_icon_roles (one personal icon role per member) became icon_roles (shared roles per emoji).
+  if (db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'custom_icon_roles'").get()) {
+    db.exec("INSERT OR IGNORE INTO icon_roles (role_id) SELECT role_id FROM custom_icon_roles; DROP TABLE custom_icon_roles;");
+  }
   // Add new columns to existing DBs (safe to run repeatedly — fails silently if column exists)
   for (const sql of [
     "ALTER TABLE albums ADD COLUMN location TEXT",
@@ -1151,14 +1154,13 @@ export function dbGetRealNamesByDiscordId(): Map<string, { firstName: string | n
   return new Map(rows.map(r => [r.discordId, { firstName: r.firstName, surname: r.surname }]));
 }
 
-// Personal roles /customise creates to carry a member's custom icon.
-export function dbGetCustomIconRole(discordId: string): string | undefined {
-  return (db.prepare("SELECT role_id FROM custom_icon_roles WHERE discord_id = ?").get(discordId) as { role_id: string } | undefined)?.role_id;
+// Icon roles /customise created, which it deletes again once nobody has them.
+export function dbGetIconRoles(): Set<string> {
+  return new Set((db.prepare("SELECT role_id FROM icon_roles").all() as { role_id: string }[]).map(r => r.role_id));
 }
-export function dbGetAllCustomIconRoles(): Set<string> {
-  return new Set((db.prepare("SELECT role_id FROM custom_icon_roles").all() as { role_id: string }[]).map(r => r.role_id));
+export function dbAddIconRole(roleId: string) {
+  db.prepare("INSERT OR IGNORE INTO icon_roles (role_id) VALUES (?)").run(roleId);
 }
-export function dbSetCustomIconRole(discordId: string, roleId: string | null) {
-  if (roleId) db.prepare("INSERT OR REPLACE INTO custom_icon_roles (discord_id, role_id) VALUES (?, ?)").run(discordId, roleId);
-  else db.prepare("DELETE FROM custom_icon_roles WHERE discord_id = ?").run(discordId);
+export function dbRemoveIconRole(roleId: string) {
+  db.prepare("DELETE FROM icon_roles WHERE role_id = ?").run(roleId);
 }
