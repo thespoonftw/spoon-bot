@@ -43,7 +43,7 @@
                 </div>
               </div>
             </div>
-            <div class="vote-hover-wrapper">
+            <div v-if="TAGGING_ENABLED" class="vote-hover-wrapper">
               <button class="vote-btn vote-group" :class="{ active: photo.taggedIds?.length }" @mouseenter="showTagHover(photo)" @mouseleave="hideTagHover()" @click.stop="openTagging(photo, true)" title="Tagging">
                 <span v-if="getTaggedMembers(photo).length >= 4" style="color:#fff"><span class="tag-count">{{ getTaggedMembers(photo).length }}</span>👥</span>
                 <span v-else-if="getTaggedMembers(photo).length" class="tagging-avatars">
@@ -181,6 +181,7 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { Database } from 'emoji-picker-element';
 import MemberAvatar from "./MemberAvatar.vue";
 import PhotoSwipe from "photoswipe";
+import { TAGGING_ENABLED } from "../utils/features";
 import "photoswipe/style.css";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 import { useDraggable } from "../utils/draggable";
@@ -1045,7 +1046,7 @@ function openLightbox(index: number) {
             <div class="pswp-votes">
               <button data-action="emoji-toggle" class="pswp-vote-btn${voteActive ? (userIsSuper ? " active-fav" : " active-up") : ""}"><span class="super-side" style="visibility:${userIsSuper ? 'visible' : 'hidden'}">${userVote || '👍'}</span><span${userIsSuper ? ' class="is-super-glow"' : ''}>${userVote || '👍'}</span><span class="super-side" style="visibility:${userIsSuper ? 'visible' : 'hidden'}">${userVote || '👍'}</span></button>
               <button data-action="score" class="pswp-vote-btn pswp-vote-score"><span class="score-side-emoji" style="visibility:${leftEmoji ? 'visible' : 'hidden'}">${leftEmoji || '?'}</span><span>${score}</span><span class="score-side-emoji" style="visibility:${rightEmoji ? 'visible' : 'hidden'}">${rightEmoji || '?'}</span></button>
-              <button data-action="tagged" class="pswp-vote-btn${taggedMs.length ? " active-fav" : ""}">${taggedBtnContent}</button>
+              ${TAGGING_ENABLED ? `<button data-action="tagged" class="pswp-vote-btn${taggedMs.length ? " active-fav" : ""}">${taggedBtnContent}</button>` : ""}
             </div>
           `;
           // Desktop hover behaviours — listeners attached fresh each update (buttons are recreated by innerHTML)

@@ -8,7 +8,7 @@
         <select v-model="filterMode" @change="onFilterModeChange">
           <option value="all">All Photos</option>
           <option value="uploadedBy">Uploaded By</option>
-          <option value="taggedIn">Tagging</option>
+          <option v-if="TAGGING_ENABLED" value="taggedIn">Tagging</option>
         </select>
         <select v-if="filterMode !== 'all'" v-model="filterUserId" @change="resetAndFetch">
           <option v-for="u in sortedUsers" :key="u.userId" :value="u.userId">{{ dropdownName(u, users) }}</option>
@@ -45,6 +45,7 @@
 import { ref, computed, onMounted } from "vue";
 import { authHeaders } from "../utils/session";
 import { dropdownName, sortByName } from "../utils/names";
+import { TAGGING_ENABLED } from "../utils/features";
 import PhotoGallery from "../components/PhotoGallery.vue";
 import PageHeader from "../components/PageHeader.vue";
 
@@ -65,8 +66,9 @@ const loading = ref(false);
 const appending = ref(false);
 const currentUserId = ref("");
 const albumMap = ref<Record<string, AlbumInfo>>({});
+const savedMode = sessionStorage.getItem(SEARCH_MODE_KEY) as "all" | "uploadedBy" | "taggedIn" | null;
 const filterMode = ref<"all" | "uploadedBy" | "taggedIn">(
-  (sessionStorage.getItem(SEARCH_MODE_KEY) as any) ?? "all"
+  savedMode === "taggedIn" && !TAGGING_ENABLED ? "all" : savedMode ?? "all"
 );
 const filterUserId = ref(sessionStorage.getItem(SEARCH_USER_KEY) ?? "");
 const sort = ref<"newest" | "oldest" | "top" | "newest_taken" | "oldest_taken">(

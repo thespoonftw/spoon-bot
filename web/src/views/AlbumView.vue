@@ -43,9 +43,9 @@
               <option v-if="album.locations && album.locations.length > 1" value="location">Location</option>
               <option value="uploader">Author</option>
               <option value="newest">Upload</option>
-              <option value="tagging">Tagging</option>
+              <option v-if="TAGGING_ENABLED" value="tagging">Tagging</option>
             </select>
-            <select v-if="sortBy === 'tagging'" v-model="tagFilterUserId" class="sort-select">
+            <select v-if="TAGGING_ENABLED && sortBy === 'tagging'" v-model="tagFilterUserId" class="sort-select">
               <option v-for="m in sortedTagFilterMembers" :key="m.userId" :value="m.userId">{{ dropdownName(m, album.members) }}</option>
               <option value="__nobody__">Nobody</option>
             </select>
@@ -158,6 +158,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAlbumsCache } from "../composables/useAlbumsCache";
 import MemberAvatar from "../components/MemberAvatar.vue";
+import { TAGGING_ENABLED } from "../utils/features";
 import EditAlbumModal from "../components/EditAlbumModal.vue";
 import MembersModal from "../components/MembersModal.vue";
 import PhotoGallery from "../components/PhotoGallery.vue";
@@ -381,7 +382,7 @@ async function loadAlbum() {
       }
     } else if (sort === 'date') {
       if (data.startDate) sortBy.value = 'date';
-    } else if (sort === 'uploader' || sort === 'newest' || sort === 'tagging') {
+    } else if (sort === 'uploader' || sort === 'newest' || (TAGGING_ENABLED && sort === 'tagging')) {
       sortBy.value = sort;
     }
   }
