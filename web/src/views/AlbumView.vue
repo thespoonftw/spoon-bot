@@ -103,27 +103,65 @@
     <div class="modal-overlay" v-if="showUpload" style="z-index:200000"
          :class="{ 'upload-drag-active': uploadDragOver }"
          @dragover.prevent="uploadDragOver = true" @dragleave.self="uploadDragOver = false" @drop.prevent="onUploadDrop">
-      <div class="modal">
-        <button class="modal-close" @click="closeUpload" :disabled="anyUploading">✕</button>
-        <h2>Upload Photos</h2>
-        <div class="upload-drop-zone" @click="uploadFileInput?.click()" @dragover.prevent @dragleave.prevent @drop.stop.prevent="onUploadDrop">
-          <div class="upload-drop-icon">📷</div>
-          <div>Drop photos here or click to browse</div>
-          <input ref="uploadFileInput" type="file" accept="image/*" multiple style="display:none" @change="onFilesSelected" />
-        </div>
-        <div v-if="uploadItems.length" class="upload-item-list">
-          <div v-for="item in uploadItems" :key="item.name" class="upload-item">
-            <span :class="['upload-item-icon', 'upload-' + item.status]">
-              {{ item.status === 'done' ? '✓' : item.status === 'failed' ? '✗' : item.status === 'uploading' ? '↑' : '·' }}
+      <div class="modal upload-modal">
+        <button class="modal-close" @click="closeUpload" :disabled="anyUploading" aria-label="Close">✕</button>
+        <h2>Add photos</h2>
+        <p class="upload-subtitle">to {{ album?.groupName }}</p>
+
+        <button type="button" :class="['upload-drop-zone', { compact: uploadItems.length }]"
+                @click="uploadFileInput?.click()" @dragover.prevent @dragleave.prevent @drop.stop.prevent="onUploadDrop">
+          <span class="upload-drop-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 16V4" /><path d="m7 9 5-5 5 5" /><path d="M20 16v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2" />
+            </svg>
+          </span>
+          <span class="upload-drop-text">
+            <strong>{{ uploadDragOver ? 'Drop to upload' : uploadItems.length ? 'Add more photos' : 'Drag photos here' }}</strong>
+            <span>or <u>browse your device</u> · JPG, PNG, HEIC up to 50MB</span>
+          </span>
+          <input ref="uploadFileInput" type="file" accept="image/*" multiple hidden @change="onFilesSelected" />
+        </button>
+
+        <template v-if="uploadItems.length">
+          <div class="upload-summary">
+            <span>
+              <template v-if="anyUploading">Uploading… {{ uploadDoneCount }} of {{ uploadItems.length }} done</template>
+              <template v-else-if="uploadFailedCount">{{ uploadDoneCount }} uploaded · <span class="upload-summary-failed">{{ uploadFailedCount }} failed</span></template>
+              <template v-else>{{ uploadDoneCount }} {{ uploadDoneCount === 1 ? 'photo' : 'photos' }} added</template>
             </span>
-            <span class="upload-item-name">{{ item.name }}</span>
+            <span class="upload-summary-pct">{{ uploadOverallPct }}%</span>
           </div>
-        </div>
-        <div class="modal-actions" v-if="uploadItems.length">
-          <button class="btn-primary" @click="closeUpload" :disabled="anyUploading">
-            {{ anyUploading ? 'Uploading…' : 'Done' }}
-          </button>
-        </div>
+          <div class="upload-progress" role="progressbar" :aria-valuenow="uploadOverallPct" aria-valuemin="0" aria-valuemax="100">
+            <div class="upload-progress-fill" :class="{ complete: !anyUploading && !uploadFailedCount }" :style="{ width: uploadOverallPct + '%' }"></div>
+          </div>
+
+          <div class="upload-grid">
+            <div v-for="item in uploadItems" :key="item.id" :class="['upload-tile', 'is-' + item.status]" :title="item.error ? `${item.name} — ${item.error}` : item.name">
+              <img v-if="item.preview && !item.previewFailed" :src="item.preview" alt="" @error="item.previewFailed = true" />
+              <span v-else class="upload-tile-fallback">{{ item.name.split('.').pop()?.toUpperCase() }}</span>
+              <div v-if="item.status === 'uploading' || item.status === 'pending'" class="upload-tile-overlay">
+                <svg v-if="item.status === 'uploading'" class="upload-ring" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="15" class="upload-ring-track" />
+                  <circle cx="18" cy="18" r="15" class="upload-ring-fill" :style="{ strokeDashoffset: 94.25 * (1 - item.progress) }" />
+                </svg>
+              </div>
+              <span v-else-if="item.status === 'done'" class="upload-badge done" aria-label="Uploaded">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10" /></svg>
+              </span>
+              <button v-else type="button" class="upload-tile-failed" @click="retryUpload(item)" :aria-label="`Retry ${item.name}`">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
+                <span>Retry</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="modal-actions upload-actions">
+            <button v-if="uploadFailedCount && !anyUploading" class="btn-secondary" @click="retryAllFailed">Retry failed</button>
+            <button class="btn-primary" @click="closeUpload" :disabled="anyUploading">
+              {{ anyUploading ? 'Uploading…' : 'Done' }}
+            </button>
+          </div>
+        </template>
       </div>
     </div>
   </Teleport>
@@ -187,9 +225,22 @@ const loading = ref(true);
 const uploadFileInput = ref<HTMLInputElement | null>(null);
 const showUpload = ref(false);
 const uploadDragOver = ref(false);
-interface UploadItem { name: string; status: 'pending' | 'uploading' | 'done' | 'failed' }
+interface UploadItem {
+  id: number; file: File; name: string; preview: string; previewFailed?: boolean;
+  status: 'pending' | 'uploading' | 'done' | 'failed'; progress: number; error?: string;
+}
 const uploadItems = ref<UploadItem[]>([]);
 const anyUploading = computed(() => uploadItems.value.some(i => i.status === 'pending' || i.status === 'uploading'));
+const uploadDoneCount = computed(() => uploadItems.value.filter(i => i.status === 'done').length);
+const uploadFailedCount = computed(() => uploadItems.value.filter(i => i.status === 'failed').length);
+// Byte-weighted, so one big photo doesn't make the bar jump.
+const uploadOverallPct = computed(() => {
+  const items = uploadItems.value;
+  const total = items.reduce((s, i) => s + i.file.size, 0);
+  if (!total) return 0;
+  const sent = items.reduce((s, i) => s + i.file.size * (i.status === 'done' ? 1 : i.status === 'uploading' ? i.progress : 0), 0);
+  return Math.round((sent / total) * 100);
+});
 
 const showShare = ref(false);
 const sharePassword = ref("");
@@ -479,8 +530,13 @@ function copyShareLink() {
   setTimeout(() => { shareCopied.value = false; }, 2000);
 }
 
-function openUpload() { uploadItems.value = []; showUpload.value = true; }
-function closeUpload() { if (!anyUploading.value) showUpload.value = false; }
+function clearUploadItems() {
+  for (const i of uploadItems.value) if (i.preview) URL.revokeObjectURL(i.preview);
+  uploadItems.value = [];
+}
+function openUpload() { clearUploadItems(); showUpload.value = true; }
+function closeUpload() { if (anyUploading.value) return; showUpload.value = false; clearUploadItems(); }
+onUnmounted(clearUploadItems);
 
 function onUploadDrop(e: DragEvent) {
   uploadDragOver.value = false;
@@ -494,21 +550,61 @@ function onFilesSelected(e: Event) {
   if (files.length) startUpload(files);
 }
 
-async function startUpload(files: File[]) {
+let nextUploadId = 1;
+let uploadWorkers = 0;
+const UPLOAD_CONCURRENCY = 2;
+
+function startUpload(files: File[]) {
   if (!album.value) return;
-  const startIdx = uploadItems.value.length;
-  uploadItems.value.push(...files.map(f => ({ name: f.name, status: "pending" as const })));
-  for (let i = 0; i < files.length; i++) {
-    const item = uploadItems.value[startIdx + i];
-    item.status = "uploading";
-    const fd = new FormData();
-    fd.append("photo", files[i]);
-    const res = await fetch(`/api/album/${album.value.channelId}/photos`, {
-      method: "POST", headers: authHeaders(), body: fd,
-    });
-    if (res.ok) { album.value.photos.push(await res.json()); item.status = "done"; markAlbumsDirty(); }
-    else item.status = "failed";
+  uploadItems.value.push(...files.map(file => ({
+    id: nextUploadId++, file, name: file.name, preview: URL.createObjectURL(file),
+    status: "pending" as const, progress: 0,
+  })));
+  pumpUploads();
+}
+
+function retryUpload(item: UploadItem) {
+  item.status = "pending"; item.progress = 0; item.error = undefined;
+  pumpUploads();
+}
+function retryAllFailed() { uploadItems.value.filter(i => i.status === "failed").forEach(retryUpload); }
+
+// Keeps up to UPLOAD_CONCURRENCY uploads in flight, picking pending items in order.
+function pumpUploads() {
+  while (uploadWorkers < UPLOAD_CONCURRENCY) {
+    const item = uploadItems.value.find(i => i.status === "pending");
+    if (!item) return;
+    uploadWorkers++;
+    uploadOne(item).finally(() => { uploadWorkers--; pumpUploads(); });
   }
+}
+
+// XHR rather than fetch so we get upload progress events.
+function uploadOne(item: UploadItem): Promise<void> {
+  const channelId = album.value?.channelId;
+  if (!channelId) { item.status = "failed"; return Promise.resolve(); }
+  item.status = "uploading";
+  return new Promise(resolve => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `/api/album/${channelId}/photos`);
+    for (const [k, v] of Object.entries(authHeaders())) xhr.setRequestHeader(k, v);
+    xhr.upload.onprogress = e => { if (e.lengthComputable) item.progress = e.loaded / e.total; };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { album.value?.photos.push(JSON.parse(xhr.responseText)); } catch { /* list refreshes on next load */ }
+        item.status = "done"; item.progress = 1; markAlbumsDirty();
+      } else {
+        let msg = `Upload failed (${xhr.status})`;
+        try { msg = JSON.parse(xhr.responseText).error ?? msg; } catch { /* keep default */ }
+        item.status = "failed"; item.error = msg;
+      }
+      resolve();
+    };
+    xhr.onerror = () => { item.status = "failed"; item.error = "Connection lost"; resolve(); };
+    const fd = new FormData();
+    fd.append("photo", item.file);
+    xhr.send(fd);
+  });
 }
 
 </script>
