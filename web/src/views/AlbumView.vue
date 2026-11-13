@@ -1,13 +1,13 @@
 <template>
-  <div class="page">
+  <div class="page" :class="{ 'album-page': album }">
     <template v-if="album">
-      <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :mobile-stack="true"
+      <PageHeader class="album-page-header" :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :mobile-stack="true"
         :locations="album.locations ?? []"
         :group-tag="album.groupId ? siteGroups.find(g => g.id === album!.groupId) ?? null : null"
         @location-click="jumpToPhotos">
         <div class="album-header-right">
           <div class="album-header-btns">
-            <button class="btn-primary btn-small" @click="openUpload">Upload</button>
+            <button class="btn-primary btn-small album-upload-header" @click="openUpload">Upload</button>
             <div ref="menuRoot" class="user-options">
               <button type="button" class="user-options-btn" aria-label="Album options" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
@@ -69,6 +69,11 @@
         <div class="search-show-more" v-if="hasMore" ref="showMoreEl">
           <button class="btn-secondary" @click="displayLimit += 40">Show more</button>
         </div>
+      </div>
+
+      <!-- Phones: a large Upload button that stays at the bottom of the screen -->
+      <div class="album-upload-bar">
+        <button class="btn-primary" @click="openUpload">Upload Photos</button>
       </div>
     </template>
     <p v-else-if="loading" class="empty">Loading…</p>

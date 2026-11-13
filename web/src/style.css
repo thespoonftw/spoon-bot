@@ -425,7 +425,17 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .album-header-btns { display: flex; align-items: center; gap: 8px; }
 .album-options-menu { min-width: 190px; white-space: nowrap; }
 .user-options-menu button.menu-danger { color: #f38ba8; }
-@media (max-width: 767px) { .page-header-actions--stack .album-options-menu { right: auto; left: 0; } }
+.album-upload-bar { display: none; }
+/* Phones: the ⋮ menu sits top right of the header, and Upload becomes a full-width bar fixed to the bottom. */
+@media (max-width: 767px) {
+  .album-page-header { position: relative; row-gap: 0; }
+  .album-page-header .page-header-title { padding-right: 36px; }
+  .album-page-header .user-options { position: absolute; top: 8px; right: 0; }
+  .album-upload-header { display: none; }
+  .album-upload-bar { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: #1e1e2e; border-top: 1px solid #313244; }
+  .album-upload-bar .btn-primary { width: 100%; padding: 13px 18px; font-size: 1rem; }
+  .page.album-page { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
+}
 .album-header-members { display: flex; align-items: center; }
 @media (min-width: 768px) { .album-header-members.desktop-only { display: flex !important; } }
 .album-section { margin-bottom: 24px; }
