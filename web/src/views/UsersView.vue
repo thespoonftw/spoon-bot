@@ -15,8 +15,9 @@
       <div class="search-filters-row">
         <label class="search-filter-label">Sort:</label>
         <select v-model="sortBy" class="sort-select">
-          <option value="tags">Most Tags</option>
+          <option value="albums">Most Albums</option>
           <option value="uploads">Most Uploads</option>
+          <option value="reviews">Most Reviews</option>
           <option value="lastSeen">Last Seen</option>
           <option value="alpha">Alphabetical</option>
         </select>
@@ -48,8 +49,9 @@
           <span class="user-row-login" v-if="user.lastSeenAt">Last seen: {{ formatDate(user.lastSeenAt) }}</span>
           <span class="user-row-login never" v-else>Never seen</span>
           <span class="user-row-stats" v-if="user.uploadCount !== undefined">
-            📷 {{ user.uploadCount }} upload{{ user.uploadCount === 1 ? '' : 's' }}
-            <span class="user-row-stats-sep desktop-only">&nbsp;·&nbsp;</span><span class="user-row-stats-tagged">👥 tagged {{ user.taggedCount }} time{{ user.taggedCount === 1 ? '' : 's' }}</span>
+            <span class="user-row-stat">📷 {{ user.uploadCount }} photo upload{{ user.uploadCount === 1 ? '' : 's' }}</span>
+            <span class="user-row-stats-sep"> · </span><span class="user-row-stat">📔 {{ user.albumCount ?? 0 }} album{{ user.albumCount === 1 ? '' : 's' }} featured</span>
+            <span class="user-row-stats-sep"> · </span><span class="user-row-stat">⭐ {{ user.reviewCount ?? 0 }} review{{ user.reviewCount === 1 ? '' : 's' }}</span>
           </span>
         </div>
       </div>
@@ -143,13 +145,13 @@ import { authHeaders, authJsonHeaders } from "../utils/session";
 import PageHeader from "../components/PageHeader.vue";
 
 interface SiteGroup { id: number; name: string; color: string }
-interface SiteUser { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string; lastSeenAt?: string; uploadCount?: number; taggedCount?: number; groups?: SiteGroup[]; level: number; discordId?: string | null; email?: string | null }
+interface SiteUser { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string; lastSeenAt?: string; uploadCount?: number; albumCount?: number; reviewCount?: number; groups?: SiteGroup[]; level: number; discordId?: string | null; email?: string | null }
 
 const allGroups = ref<SiteGroup[]>([]);
 
 const users = ref<SiteUser[]>([]);
 const loading = ref(true);
-const sortBy = ref<'tags' | 'uploads' | 'lastSeen' | 'alpha'>('tags');
+const sortBy = ref<'albums' | 'uploads' | 'reviews' | 'lastSeen' | 'alpha'>('albums');
 const filterGroup = ref<'all' | number>('all');
 const sortedUsers = computed(() => {
   const filtered = filterGroup.value === 'all'
@@ -157,8 +159,9 @@ const sortedUsers = computed(() => {
     : users.value.filter(u => u.groups?.some(g => g.id === filterGroup.value));
   return [...filtered].sort((a, b) => {
     switch (sortBy.value) {
-      case 'tags': return (b.taggedCount ?? 0) - (a.taggedCount ?? 0);
+      case 'albums': return (b.albumCount ?? 0) - (a.albumCount ?? 0);
       case 'uploads': return (b.uploadCount ?? 0) - (a.uploadCount ?? 0);
+      case 'reviews': return (b.reviewCount ?? 0) - (a.reviewCount ?? 0);
       case 'lastSeen':
         if (a.lastSeenAt && b.lastSeenAt) return b.lastSeenAt.localeCompare(a.lastSeenAt);
         if (a.lastSeenAt) return -1;

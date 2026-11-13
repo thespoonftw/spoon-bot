@@ -496,7 +496,7 @@ export function dbAddPhoto(channelId: string, url: string) {
 }
 
 export type SiteGroup = { id: number; name: string; color: string };
-export type UserRow = { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string; lastSeenAt?: string; level: number; uploadCount?: number; taggedCount?: number; groups?: SiteGroup[]; discordId?: string | null; email?: string | null };
+export type UserRow = { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string; lastSeenAt?: string; level: number; uploadCount?: number; albumCount?: number; reviewCount?: number; groups?: SiteGroup[]; discordId?: string | null; email?: string | null };
 
 export function dbUpsertUser(userId: string, displayName: string, avatarUrl?: string) {
   db.prepare(`
@@ -546,7 +546,8 @@ export function dbGetAllUsers(): UserRow[] {
     SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.surname AS surname,
       u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level, u.discord_id AS discordId, u.email AS email,
       (SELECT COUNT(*) FROM photos p WHERE p.uploaded_by_id = u.user_id) AS uploadCount,
-      (SELECT COUNT(*) FROM photo_tagged pt WHERE pt.user_id = u.user_id) AS taggedCount
+      (SELECT COUNT(*) FROM album_members am JOIN albums a ON a.channel_id = am.channel_id WHERE am.user_id = u.user_id) AS albumCount,
+      (SELECT COUNT(*) FROM reviews r WHERE r.user_id = u.user_id) AS reviewCount
     FROM users u WHERE u.level > 0 ORDER BY display_name ASC
   `).all() as Omit<UserRow, 'groups'>[];
   const memberships = db.prepare(`
@@ -566,7 +567,8 @@ export function dbGetAssociatedUsers(userId: string): UserRow[] {
     SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.surname AS surname,
       u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level, u.discord_id AS discordId, u.email AS email,
       (SELECT COUNT(*) FROM photos p WHERE p.uploaded_by_id = u.user_id) AS uploadCount,
-      (SELECT COUNT(*) FROM photo_tagged pt WHERE pt.user_id = u.user_id) AS taggedCount
+      (SELECT COUNT(*) FROM album_members am JOIN albums a ON a.channel_id = am.channel_id WHERE am.user_id = u.user_id) AS albumCount,
+      (SELECT COUNT(*) FROM reviews r WHERE r.user_id = u.user_id) AS reviewCount
     FROM users u
     WHERE u.level > 0 AND u.user_id IN (
       SELECT DISTINCT am2.user_id FROM album_members am1

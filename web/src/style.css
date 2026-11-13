@@ -299,7 +299,7 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .album-group-btn:hover:not(.active) { border-color: #6c7086; color: #cdd6f4; }
 .album-group-btn.active { color: #fff; border-color: transparent; }
 .user-row-stats { color: #6c7086; font-size: 0.8em; }
-@media (max-width: 767px) { .user-row-stats-tagged { display: block; margin-left: 0; } }
+.user-row-stat { white-space: nowrap; }
 
 .photo-votes { display: flex; align-items: center; margin-top: 4px; width: 220px; }
 
