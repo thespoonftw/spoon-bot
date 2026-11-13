@@ -27,8 +27,9 @@ import ReviewsAuthVerify from "./reviews/ReviewsAuthVerify.vue";
 import ReviewTypesAdmin from "./reviews/ReviewTypesAdmin.vue";
 import ReviewsAppView from "./reviews/ReviewsAppView.vue";
 import PhotosView from "./views/PhotosView.vue";
+import PhotosAppView from "./views/PhotosAppView.vue";
 import AdminView from "./views/AdminView.vue";
-import { syncReviewsAppHead, registerReviewsServiceWorker, listenForInstallPrompt } from "./utils/reviewsApp";
+import { appForPath, syncAppHead, registerServiceWorker, listenForInstallPrompt, APPS } from "./utils/pwa";
 import "./style.css";
 
 function applyMobileZoom() {
@@ -45,7 +46,7 @@ const router = createRouter({
   history: createWebHistory(),
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) return savedPosition;
-    if (to.path === '/albums') return false;
+    if (to.path === '/photos/albums') return false;
     // Only the query changed (e.g. an album's sort) — stay put.
     if (to.path === from.path) return false;
     return { top: 0 };
@@ -57,12 +58,24 @@ const router = createRouter({
     { path: "/share/:token", component: ShareView, meta: { public: true } },
     { path: "/location/:token", component: LocationShareView, meta: { public: true } },
     { path: "/", component: LandingView },
-    { path: "/photos", component: PhotosView },
     { path: "/admin", component: AdminView },
-    { path: "/albums", component: AlbumList },
-    { path: "/album/:channelId", component: AlbumView },
-    { path: "/search", component: SearchView },
-    { path: "/map", component: MapView },
+    // The photos section is also the installable brunchPhotos app (scope /photos), so everything it
+    // needs, its own login pages included, lives under /photos.
+    { path: "/photos", component: PhotosView },
+    { path: "/photos/login", component: LoginView, meta: { public: true } },
+    { path: "/photos/login/sent", component: MagicLinkSent, meta: { public: true } },
+    { path: "/photos/auth/verify/:token", component: AuthVerify, meta: { public: true } },
+    // How to install the app: open to anyone, so the link can be passed around before signing in.
+    { path: "/photos/app", component: PhotosAppView, meta: { public: true } },
+    { path: "/photos/albums", component: AlbumList },
+    { path: "/photos/albums/:channelId", component: AlbumView },
+    { path: "/photos/search", component: SearchView },
+    { path: "/photos/map", component: MapView },
+    // Old addresses, still linked from earlier Discord posts and bookmarks.
+    { path: "/albums", redirect: "/photos/albums" },
+    { path: "/album/:channelId", redirect: (to) => ({ path: `/photos/albums/${to.params.channelId}`, query: to.query }) },
+    { path: "/search", redirect: (to) => ({ path: "/photos/search", query: to.query }) },
+    { path: "/map", redirect: "/photos/map" },
     { path: "/users", component: UsersView },
     { path: "/groups", component: GroupsView },
     { path: "/status", component: StatusView },
@@ -95,17 +108,18 @@ router.beforeEach(async (to) => {
     const data = await res.json();
     if (data.valid) return true;
   } catch { /* network error, fall through to login */ }
-  // The reviews section has its own login pages.
-  return { path: to.path.startsWith("/reviews") ? "/reviews/login" : "/login" };
+  // The reviews and photos apps have their own login pages, so signing in never leaves the app.
+  const app = appForPath(to.path);
+  return { path: app ? `${APPS[app].scope}/login` : "/login" };
 });
 
-// The browser tab names the section you're in: the reviews site is "Brunch Reviews", the rest "Brunch Projects".
-// The reviews section is also the installable Brunch Reviews app, so its pages carry the app manifest.
+// The browser tab names the section you're in: "Brunch Reviews", "brunchPhotos", or "Brunch Projects"
+// for the rest. Those two sections are installable apps, so their pages carry that app's manifest.
 router.afterEach((to) => {
-  const inReviews = to.path.startsWith("/reviews");
-  document.title = inReviews ? "Brunch Reviews" : "Brunch Projects";
-  syncReviewsAppHead(inReviews);
-  if (inReviews) registerReviewsServiceWorker();
+  const app = appForPath(to.path);
+  document.title = app ? APPS[app].title : "Brunch Projects";
+  syncAppHead(app);
+  if (app) registerServiceWorker(app);
 });
 listenForInstallPrompt();
 

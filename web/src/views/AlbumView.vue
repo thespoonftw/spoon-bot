@@ -1,7 +1,7 @@
 <template>
   <div class="page" :class="{ 'album-page': album }">
     <template v-if="album">
-      <PageHeader class="album-page-header" :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :mobile-stack="true"
+      <PageHeader class="album-page-header" :back-to="(route.query.back as string) || '/photos/albums'" :title="album.groupName" :subtitle="album.dateText" :mobile-stack="true"
         :locations="album.locations ?? []"
         :group-tag="album.groupId ? siteGroups.find(g => g.id === album!.groupId) ?? null : null"
         @location-click="jumpToPhotos">
@@ -473,7 +473,7 @@ function onAlbumSaved(updated: object) {
 function onAlbumDeleted() {
   showEdit.value = false;
   markAlbumsDirty();
-  router.replace((route.query.back as string) || "/albums");
+  router.replace((route.query.back as string) || "/photos/albums");
 }
 
 function onMembersUpdated(visible: Member[], all: Member[]) {

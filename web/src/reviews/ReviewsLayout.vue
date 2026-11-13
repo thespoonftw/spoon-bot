@@ -39,7 +39,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCurrentUser } from "../composables/useCurrentUser";
-import { isStandalone, isIos, isAndroid } from "../utils/reviewsApp";
+import { isStandalone, isIos, isAndroid } from "../utils/pwa";
 import { darkMode, applyReviewsTheme, removeReviewsTheme } from "../utils/reviewsTheme";
 import "./reviews.css";
 

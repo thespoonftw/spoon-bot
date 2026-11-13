@@ -1,5 +1,6 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import { appForPath, APPS } from "../utils/pwa";
 
 export function useCurrentUser() {
   const router = useRouter();
@@ -17,7 +18,9 @@ export function useCurrentUser() {
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+    // Stay inside the installable app's section (its own login page) when logging out from one.
+    const app = appForPath(router.currentRoute.value.path);
+    router.push(app ? `${APPS[app].scope}/login` : "/login");
   }
 
   return { currentUser, logout, reload };

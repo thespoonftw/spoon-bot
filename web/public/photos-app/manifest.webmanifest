@@ -1,0 +1,19 @@
+{
+  "id": "/photos",
+  "name": "brunchPhotos",
+  "short_name": "brunchPhotos",
+  "description": "The group's photo albums: browse, search, see them on a map and upload your own.",
+  "start_url": "/photos",
+  "scope": "/photos",
+  "display": "standalone",
+  "background_color": "#1e1e2e",
+  "theme_color": "#1e1e2e",
+  "related_applications": [
+    { "platform": "webapp", "url": "https://brunch-projects.co.uk/photos-app/manifest.webmanifest" }
+  ],
+  "icons": [
+    { "src": "/photos-app/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/photos-app/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/photos-app/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

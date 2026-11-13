@@ -21,6 +21,7 @@ import PageHeader from "../components/PageHeader.vue";
 // Each app is a section of the site installed as a PWA; its "to" page explains how to install it.
 const apps = [
   { name: "Brunch Reviews", description: "Read and write reviews of everything we read, watch, play, eat and drink.", icon: "/reviews-app/icon-192.png", to: "/reviews/app" },
+  { name: "brunchPhotos", description: "Browse the albums, search the photos, see them on a map, and upload your own.", icon: "/photos-app/icon-192.png", to: "/photos/app" },
 ];
 </script>
 

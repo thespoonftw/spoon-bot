@@ -8,7 +8,7 @@
     <template v-else>
       <h1>Link expired ❌</h1>
       <p class="subtitle">This magic link is invalid or has already been used.</p>
-      <router-link to="/login" class="back">← Back to login</router-link>
+      <router-link :to="`${base}/login`" class="back">← Back to login</router-link>
     </template>
   </div>
 </template>
@@ -21,11 +21,13 @@ import { verifyLoginToken } from "../composables/useLogin";
 const route = useRoute();
 const router = useRouter();
 const status = ref<"loading" | "ok" | "error">("loading");
+// Links from the brunchPhotos login land at /photos/auth/verify and go on to the photos page.
+const base = route.path.startsWith("/photos/") ? "/photos" : "";
 
 onMounted(async () => {
   if (await verifyLoginToken(route.params.token as string)) {
     status.value = "ok";
-    setTimeout(() => router.push("/"), 1000);
+    setTimeout(() => router.push(base || "/"), 1000);
   } else {
     status.value = "error";
   }

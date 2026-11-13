@@ -24,14 +24,14 @@ const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 
 export function getAlbumUrl(channelId: string): string | null {
   if (!dbHasAlbum(channelId)) return null;
-  return `${getBaseUrl()}/album/${channelId}`;
+  return `${getBaseUrl()}/photos/albums/${channelId}`;
 }
 
 // Returns channelId if event messages need refreshing, null otherwise
 export async function startAlbumForChannel(channelId: string, guild: Guild, albumNameOverride?: string): Promise<string> {
   const eventState = eventStates.get(channelId);
   const albumName = albumNameOverride ?? eventState?.eventName ?? channelId;
-  const albumUrl = `${getBaseUrl()}/album/${channelId}`;
+  const albumUrl = `${getBaseUrl()}/photos/albums/${channelId}`;
   dbInsertAlbum({ channelId, groupName: albumName, createdAt: new Date().toISOString() });
   try {
     await guild.members.fetch();
@@ -238,7 +238,7 @@ export async function handleAlbumMessageCreate(message: Message): Promise<void> 
   );
   let content = `Upload ${label} to the album?`;
   if (imageAttachments.length >= LARGE_BATCH_SIZE) {
-    content += `\n-# Got lots of photos? Upload them on the site instead, so they go straight to the album without being shared with Discord: ${getBaseUrl()}/album/${message.channelId}`;
+    content += `\n-# Got lots of photos? Upload them on the site instead, so they go straight to the album without being shared with Discord: ${getBaseUrl()}/photos/albums/${message.channelId}`;
   }
   await message.reply({ content, components: [row] });
 }

@@ -49,8 +49,9 @@
 
 <script setup lang="ts">
 import { onMounted } from "vue";
-import { installPrompt, installed, promptInstall, isStandalone, isIos, isAndroid, checkInstalled } from "../utils/reviewsApp";
+import { useInstall, isStandalone, isIos, isAndroid } from "../utils/pwa";
 
+const { installPrompt, installed, promptInstall, checkInstalled } = useInstall("reviews");
 onMounted(checkInstalled);
 
 const standalone = isStandalone();

@@ -48,7 +48,7 @@ function queueUploadAnnouncement(channelId: string, userId: string, name: string
       const channel = await albumDiscordClient?.channels.fetch(channelId);
       if (!channel?.isSendable()) return;
       const photos = count === 1 ? "1 photo" : `${count} photos`;
-      await channel.send(`**${name}** uploaded **${photos}** to the album. ${getBaseUrl()}/album/${channelId}?sort=newest`);
+      await channel.send(`**${name}** uploaded **${photos}** to the album. ${getBaseUrl()}/photos/albums/${channelId}?sort=newest`);
     } catch (e) { console.error("Failed to announce site upload to Discord:", e); }
   }, UPLOAD_ANNOUNCE_DELAY_MS);
   pendingUploadAnnouncements.set(key, { count, timer });
@@ -60,15 +60,23 @@ const MIME: Record<string, string> = {
   ".webmanifest": "application/manifest+json",
 };
 
-// Head tags that make the reviews pages installable as the Brunch Reviews app (see web/public/reviews-app).
-const REVIEWS_APP_HEAD = [
-  `<link rel="manifest" href="/reviews-app/manifest.webmanifest" />`,
-  `<link rel="apple-touch-icon" href="/reviews-app/apple-touch-icon.png" />`,
-  `<meta name="apple-mobile-web-app-title" content="Reviews" />`,
-  `<meta name="mobile-web-app-capable" content="yes" />`,
-  `<meta name="apple-mobile-web-app-capable" content="yes" />`,
-  `<meta name="theme-color" content="#f5f0e6" />`,
-].join("\n  ");
+// The installable apps: each is a section of the site with its own manifest, icons and service worker
+// in web/public (kept in step with web/src/utils/pwa.ts). Their pages are sent with the head tags that
+// make them installable.
+const INSTALLABLE_APPS = [
+  { scope: "/reviews", title: "Brunch Reviews", homeScreenName: "Reviews", assets: "/reviews-app", serviceWorker: "/reviews-sw.js", themeColor: "#f5f0e6" },
+  { scope: "/photos", title: "brunchPhotos", homeScreenName: "brunchPhotos", assets: "/photos-app", serviceWorker: "/photos-sw.js", themeColor: "#1e1e2e" },
+].map(app => ({
+  ...app,
+  head: [
+    `<link rel="manifest" href="${app.assets}/manifest.webmanifest" />`,
+    `<link rel="apple-touch-icon" href="${app.assets}/apple-touch-icon.png" />`,
+    `<meta name="apple-mobile-web-app-title" content="${app.homeScreenName}" />`,
+    `<meta name="mobile-web-app-capable" content="yes" />`,
+    `<meta name="apple-mobile-web-app-capable" content="yes" />`,
+    `<meta name="theme-color" content="${app.themeColor}" />`,
+  ].join("\n  "),
+}));
 
 // Stream a file to the response, handling read errors (e.g. EIO from a failing drive / bad sector)
 // gracefully instead of letting the stream's unhandled "error" event crash the process. The 200
@@ -772,9 +780,9 @@ export function startWebServer(): void {
       return;
     }
 
-    // The installable Brunch Reviews app: its manifest, icons and service worker (from web/public).
+    // The installable apps' manifests, icons and service workers (from web/public).
     // Not hashed, so browsers revalidate them each time.
-    if (url === "/reviews-sw.js" || url.startsWith("/reviews-app/")) {
+    if (INSTALLABLE_APPS.some(a => url === a.serviceWorker || url.startsWith(a.assets + "/"))) {
       const filePath = path.join(webDist, url);
       if (!filePath.startsWith(webDist + path.sep) || !fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
         res.writeHead(404); res.end("Not found"); return;
@@ -791,11 +799,12 @@ export function startWebServer(): void {
     }
     const mime = MIME[path.extname(resolvedAsset)] ?? "application/octet-stream";
     res.writeHead(200, { "Content-Type": mime });
-    // Link previews read the page's title without running the app, so the reviews section's pages
-    // are sent already titled "Brunch Reviews" (the app keeps the tab title in sync from then on).
-    // They also carry the app manifest, so phones offer to install Brunch Reviews from them.
-    if (url === "/reviews" || url.startsWith("/reviews/")) {
-      res.end(fs.readFileSync(resolvedAsset, "utf8").replace("<title>Brunch Projects</title>", `<title>Brunch Reviews</title>\n  ${REVIEWS_APP_HEAD}`));
+    // Link previews read the page's title without running the app, so an app section's pages are
+    // sent already titled (e.g. "Brunch Reviews"; the app keeps the tab title in sync from then on).
+    // They also carry the app manifest, so phones offer to install that app from them.
+    const app = INSTALLABLE_APPS.find(a => url === a.scope || url.startsWith(a.scope + "/"));
+    if (app) {
+      res.end(fs.readFileSync(resolvedAsset, "utf8").replace("<title>Brunch Projects</title>", `<title>${app.title}</title>\n  ${app.head}`));
       return;
     }
     res.end(fs.readFileSync(resolvedAsset));

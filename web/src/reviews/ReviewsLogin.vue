@@ -47,7 +47,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useLoginSearch, requestLoginLink, type LoginUser } from "../composables/useLogin";
-import { isIos, isStandalone } from "../utils/reviewsApp";
+import { isIos, isStandalone } from "../utils/pwa";
 
 const router = useRouter();
 const { query, results, searching } = useLoginSearch();

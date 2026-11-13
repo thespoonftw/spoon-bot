@@ -23,7 +23,7 @@
         <span class="section-collapse-spacer"></span>
         <span class="section-photo-count">{{ group.items.length }}</span>
       </div>
-      <router-link v-if="!collapsedYears.has(group.year)" v-for="album in group.items" :key="album.channelId" :to="`/album/${album.channelId}`" :class="['card', { 'card-multi-location': (album.locations?.length ?? 0) > 1 }]">
+      <router-link v-if="!collapsedYears.has(group.year)" v-for="album in group.items" :key="album.channelId" :to="`/photos/albums/${album.channelId}`" :class="['card', { 'card-multi-location': (album.locations?.length ?? 0) > 1 }]">
         <div class="card-left">
           <div class="card-left-title">
             <h2>{{ album.groupName }}</h2>
@@ -298,7 +298,7 @@ async function createAlbum() {
     const album = await res.json();
     markAlbumsDirty();
     closeModal();
-    router.push(`/album/${album.channelId}`);
+    router.push(`/photos/albums/${album.channelId}`);
   } else {
     formError.value = "Failed to create album. Try again.";
   }

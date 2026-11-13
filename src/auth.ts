@@ -20,7 +20,7 @@ const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const ALLOWED_USER_IDS = (process.env.AUTH_USER_IDS ?? "148516020007600128").split(",");
 
 type UserInfo = { userId: string; displayName: string; avatarUrl: string };
-// The installed iPhone Brunch Reviews app asks for a 6-digit code instead of a link: it keeps its
+// The installed iPhone apps (Brunch Reviews, brunchPhotos) ask for a 6-digit code instead of a link: it keeps its
 // own cookies apart from Safari, so a tapped link would sign people into Safari, not the app.
 // requestId is a secret only that device holds, so a code is useless to anyone else; a few wrong
 // guesses cancel the login.
@@ -157,20 +157,21 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     req.on("end", async () => {
       try {
         const { userId, method: deliveryMethod, site, withCode } = JSON.parse(body);
-        // The reviews section has its own login pages, so its links land there and say so.
+        // The reviews and photos apps have their own login pages, so their links land there.
         const isReviews = site === "reviews";
-        const siteName = isReviews ? "Spoon Reviews" : "Spoon Photos";
+        const isPhotos = site === "photos";
+        const siteName = isReviews ? "Spoon Reviews" : isPhotos ? "brunchPhotos" : "Spoon Photos";
         const targetUser = dbGetAllUsers().find(u => u.userId === userId);
         if (!targetUser) { sendJson(res, 403, { error: "Not allowed" }); return; }
         const chosenMethod = deliveryMethod === "email" ? "email" : "discord";
         if (chosenMethod === "email" && !targetUser.email) { sendJson(res, 400, { error: "No email address on file" }); return; }
         if (chosenMethod === "discord" && !targetUser.discordId) { sendJson(res, 400, { error: "No Discord account on file" }); return; }
         const token = crypto.randomBytes(32).toString("hex");
-        const useCode = isReviews && withCode === true;
+        const useCode = (isReviews || isPhotos) && withCode === true;
         const code = useCode ? String(crypto.randomInt(0, 1_000_000)).padStart(6, "0") : undefined;
         const requestId = useCode ? crypto.randomBytes(16).toString("hex") : undefined;
         magicTokens.set(token, { userId, expires: Date.now() + 15 * 60 * 1000, code, requestId, attempts: 0 });
-        const link = `${getBaseUrl()}${isReviews ? "/reviews" : ""}/auth/verify/${token}`;
+        const link = `${getBaseUrl()}${isReviews ? "/reviews" : isPhotos ? "/photos" : ""}/auth/verify/${token}`;
         if (chosenMethod === "email") {
           await sendMagicLinkEmail(targetUser.email!, link, siteName, code);
         } else {
@@ -197,7 +198,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     return true;
   }
 
-  // The code from a reviews login message, typed in on the device that asked for it.
+  // The code from an app login message, typed in on the device that asked for it.
   if (url === "/api/auth/code" && method === "POST") {
     let body = "";
     req.on("data", chunk => body += chunk);

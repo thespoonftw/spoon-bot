@@ -178,7 +178,7 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
     const singleLocation = (a.locations?.length ?? 0) <= 1;
     const locPhotos = getLocPhotos(a);
     const topPhotos = [...locPhotos].sort(byPopularity).slice(0, 3);
-    const albumUrl = singleLocation ? `/album/${a.channelId}?back=/map` : `/album/${a.channelId}?back=/map&sort=location&loc=${loc.id}`;
+    const albumUrl = singleLocation ? `/photos/albums/${a.channelId}?back=/photos/map` : `/photos/albums/${a.channelId}?back=/photos/map&sort=location&loc=${loc.id}`;
     const content = document.createElement("div");
     content.className = "map-popup-accordion-content";
     if (topPhotos.length) {
@@ -233,7 +233,7 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
     const a = sorted[0];
     const singleLocation = (a.locations?.length ?? 0) <= 1;
     const albumPhotoCount = locPhotoCount(a);
-    const albumUrl = singleLocation ? `/album/${a.channelId}?back=/map` : `/album/${a.channelId}?back=/map&sort=location&loc=${loc.id}`;
+    const albumUrl = singleLocation ? `/photos/albums/${a.channelId}?back=/photos/map` : `/photos/albums/${a.channelId}?back=/photos/map&sort=location&loc=${loc.id}`;
     const year = a.startDate ? new Date(a.startDate).getUTCFullYear() : "";
     const meta = document.createElement("div");
     meta.className = "map-popup-meta";
