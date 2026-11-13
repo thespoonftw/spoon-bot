@@ -19,6 +19,7 @@ import { handleAuthRoutes, isValidSession, getSessionUser, getTokenFromRequest, 
 import { handleReviewRoutes } from "./reviews";
 import { handleLocationRoutes } from "./location";
 import { handleSnekRoutes } from "./snekMembers";
+import { smartSearchPhotoIds, smartSearchStatus } from "./smartSearch";
 import { dbHasAlbum, dbUpdateAlbum, dbDeleteAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbGetUserById, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbGetAlbumVotes, dbSetPhotoCaption, dbListTables, dbTablePage, dbSearchPhotos, dbGetAlbumLocations, dbAddAlbumLocation, dbDeleteAlbumLocation, dbReorderAlbumLocations, dbSetLocationCoords, dbRenameAlbumLocation, dbSetPhotoLocation, dbSetPhotoTakenAt } from "./db";
 
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
@@ -188,12 +189,21 @@ export function startWebServer(): void {
       const params = new URLSearchParams(req.url?.includes("?") ? req.url.slice(req.url.indexOf("?") + 1) : "");
       const uploadedById = params.get("uploadedById") || undefined;
       const taggedUserId = params.get("taggedUserId") || undefined;
-      const sort = (params.get("sort") ?? "top") as "newest" | "oldest" | "top" | "newest_taken" | "oldest_taken";
+      const query = (params.get("q") ?? "").trim().slice(0, 200);
+      const sort = (params.get("sort") ?? (query ? "relevance" : "top")) as "newest" | "oldest" | "top" | "newest_taken" | "oldest_taken" | "relevance";
       const page = Math.max(0, parseInt(params.get("page") ?? "0") || 0);
       const pageSize = Math.min(200, Math.max(1, parseInt(params.get("pageSize") ?? "40") || 40));
       const isAdmin = sessionUser ? (dbGetUserById(sessionUser.userId)?.level ?? 0) >= 2 : false;
       const accessCheckUserId = isAdmin ? undefined : sessionUser?.userId;
-      sendJson(res, 200, dbSearchPhotos({ uploadedById, taggedUserId, sort, page, pageSize, userId: sessionUser?.userId, accessCheckUserId }));
+      (query ? smartSearchPhotoIds(query) : Promise.resolve(undefined))
+        .then(photoIds => sendJson(res, 200, dbSearchPhotos({ uploadedById, taggedUserId, sort, page, pageSize, userId: sessionUser?.userId, accessCheckUserId, photoIds })))
+        .catch(e => { console.error("[smart-search] query failed:", e); if (!res.headersSent) sendJson(res, 503, { error: "Smart search isn't available right now" }); });
+      return;
+    }
+
+    if (url === "/api/photos/smart-search-status" && method === "GET") {
+      if (!isValidSession(getTokenFromRequest(req))) { send401(res); return; }
+      sendJson(res, 200, smartSearchStatus());
       return;
     }
 

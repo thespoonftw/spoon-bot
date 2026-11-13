@@ -62,6 +62,14 @@ export function initDb() {
       user_id  TEXT NOT NULL,
       PRIMARY KEY (photo_id, user_id)
     );
+    -- Smart search (src/smartSearch.ts): one CLIP embedding per photo, as raw float32s.
+    -- A NULL embedding means the photo couldn't be read, so it isn't retried.
+    CREATE TABLE IF NOT EXISTS photo_embeddings (
+      photo_id   INTEGER PRIMARY KEY,
+      model      TEXT NOT NULL,
+      embedding  BLOB,
+      created_at TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS album_locations (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       channel_id TEXT NOT NULL,
@@ -487,6 +495,7 @@ export function dbDeleteAlbum(channelId: string) {
     for (const id of photoIds) {
       db.prepare("DELETE FROM photo_votes WHERE photo_id = ?").run(id);
       db.prepare("DELETE FROM photo_tagged WHERE photo_id = ?").run(id);
+      db.prepare("DELETE FROM photo_embeddings WHERE photo_id = ?").run(id);
     }
     db.prepare("DELETE FROM photos WHERE channel_id = ?").run(channelId);
     db.prepare("DELETE FROM album_members WHERE channel_id = ?").run(channelId);
@@ -727,6 +736,7 @@ export function dbDeletePhoto(photoId: number): string | null {
   db.transaction(() => {
     db.prepare("DELETE FROM photo_votes WHERE photo_id = ?").run(photoId);
     db.prepare("DELETE FROM photo_tagged WHERE photo_id = ?").run(photoId);
+    db.prepare("DELETE FROM photo_embeddings WHERE photo_id = ?").run(photoId);
     db.prepare("DELETE FROM photos WHERE id = ?").run(photoId);
   })();
   return row.filename;
@@ -735,7 +745,39 @@ export function dbDeletePhoto(photoId: number): string | null {
 export function dbCleanOrphanedPhotoData(): { votes: number; tags: number } {
   const votes = db.prepare("DELETE FROM photo_votes WHERE photo_id NOT IN (SELECT id FROM photos)").run().changes;
   const tags = db.prepare("DELETE FROM photo_tagged WHERE photo_id NOT IN (SELECT id FROM photos)").run().changes;
+  db.prepare("DELETE FROM photo_embeddings WHERE photo_id NOT IN (SELECT id FROM photos)").run();
   return { votes, tags };
+}
+
+/** Photos with no embedding from `model` yet, newest first so fresh uploads are searchable soonest. */
+export function dbGetPhotosNeedingEmbedding(model: string, limit: number): { id: number; channelId: string; filename: string | null }[] {
+  return db.prepare(`
+    SELECT p.id, p.channel_id AS channelId, p.filename FROM photos p
+    LEFT JOIN photo_embeddings e ON e.photo_id = p.id AND e.model = ?
+    WHERE e.photo_id IS NULL ORDER BY p.id DESC LIMIT ?
+  `).all(model, limit) as { id: number; channelId: string; filename: string | null }[];
+}
+
+export function dbSaveEmbedding(photoId: number, model: string, embedding: Buffer | null): void {
+  db.prepare("INSERT OR REPLACE INTO photo_embeddings (photo_id, model, embedding, created_at) VALUES (?, ?, ?, ?)")
+    .run(photoId, model, embedding, new Date().toISOString());
+}
+
+export function dbLoadEmbeddings(model: string): { id: number; embedding: Buffer }[] {
+  return db.prepare(`
+    SELECT e.photo_id AS id, e.embedding FROM photo_embeddings e JOIN photos p ON p.id = e.photo_id
+    WHERE e.model = ? AND e.embedding IS NOT NULL
+  `).all(model) as { id: number; embedding: Buffer }[];
+}
+
+export function dbEmbeddingStatus(model: string): { total: number; indexed: number; failed: number; pending: number } {
+  const r = db.prepare(`
+    SELECT COUNT(*) AS total,
+      COALESCE(SUM(e.photo_id IS NOT NULL AND e.embedding IS NOT NULL), 0) AS indexed,
+      COALESCE(SUM(e.photo_id IS NOT NULL AND e.embedding IS NULL), 0) AS failed
+    FROM photos p LEFT JOIN photo_embeddings e ON e.photo_id = p.id AND e.model = ?
+  `).get(model) as { total: number; indexed: number; failed: number };
+  return { ...r, pending: r.total - r.indexed - r.failed };
 }
 
 export function dbSetPhotoTagged(photoId: number, userIds: string[]): void {
@@ -791,12 +833,16 @@ export function dbSetPhotoCaption(photoId: number, caption: string): void {
 
 export function dbSearchPhotos(opts: {
   uploadedById?: string; taggedUserId?: string;
-  sort: "newest" | "oldest" | "top" | "newest_taken" | "oldest_taken"; page: number; pageSize: number; userId?: string;
+  sort: "newest" | "oldest" | "top" | "newest_taken" | "oldest_taken" | "relevance"; page: number; pageSize: number; userId?: string;
   accessCheckUserId?: string;
+  /** Smart search results, best first: limits the search to these photos, and "relevance" sorts by this order. */
+  photoIds?: number[];
 }): { photos: PhotoRow[]; total: number } {
-  const { uploadedById, taggedUserId, sort, page, pageSize, userId, accessCheckUserId } = opts;
+  const { uploadedById, taggedUserId, sort, page, pageSize, userId, accessCheckUserId, photoIds } = opts;
   const where: string[] = [];
   const params: unknown[] = [];
+  const idsJson = photoIds ? JSON.stringify(photoIds) : null;
+  if (idsJson) { where.push("p.id IN (SELECT value FROM json_each(?))"); params.push(idsJson); }
   if (uploadedById) { where.push("p.uploaded_by_id = ?"); params.push(uploadedById); }
   if (taggedUserId) { where.push("EXISTS (SELECT 1 FROM photo_tagged pt WHERE pt.photo_id = p.id AND pt.user_id = ?)"); params.push(taggedUserId); }
   if (accessCheckUserId) {
@@ -808,7 +854,10 @@ export function dbSearchPhotos(opts: {
     params.push(accessCheckUserId, accessCheckUserId);
   }
   const whereClause = where.length ? "WHERE " + where.join(" AND ") : "";
-  const orderClause = sort === "oldest" ? "ORDER BY p.id ASC"
+  const orderParams: unknown[] = [];
+  const orderClause = sort === "relevance" && idsJson
+    ? (orderParams.push(idsJson), "ORDER BY (SELECT key FROM json_each(?) WHERE value = p.id)")
+    : sort === "oldest" ? "ORDER BY p.id ASC"
     : sort === "top" ? "ORDER BY rankScore DESC, p.id DESC"
     : sort === "newest_taken" ? "ORDER BY CASE WHEN p.taken_at IS NULL THEN 1 ELSE 0 END, p.taken_at DESC, p.id DESC"
     : sort === "oldest_taken" ? "ORDER BY CASE WHEN p.taken_at IS NULL THEN 1 ELSE 0 END, p.taken_at ASC, p.id ASC"
@@ -831,7 +880,7 @@ export function dbSearchPhotos(opts: {
       (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
     FROM photos p LEFT JOIN users u ON u.user_id = p.uploaded_by_id
     ${whereClause} ${orderClause} LIMIT ? OFFSET ?
-  `).all(...params, pageSize, page * pageSize) as RawRow[];
+  `).all(...params, ...orderParams, pageSize, page * pageSize) as RawRow[];
   const photos = rows.map(r => ({ ...r, taggedIds: r.taggedIds ? r.taggedIds.split(",") : [] }));
   return { photos, total };
 }
