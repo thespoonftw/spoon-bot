@@ -133,7 +133,7 @@ import { TAGGING_ENABLED } from "../utils/features";
 import "photoswipe/style.css";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 import { useDraggable } from "../utils/draggable";
-import { formatAlbumDate } from "../utils/formatDate";
+import { albumMonthLabel } from "../utils/formatDate";
 
 interface Photo {
   id: number;
@@ -550,17 +550,13 @@ function openLightbox(index: number) {
         locationStr = undefined;
       } else {
         const photoLocation = p.locationId ? (props.albumLocations?.find(l => l.id === p.locationId)?.name ?? locs.find(l => l.id === p.locationId)?.name) : null;
-        if (photoLocation) {
-          locationStr = album?.groupName ? `${photoLocation}, ${album.groupName}` : photoLocation;
-        } else if (locs.length === 1) {
-          locationStr = album?.groupName ? `${locs[0].name}, ${album.groupName}` : locs[0].name;
-        } else {
-          locationStr = album?.groupName;
-        }
+        // Just the place: the album's name is left out to keep this short.
+        if (photoLocation) locationStr = photoLocation;
+        else if (locs.length === 1) locationStr = locs[0].name;
       }
       const locationHtml = locationStr ? `<span class="pswp-location">📍 ${locationStr}</span>` : "";
       let dateStr = p?.takenAt ? formatTime(p.takenAt) : "";
-      if (!dateStr && album?.startDate) dateStr = formatAlbumDate(album.startDate, album.endDate, true);
+      if (!dateStr && album?.startDate) dateStr = albumMonthLabel(album.startDate, album.endDate);
       const dateHtml = (locationHtml || dateStr)
         ? `${locationHtml}${dateStr ? `<span class="pswp-caption-date">${dateStr}</span>` : ""}`
         : "";
