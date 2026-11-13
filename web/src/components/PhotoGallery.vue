@@ -11,64 +11,13 @@
         <div v-for="photo in section.photos" :key="photo.id" class="photo-item" @click="openLightbox(allPhotos.indexOf(photo))">
           <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
 
-          <div class="photo-votes" @click.stop>
-            <button class="vote-btn vote-fav" :class="{ active: !!getVoteState(photo).userIsSuper }" @click="handleVote($event, photo, '⭐', true)" title="Super vote">⭐</button>
-            <div class="vote-up-wrapper" @mouseenter="showEmojiPicker(photo.id)" @mouseleave="hideEmojiPicker()">
-              <button class="vote-btn vote-up" :class="{ active: !!getVoteState(photo).userVote, 'is-super': !!getVoteState(photo).userIsSuper }" @click.stop="handleVote($event, photo, getVoteState(photo).userVote || '👍', !!getVoteState(photo).userIsSuper)" title="Vote"><template v-if="getVoteState(photo).userIsSuper"><span class="super-side">{{ getVoteLabel(getVoteState(photo).userVote) }}</span>{{ getVoteLabel(getVoteState(photo).userVote) }}<span class="super-side">{{ getVoteLabel(getVoteState(photo).userVote) }}</span></template><template v-else>{{ getVoteLabel(getVoteState(photo).userVote) }}</template></button>
-              <div v-if="emojiPickerPhotoId === photo.id" class="emoji-picker-wrap" @click.stop @mousedown.stop @mouseenter="cancelHideEmojiPicker()" @mouseleave="hideEmojiPicker()">
-                <div class="ep-search-row">
-                  <input class="ep-search" v-model="emojiSearch" placeholder="Search emoji…" @click.stop @mousedown.stop @keydown.stop />
-                  <button class="ep-super-toggle" :class="{ active: superMode }" @click.stop="toggleSuperMode(photo)">Super</button>
-                  <button class="ep-close-btn" @click.stop="closeEmojiPicker()">✕</button>
-                </div>
-                <div class="ep-emoji-grid">
-                  <button v-for="em in emojiSearchResults" :key="em" class="ep-emoji-btn" :class="{ 'ep-emoji-active': em === pickerCurrentVote }" @click.stop="pickEmoji($event, photo, em)">{{ em }}</button>
-                  <span v-if="emojiSearchResults.length === 0" class="ep-no-results">No results</span>
-                </div>
-              </div>
-            </div>
-            <div class="vote-hover-wrapper">
-              <button class="vote-btn vote-score" @mouseenter="showVoteHover(photo)" @mouseleave="hideVoteHover()" @click.stop>
-                <span class="score-side-emoji" :style="sideEmojisCache[photo.id]?.[0] ? {} : { visibility: 'hidden' }">{{ sideEmojisCache[photo.id]?.[0] || '?' }}</span>
-                <span>{{ getVoteState(photo).score }}</span>
-                <span class="score-side-emoji" :style="sideEmojisCache[photo.id]?.[1] ? {} : { visibility: 'hidden' }">{{ sideEmojisCache[photo.id]?.[1] || '?' }}</span>
-              </button>
-              <div v-if="hoverVotePhotoId === photo.id" class="vote-hover-popup" @mouseenter="cancelHideVoteHover()" @mouseleave="hideVoteHover()">
-                <div v-if="hoverVoteData.length === 0" class="vote-hover-empty">Fetching…</div>
-                <div v-for="v in hoverVoteData" :key="v.userId" class="vote-hover-row">
-                  <img v-if="v.avatarUrl" :src="v.avatarUrl" class="vote-hover-avatar" />
-                  <span v-else class="vote-hover-avatar vote-hover-initial">{{ (v.firstName || v.displayName)[0] }}</span>
-                  <span class="vote-hover-name">{{ v.firstName || v.displayName }}</span>
-                  <span class="vote-hover-icon"><span class="super-side" :style="v.isSuper ? {} : { visibility: 'hidden' }">{{ v.reactType }}</span><span :class="{ 'is-super-glow': v.isSuper }">{{ v.reactType }}</span><span class="super-side" :style="v.isSuper ? {} : { visibility: 'hidden' }">{{ v.reactType }}</span></span>
-                </div>
-              </div>
-            </div>
-            <div v-if="TAGGING_ENABLED" class="vote-hover-wrapper">
-              <button class="vote-btn vote-group" :class="{ active: photo.taggedIds?.length }" @mouseenter="showTagHover(photo)" @mouseleave="hideTagHover()" @click.stop="openTagging(photo, true)" title="Tagging">
-                <span v-if="getTaggedMembers(photo).length >= 4" style="color:#fff"><span class="tag-count">{{ getTaggedMembers(photo).length }}</span>👥</span>
-                <span v-else-if="getTaggedMembers(photo).length" class="tagging-avatars">
-                  <template v-for="m in getTaggedMembers(photo)" :key="m.userId">
-                    <img v-if="m.avatarUrl" :src="m.avatarUrl" class="tagging-mini-avatar" />
-                    <span v-else class="tagging-mini-avatar tagging-mini-initial">{{ (m.firstName || m.displayName)[0] }}</span>
-                  </template>
-                </span>
-                <span v-else>👥</span>
-              </button>
-              <div v-if="hoverTagPhotoId === photo.id && getTaggedMembers(photo).length" class="vote-hover-popup" @mouseenter="cancelHideTagHover()" @mouseleave="hideTagHover()">
-                <div v-for="m in getTaggedMembers(photo)" :key="m.userId" class="vote-hover-row">
-                  <img v-if="m.avatarUrl" :src="m.avatarUrl" class="vote-hover-avatar" />
-                  <span v-else class="vote-hover-avatar vote-hover-initial">{{ (m.firstName || m.displayName)[0] }}</span>
-                  <span class="vote-hover-name">{{ m.firstName || m.displayName }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <span v-if="getVoteState(photo).score > 0" class="photo-vote-badge">{{ getVoteState(photo).superCount > 0 ? "♥ " : "" }}{{ getVoteState(photo).score }}</span>
         </div>
       </div>
       <div class="gallery-mobile">
         <div v-for="photo in section.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(allPhotos.indexOf(photo))">
           <img :src="thumbUrl(photo.url)" loading="lazy" />
-          <span v-if="getVoteState(photo).score > 0" class="mobile-vote-badge">♥ {{ getVoteState(photo).score }}</span>
+          <span v-if="getVoteState(photo).score > 0" class="photo-vote-badge">{{ getVoteState(photo).superCount > 0 ? "♥ " : "" }}{{ getVoteState(photo).score }}</span>
         </div>
       </div>
     </template>
@@ -200,6 +149,7 @@ interface Photo {
   height?: number;
   caption?: string;
   score?: number;
+  superCount?: number;
   userVote?: string | null;
   userIsSuper?: number | null;
   taggedIds?: string[];
@@ -232,73 +182,12 @@ const dragDelete = useDraggable();
 const dragLocation = useDraggable();
 const dragDate = useDraggable();
 
-const votes = ref<Record<number, { score: number; userVote: string | null; userIsSuper: number }>>({});
+const votes = ref<Record<number, { score: number; superCount: number; userVote: string | null; userIsSuper: number }>>({});
 let refreshLightboxVotes: (() => void) | null = null;
-const emojiPickerPhotoId = ref<number | null>(null);
-const superMode = ref(false);
-const emojiSearch = ref('');
 const DEFAULT_EMOJIS = ['👍','❤️','🔥','😂','😲','😢','🥰','🤔'];
-const emojiSearchResults = ref<string[]>(DEFAULT_EMOJIS);
-const pickerCurrentVote = ref<string | null>(null);
-let pickerBaseEmojis: string[] = DEFAULT_EMOJIS;
 const emojiDb = new Database();
-let emojiPickerHideTimer: ReturnType<typeof setTimeout> | null = null;
-let emojiSearchTimer: ReturnType<typeof setTimeout> | null = null;
-
-watch(emojiSearch, (q) => {
-  if (emojiSearchTimer) clearTimeout(emojiSearchTimer);
-  if (!q.trim()) { emojiSearchResults.value = pickerBaseEmojis; return; }
-  emojiSearchTimer = setTimeout(async () => {
-    const results = await emojiDb.getEmojiBySearchQuery(q.trim());
-    emojiSearchResults.value = (results as any[]).map(e => e.unicode).filter(Boolean).slice(0, 8);
-  }, 150);
-});
-function showEmojiPicker(photoId: number) {
-  if (emojiPickerHideTimer) { clearTimeout(emojiPickerHideTimer); emojiPickerHideTimer = null; }
-  if (emojiPickerPhotoId.value === photoId) return;
-  emojiPickerPhotoId.value = photoId;
-  emojiSearch.value = '';
-  const photo = allPhotos.value.find(p => p.id === photoId);
-  const state = photo ? getVoteState(photo) : null;
-  superMode.value = !!(state?.userVote && state?.userIsSuper);
-  const currentVote = state?.userVote ?? null;
-  pickerCurrentVote.value = currentVote;
-  pickerBaseEmojis = currentVote && !DEFAULT_EMOJIS.includes(currentVote)
-    ? [currentVote, ...DEFAULT_EMOJIS.slice(1)]
-    : DEFAULT_EMOJIS;
-  emojiSearchResults.value = pickerBaseEmojis;
-  nextTick(() => {
-    const input = document.querySelector<HTMLInputElement>('.emoji-picker-wrap .ep-search');
-    input?.focus();
-  });
-}
-function toggleSuperMode(photo: Photo) {
-  superMode.value = !superMode.value;
-  const state = getVoteState(photo);
-  if (state.userVote) doVote(photo.channelId, photo.id, state.userVote, superMode.value);
-}
-function hideEmojiPicker() {
-  emojiPickerHideTimer = setTimeout(() => { emojiPickerPhotoId.value = null; }, 150);
-}
-function cancelHideEmojiPicker() {
-  if (emojiPickerHideTimer) { clearTimeout(emojiPickerHideTimer); emojiPickerHideTimer = null; }
-}
-function closeEmojiPicker() {
-  if (emojiPickerHideTimer) { clearTimeout(emojiPickerHideTimer); emojiPickerHideTimer = null; }
-  emojiPickerPhotoId.value = null;
-}
-function pickEmoji(e: MouseEvent, photo: Photo, emoji: string) {
-  handleVote(e as Event, photo, emoji, superMode.value);
-  emojiPickerPhotoId.value = null;
-  superMode.value = false;
-  emojiSearch.value = '';
-}
 type VoteBreakdownRow = { userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; reactType: string; isSuper: number };
-const hoverVotePhotoId = ref<number | null>(null);
-const hoverVoteData = ref<VoteBreakdownRow[]>([]);
 const hoverVoteCache = new Map<number, VoteBreakdownRow[]>();
-const sideEmojisCache = ref<Record<number, [string | null, string | null]>>({});
-let hoverVoteHideTimer: ReturnType<typeof setTimeout> | null = null;
 
 function getTopSideEmojis(photoId: number): [string | null, string | null] {
   const data = hoverVoteCache.get(photoId);
@@ -309,51 +198,8 @@ function getTopSideEmojis(photoId: number): [string | null, string | null] {
   }
   const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
   const result: [string | null, string | null] = [sorted[1]?.[0] ?? null, sorted[0]?.[0] ?? null];
-  sideEmojisCache.value = { ...sideEmojisCache.value, [photoId]: result };
   return result;
 }
-async function showVoteHover(photo: Photo) {
-  if (!getVoteState(photo).score) return;
-  if (hoverVoteHideTimer) { clearTimeout(hoverVoteHideTimer); hoverVoteHideTimer = null; }
-  hoverVotePhotoId.value = photo.id;
-  if (hoverVoteCache.has(photo.id)) {
-    hoverVoteData.value = hoverVoteCache.get(photo.id)!;
-  } else {
-    hoverVoteData.value = [];
-    setTimeout(async () => {
-      const data = await fetchVoteBreakdown(photo);
-      hoverVoteCache.set(photo.id, data);
-      getTopSideEmojis(photo.id);
-      if (hoverVotePhotoId.value === photo.id) hoverVoteData.value = data;
-    }, 200);
-  }
-}
-function hideVoteHover() {
-  hoverVoteHideTimer = setTimeout(() => { hoverVotePhotoId.value = null; }, 150);
-}
-function cancelHideVoteHover() {
-  if (hoverVoteHideTimer) { clearTimeout(hoverVoteHideTimer); hoverVoteHideTimer = null; }
-}
-
-const hoverTagPhotoId = ref<number | null>(null);
-let hoverTagHideTimer: ReturnType<typeof setTimeout> | null = null;
-
-function showTagHover(photo: Photo) {
-  if (hoverTagHideTimer) { clearTimeout(hoverTagHideTimer); hoverTagHideTimer = null; }
-  hoverTagPhotoId.value = photo.id;
-}
-function hideTagHover() {
-  hoverTagHideTimer = setTimeout(() => { hoverTagPhotoId.value = null; }, 150);
-}
-function cancelHideTagHover() {
-  if (hoverTagHideTimer) { clearTimeout(hoverTagHideTimer); hoverTagHideTimer = null; }
-}
-
-
-function getVoteLabel(userVote: string | null | undefined): string {
-  return userVote || '👍';
-}
-
 const showTagging = ref(false);
 const showTaggingPicker = ref(false);
 const taggingPhoto = ref<Photo | null>(null);
@@ -424,7 +270,7 @@ async function fetchVoteBreakdown(photo: Photo) {
 
 
 function getVoteState(photo: Photo) {
-  return votes.value[photo.id] ?? { score: photo.score ?? 0, userVote: photo.userVote ?? null, userIsSuper: photo.userIsSuper ?? 0 };
+  return votes.value[photo.id] ?? { score: photo.score ?? 0, superCount: photo.superCount ?? 0, userVote: photo.userVote ?? null, userIsSuper: photo.userIsSuper ?? 0 };
 }
 
 async function doVote(channelId: string, photoId: number, reactType: string, isSuper: boolean) {
@@ -434,8 +280,8 @@ async function doVote(channelId: string, photoId: number, reactType: string, isS
     body: JSON.stringify({ reactType, isSuper }),
   });
   if (res.ok) {
-    const { score, userVote, userIsSuper } = await res.json();
-    votes.value = { ...votes.value, [photoId]: { score, userVote, userIsSuper } };
+    const { score, superCount, userVote, userIsSuper } = await res.json();
+    votes.value = { ...votes.value, [photoId]: { score, superCount: superCount ?? 0, userVote, userIsSuper } };
     hoverVoteCache.delete(photoId);
     refreshLightboxVotes?.();
   }
@@ -519,13 +365,6 @@ function spawnFloat(x: number, y: number, voteType: string, grey = false) {
 
 function isRemovingVote(state: { userVote: string | null; userIsSuper: number }, reactType: string, isSuper: boolean) {
   return state.userVote === reactType && !!state.userIsSuper === isSuper;
-}
-
-function handleVote(e: Event, photo: Photo, reactType: string, isSuper = false) {
-  const rect = (e.currentTarget as Element).getBoundingClientRect();
-  const state = getVoteState(photo);
-  spawnFloat(rect.left + rect.width / 2, rect.top + rect.height / 2, reactType, isRemovingVote(state, reactType, isSuper));
-  doVote(photo.channelId, photo.id, reactType, isSuper);
 }
 
 function confirmDelete(photo: Photo) { dragDelete.reset(); deletingPhoto.value = photo; }

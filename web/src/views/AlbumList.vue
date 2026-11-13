@@ -88,6 +88,7 @@
 </template>
 
 <script setup lang="ts">
+import { byPopularity } from "../utils/popularity";
 import { ref, computed, onMounted, onUnmounted, onActivated, defineOptions, nextTick } from "vue";
 import { onBeforeRouteLeave, useRouter } from "vue-router";
 import { useAlbumsCache } from "../composables/useAlbumsCache";
@@ -99,7 +100,7 @@ import PageHeader from "../components/PageHeader.vue";
 import { formatAlbumDate } from "../utils/formatDate";
 
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
-interface Photo { id: number; url: string; score?: number }
+interface Photo { id: number; url: string; score?: number; superCount?: number }
 interface AlbumLocation { id: number; name: string }
 interface SiteGroup { id: number; name: string; color: string }
 interface Album { channelId: string; groupName: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; createdAt: string; photos: Photo[]; members: Member[]; groupId?: number | null }
@@ -165,7 +166,7 @@ function buildCollage(album: Album, H = 160): CollageItem[] {
   const eligible = album.photos.filter(p => (p.score ?? 0) >= 1);
   const rng = albumRng(album.channelId);
   for (let i = eligible.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [eligible[i], eligible[j]] = [eligible[j], eligible[i]]; }
-  const sorted = eligible.sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, count);
+  const sorted = eligible.sort(byPopularity).slice(0, count);
   if (!sorted.length) return [];
   const n = sorted.length;
 

@@ -25,6 +25,7 @@
 </template>
 
 <script setup lang="ts">
+import { byPopularity } from "../utils/popularity";
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import PageHeader from "../components/PageHeader.vue";
 import L from "leaflet";
@@ -43,7 +44,7 @@ interface Album {
   startDate?: string;
   endDate?: string;
   members: { userId: string }[];
-  photos: { id: number; url: string; score?: number; locationId?: number | null }[];
+  photos: { id: number; url: string; score?: number; superCount?: number; locationId?: number | null }[];
 }
 
 async function geocodeAndSave(loc: AlbumLocation): Promise<[number, number] | null> {
@@ -162,7 +163,7 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
     return a.startDate.localeCompare(b.startDate);
   });
 
-  function getLocPhotos(a: Album): { id: number; url: string; score?: number }[] {
+  function getLocPhotos(a: Album): { id: number; url: string; score?: number; superCount?: number }[] {
     if ((a.locations?.length ?? 0) <= 1) return a.photos;
     const filtered = a.photos.filter(p => p.locationId === loc.id);
     return filtered.length > 0 ? filtered : a.photos;
@@ -176,7 +177,7 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
   function buildPhotosEl(a: Album): HTMLElement {
     const singleLocation = (a.locations?.length ?? 0) <= 1;
     const locPhotos = getLocPhotos(a);
-    const topPhotos = [...locPhotos].sort((x, y) => (y.score ?? 0) - (x.score ?? 0)).slice(0, 3);
+    const topPhotos = [...locPhotos].sort(byPopularity).slice(0, 3);
     const albumUrl = singleLocation ? `/album/${a.channelId}?back=/map` : `/album/${a.channelId}?back=/map&sort=location&loc=${loc.id}`;
     const content = document.createElement("div");
     content.className = "map-popup-accordion-content";
