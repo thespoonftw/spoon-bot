@@ -1,5 +1,4 @@
 import {
-  FileUploadBuilder,
   LabelBuilder,
   MessageFlags,
   ModalBuilder,
@@ -7,7 +6,7 @@ import {
   TextInputBuilder,
   TextInputStyle,
 } from "discord.js";
-import type { Attachment, Guild, GuildMember, Interaction, ModalSubmitInteraction, Role } from "discord.js";
+import type { Guild, GuildMember, Interaction, ModalSubmitInteraction, Role } from "discord.js";
 import { dbGetAllCustomIconRoles, dbGetCustomIconRole, dbSetCustomIconRole } from "./db";
 
 const sharp = require("sharp") as typeof import("sharp").default;
@@ -19,7 +18,7 @@ const sharp = require("sharp") as typeof import("sharp").default;
 // header's, so roles like Muted that happen to sit just below aren't swept in. The bot can only
 // hand out roles below its own highest role, so any above it are left out.
 //
-// Members can also give themselves any icon (a typed emoji, a server emoji, or an uploaded image).
+// Members can also give themselves any icon (a typed emoji or a server emoji).
 // That lives on a personal role the bot creates at the top of the icons section, edits when they
 // change it, and deletes when they go back to a shared icon or none. custom_icon_roles records
 // whose is whose.
@@ -28,7 +27,6 @@ const MODAL_ID = "customise_modal";
 const COLOUR = "colour";
 const ICON = "icon";
 const ICON_TEXT = "icon_text";
-const ICON_UPLOAD = "icon_upload";
 const NONE = "none";
 const KEEP_CUSTOM = "custom";
 
@@ -71,11 +69,7 @@ async function iconImage(url: string): Promise<Buffer> {
     .toBuffer();
 }
 
-async function resolveIcon(guild: Guild, text: string, upload: Attachment | undefined): Promise<IconSpec | string> {
-  if (upload) {
-    if (!upload.contentType?.startsWith("image/")) return "That upload isn't an image.";
-    try { return { icon: await iconImage(upload.url) }; } catch { return "I couldn't read that image."; }
-  }
+async function resolveIcon(guild: Guild, text: string): Promise<IconSpec | string> {
   const tag = text.match(/^<a?:\w+:(\d+)>$/);
   const named = guild.emojis.cache.find(e => e.name?.toLowerCase() === text.replace(/^:|:$/g, "").toLowerCase());
   const emojiUrl = tag ? `https://cdn.discordapp.com/emojis/${tag[1]}.png` : named?.imageURL({ extension: "png" });
@@ -154,16 +148,15 @@ async function handleSubmit(interaction: ModalSubmitInteraction, guild: Guild) {
     const ownCustomId = dbGetCustomIconRole(member.id);
     const shared = roles.filter(r => r.editable && !dbGetAllCustomIconRoles().has(r.id));
     const text = readField(() => interaction.fields.getTextInputValue(ICON_TEXT))?.trim() ?? "";
-    const upload = readField(() => interaction.fields.getUploadedFiles(ICON_UPLOAD))?.first();
 
-    if ((text || upload) && header) {
-      const spec = await resolveIcon(guild, text, upload);
+    if (text && header) {
+      const spec = await resolveIcon(guild, text);
       if (typeof spec === "string") lines.push(spec);
       else {
         try {
           const role = await setCustomIcon(guild, member, header, spec);
           await swapRoles(member, [...shared, role], role);
-          lines.push(`Icon: ${spec.unicodeEmoji ?? (upload ? "your uploaded image" : `:${text.replace(/^<a?:|:\d+>$|^:|:$/g, "")}:`)}`);
+          lines.push(`Icon: ${spec.unicodeEmoji ?? `:${text.replace(/^<a?:|:\d+>$|^:|:$/g, "")}:`}`);
         } catch (e) {
           console.error("Custom icon failed:", e);
           lines.push("Discord wouldn't accept that as an icon. Try a different emoji or image.");
@@ -237,9 +230,6 @@ export async function handleCustomiseInteractions(interaction: Interaction) {
           .setLabel("Or type any emoji")
           .setDescription("Like 🦆, or a server emoji's name like :snek:")
           .setTextInputComponent(new TextInputBuilder().setCustomId(ICON_TEXT).setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(100)),
-        new LabelBuilder()
-          .setLabel("Or upload an image")
-          .setFileUploadComponent(new FileUploadBuilder().setCustomId(ICON_UPLOAD).setRequired(false).setMaxValues(1)),
       );
     }
     await interaction.showModal(modal);
