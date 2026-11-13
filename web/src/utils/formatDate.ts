@@ -15,7 +15,7 @@ export function formatAlbumDate(startDate: string, endDate?: string, showYear = 
   return `${s.day}${s.suffix} ${s.month} ${s.year} – ${e.day}${e.suffix} ${e.month} ${e.year}`;
 }
 
-// "Oct '23": the month an album mostly falls in, for photos with no date of their own. When an album spans
+// "Oct 2023": the month an album mostly falls in, for photos with no date of their own. When an album spans
 // several months it's the month with the most of its days (the earlier month on a tie).
 export function albumMonthLabel(startDate: string, endDate?: string): string {
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -29,5 +29,5 @@ export function albumMonthLabel(startDate: string, endDate?: string): string {
   let best = `${start.getUTCFullYear()}-${start.getUTCMonth()}`;
   for (const [key, n] of days) if (n > (days.get(best) ?? 0)) best = key;
   const [year, month] = best.split("-").map(Number);
-  return `${months[month]} '${String(year).slice(2)}`;
+  return `${months[month]} ${year}`;
 }

@@ -1,7 +1,7 @@
 <template>
   <div class="page" :class="{ 'album-page': album }">
     <template v-if="album">
-      <PageHeader class="album-page-header" :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText ? shortYears(album.dateText) : undefined" :mobile-stack="true"
+      <PageHeader class="album-page-header" :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :mobile-stack="true"
         :locations="album.locations ?? []"
         :group-tag="album.groupId ? siteGroups.find(g => g.id === album!.groupId) ?? null : null"
         @location-click="jumpToPhotos">
@@ -203,8 +203,6 @@ const singleUploader = computed(() => {
   const photos = album.value?.photos ?? [];
   return photos.length > 0 && photos.every(p => p.uploadedById && p.uploadedById === photos[0].uploadedById);
 });
-// The header date shows years short: 12 Oct '26 rather than 12 Oct 2026.
-function shortYears(text: string) { return text.replace(/\b(?:19|20)(\d{2})\b/g, "'$1"); }
 const editSection = ref<"name" | "date" | "group" | "delete">("name");
 function openEdit(section: "name" | "date" | "group" | "delete") { editSection.value = section; showEdit.value = true; }
 
