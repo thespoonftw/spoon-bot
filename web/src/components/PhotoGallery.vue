@@ -11,13 +11,13 @@
         <div v-for="photo in section.photos" :key="photo.id" class="photo-item" @click="openLightbox(allPhotos.indexOf(photo))">
           <img :src="thumbUrl(photo.url)" loading="lazy" @error="($event.target as HTMLImageElement).src = photo.url" />
 
-          <span v-if="getVoteState(photo).score > 0" class="photo-vote-badge">{{ getVoteState(photo).superCount > 0 ? "♥ " : "" }}{{ getVoteState(photo).score }}</span>
+          <span v-if="getVoteState(photo).score > 0" class="photo-vote-badge">{{ getVoteState(photo).score }}{{ getVoteState(photo).superCount > 0 ? " ♥" : "" }}</span>
         </div>
       </div>
       <div class="gallery-mobile">
         <div v-for="photo in section.photos" :key="photo.id" class="photo-item-mobile" @click="openLightbox(allPhotos.indexOf(photo))">
           <img :src="thumbUrl(photo.url)" loading="lazy" />
-          <span v-if="getVoteState(photo).score > 0" class="photo-vote-badge">{{ getVoteState(photo).superCount > 0 ? "♥ " : "" }}{{ getVoteState(photo).score }}</span>
+          <span v-if="getVoteState(photo).score > 0" class="photo-vote-badge">{{ getVoteState(photo).score }}{{ getVoteState(photo).superCount > 0 ? " ♥" : "" }}</span>
         </div>
       </div>
     </template>

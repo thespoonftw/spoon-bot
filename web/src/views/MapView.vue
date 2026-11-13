@@ -44,7 +44,7 @@ interface Album {
   startDate?: string;
   endDate?: string;
   members: { userId: string }[];
-  photos: { id: number; url: string; score?: number; superCount?: number; locationId?: number | null }[];
+  photos: { id: number; url: string; score?: number; superCount?: number; rankScore?: number; locationId?: number | null }[];
 }
 
 async function geocodeAndSave(loc: AlbumLocation): Promise<[number, number] | null> {
@@ -163,7 +163,7 @@ function buildPopupEl(loc: AlbumLocation, albumsHere: Album[], marker: L.Marker)
     return a.startDate.localeCompare(b.startDate);
   });
 
-  function getLocPhotos(a: Album): { id: number; url: string; score?: number; superCount?: number }[] {
+  function getLocPhotos(a: Album): { id: number; url: string; score?: number; superCount?: number; rankScore?: number }[] {
     if ((a.locations?.length ?? 0) <= 1) return a.photos;
     const filtered = a.photos.filter(p => p.locationId === loc.id);
     return filtered.length > 0 ? filtered : a.photos;

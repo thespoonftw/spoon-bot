@@ -364,9 +364,9 @@ export type PhotoRow = {
   id: number; channelId: string; url: string;
   filename?: string; originalName?: string; uploadedById?: string; uploadedByName?: string; uploadedAt: string;
   takenAt?: string; width?: number; height?: number; caption?: string;
-  // score: one point per vote. superCount: how many of those were super votes; any at all gives the photo a heart,
-  // and hearted photos rank above the rest when sorting by popularity.
-  score?: number; superCount?: number; userVote?: string | null; userIsSuper?: number | null; taggedIds?: string[];
+  // score: the number of votes (what's shown). superCount: how many were super votes (any gives the photo a heart).
+  // rankScore: popularity order, where a super vote counts 3 and any other vote 1.
+  score?: number; superCount?: number; rankScore?: number; userVote?: string | null; userIsSuper?: number | null; taggedIds?: string[];
   locationId?: number | null;
 };
 
@@ -402,6 +402,7 @@ export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
         p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption, p.location_id AS locationId,
         (SELECT COUNT(*) FROM photo_votes WHERE photo_id = p.id) AS score,
       (SELECT COUNT(*) FROM photo_votes WHERE photo_id = p.id AND is_super = 1) AS superCount,
+      COALESCE((SELECT SUM(CASE is_super WHEN 1 THEN 3 ELSE 1 END) FROM photo_votes WHERE photo_id = p.id), 0) AS rankScore,
         (SELECT react_type FROM photo_votes WHERE photo_id = p.id AND user_id = ?) AS userVote,
         (SELECT is_super FROM photo_votes WHERE photo_id = p.id AND user_id = ?) AS userIsSuper,
         (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
@@ -417,6 +418,7 @@ export function dbGetPhotos(channelId: string, userId?: string): PhotoRow[] {
       p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption, p.location_id AS locationId,
       (SELECT COUNT(*) FROM photo_votes WHERE photo_id = p.id) AS score,
       (SELECT COUNT(*) FROM photo_votes WHERE photo_id = p.id AND is_super = 1) AS superCount,
+      COALESCE((SELECT SUM(CASE is_super WHEN 1 THEN 3 ELSE 1 END) FROM photo_votes WHERE photo_id = p.id), 0) AS rankScore,
       NULL AS userVote,
       (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
     FROM photos p LEFT JOIN users u ON u.user_id = p.uploaded_by_id
@@ -807,7 +809,7 @@ export function dbSearchPhotos(opts: {
   }
   const whereClause = where.length ? "WHERE " + where.join(" AND ") : "";
   const orderClause = sort === "oldest" ? "ORDER BY p.id ASC"
-    : sort === "top" ? "ORDER BY (superCount > 0) DESC, score DESC, p.id DESC"
+    : sort === "top" ? "ORDER BY rankScore DESC, p.id DESC"
     : sort === "newest_taken" ? "ORDER BY CASE WHEN p.taken_at IS NULL THEN 1 ELSE 0 END, p.taken_at DESC, p.id DESC"
     : sort === "oldest_taken" ? "ORDER BY CASE WHEN p.taken_at IS NULL THEN 1 ELSE 0 END, p.taken_at ASC, p.id ASC"
     : "ORDER BY p.id DESC";
@@ -824,6 +826,7 @@ export function dbSearchPhotos(opts: {
       p.uploaded_at AS uploadedAt, p.taken_at AS takenAt, p.width, p.height, p.caption, p.location_id AS locationId,
       (SELECT COUNT(*) FROM photo_votes WHERE photo_id = p.id) AS score,
       (SELECT COUNT(*) FROM photo_votes WHERE photo_id = p.id AND is_super = 1) AS superCount,
+      COALESCE((SELECT SUM(CASE is_super WHEN 1 THEN 3 ELSE 1 END) FROM photo_votes WHERE photo_id = p.id), 0) AS rankScore,
       ${userVoteExpr}
       (SELECT GROUP_CONCAT(pf.user_id) FROM photo_tagged pf WHERE pf.photo_id = p.id) AS taggedIds
     FROM photos p LEFT JOIN users u ON u.user_id = p.uploaded_by_id

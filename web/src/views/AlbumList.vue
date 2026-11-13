@@ -100,7 +100,7 @@ import PageHeader from "../components/PageHeader.vue";
 import { formatAlbumDate } from "../utils/formatDate";
 
 interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
-interface Photo { id: number; url: string; score?: number; superCount?: number }
+interface Photo { id: number; url: string; score?: number; superCount?: number; rankScore?: number }
 interface AlbumLocation { id: number; name: string }
 interface SiteGroup { id: number; name: string; color: string }
 interface Album { channelId: string; groupName: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; createdAt: string; photos: Photo[]; members: Member[]; groupId?: number | null }

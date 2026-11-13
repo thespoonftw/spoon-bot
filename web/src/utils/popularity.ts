@@ -1,5 +1,5 @@
-// Popularity order: photos with a heart (at least one super vote) come first, then by number of votes.
-export function byPopularity(a: { score?: number; superCount?: number }, b: { score?: number; superCount?: number }): number {
-  const heart = Number((b.superCount ?? 0) > 0) - Number((a.superCount ?? 0) > 0);
-  return heart || (b.score ?? 0) - (a.score ?? 0);
+// Popularity order: a super vote counts 3 and any other vote 1 (rankScore from the server).
+// The number shown on photos is the plain vote count (score) instead.
+export function byPopularity(a: { rankScore?: number }, b: { rankScore?: number }): number {
+  return (b.rankScore ?? 0) - (a.rankScore ?? 0);
 }
