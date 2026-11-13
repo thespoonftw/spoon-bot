@@ -27,6 +27,7 @@ import { setReviewsDiscordClient } from "./reviews";
 import { startLocationShares, handleLocationInteractions } from "./location";
 import { hasPresenceIntent, startSnekTracking, countSnekMessage } from "./snekMembers";
 import { startSmartSearch } from "./smartSearch";
+import { handleCustomiseInteractions } from "./customise";
 
 dotenv.config();
 
@@ -204,6 +205,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await handleLeaveInteractions(interaction);
     await handleBirthdayInteractions(interaction);
     await handleLocationInteractions(interaction);
+    await handleCustomiseInteractions(interaction);
   } catch (error) {
     console.error("Unhandled interaction error:", error);
     try {

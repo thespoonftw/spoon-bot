@@ -39,6 +39,10 @@ const commands = [
     .setName("birthdays")
     .setDescription("View and manage birthday entries")
     .toJSON(),
+  new SlashCommandBuilder()
+    .setName("customise")
+    .setDescription("Choose your name colour")
+    .toJSON(),
   ...(config.albumsEnabled ? [
     new SlashCommandBuilder()
       .setName("album")
