@@ -429,17 +429,20 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 /* Phones: the ⋮ menu sits top right of the header, and Upload becomes a full-width bar fixed to the bottom. */
 @media (max-width: 767px) {
   .album-page-header { position: relative; row-gap: 0; }
-  .album-page-header .page-header-title { padding-right: 36px; }
-  .album-page-header .user-options { position: absolute; top: 8px; right: 0; }
+  .album-page-header .page-header-title { padding-right: 52px; }
+  /* Same size, shape and height as the back button, mirrored on the right. */
+  .album-page-header .user-options { position: absolute; top: 50%; right: 0; transform: translateY(-50%); }
+  .album-page-header .user-options-btn { width: 43px; height: 47px; border-radius: 20px; background: #313244; color: #cdd6f4; }
+  .album-page-header .user-options-btn svg { width: 24px; height: 24px; }
+  .album-page-header .user-options-btn:hover, .album-page-header .user-options-btn[aria-expanded="true"] { background: #45475a; }
   .album-upload-header { display: none; }
   .album-upload-bar { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: #1e1e2e; border-top: 1px solid #313244; }
   .album-upload-bar .btn-primary { width: 100%; padding: 13px 18px; font-size: 1rem; }
   .page.album-page { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
 }
-.album-header-members { display: flex; align-items: center; }
-@media (min-width: 768px) { .album-header-members.desktop-only { display: flex !important; } }
+.album-members-row { padding-top: 0; min-width: 0; }
 .album-section { margin-bottom: 24px; }
-.album-section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.album-section-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .album-section-label { font-weight: 600; font-size: 0.95rem; color: #a6adc8; }
 .album-section-count { background: #313244; border-radius: 10px; padding: 2px 10px; font-size: 0.8rem; font-weight: 700; color: #cdd6f4; }
 .map-pin-count { background: #313244; border: 1px solid #1e1e2e; border-radius: 10px; padding: 6px 0; font-size: 1rem; font-weight: 700; color: #cdd6f4; flex-shrink: 0; width: 80px; text-align: center; }

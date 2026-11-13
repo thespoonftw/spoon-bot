@@ -1,12 +1,13 @@
 <template>
   <div class="page" :class="{ 'album-page': album }">
     <template v-if="album">
-      <PageHeader class="album-page-header" :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :mobile-stack="true"
+      <PageHeader class="album-page-header" :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText ? shortYears(album.dateText) : undefined" :mobile-stack="true"
         :locations="album.locations ?? []"
         :group-tag="album.groupId ? siteGroups.find(g => g.id === album!.groupId) ?? null : null"
         @location-click="jumpToPhotos">
         <div class="album-header-right">
           <div class="album-header-btns">
+            <span class="album-section-count desktop-only">📷 {{ totalSortedCount }}</span>
             <button class="btn-primary btn-small album-upload-header" @click="openUpload">Upload</button>
             <div ref="menuRoot" class="user-options">
               <button type="button" class="user-options-btn" aria-label="Album options" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
@@ -23,27 +24,17 @@
               </div>
             </div>
           </div>
-          <div class="album-header-members desktop-only">
-            <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
-              <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
-            </div>
-          </div>
         </div>
       </PageHeader>
-
-      <!-- 👥 Attendees (mobile only) -->
-      <div class="album-section mobile-only">
-        <div class="card-members">
-          <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
-            <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
-          </div>
-        </div>
-      </div>
 
       <!-- 📷 Photos -->
       <div class="album-section">
         <div class="album-section-header">
-          <span class="album-section-count">📷 {{ totalSortedCount }}</span>
+          <div class="card-members album-members-row">
+            <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
+              <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
+            </div>
+          </div>
           <template v-if="album.photos.length > 0">
             <label class="sort-label" style="margin-left: auto">Sort By:</label>
             <select v-model="sortBy" class="sort-select">
@@ -204,6 +195,8 @@ const sharing = ref(false);
 const shareCopied = ref(false);
 
 const showEdit = ref(false);
+// The header date shows years short: 12 Oct '26 rather than 12 Oct 2026.
+function shortYears(text: string) { return text.replace(/\b(?:19|20)(\d{2})\b/g, "'$1"); }
 const editSection = ref<"name" | "date" | "group" | "delete">("name");
 function openEdit(section: "name" | "date" | "group" | "delete") { editSection.value = section; showEdit.value = true; }
 
