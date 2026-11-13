@@ -169,7 +169,7 @@ async function handleSubmit(interaction: ModalSubmitInteraction, guild: Guild) {
       else if (had?.id !== chosen?.id || ownCustomId) {
         await swapRoles(member, shared, chosen);
         await deleteCustomIcon(guild, member.id);
-        lines.push(chosen ? `Icon: **${chosen.unicodeEmoji ? `${chosen.unicodeEmoji} ` : ""}${chosen.name}**` : "Icon: removed");
+        lines.push(chosen ? `Icon: **${chosen.unicodeEmoji ? `${chosen.unicodeEmoji} ` : ""}${chosen.name}**` : "Icon: default");
       }
     }
   }
@@ -223,7 +223,7 @@ export async function handleCustomiseInteractions(interaction: Interaction) {
             ...sharedIcons.slice(0, 23).map(r => ({
               label: r.name.slice(0, 100), value: r.id, emoji: r.unicodeEmoji ?? undefined, default: r.id === current?.id,
             })),
-            { label: "No icon", value: NONE, description: "No icon next to your name", default: !current },
+            { label: "Default", value: NONE, description: "Whatever icon your other roles give you", default: !current },
           ),
         ),
         new LabelBuilder()
