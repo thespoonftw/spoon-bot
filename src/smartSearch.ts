@@ -1,10 +1,11 @@
 // Smart photo search: find photos by what's in them ("cat", "birthday cake", "snow") without tags.
 //
-// Each photo is run through a CLIP model, which turns it into a 512-number "embedding" capturing
-// what the photo shows. A search query goes through CLIP's text half into the same space, and the
-// photos whose embeddings point the same way as the query's are the matches.
+// Each photo is run through Google's SigLIP 2 model, which turns it into a 768-number "embedding"
+// capturing what the photo shows. A search query goes through SigLIP's text half into the same space,
+// and the photos whose embeddings point the same way as the query's are the matches. (Until Nov 2026
+// this used OpenAI's CLIP; SigLIP 2 is the better retriever at the same size.)
 //
-// Everything runs locally on the CPU; the models (~600MB) download from Hugging Face on first start
+// Everything runs locally on the CPU; the models (~1.5GB) download from Hugging Face on first start
 // into DATA_DIR/models. A background loop embeds any photo that doesn't have an embedding yet: the
 // existing library once, then each new upload (from the site or Discord) within a minute or so.
 import fs from "fs";
@@ -16,16 +17,20 @@ import { dbGetPhotosNeedingEmbedding, dbSaveEmbedding, dbLoadEmbeddings, dbEmbed
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const sharp = require("sharp") as typeof import("sharp").default;
 
-const MODEL_ID = "Xenova/clip-vit-base-patch16";
+const MODEL_ID = "onnx-community/siglip2-base-patch16-224-ONNX";
 // Embeddings from different models aren't comparable, so each is stored with the model that made it;
-// changing MODEL_ID makes the indexer redo the whole library.
+// changing MODEL_ID makes the indexer redo the whole library (each new embedding replaces the photo's old one).
 export const SMART_MODEL_KEY = MODEL_ID;
+// SigLIP's text half was trained on lowercased text padded to exactly this many tokens.
+const TEXT_LENGTH = 64;
 // A photo matches if its similarity to the query is at least MATCH_FLOOR and within MATCH_WINDOW of the
-// query's best match. Tuned by eye on the whole library (Nov 2026, "a photo of" prompt): matches above
-// ~0.28 were nearly all right, 0.26–0.27 mixed, ~0.25 mostly wrong. How high the best match scores
-// varies by word, so the window trims the long tail of loose matches for common subjects.
-const MATCH_FLOOR = 0.26;
-const MATCH_WINDOW = 0.06;
+// query's best match. How high the best match scores varies by word, so the window trims the long
+// tail of loose matches for common subjects. SigLIP's scores sit much lower than CLIP's did.
+// Tuned by eye on an 800-photo sample (Nov 2026, 20 queries, "a photo of" prompt): best matches score
+// ~0.10–0.15, typical photos ~0.02–0.06. At 0.09+ nearly all right, 0.08–0.09 mixed, below 0.08
+// mostly wrong. The window stops e.g. "fireworks" (best 0.151) pulling in dark night shots at ~0.09.
+const MATCH_FLOOR = 0.09;
+const MATCH_WINDOW = 0.05;
 const MAX_RESULTS = 500;
 // Leave half the server's 4 cores for the bot and web server while the backlog is processed.
 const THREADS = 2;
@@ -53,9 +58,9 @@ function loadModels(): Promise<Models> {
       const opts = { dtype: "fp32" as const, session_options: { intraOpNumThreads: THREADS, interOpNumThreads: 1 } };
       const [processor, vision, tokenizer, text] = await Promise.all([
         t.AutoProcessor.from_pretrained(MODEL_ID),
-        t.CLIPVisionModelWithProjection.from_pretrained(MODEL_ID, opts),
+        t.SiglipVisionModel.from_pretrained(MODEL_ID, opts),
         t.AutoTokenizer.from_pretrained(MODEL_ID),
-        t.CLIPTextModelWithProjection.from_pretrained(MODEL_ID, opts),
+        t.SiglipTextModel.from_pretrained(MODEL_ID, opts),
       ]);
       return { t, processor, vision, tokenizer, text };
     })();
@@ -73,7 +78,7 @@ function normalise(data: ArrayLike<number>): Float32Array {
   return v;
 }
 
-/** Decodes to 256px RGB (plenty for CLIP's 224px input). `lenient` accepts truncated files, using what's there. */
+/** Decodes to 256px RGB (plenty for SigLIP's 224px input). `lenient` accepts truncated files, using what's there. */
 async function decode(m: Models, file: string, lenient: boolean): Promise<Transformers.RawImage> {
   const { data, info } = await sharp(file, { failOn: lenient ? "none" : "warning" })
     .rotate().resize(256, 256, { fit: "outside", withoutEnlargement: true })
@@ -95,8 +100,16 @@ async function embedPhoto(m: Models, channelId: string, filename: string): Promi
     image = await decode(m, full, true);
   }
   const inputs = await m.processor(image);
-  const { image_embeds } = await m.vision(inputs);
-  return normalise(image_embeds.data as Float32Array);
+  const { pooler_output } = await m.vision(inputs);
+  return normalise(pooler_output.data as Float32Array);
+}
+
+/** The query's embedding, phrased like the captions the model learned from. */
+async function embedQuery(m: Models, query: string): Promise<Float32Array> {
+  const q = query.trim().toLowerCase().replace(/^(an? )?(photos?|pictures?|pics?) of /, "").replace(/^(an?|the) /, "");
+  const tokens = m.tokenizer([`a photo of ${q}`], { padding: "max_length", max_length: TEXT_LENGTH, truncation: true });
+  const { pooler_output } = await m.text(tokens);
+  return normalise(pooler_output.data as Float32Array);
 }
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -150,11 +163,8 @@ export function startSmartSearch(): void {
  */
 export async function smartSearchPhotoIds(query: string): Promise<number[]> {
   const m = await loadModels();
-  // CLIP was trained on captions, so a bare "cat" matches better phrased as one.
-  const q = query.trim().replace(/^(an? )?(photos?|pictures?|pics?) of /i, "").replace(/^(an?|the) /i, "");
-  const tokens = m.tokenizer([`a photo of ${q}`], { padding: true, truncation: true });
-  const { text_embeds } = await m.text(tokens);
-  const qv = normalise(text_embeds.data as Float32Array);
+  // The model was trained on captions, so a bare "cat" matches better phrased as one.
+  const qv = await embedQuery(m, query);
   const hits: { id: number; score: number }[] = [];
   let best = 0;
   for (const [id, v] of index) {

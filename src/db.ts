@@ -62,7 +62,7 @@ export function initDb() {
       user_id  TEXT NOT NULL,
       PRIMARY KEY (photo_id, user_id)
     );
-    -- Smart search (src/smartSearch.ts): one CLIP embedding per photo, as raw float32s.
+    -- Smart search (src/smartSearch.ts): one embedding per photo (from the model named), as raw float32s.
     -- A NULL embedding means the photo couldn't be read, so it isn't retried.
     CREATE TABLE IF NOT EXISTS photo_embeddings (
       photo_id   INTEGER PRIMARY KEY,
