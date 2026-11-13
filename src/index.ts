@@ -27,7 +27,7 @@ import { setReviewsDiscordClient } from "./reviews";
 import { startLocationShares, handleLocationInteractions } from "./location";
 import { hasPresenceIntent, startSnekTracking, countSnekMessage } from "./snekMembers";
 import { startSmartSearch } from "./smartSearch";
-import { handleCustomiseInteractions } from "./customise";
+import { handleCustomiseInteractions, handleCustomiseMemberLeave } from "./customise";
 
 dotenv.config();
 
@@ -181,6 +181,10 @@ client.on(Events.MessageCreate, async (message: Message) => {
       message.channel.send(woof + punct);
     }
   }
+});
+
+client.on(Events.GuildMemberRemove, (member) => {
+  handleCustomiseMemberLeave(member.guild, member.id).catch(e => console.error("Custom icon cleanup failed:", e));
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {

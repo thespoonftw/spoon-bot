@@ -137,6 +137,10 @@ export function initDb() {
       removal_at        TEXT,
       real_name         TEXT
     );
+    CREATE TABLE IF NOT EXISTS custom_icon_roles (
+      discord_id  TEXT PRIMARY KEY,
+      role_id     TEXT NOT NULL
+    );
   `);
   // Add new columns to existing DBs (safe to run repeatedly — fails silently if column exists)
   for (const sql of [
@@ -1145,4 +1149,16 @@ export function dbSetDiscordMemberNote(discordId: string, note: string | null, b
 export function dbGetRealNamesByDiscordId(): Map<string, { firstName: string | null; surname: string | null }> {
   const rows = db.prepare("SELECT discord_id AS discordId, first_name AS firstName, surname FROM users WHERE discord_id IS NOT NULL AND (first_name IS NOT NULL OR surname IS NOT NULL)").all() as { discordId: string; firstName: string | null; surname: string | null }[];
   return new Map(rows.map(r => [r.discordId, { firstName: r.firstName, surname: r.surname }]));
+}
+
+// Personal roles /customise creates to carry a member's custom icon.
+export function dbGetCustomIconRole(discordId: string): string | undefined {
+  return (db.prepare("SELECT role_id FROM custom_icon_roles WHERE discord_id = ?").get(discordId) as { role_id: string } | undefined)?.role_id;
+}
+export function dbGetAllCustomIconRoles(): Set<string> {
+  return new Set((db.prepare("SELECT role_id FROM custom_icon_roles").all() as { role_id: string }[]).map(r => r.role_id));
+}
+export function dbSetCustomIconRole(discordId: string, roleId: string | null) {
+  if (roleId) db.prepare("INSERT OR REPLACE INTO custom_icon_roles (discord_id, role_id) VALUES (?, ?)").run(discordId, roleId);
+  else db.prepare("DELETE FROM custom_icon_roles WHERE discord_id = ?").run(discordId);
 }
