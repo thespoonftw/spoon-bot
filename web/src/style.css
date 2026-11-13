@@ -92,8 +92,6 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .pswp-location { color: rgba(255,255,255,0.7); font-size: 0.85em; }
 .pswp-caption-date { color: rgba(255,255,255,0.85); font-size: 0.9em; }
 .pswp-caption-uploader { color: rgba(255,255,255,0.85); font-size: 0.9em; }
-.pswp-upload-date { color: rgba(255,255,255,0.85); font-size: 0.9em; display: none; }
-@media (min-width: 768px) { .pswp-upload-date { display: block; } }
 
 .sort-label { color: #a6adc8; font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
 .sort-select { background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 8px; padding: 7px 12px; font-size: 0.9rem; cursor: pointer; outline: none; }

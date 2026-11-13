@@ -758,9 +758,7 @@ function openLightbox(index: number) {
       const avatarHtml = uploaderMember?.avatarUrl
         ? `<img src="${uploaderMember.avatarUrl}" style="width:1.4em;height:1.4em;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:5px" />`
         : "";
-      const uploadedAtHtml = p?.uploadedAt ? `<span class="pswp-upload-date">${formatDateTime(p.uploadedAt)}</span>` : "";
-      const uploaderLabel = window.innerWidth >= 768 ? "Author:" : "By:";
-      const uploaderHtml = p?.uploadedByName ? `<span class="pswp-caption-uploader">${uploaderLabel} ${avatarHtml}${p.uploadedByName}</span>${uploadedAtHtml}` : "";
+      const uploaderHtml = p?.uploadedByName ? `<span class="pswp-caption-uploader">${avatarHtml}${p.uploadedByName}</span>` : "";
       return { dateHtml, uploaderHtml };
     };
     pswp.ui!.registerElement({
@@ -1235,11 +1233,5 @@ function thumbUrl(url: string): string {
 function formatTime(iso: string): string {
   const d = new Date(iso.slice(0, 10) + 'T12:00:00Z');
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
-
-function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) +
-    " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 </script>
