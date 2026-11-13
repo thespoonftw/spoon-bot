@@ -356,8 +356,12 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 @media (max-width: 767px) {
   .pswp-vote-btn { font-size: 1.45em; padding: 0px 2px; height: 40px; min-width: 0; }
   .pswp-vote-score { font-size: 1.45em; min-width: 2ch; }
-  .pswp__top-meta { display: flex; top: 56px; }
-  .pswp__bottom-bar .pswp-meta-left, .pswp__bottom-bar .pswp-meta-right { display: none; }
+  /* One row like desktop: date/location left, votes squeezed to half width in the middle, uploader right. */
+  .pswp__bottom-bar { flex-wrap: nowrap; gap: 0 8px; }
+  .pswp-meta-left { flex: 1 1 0; min-width: 0; order: 1; }
+  .pswp-votes { width: 50%; flex: none; order: 2; }
+  .pswp-meta-right { flex: 1 1 0; min-width: 0; order: 3; }
+  .pswp-location, .pswp-caption-date, .pswp-caption-uploader { font-size: 0.75em; }
   .vote-float { font-size: 2.2em; }
 }
 
