@@ -1,14 +1,14 @@
 <template>
-  <div class="modal-overlay" v-if="show">
+  <div class="modal-overlay" v-if="show && section !== 'delete'">
     <div class="modal" :style="drag.style.value">
       <button class="modal-close" @click="emit('close')">✕</button>
-      <h2 class="modal-drag-handle" @mousedown="drag.onMouseDown">Edit Album</h2>
-      <div class="form-group">
+      <h2 class="modal-drag-handle" @mousedown="drag.onMouseDown">{{ heading }}</h2>
+      <div class="form-group" v-if="section === 'name'">
         <label>Name</label>
         <input v-model="form.name" type="text" />
       </div>
-      <DateRangePicker v-model:start-date="form.startDate" v-model:end-date="form.endDate" />
-      <div class="form-group" v-if="groups.length">
+      <DateRangePicker v-if="section === 'date'" v-model:start-date="form.startDate" v-model:end-date="form.endDate" />
+      <div class="form-group" v-if="section === 'group'">
         <label>Group</label>
         <div class="album-group-picker">
           <button
@@ -30,7 +30,6 @@
       </div>
       <div v-if="error" class="error">{{ error }}</div>
       <div class="modal-actions">
-        <button class="btn-danger" @click="dragDelete.reset(); confirmDelete = true" :disabled="saving">Delete Album</button>
         <button class="btn-primary" @click="save" :disabled="saving">{{ saving ? "Saving…" : "Save" }}</button>
       </div>
     </div>
@@ -39,7 +38,7 @@
   <Teleport to="body">
     <div class="modal-overlay" v-if="confirmDelete" style="z-index:200000">
       <div class="modal" :style="dragDelete.style.value">
-        <button class="modal-close" @click="confirmDelete = false">✕</button>
+        <button class="modal-close" @click="closeDelete">✕</button>
         <h2 class="modal-drag-handle" @mousedown="dragDelete.onMouseDown">Delete Album?</h2>
         <p style="color:#a6adc8;margin-bottom:20px">This permanently deletes "{{ form.name }}" and all its photos. This cannot be undone.</p>
         <div class="modal-actions">
@@ -62,9 +61,12 @@ const dragDelete = useDraggable();
 interface SiteGroup { id: number; name: string; color: string }
 interface AlbumFields { groupName: string; startDate?: string; endDate?: string; groupId?: number | null }
 
-const props = defineProps<{ show: boolean; channelId: string; album: AlbumFields; groups: SiteGroup[] }>();
+// Each ⋮ menu item opens just its own part: the name, the date, the group, or the delete confirmation.
+const props = defineProps<{ show: boolean; section: "name" | "date" | "group" | "delete"; channelId: string; album: AlbumFields; groups: SiteGroup[] }>();
 const emit = defineEmits<{ close: []; saved: [updated: object]; deleted: [] }>();
-useEscKey(computed(() => props.show), () => { if (confirmDelete.value) confirmDelete.value = false; else emit("close"); });
+useEscKey(computed(() => props.show), () => { if (confirmDelete.value) closeDelete(); else emit("close"); });
+const heading = computed(() => ({ name: "Edit Album Name", date: "Edit Date", group: "Edit Group", delete: "Delete Album" })[props.section]);
+function closeDelete() { confirmDelete.value = false; emit("close"); }
 
 const form = ref({ name: "", startDate: "", endDate: "", groupId: null as number | null });
 const saving = ref(false);
@@ -82,8 +84,9 @@ watch(() => props.show, (v) => {
       groupId: props.album.groupId ?? null,
     };
     error.value = "";
-    confirmDelete.value = false;
+    confirmDelete.value = props.section === "delete";
     deleting.value = false;
+    if (confirmDelete.value) dragDelete.reset();
   }
 });
 
@@ -95,8 +98,8 @@ async function doDelete() {
     confirmDelete.value = false;
     emit("deleted");
   } else {
-    error.value = "Failed to delete. Try again.";
-    confirmDelete.value = false;
+    alert("Failed to delete the album. Try again.");
+    closeDelete();
   }
 }
 

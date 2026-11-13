@@ -1,22 +1,32 @@
 <template>
   <div class="page">
     <template v-if="album">
-      <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :editable="true" :mobile-stack="true"
+      <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :mobile-stack="true"
         :location-line="album.locations?.length === 1 ? album.locations[0].name : undefined"
         :location-count="(album.locations?.length ?? 0) > 1 ? album.locations!.length : undefined"
-        :location-editable="true"
-        :group-tag="album.groupId ? siteGroups.find(g => g.id === album!.groupId) ?? null : null"
-        @edit="showEdit = true" @location-edit="showLocations = true">
+        :group-tag="album.groupId ? siteGroups.find(g => g.id === album!.groupId) ?? null : null">
         <div class="album-header-right">
           <div class="album-header-btns">
-            <button class="btn-secondary btn-small" @click="openShare">Share</button>
             <button class="btn-primary btn-small" @click="openUpload">Upload</button>
+            <div ref="menuRoot" class="user-options">
+              <button type="button" class="user-options-btn" aria-label="Album options" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+              </button>
+              <div v-if="menuOpen" class="user-options-menu album-options-menu" role="menu">
+                <button type="button" role="menuitem" @click="menuPick(() => openEdit('name'))">Edit Album Name</button>
+                <button type="button" role="menuitem" @click="menuPick(() => openEdit('date'))">Edit Date</button>
+                <button type="button" role="menuitem" @click="menuPick(() => showLocations = true)">Edit Locations</button>
+                <button type="button" role="menuitem" @click="menuPick(() => showEditMembers = true)">Edit Members</button>
+                <button type="button" role="menuitem" @click="menuPick(() => openEdit('group'))">Edit Group</button>
+                <button type="button" role="menuitem" @click="menuPick(openShare)">Share</button>
+                <button type="button" role="menuitem" class="menu-danger" @click="menuPick(() => openEdit('delete'))">Delete Album</button>
+              </div>
+            </div>
           </div>
           <div class="album-header-members desktop-only">
             <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
               <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
             </div>
-            <button class="btn-icon album-members-edit" @click="showEditMembers = true" title="Edit members">✏️</button>
           </div>
         </div>
       </PageHeader>
@@ -27,7 +37,6 @@
           <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
             <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
           </div>
-          <button class="btn-icon" @click="showEditMembers = true" title="Edit members" style="margin-left:8px">✏️</button>
         </div>
       </div>
 
@@ -38,7 +47,6 @@
         </div>
         <div class="album-locations-list">
           <span v-for="loc in album.locations" :key="loc.id" class="location-tag location-tag-link" @click="jumpToPhotos(loc.id)">{{ loc.name }}</span>
-          <button class="btn-icon" @click="showLocations = true" title="Edit locations">✏️</button>
         </div>
       </div>
 
@@ -135,6 +143,7 @@
 
   <EditAlbumModal
     :show="showEdit"
+    :section="editSection"
     :channel-id="album?.channelId ?? ''"
     :album="album ?? { groupName: '' }"
     :groups="siteGroups"
@@ -200,6 +209,16 @@ const sharing = ref(false);
 const shareCopied = ref(false);
 
 const showEdit = ref(false);
+const editSection = ref<"name" | "date" | "group" | "delete">("name");
+function openEdit(section: "name" | "date" | "group" | "delete") { editSection.value = section; showEdit.value = true; }
+
+// The ⋮ album options menu. Closes on a tap elsewhere, Escape, or picking an item.
+const menuOpen = ref(false);
+const menuRoot = ref<HTMLElement | null>(null);
+function menuPick(action: () => void) { menuOpen.value = false; action(); }
+function onDocPointer(e: PointerEvent) {
+  if (menuOpen.value && menuRoot.value && !menuRoot.value.contains(e.target as Node)) menuOpen.value = false;
+}
 const showEditMembers = ref(false);
 const showLocations = ref(false);
 const siteGroups = ref<SiteGroup[]>([]);
@@ -420,10 +439,11 @@ function onMembersUpdated(visible: Member[], all: Member[]) {
 
 function handleEscape(e: KeyboardEvent) {
   if (e.key !== "Escape") return;
+  if (menuOpen.value) { menuOpen.value = false; e.stopImmediatePropagation(); return; }
   if (showShare.value) { showShare.value = false; e.stopImmediatePropagation(); return; }
 }
-onMounted(() => { window.addEventListener("keydown", handleEscape, true); });
-onUnmounted(() => { window.removeEventListener("keydown", handleEscape, true); observer?.disconnect(); });
+onMounted(() => { window.addEventListener("keydown", handleEscape, true); document.addEventListener("pointerdown", onDocPointer); });
+onUnmounted(() => { window.removeEventListener("keydown", handleEscape, true); document.removeEventListener("pointerdown", onDocPointer); observer?.disconnect(); });
 
 function onPhotoDeleted(id: number) {
   if (album.value) album.value.photos = album.value.photos.filter(p => p.id !== id);
