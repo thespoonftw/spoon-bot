@@ -24,10 +24,6 @@
               <span v-if="status[g.id]" class="group-status" :class="{ error: status[g.id].error }">{{ status[g.id].text }}</span>
             </div>
           </div>
-          <div class="group-move">
-            <button class="btn-icon" title="Move up" :aria-label="`Move ${g.savedName} up`" :disabled="i === 0" @click="move(i, i - 1)">▲</button>
-            <button class="btn-icon" title="Move down" :aria-label="`Move ${g.savedName} down`" :disabled="i === groups.length - 1" @click="move(i, i + 1)">▼</button>
-          </div>
           <button class="btn-icon" title="Delete group" :aria-label="`Delete ${g.savedName}`" @click="remove(g)">🗑️</button>
         </div>
         <p v-if="!groups.length" class="empty">No groups yet.</p>
@@ -116,7 +112,7 @@ async function add() {
   adding.value = false;
 }
 
-// Reordering: drag by the handle on desktop, or the arrows (which also work on phones).
+// Reordering: drag by the handle (desktop only; touch screens don't fire HTML drag events).
 const dragIndex = ref<number | null>(null);
 const dragOverIndex = ref<number | null>(null);
 const orderError = ref("");
@@ -165,9 +161,6 @@ onMounted(load);
 @media (hover: none) { .group-drag-handle { display: none; } }
 .group-row-dragging { opacity: 0.4; }
 .group-row-dragover { box-shadow: 0 -3px 0 #cba6f7; }
-.group-move { display: flex; flex-direction: column; }
-.group-move .btn-icon { font-size: 0.7rem; padding: 2px 6px; line-height: 1.2; color: #a6adc8; }
-.group-move .btn-icon:disabled { opacity: 0.25; cursor: default; }
 .group-status { font-size: 0.8rem; }
 .group-status.error { color: #f38ba8; }
 .group-add { display: flex; align-items: center; gap: 14px; margin-top: 20px; padding: 12px 16px; border: 1px dashed #45475a; border-radius: 10px; }
