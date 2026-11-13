@@ -2,9 +2,9 @@
   <div class="page">
     <template v-if="album">
       <PageHeader :back-to="(route.query.back as string) || '/albums'" :title="album.groupName" :subtitle="album.dateText" :mobile-stack="true"
-        :location-line="album.locations?.length === 1 ? album.locations[0].name : undefined"
-        :location-count="(album.locations?.length ?? 0) > 1 ? album.locations!.length : undefined"
-        :group-tag="album.groupId ? siteGroups.find(g => g.id === album!.groupId) ?? null : null">
+        :locations="album.locations ?? []"
+        :group-tag="album.groupId ? siteGroups.find(g => g.id === album!.groupId) ?? null : null"
+        @location-click="jumpToPhotos">
         <div class="album-header-right">
           <div class="album-header-btns">
             <button class="btn-primary btn-small" @click="openUpload">Upload</button>
@@ -37,16 +37,6 @@
           <div v-for="member in album.members" :key="member.userId" class="card-member-avatar" :title="member.firstName || member.displayName">
             <MemberAvatar :avatar-url="member.avatarUrl" :name="member.firstName || member.displayName" />
           </div>
-        </div>
-      </div>
-
-      <!-- 📍 Locations (multi only) -->
-      <div v-if="(album.locations?.length ?? 0) > 1" class="album-section desktop-only">
-        <div class="album-section-header">
-          <span class="album-section-count">📍 {{ album.locations!.length }}</span>
-        </div>
-        <div class="album-locations-list">
-          <span v-for="loc in album.locations" :key="loc.id" class="location-tag location-tag-link" @click="jumpToPhotos(loc.id)">{{ loc.name }}</span>
         </div>
       </div>
 
