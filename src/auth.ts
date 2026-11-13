@@ -4,7 +4,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
-import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbGetAssociatedUsers, dbUpdateUserFirstName, dbUpdateUserSurname, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetUserGroups, dbAddDiscordUser, dbSearchLoginUsers, dbUpdateUserDiscordId, dbUpdateUserEmail, dbCreateGuestUser, dbFindUserByDiscordId, dbUnhideUser, dbFindUserByEmail } from "./db";
+import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbGetAssociatedUsers, dbUpdateUserFirstName, dbUpdateUserSurname, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetGroupsWithCounts, dbGroupNameTaken, dbCreateGroup, dbUpdateGroup, dbDeleteGroup,dbGetUserGroups, dbAddDiscordUser, dbSearchLoginUsers, dbUpdateUserDiscordId, dbUpdateUserEmail, dbCreateGuestUser, dbFindUserByDiscordId, dbUnhideUser, dbFindUserByEmail } from "./db";
 import { sendMagicLinkEmail, maskEmail } from "./email";
 
 export function sendJson(res: ServerResponse, status: number, data: unknown, extraHeaders: Record<string, string> = {}): void {
@@ -244,6 +244,46 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
   if (url === "/api/groups" && method === "GET") {
     if (!sessions.has(getTokenFromRequest(req))) { send401(res); return true; }
     sendJson(res, 200, dbGetAllGroups());
+    return true;
+  }
+
+  // Group management (admin Groups page): list with usage counts, create, rename/recolour, delete.
+  if (url === "/api/admin/groups" && method === "GET") {
+    if (!sessions.has(getTokenFromRequest(req))) { send401(res); return true; }
+    if (!isAdminRequest(req)) { sendJson(res, 403, { error: "Only admins can manage groups" }); return true; }
+    sendJson(res, 200, dbGetGroupsWithCounts());
+    return true;
+  }
+
+  const groupIdMatch = url.match(/^\/api\/admin\/groups(?:\/(\d+))?$/);
+  if (groupIdMatch && (method === "POST" || method === "PUT" || method === "DELETE")) {
+    if (!sessions.has(getTokenFromRequest(req))) { send401(res); return true; }
+    if (!isAdminRequest(req)) { sendJson(res, 403, { error: "Only admins can manage groups" }); return true; }
+    const id = groupIdMatch[1] ? Number(groupIdMatch[1]) : undefined;
+    if ((method === "POST") === (id !== undefined)) { sendJson(res, 404, { error: "Not found" }); return true; }
+    if (method === "DELETE") {
+      if (dbDeleteGroup(id!)) sendJson(res, 200, { ok: true });
+      else sendJson(res, 404, { error: "Group not found" });
+      return true;
+    }
+    let body = "";
+    req.on("data", chunk => body += chunk);
+    req.on("end", () => {
+      try {
+        const parsed = JSON.parse(body);
+        const name = typeof parsed.name === "string" ? parsed.name.trim() : "";
+        const color = typeof parsed.color === "string" ? parsed.color.toLowerCase() : "";
+        if (!name || name.length > 30) { sendJson(res, 400, { error: "Name must be 1–30 characters" }); return; }
+        if (!/^#[0-9a-f]{6}$/.test(color)) { sendJson(res, 400, { error: "Colour must look like #a1b2c3" }); return; }
+        if (dbGroupNameTaken(name, id)) { sendJson(res, 400, { error: `There's already a group called ${name}` }); return; }
+        if (id === undefined) { sendJson(res, 201, dbCreateGroup(name, color)); return; }
+        if (dbUpdateGroup(id, name, color)) sendJson(res, 200, { id, name, color });
+        else sendJson(res, 404, { error: "Group not found" });
+      } catch (e) {
+        console.error("Group save error:", e);
+        sendJson(res, 400, { error: "Couldn't save the group" });
+      }
+    });
     return true;
   }
 

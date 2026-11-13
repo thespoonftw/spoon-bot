@@ -204,23 +204,20 @@ export function initDb() {
   try {
     db.exec("INSERT OR IGNORE INTO album_locations (channel_id, name) SELECT channel_id, location FROM albums WHERE location IS NOT NULL AND location != ''");
   } catch { }
-  // Seed site_groups (fixed definitions)
-  db.exec(`
-    INSERT OR IGNORE INTO site_groups (id, name, color) VALUES
-      (1, 'Brunch', '#e8950f'),
-      (2, 'Void',   '#00aff0'),
-      (3, 'Hull',   '#c1440e'),
-      (4, 'Wright', '#1a5f9e'),
-      (5, 'Homos',  '#ff69b4'),
-      (6, 'Wobog',  '#27ae60'),
-      (7, '676a',   '#b22222');
-  `);
-  // Recolour Hull from its old green to paprika (Hull's green is now Wobog's colour)
-  db.exec(`UPDATE site_groups SET color = '#c1440e' WHERE id = 3 AND color = '#27ae60'`);
-  // Recolour Hull (Hullites) from paprika to a more spicy-orange shade
-  db.exec(`UPDATE site_groups SET color = '#ff6d1f' WHERE id = 3 AND color = '#c1440e'`);
-  // Rename WOBOG -> Wobog
-  db.exec(`UPDATE site_groups SET name = 'Wobog' WHERE id = 6 AND name = 'WOBOG'`);
+  // Seed the original groups into a fresh DB only. Admins manage groups from the Groups page, so
+  // this mustn't recreate deleted groups or undo renames and recolours on restart.
+  if ((db.prepare("SELECT COUNT(*) AS n FROM site_groups").get() as { n: number }).n === 0) {
+    db.exec(`
+      INSERT INTO site_groups (id, name, color) VALUES
+        (1, 'Brunch', '#e8950f'),
+        (2, 'Void',   '#00aff0'),
+        (3, 'Hull',   '#ff6d1f'),
+        (4, 'Wright', '#1a5f9e'),
+        (5, 'Homos',  '#ff69b4'),
+        (6, 'Wobog',  '#27ae60'),
+        (7, '676a',   '#b22222');
+    `);
+  }
   // Seed the built-in review types; users can add more from the review editor
   db.prepare(`
     INSERT OR IGNORE INTO review_types (id, name, icon, color, created_at) VALUES
@@ -554,6 +551,40 @@ export function dbUpdateUserLastSeen(userId: string) {
 
 export function dbGetAllGroups(): SiteGroup[] {
   return db.prepare("SELECT id, name, color FROM site_groups ORDER BY id").all() as SiteGroup[];
+}
+
+export type SiteGroupWithCounts = SiteGroup & { memberCount: number; albumCount: number };
+
+export function dbGetGroupsWithCounts(): SiteGroupWithCounts[] {
+  return db.prepare(`
+    SELECT sg.id, sg.name, sg.color,
+      (SELECT COUNT(*) FROM user_groups ug JOIN users u ON u.user_id = ug.user_id WHERE ug.group_id = sg.id AND u.level > 0) AS memberCount,
+      (SELECT COUNT(*) FROM albums a WHERE a.group_id = sg.id) AS albumCount
+    FROM site_groups sg ORDER BY sg.id
+  `).all() as SiteGroupWithCounts[];
+}
+
+/** Another group already using this name (any case), so names stay unique as the schema requires. */
+export function dbGroupNameTaken(name: string, exceptId?: number): boolean {
+  return !!db.prepare("SELECT 1 FROM site_groups WHERE name = ? COLLATE NOCASE AND id != ?").get(name, exceptId ?? -1);
+}
+
+export function dbCreateGroup(name: string, color: string): SiteGroup {
+  const id = Number(db.prepare("INSERT INTO site_groups (name, color) VALUES (?, ?)").run(name, color).lastInsertRowid);
+  return { id, name, color };
+}
+
+export function dbUpdateGroup(id: number, name: string, color: string): boolean {
+  return db.prepare("UPDATE site_groups SET name = ?, color = ? WHERE id = ?").run(name, color, id).changes > 0;
+}
+
+/** Removes the group, its memberships, and its link from albums (those albums stay, ungrouped). */
+export function dbDeleteGroup(id: number): boolean {
+  return db.transaction(() => {
+    db.prepare("DELETE FROM user_groups WHERE group_id = ?").run(id);
+    db.prepare("UPDATE albums SET group_id = NULL WHERE group_id = ?").run(id);
+    return db.prepare("DELETE FROM site_groups WHERE id = ?").run(id).changes > 0;
+  })();
 }
 
 export function dbGetAllUsers(): UserRow[] {

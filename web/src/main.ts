@@ -5,6 +5,7 @@ import LandingView from "./views/LandingView.vue";
 import AlbumList from "./views/AlbumList.vue";
 import AlbumView from "./views/AlbumView.vue";
 import UsersView from "./views/UsersView.vue";
+import GroupsView from "./views/GroupsView.vue";
 import ShareView from "./views/ShareView.vue";
 import LocationShareView from "./views/LocationShareView.vue";
 import StatusView from "./views/StatusView.vue";
@@ -63,6 +64,7 @@ const router = createRouter({
     { path: "/search", component: SearchView },
     { path: "/map", component: MapView },
     { path: "/users", component: UsersView },
+    { path: "/groups", component: GroupsView },
     { path: "/status", component: StatusView },
     { path: "/database", component: DatabaseView },
     { path: "/snek", component: SnekView },
