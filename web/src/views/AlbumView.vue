@@ -56,6 +56,7 @@
           :can-load-more="hasMore" :total-count="totalSortedCount"
           :album-locations="album?.locations ?? []"
           :album-start-date="album?.startDate"
+          :hide-uploader="singleUploader"
           @photo-deleted="onPhotoDeleted" @load-more="displayLimit += 40" />
         <div class="search-show-more" v-if="hasMore" ref="showMoreEl">
           <button class="btn-secondary" @click="displayLimit += 40">Show more</button>
@@ -196,6 +197,11 @@ const sharing = ref(false);
 const shareCopied = ref(false);
 
 const showEdit = ref(false);
+// When one person uploaded every photo in the album, the lightbox doesn't bother saying who.
+const singleUploader = computed(() => {
+  const photos = album.value?.photos ?? [];
+  return photos.length > 0 && photos.every(p => p.uploadedById && p.uploadedById === photos[0].uploadedById);
+});
 // The header date shows years short: 12 Oct '26 rather than 12 Oct 2026.
 function shortYears(text: string) { return text.replace(/\b(?:19|20)(\d{2})\b/g, "'$1"); }
 const editSection = ref<"name" | "date" | "group" | "delete">("name");

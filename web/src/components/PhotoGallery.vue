@@ -218,6 +218,8 @@ const props = defineProps<{
   totalCount?: number;
   albumLocations?: { id: number; name: string }[];
   albumStartDate?: string;
+  // Leave the uploader out of the lightbox (the album page sets this when one person uploaded every photo).
+  hideUploader?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -758,7 +760,7 @@ function openLightbox(index: number) {
       const avatarHtml = uploaderMember?.avatarUrl
         ? `<img src="${uploaderMember.avatarUrl}" style="width:1.4em;height:1.4em;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:5px" />`
         : "";
-      const uploaderHtml = p?.uploadedByName ? `<span class="pswp-caption-uploader">${avatarHtml}${p.uploadedByName}</span>` : "";
+      const uploaderHtml = p?.uploadedByName && !props.hideUploader ? `<span class="pswp-caption-uploader">${avatarHtml}${p.uploadedByName}</span>` : "";
       return { dateHtml, uploaderHtml };
     };
     pswp.ui!.registerElement({
