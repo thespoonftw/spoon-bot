@@ -63,18 +63,21 @@ const filteredAlbums = computed(() => {
   return allAlbums.value.filter(a => a.members.some(m => m.userId === uid));
 });
 
-function pinColor(albumsHere: Album[]): string {
+// One colour per group with an album here: the group with the most albums first (leftmost stripe),
+// ties broken by group id so a pin's stripes don't reshuffle between loads.
+function pinColors(albumsHere: Album[]): string[] {
   const counts = new Map<number, number>();
   for (const a of albumsHere) if (a.groupId) counts.set(a.groupId, (counts.get(a.groupId) ?? 0) + 1);
-  if (!counts.size) return DEFAULT_PIN_COLOR;
-  const gid = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
-  return siteGroups.value.find(g => g.id === gid)?.color ?? DEFAULT_PIN_COLOR;
+  if (!counts.size) return [DEFAULT_PIN_COLOR];
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0] - b[0])
+    .map(([gid]) => siteGroups.value.find(g => g.id === gid)?.color ?? DEFAULT_PIN_COLOR);
 }
 
 const mapEl = ref<HTMLElement | null>(null);
 const status = ref("Loading albums…");
 const pinCount = ref<number | null>(null);
-const markerColors = new Map<number, string>();
+const markerColors = new Map<number, string[]>();
 
 // Active popup state (drives the bottom bar)
 const activePinLoc = ref<AlbumLocation | null>(null);
@@ -319,9 +322,9 @@ function applyFilter() {
   for (const { albums: albumsHere, loc } of byName.values()) {
     const photoCount = albumsHere.reduce((n, a) =>
       n + ((a.locations?.length ?? 0) <= 1 ? a.photos.length : a.photos.filter(p => p.locationId === loc.id).length), 0);
-    const color = pinColor(albumsHere);
-    const marker = L.marker([loc.lat!, loc.lon!], { icon: makeMapIcon(color) }).addTo(map!);
-    markerColors.set(loc.id, color);
+    const colors = pinColors(albumsHere);
+    const marker = L.marker([loc.lat!, loc.lon!], { icon: makeMapIcon(colors) }).addTo(map!);
+    markerColors.set(loc.id, colors);
     const popupEl = buildPopupEl(loc, albumsHere, marker);
     marker.bindPopup(popupEl, { maxWidth: 340 });
     marker.on("popupopen", () => {
