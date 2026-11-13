@@ -48,10 +48,10 @@
           </div>
           <span class="user-row-login" v-if="user.lastSeenAt">Last seen: {{ formatDate(user.lastSeenAt) }}</span>
           <span class="user-row-login never" v-else>Never seen</span>
-          <span class="user-row-stats" v-if="user.uploadCount !== undefined">
-            <span class="user-row-stat">📷 {{ user.uploadCount }} photo upload{{ user.uploadCount === 1 ? '' : 's' }}</span>
-            <span class="user-row-stats-sep"> · </span><span class="user-row-stat">📔 {{ user.albumCount ?? 0 }} album{{ user.albumCount === 1 ? '' : 's' }} featured</span>
-            <span class="user-row-stats-sep"> · </span><span class="user-row-stat">⭐ {{ user.reviewCount ?? 0 }} review{{ user.reviewCount === 1 ? '' : 's' }}</span>
+          <span class="user-row-stats" v-if="userStats(user).length">
+            <template v-for="(stat, i) in userStats(user)" :key="stat">
+              <span v-if="i" class="user-row-stats-sep"> · </span><span class="user-row-stat">{{ stat }}</span>
+            </template>
           </span>
         </div>
       </div>
@@ -146,6 +146,16 @@ import PageHeader from "../components/PageHeader.vue";
 
 interface SiteGroup { id: number; name: string; color: string }
 interface SiteUser { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string; lastSeenAt?: string; uploadCount?: number; albumCount?: number; reviewCount?: number; groups?: SiteGroup[]; level: number; discordId?: string | null; email?: string | null }
+
+// The stats line under each user, leaving out any that are zero.
+function userStats(u: SiteUser): string[] {
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  const stats: string[] = [];
+  if (u.uploadCount) stats.push(`📷 ${plural(u.uploadCount, 'photo upload')}`);
+  if (u.albumCount) stats.push(`📔 ${plural(u.albumCount, 'album')} featured`);
+  if (u.reviewCount) stats.push(`⭐ ${plural(u.reviewCount, 'review')}`);
+  return stats;
+}
 
 const allGroups = ref<SiteGroup[]>([]);
 
