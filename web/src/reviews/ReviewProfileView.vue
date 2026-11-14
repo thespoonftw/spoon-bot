@@ -39,7 +39,7 @@
           <tbody>
             <tr v-for="r in g.reviews" :key="r.id" @click="router.push(`/reviews/${r.id}`)">
               <td class="rv-table-title"><router-link :to="`/reviews/${r.id}`" @click.stop>{{ r.title }}</router-link><span v-if="r.season != null || r.platform || r.location" class="rv-table-extra">{{ r.season != null ? `Season ${r.season}` : r.platform ?? `at ${r.location}` }}</span></td>
-              <td v-if="creatorLabel(g.typeName)" class="rv-muted">{{ r.creator ?? "" }}</td>
+              <td v-if="showsBy(g.typeName)" class="rv-muted">{{ r.creator ?? "" }}</td>
               <td v-if="hasYear(g.typeName)" class="rv-muted num">{{ r.year ?? "" }}</td>
               <td><StarRating :model-value="r.rating" /></td>
               <td class="rv-muted rv-nowrap">{{ formatReviewDate(r.createdAt) }}</td>
@@ -69,9 +69,12 @@ const COLUMNS: { key: SortKey; label: string; cls?: string }[] = [
   { key: "createdAt", label: "Reviewed", cls: "rv-col-date" },
 ];
 
-// Types without a creator skip the "By" column, and likewise for year.
+// Types without a creator skip the "By" column, and likewise for year. Board games keep their
+// designer on the review itself but leave it out of this table.
+const HIDE_BY = new Set(["board game"]);
+const showsBy = (typeName: string) => !!creatorLabel(typeName) && !HIDE_BY.has(typeName.trim().toLowerCase());
 const columnsFor = (typeName: string) => COLUMNS.filter(c =>
-  (c.key !== "creator" || creatorLabel(typeName)) && (c.key !== "year" || hasYear(typeName)));
+  (c.key !== "creator" || showsBy(typeName)) && (c.key !== "year" || hasYear(typeName)));
 
 const route = useRoute();
 const router = useRouter();
