@@ -83,8 +83,8 @@ export async function findBggGameByLink(text: string, typeName: string, signal?:
   }, typeName);
 }
 
-// BGG always gives the designers, but board games have no creator field (wargames do), so for them
-// the dropdown shows just the year and nothing gets filled in.
+// BGG always gives the designers, but board games and wargames have no creator field, so the
+// dropdown shows just the year and nothing gets filled in.
 function bggForType(c: MatchCandidate, typeName: string): MatchCandidate {
   if (creatorLabel(typeName)) return c;
   const year = c.details?.year ?? null;
@@ -283,7 +283,7 @@ const BUILT_IN_PROFILES: Record<string, WikiProfile> = {
   book: { hint: "book", suffixes: ["", " (novel)", " (book)"], match: /\b(novel|novella|book|memoir|comic|manga|poem|non-fiction)\b/i, creatorLabel: "Author(s)", creatorProps: ["P50", "P98"], yearProps: ["P577"] },
   film: { hint: "film", suffixes: ["", " (film)"], match: /\b(film|movie)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P577"] },
   series: { hint: "TV series", suffixes: ["", " (TV series)", " (miniseries)"], match: /\b(tv|television|series|miniseries|sitcom|anime|drama)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P580", "P577"] },
-  // Board games are matched on BoardGameGeek, which gives the designers and year itself; P178 = developer, P50 = author.
+  // Board games are matched on BoardGameGeek, which gives the year itself; they have no creator field.
   "board game": { hint: "board game", suffixes: ["", " (board game)", " (game)"], match: /\b(board game|card game|tabletop)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P577", "P571"] },
   // P178 = developer
   "video game": { hint: "video game", suffixes: ["", " (video game)"], match: /\bvideo game\b/i, creatorLabel: "Developer(s)", creatorProps: ["P178"], yearProps: ["P577"] },
@@ -297,8 +297,8 @@ const BUILT_IN_PROFILES: Record<string, WikiProfile> = {
   drink: { hint: "drink", suffixes: ["", " (beer)", " (drink)", " (cocktail)"], match: /(beer|ale|lager|stout|porter|wine|whisk(e)?y|gin|vodka|rum|tequila|brandy|cognac|liqueur|cider|cocktail|drink|beverage)/i, creatorLabel: null, creatorProps: [], yearProps: [] },
   // Food: dishes and meals, matched on Wikipedia for the cover only.
   food: { hint: "food", suffixes: ["", " (food)", " (dish)"], match: /(food|dish|cuisine|meal|bread|cake|pastry|dessert|soup|stew|curry|sandwich|burger|pizza|pasta|noodle|sauce|cheese|sausage|pie|restaurant)/i, creatorLabel: null, creatorProps: [], yearProps: [] },
-  // Wargames are matched on BoardGameGeek like board games, which gives the designers and year itself.
-  wargame: { hint: "wargame", suffixes: ["", " (wargame)", " (game)"], match: /\b(wargame|war game|miniature|tabletop|board game)\b/i, creatorLabel: "Designer(s)", creatorProps: ["P178", "P50"], yearProps: ["P577", "P571"] },
+  // Wargames are matched on BoardGameGeek like board games, which gives the year itself; no creator field.
+  wargame: { hint: "wargame", suffixes: ["", " (wargame)", " (game)"], match: /\b(wargame|war game|miniature|tabletop|board game)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P577", "P571"] },
   // Other: the catch-all, so no search hint, and any page counts as the right kind of thing.
   other: { hint: "", suffixes: [""], match: /./, creatorLabel: null, creatorProps: [], yearProps: GENERIC_YEAR_PROPS },
 };

@@ -69,10 +69,8 @@ const COLUMNS: { key: SortKey; label: string; cls?: string }[] = [
   { key: "createdAt", label: "Reviewed", cls: "rv-col-date" },
 ];
 
-// Types without a creator skip the "By" column, and likewise for year. Board games keep their
-// designer on the review itself but leave it out of this table.
-const HIDE_BY = new Set(["board game"]);
-const showsBy = (typeName: string) => !!creatorLabel(typeName) && !HIDE_BY.has(typeName.trim().toLowerCase());
+// Types without a creator skip the "By" column, and likewise for year.
+const showsBy = (typeName: string) => !!creatorLabel(typeName);
 const columnsFor = (typeName: string) => COLUMNS.filter(c =>
   (c.key !== "creator" || showsBy(typeName)) && (c.key !== "year" || hasYear(typeName)));
 
