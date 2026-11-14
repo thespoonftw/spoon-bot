@@ -123,6 +123,8 @@
       </div>
       <div v-if="saveError" class="error">{{ saveError }}</div>
       <div class="modal-actions">
+        <button v-if="editingUser.userId !== currentUser?.userId" class="btn-danger" style="margin-right:auto"
+          @click="deleteUser" :disabled="saving">Delete</button>
         <button class="btn-primary" @click="saveEdit" :disabled="saving">{{ saving ? 'Saving…' : 'Save' }}</button>
       </div>
     </div>
@@ -239,6 +241,24 @@ function openEdit(user: SiteUser) {
   editEmail.value = user.email ?? "";
   editGroups.value = (user.groups ?? []).map(g => g.id);
   saveError.value = "";
+}
+
+async function deleteUser() {
+  const user = editingUser.value;
+  if (!user) return;
+  const name = user.firstName || user.displayName;
+  if (!confirm(`Delete ${name}? They'll be removed from the site and signed out, but their photos and reviews stay.`)) return;
+  saveError.value = "";
+  saving.value = true;
+  const res = await fetch(`/api/site-users/${encodeURIComponent(user.userId)}`, { method: "DELETE", headers: authHeaders() });
+  saving.value = false;
+  if (res.ok) {
+    users.value = users.value.filter(u => u.userId !== user.userId);
+    editingUser.value = null;
+  } else {
+    const err = await res.json().catch(() => ({}));
+    saveError.value = (err as any).error || "Failed to delete user";
+  }
 }
 
 async function saveEdit() {

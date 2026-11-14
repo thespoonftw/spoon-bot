@@ -548,6 +548,13 @@ export function dbFindUserByDiscordId(discordId: string): UserRow | undefined {
   return db.prepare("SELECT user_id AS userId, display_name AS displayName, discord_id AS discordId, email, level FROM users WHERE discord_id = ?").get(discordId) as UserRow | undefined;
 }
 
+// "Deleting" a user from the Users page makes them invisible (level 0): they drop off every list
+// and can't log in, but their photos, reviews and votes keep their name. Adding them again
+// (same Discord ID) brings them back.
+export function dbHideUser(userId: string) {
+  db.prepare("UPDATE users SET level = 0 WHERE user_id = ?").run(userId);
+}
+
 // Makes an invisible (level 0) user visible again at the default level.
 export function dbUnhideUser(userId: string) {
   db.prepare("UPDATE users SET level = 1 WHERE user_id = ? AND level = 0").run(userId);

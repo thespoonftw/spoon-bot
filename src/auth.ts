@@ -4,7 +4,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
-import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbGetAssociatedUsers, dbUpdateUserFirstName, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetGroupsWithCounts, dbGroupNameTaken, dbCreateGroup, dbUpdateGroup, dbDeleteGroup, dbReorderGroups,dbGetUserGroups, dbAddDiscordUser, dbSearchLoginUsers, dbUpdateUserDiscordId, dbUpdateUserEmail, dbCreateGuestUser, dbFindUserByDiscordId, dbUnhideUser, dbFindUserByEmail } from "./db";
+import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbGetAssociatedUsers, dbUpdateUserFirstName, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetGroupsWithCounts, dbGroupNameTaken, dbCreateGroup, dbUpdateGroup, dbDeleteGroup, dbReorderGroups,dbGetUserGroups, dbAddDiscordUser, dbSearchLoginUsers, dbUpdateUserDiscordId, dbUpdateUserEmail, dbCreateGuestUser, dbFindUserByDiscordId, dbUnhideUser, dbHideUser, dbFindUserByEmail } from "./db";
 import { sendMagicLinkEmail, maskEmail } from "./email";
 
 export function sendJson(res: ServerResponse, status: number, data: unknown, extraHeaders: Record<string, string> = {}): void {
@@ -393,6 +393,22 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
         sendJson(res, 500, { error: "Failed to update" });
       }
     });
+    return true;
+  }
+
+  if (url.match(/^\/api\/site-users\/[^/]+$/) && method === "DELETE") {
+    const sessionUserId = sessions.get(getTokenFromRequest(req));
+    if (!sessionUserId) { send401(res); return true; }
+    if (!isAdminRequest(req)) { sendJson(res, 403, { error: "Only admins can delete users" }); return true; }
+    const userId = decodeURIComponent(url.slice("/api/site-users/".length));
+    if (userId === sessionUserId) { sendJson(res, 400, { error: "You can't delete yourself" }); return true; }
+    if (!dbGetUserById(userId)) { sendJson(res, 404, { error: "User not found" }); return true; }
+    dbHideUser(userId);
+    // Sign them out everywhere.
+    let changed = false;
+    for (const [token, id] of sessions) if (id === userId) { sessions.delete(token); changed = true; }
+    if (changed) persistSessions();
+    sendJson(res, 200, { ok: true });
     return true;
   }
 
