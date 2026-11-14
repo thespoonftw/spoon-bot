@@ -68,19 +68,27 @@ interface BggGame { name: string; year: number | null; creator: string | null; i
 
 // The game a BoardGameGeek link points to. Undefined means the text isn't a BGG game link; null
 // means the game wasn't found.
-export async function findBggGameByLink(text: string, signal?: AbortSignal): Promise<MatchCandidate | null | undefined> {
+export async function findBggGameByLink(text: string, typeName: string, signal?: AbortSignal): Promise<MatchCandidate | null | undefined> {
   const id = parseBggId(text);
   if (!id) return undefined;
   const res = await fetch(`/api/reviews/bgg/${id}`, { signal });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`BGG lookup failed: ${res.status}`);
   const game = (await res.json()) as BggGame;
-  return {
+  return bggForType({
     source: "bgg", url: game.url, label: game.name,
     description: [game.creator, game.year].filter(Boolean).join(", "),
     imageUrl: game.imageUrl, wikiTitle: null, wikidataId: null,
     details: { creator: game.creator, year: game.year },
-  };
+  }, typeName);
+}
+
+// BGG always gives the designers, but board games have no creator field (wargames do), so for them
+// the dropdown shows just the year and nothing gets filled in.
+function bggForType(c: MatchCandidate, typeName: string): MatchCandidate {
+  if (creatorLabel(typeName)) return c;
+  const year = c.details?.year ?? null;
+  return { ...c, description: year ? String(year) : "", details: { creator: null, year } };
 }
 
 export const wikiUrl = (pageTitle: string) => `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/ /g, "_"))}`;
@@ -596,7 +604,7 @@ async function searchAlbums(title: string, typeName: string, signal?: AbortSigna
 // proper artwork); albums add Apple Music, films IMDb and games Steam to Wikipedia; everything else
 // uses Wikipedia.
 export async function searchMatches(title: string, typeName: string, signal?: AbortSignal): Promise<MatchCandidate[]> {
-  if (usesBgg(typeName)) return searchViaServer("bgg", title, signal);
+  if (usesBgg(typeName)) return (await searchViaServer("bgg", title, signal)).map(c => bggForType(c, typeName));
   switch (typeName.trim().toLowerCase()) {
     case "book": return searchOpenLibrary(title, signal);
     case "series": return searchTvmaze(title, signal);

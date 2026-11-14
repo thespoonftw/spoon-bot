@@ -285,7 +285,7 @@ async function onBggInput() {
   bggInflight = new AbortController();
   bggStatus.value = "Getting details…";
   try {
-    const game = await findBggGameByLink(text, bggInflight.signal);
+    const game = await findBggGameByLink(text, selectedType.value?.name ?? "", bggInflight.signal);
     if (game === undefined) { bggStatus.value = "That doesn't look like a BoardGameGeek game link."; return; }
     if (!game) { bggStatus.value = "Couldn't find that game on BoardGameGeek."; return; }
     pickLinkedMatch(game, game.label);
