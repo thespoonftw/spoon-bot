@@ -484,7 +484,7 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   const type = Number.isInteger(typeId) ? dbGetReviewType(typeId) : undefined;
   if (!type) return "Pick a type";
   const rating = Number(b.rating);
-  if (!Number.isInteger(rating * 2) || rating < 0.5 || rating > 5) return "Rating must be 0.5–5 stars, in half stars";
+  if (!Number.isInteger(rating * 2) || rating < 0 || rating > 5) return "Rating must be 0–5 stars, in half stars";
   // Some types don't ask for progress, so they're always saved as finished.
   const progress = NO_PROGRESS_TYPES.has(type.name.toLowerCase()) ? "finished" : String(b.progress ?? "");
   if (!PROGRESS.has(progress)) return "Progress must be ongoing, stopped or finished";

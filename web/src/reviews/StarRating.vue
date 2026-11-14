@@ -1,15 +1,17 @@
 <template>
   <div v-if="editable" class="rv-stars rv-stars--input">
-    <!-- Half-star steps: the left half of a star picks n − 0.5, the right half n. Arrow keys step by a half. -->
+    <!-- Half-star steps: the left half of a star picks n − 0.5, the right half n. Clicking the rating
+         already chosen, or the strip left of the first star, gives 0. Arrow keys step by a half. -->
     <div
       class="rv-stars-row" role="slider" tabindex="0" aria-label="Rating"
-      aria-valuemin="0.5" aria-valuemax="5" :aria-valuenow="modelValue ?? undefined"
+      aria-valuemin="0" aria-valuemax="5" :aria-valuenow="modelValue ?? undefined"
       :aria-valuetext="modelValue === null ? 'Not rated' : `${starsText(modelValue)} — ${ratingLabel(modelValue)}`"
       @mouseleave="hover = null" @keydown="onKey"
     >
+      <span class="rv-stars-zero" aria-hidden="true" @mousemove="hover = 0" @click="set(0)"></span>
       <span
         v-for="n in 5" :key="n" class="rv-star" :class="fill(n, hover ?? modelValue)"
-        @mousemove="hover = valueAt($event, n)" @click="set(valueAt($event, n))"
+        @mousemove="hover = valueAt($event, n)" @click="pick(valueAt($event, n))"
       >★</span>
     </div>
     <span class="rv-rating-label" :class="{ 'rv-rating-label--hint': shownLabel === null }" aria-live="polite">
@@ -42,11 +44,16 @@ function set(value: number) {
   hover.value = null;
 }
 
+// A second click on the chosen rating takes it down to 0 stars.
+function pick(value: number) {
+  set(value === props.modelValue ? 0 : value);
+}
+
 function onKey(e: KeyboardEvent) {
   const step = { ArrowRight: 0.5, ArrowUp: 0.5, ArrowLeft: -0.5, ArrowDown: -0.5 }[e.key];
   if (!step) return;
   e.preventDefault();
-  set(Math.min(5, Math.max(0.5, (props.modelValue ?? (step > 0 ? 0 : 5.5)) + step)));
+  set(Math.min(5, Math.max(0, (props.modelValue ?? (step > 0 ? -0.5 : 5.5)) + step)));
 }
 
 // While hovering, preview the word for that rating; otherwise show the chosen one (null = not rated yet).
