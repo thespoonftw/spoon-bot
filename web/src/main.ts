@@ -30,6 +30,7 @@ import PhotosView from "./views/PhotosView.vue";
 import PhotosAppView from "./views/PhotosAppView.vue";
 import AdminView from "./views/AdminView.vue";
 import { appForPath, syncAppHead, registerServiceWorker, listenForInstallPrompt, APPS } from "./utils/pwa";
+import { rememberReturnPath } from "./utils/afterLogin";
 import "./style.css";
 
 function applyMobileZoom() {
@@ -108,10 +109,36 @@ router.beforeEach(async (to) => {
     const data = await res.json();
     if (data.valid) return true;
   } catch { /* network error, fall through to login */ }
-  // The reviews and photos apps have their own login pages, so signing in never leaves the app.
-  const app = appForPath(to.path);
-  return { path: app ? `${APPS[app].scope}/login` : "/login" };
+  rememberReturnPath(to.fullPath);
+  return { path: loginPathFor(to.path) };
 });
+
+// The reviews and photos apps have their own login pages, so signing in never leaves the app.
+function loginPathFor(path: string): string {
+  const app = appForPath(path);
+  return app ? `${APPS[app].scope}/login` : "/login";
+}
+
+// The guard above only runs when moving between pages. A page left open (or restored from history)
+// can outlive its session, and then every API call 401s and the page just looks broken — so any
+// 401 from our API on a signed-in page sends you to log in, and back here afterwards.
+const realFetch = window.fetch.bind(window);
+let sentToLogin = false;
+window.fetch = async (input, init) => {
+  const res = await realFetch(input, init);
+  if (res.status === 401 && !sentToLogin) {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    const path = new URL(url, location.href);
+    const current = router.currentRoute.value;
+    if (path.origin === location.origin && path.pathname.startsWith("/api/") && !path.pathname.startsWith("/api/auth/")
+        && !current.meta.public) {
+      sentToLogin = true;
+      rememberReturnPath(current.fullPath);
+      router.replace(loginPathFor(current.path)).finally(() => { sentToLogin = false; });
+    }
+  }
+  return res;
+};
 
 // The browser tab names the section you're in: "Brunch Reviews", "brunchPhotos", or "Brunch Projects"
 // for the rest. Those two sections are installable apps, so their pages carry that app's manifest.

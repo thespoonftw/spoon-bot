@@ -17,6 +17,7 @@
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { verifyLoginToken } from "../composables/useLogin";
+import { takeReturnPath } from "../utils/afterLogin";
 
 const route = useRoute();
 const router = useRouter();
@@ -27,7 +28,7 @@ const base = route.path.startsWith("/photos/") ? "/photos" : "";
 onMounted(async () => {
   if (await verifyLoginToken(route.params.token as string)) {
     status.value = "ok";
-    setTimeout(() => router.push(base || "/"), 1000);
+    setTimeout(() => router.push(takeReturnPath(base)), 1000);
   } else {
     status.value = "error";
   }

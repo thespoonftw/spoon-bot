@@ -30,6 +30,7 @@
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { verifyLoginCode } from "../composables/useLogin";
+import { takeReturnPath } from "../utils/afterLogin";
 
 const route = useRoute();
 const router = useRouter();
@@ -50,7 +51,7 @@ async function submitCode() {
   codeError.value = "";
   const result = await verifyLoginCode(requestId, digits.value).catch(() => "error" as const);
   checking.value = false;
-  if (result === "ok") { router.replace(base || "/"); return; }
+  if (result === "ok") { router.replace(takeReturnPath(base)); return; }
   if (result === "expired") {
     expired.value = true;
     codeError.value = "This code has expired or had too many wrong tries. Request a new one below.";
