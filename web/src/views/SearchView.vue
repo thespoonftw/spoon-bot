@@ -16,7 +16,7 @@
           <option value="uploadedBy">Uploaded By</option>
           <option v-if="TAGGING_ENABLED" value="taggedIn">Tagging</option>
         </select>
-        <UserSelect v-if="filterMode !== 'all'" v-model="filterUserId" :users="users" @change="resetAndFetch" />
+        <UserSelect v-if="filterMode !== 'all'" v-model="filterUserId" :users="pickerUsers" @change="resetAndFetch" />
         <span class="search-count" v-if="total !== null">{{ total }} result{{ total === 1 ? '' : 's' }}</span>
         <div class="search-sort-group">
           <span class="search-filter-label">Sort By:</span>
@@ -55,7 +55,7 @@ import PhotoGallery from "../components/PhotoGallery.vue";
 import UserSelect from "../components/UserSelect.vue";
 import PageHeader from "../components/PageHeader.vue";
 
-interface User { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
+interface User { userId: string; displayName: string; firstName?: string; avatarUrl?: string; uploadCount?: number }
 interface Photo { id: number; channelId: string; url: string; score?: number; userVote?: string | null }
 interface AlbumInfo { groupName?: string; locations?: { id: number; name: string }[]; startDate?: string; endDate?: string }
 
@@ -66,6 +66,12 @@ const SEARCH_QUERY_KEY = "snek_search_query";
 const PAGE_SIZE = 40;
 
 const users = ref<User[]>([]);
+// "Uploaded By" only lists people who have uploaded something.
+const pickerUsers = computed(() =>
+  filterMode.value === "uploadedBy" ? users.value.filter(u => (u.uploadCount ?? 0) > 0) : users.value);
+// Who the person picker starts on: you, if you're in its list; otherwise nobody (all photos).
+const defaultFilterUser = () =>
+  pickerUsers.value.some(u => u.userId === currentUserId.value) ? currentUserId.value : "";
 const photos = ref<Photo[]>([]);
 const total = ref<number | null>(null);
 const loading = ref(false);
@@ -150,7 +156,7 @@ async function fetchSmartStatus() {
 }
 
 function onFilterModeChange() {
-  filterUserId.value = filterMode.value !== "all" ? currentUserId.value : "";
+  filterUserId.value = filterMode.value !== "all" ? defaultFilterUser() : "";
   resetAndFetch();
 }
 
@@ -174,9 +180,10 @@ onMounted(async () => {
   if (authRes.ok) {
     const { userId } = await authRes.json();
     currentUserId.value = userId ?? "";
-    if (filterMode.value !== "all" && !filterUserId.value) {
-      filterUserId.value = currentUserId.value;
-    }
+  }
+  // A remembered pick may no longer be in the list (e.g. someone with no uploads).
+  if (filterMode.value !== "all" && !pickerUsers.value.some(u => u.userId === filterUserId.value)) {
+    filterUserId.value = defaultFilterUser();
   }
   if (albumsRes.ok) {
     const albums: { channelId: string; groupName: string; locations?: { id: number; name: string }[]; startDate?: string; endDate?: string }[] = await albumsRes.json();
