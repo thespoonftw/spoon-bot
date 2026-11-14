@@ -90,7 +90,7 @@
       <div class="rv-editor-row">
         <div class="rv-field">
           <span class="rv-label">Rating</span>
-          <StarRating v-model="draft.rating" editable :full="starMode === 'full'" />
+          <StarRating v-model="draft.rating" editable :full="starMode === 'full'" :quarter="starMode === 'quarter'" />
         </div>
         <div v-if="hasProgress(selectedType?.name ?? '')" class="rv-field rv-field--progress">
           <label class="rv-label" for="rv-progress">Progress</label>
@@ -172,6 +172,11 @@
           <strong>Half star flexitarian</strong>
           <span>Half stars allowed, shown in gold.</span>
         </button>
+        <button type="button" class="rv-star-mode-choice" @click="chooseStarMode('quarter')">
+          <span class="rv-stars" aria-hidden="true"><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="half" style="--p: 75%">★</span><span class="off">★</span></span>
+          <strong>Quarter star connoisseur</strong>
+          <span>Quarter stars allowed, shown in gold.</span>
+        </button>
       </div>
       <p class="rv-hint">You can change this later from the ⋮ menu in the top right. Edit an older review to bring it in line.</p>
     </div>
@@ -186,7 +191,7 @@ import StarRating from "./StarRating.vue";
 import RichTextEditor from "./RichTextEditor.vue";
 import ReviewCover from "./ReviewCover.vue";
 import PlaceSearch from "./PlaceSearch.vue";
-import { starMode, loadStarMode, setStarMode, type StarMode } from "./starMode";
+import { starMode, loadStarMode, setStarMode, starStep, type StarMode } from "./starMode";
 
 const route = useRoute();
 const router = useRouter();
@@ -490,8 +495,9 @@ const askStarMode = ref(false);
 loadStarMode().then(() => { if (!isEdit.value && starMode.value === null) askStarMode.value = true; });
 function chooseStarMode(mode: StarMode) {
   askStarMode.value = false;
-  // Switching to whole stars rounds a half rating already picked down.
-  if (mode === "full" && draft.rating !== null) draft.rating = Math.floor(draft.rating);
+  // Switching to coarser stars rounds a rating already picked down onto the new step.
+  const s = starStep(mode);
+  if (draft.rating !== null) draft.rating = Math.floor(draft.rating / s) * s;
   setStarMode(mode);
 }
 
@@ -540,6 +546,7 @@ async function save() {
   if (draft.typeId === null) { error.value = "Pick a type."; return; }
   if (draft.rating === null) { error.value = "Pick a star rating."; return; }
   if (starMode.value === "full" && !Number.isInteger(draft.rating)) { error.value = "You're a full star purist now, so pick a whole star rating."; return; }
+  if (starMode.value !== "quarter" && !Number.isInteger(draft.rating * 2)) { error.value = "You're a half star flexitarian now, so pick a rating in half stars."; return; }
   if (summaryLength.value > SUMMARY_MAX) { error.value = `Keep the summary to ${SUMMARY_MAX} characters.`; return; }
   if (uploading.value) { error.value = "Wait for the photo to finish uploading."; return; }
   if (customImage.value.trim() && !uploadedImage.value && !/^https:\/\/\S+$/.test(customImage.value.trim())) { error.value = "The image link needs to start with https://."; return; }

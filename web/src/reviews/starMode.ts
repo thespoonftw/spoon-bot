@@ -1,9 +1,15 @@
 import { ref } from "vue";
 
-// How you rate: a full star purist ("full": whole stars only, shown in orange) or a half star
-// flexitarian ("half"). null until you've picked (the editor asks), undefined until loaded.
-// Shared by the ⋮ menu and the editor. Your existing reviews switch over when you next edit them.
-export type StarMode = "full" | "half";
+// How you rate: a full star purist ("full": whole stars only, shown in orange), a half star
+// flexitarian ("half") or a quarter star connoisseur ("quarter"). null until you've picked (the
+// editor asks), undefined until loaded. Shared by the ⋮ menu and the editor. Your existing reviews
+// switch over when you next edit them.
+export type StarMode = "full" | "half" | "quarter";
+export const STAR_MODES: { value: StarMode; label: string }[] = [
+  { value: "full", label: "Full" }, { value: "half", label: "Half" }, { value: "quarter", label: "Quarter" },
+];
+// The smallest rating step each mode allows.
+export const starStep = (mode: StarMode | null | undefined) => mode === "full" ? 1 : mode === "quarter" ? 0.25 : 0.5;
 export const starMode = ref<StarMode | null | undefined>(undefined);
 
 let loading: Promise<void> | null = null;

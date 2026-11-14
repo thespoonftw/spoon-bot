@@ -1057,12 +1057,15 @@ export function dbUpdateReview(id: number, r: ReviewInput): ReviewRow | undefine
   return dbGetReview(id);
 }
 
-// How someone rates: "full" (a full star purist, whole stars only) or "half" (a half star
-// flexitarian). Null until they've picked, which the editor asks about.
-export type StarMode = "full" | "half";
+// How someone rates: "full" (a full star purist, whole stars only), "half" (a half star
+// flexitarian) or "quarter" (a quarter star connoisseur). Null until they've picked, which the
+// editor asks about.
+export const STAR_MODES = ["full", "half", "quarter"] as const;
+export type StarMode = typeof STAR_MODES[number];
+export const isStarMode = (v: unknown): v is StarMode => STAR_MODES.includes(v as StarMode);
 export function dbGetStarMode(userId: string): StarMode | null {
   const v = (db.prepare("SELECT star_mode FROM users WHERE user_id = ?").get(userId) as { star_mode: string | null } | undefined)?.star_mode;
-  return v === "full" || v === "half" ? v : null;
+  return isStarMode(v) ? v : null;
 }
 export function dbSetStarMode(userId: string, mode: StarMode): void {
   db.prepare("UPDATE users SET star_mode = ? WHERE user_id = ?").run(mode, userId);

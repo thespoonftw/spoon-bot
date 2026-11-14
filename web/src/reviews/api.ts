@@ -110,9 +110,14 @@ export const PROGRESS_OPTIONS: { value: Progress; label: string }[] = [
   { value: "finished", label: "Finished" },
 ];
 
-// A word for each star rating, 0–5 in half stars (indexed by twice the rating).
+// A word for each star rating, 0–5 in half stars (indexed by twice the rating). A quarter star
+// rating falls between two of them, so it gets both: 3.75 is "Good-Great".
 const RATING_LABELS = ["Travesty", "Awful", "Bad", "Poor", "Mediocre", "Average", "Decent", "Good", "Great", "Amazing", "Outstanding"];
-export const ratingLabel = (rating: number) => RATING_LABELS[Math.round(rating * 2)] ?? "";
+export function ratingLabel(rating: number): string {
+  const halves = Math.round(rating * 4) / 2;
+  if (Number.isInteger(halves)) return RATING_LABELS[halves] ?? "";
+  return `${RATING_LABELS[Math.floor(halves)] ?? ""}-${RATING_LABELS[Math.ceil(halves)] ?? ""}`;
+}
 // "3.5 stars", "1 star"
 export const starsText = (rating: number) => `${rating} star${rating === 1 ? "" : "s"}`;
 

@@ -54,6 +54,12 @@ body.rv-body.rv-dark {
 .rv-options-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; min-width: 190px; display: flex; flex-direction: column; background: var(--rv-card); border: 1px solid var(--rv-rule); border-radius: 12px; padding: 6px; box-shadow: 0 12px 28px -14px rgba(0, 0, 0, 0.5); }
 .rv-options-menu button, .rv-options-menu a { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px; border: none; border-radius: 8px; background: none; font: 600 0.9rem var(--rv-sans); color: var(--rv-ink); text-align: left; cursor: pointer; }
 .rv-options-menu a { text-decoration: none; }
+/* Stars: Full / Half / Quarter, as a small segmented control. */
+.rv-options-stars { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 10px; font: 600 0.9rem var(--rv-sans); color: var(--rv-ink); }
+.rv-options-seg { display: inline-flex; border: 1.5px solid var(--rv-rule); border-radius: 999px; overflow: hidden; }
+.rv-options-menu .rv-options-seg button { padding: 5px 9px; border-radius: 0; font-size: 0.78rem; }
+.rv-options-menu .rv-options-seg button + button { border-left: 1.5px solid var(--rv-rule); }
+.rv-options-menu .rv-options-seg button.active { background: var(--rv-ink); color: var(--rv-card); }
 .rv-options-menu button:hover, .rv-options-menu a:hover { background: var(--rv-paper); }
 .rv-switch { position: relative; width: 34px; height: 20px; border-radius: 999px; background: var(--rv-rule); flex-shrink: 0; transition: background 0.15s; }
 .rv-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--rv-card); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); transition: transform 0.15s; }
@@ -130,10 +136,10 @@ body.rv-body.rv-dark {
 .rv-stars .off { color: var(--rv-star-pale); }
 /* Full star purists' ratings are orange. */
 .rv-stars--full { --rv-star: var(--rv-star-full); }
-/* A half star: gold left half, grey right half. */
-.rv-stars .half { background: linear-gradient(90deg, var(--rv-star) 50%, var(--rv-star-pale) 50%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* A part star: gold from the left for --p of it (a half by default, or a quarter or three), grey after. */
+.rv-stars .half { background: linear-gradient(90deg, var(--rv-star) var(--p, 50%), var(--rv-star-pale) var(--p, 50%)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 /* The picker keeps the darker empty colour so you can see what to tap; big for fingers. */
-.rv-stars--input .half { background-image: linear-gradient(90deg, var(--rv-star) 50%, var(--rv-star-empty) 50%); }
+.rv-stars--input .half { background-image: linear-gradient(90deg, var(--rv-star) var(--p, 50%), var(--rv-star-empty) var(--p, 50%)); }
 .rv-stars--input .rv-star { cursor: pointer; font-size: 4rem; padding: 0; color: var(--rv-star-empty); line-height: 1; user-select: none; -webkit-tap-highlight-color: transparent; }
 .rv-stars--input .rv-star.on { color: var(--rv-star); }
 .rv-stars--input .rv-star.half { color: transparent; }
@@ -350,8 +356,7 @@ body.rv-body.rv-dark {
 .rv-modal { width: 100%; max-width: 460px; background: var(--rv-card); color: var(--rv-ink); border: 1px solid var(--rv-rule); border-radius: 16px; padding: 24px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3); }
 .rv-modal h2 { font-size: 1.5rem; margin-bottom: 16px; }
 .rv-modal .rv-hint { margin: 16px 0 0; }
-.rv-star-mode-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-@media (max-width: 420px) { .rv-star-mode-choices { grid-template-columns: 1fr; } }
+.rv-star-mode-choices { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .rv-star-mode-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; background: var(--rv-paper); color: var(--rv-ink); border: 1.5px solid var(--rv-rule); border-radius: 12px; padding: 14px; font: 0.85rem var(--rv-sans); cursor: pointer; transition: border-color 0.15s; }
 .rv-star-mode-choice:hover, .rv-star-mode-choice:focus-visible { border-color: var(--rv-ink); }
 .rv-star-mode-choice strong { font: 600 1.05rem var(--rv-serif); }

@@ -21,11 +21,16 @@
               <span>Dark mode</span>
               <span class="rv-switch" :class="{ 'rv-switch--on': darkMode }" aria-hidden="true"></span>
             </button>
-            <!-- Full star purist (whole stars, in orange) or half star flexitarian. -->
-            <button type="button" role="menuitemcheckbox" :aria-checked="starMode === 'full'" @click="setStarMode(starMode === 'full' ? 'half' : 'full')">
-              <span>Full star purist</span>
-              <span class="rv-switch" :class="{ 'rv-switch--on': starMode === 'full' }" aria-hidden="true"></span>
-            </button>
+            <!-- Full star purist (whole stars, in orange), half star flexitarian or quarter star connoisseur. -->
+            <div class="rv-options-stars" role="group" aria-label="Stars">
+              <span>Stars</span>
+              <div class="rv-options-seg">
+                <button
+                  v-for="m in STAR_MODES" :key="m.value" type="button" role="menuitemradio"
+                  :aria-checked="starMode === m.value" :class="{ active: starMode === m.value }" @click="setStarMode(m.value)"
+                >{{ m.label }}</button>
+              </div>
+            </div>
             <button type="button" role="menuitem" @click="logout">Log out</button>
           </div>
         </div>
@@ -46,7 +51,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useCurrentUser } from "../composables/useCurrentUser";
 import { isStandalone, isIos, isAndroid } from "../utils/pwa";
 import { darkMode, applyReviewsTheme, removeReviewsTheme } from "../utils/reviewsTheme";
-import { starMode, loadStarMode, setStarMode } from "./starMode";
+import { starMode, loadStarMode, setStarMode, STAR_MODES } from "./starMode";
 import "./reviews.css";
 
 // "Get the app" is for phones (and tablets) that aren't already in the app.

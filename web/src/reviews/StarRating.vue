@@ -1,8 +1,9 @@
 <template>
   <div v-if="editable" class="rv-stars rv-stars--input" :class="{ 'rv-stars--full': full }">
     <!-- Half-star steps: the left half of a star picks n − 0.5, the right half n (full star purists
-         get whole stars only). Clicking the rating already chosen, or the strip left of the first
-         star, gives 0. Arrow keys step by a half (or a whole star). -->
+         get whole stars only; quarter star connoisseurs pick by the quarter of the star). Clicking
+         the rating already chosen, or the strip left of the first star, gives 0. Arrow keys step by
+         the same amount. -->
     <div
       class="rv-stars-row" role="slider" tabindex="0" aria-label="Rating"
       aria-valuemin="0" aria-valuemax="5" :aria-valuenow="modelValue ?? undefined"
@@ -11,7 +12,7 @@
     >
       <span class="rv-stars-zero" aria-hidden="true" @mousemove="hover = 0" @click="set(0)"></span>
       <span
-        v-for="n in 5" :key="n" class="rv-star" :class="fill(n, hover ?? modelValue)"
+        v-for="n in 5" :key="n" class="rv-star" :class="fill(n, hover ?? modelValue)" :style="part(n, hover ?? modelValue)"
         @mousemove="hover = valueAt($event, n)" @click="pick(valueAt($event, n))"
       >★</span>
     </div>
@@ -20,7 +21,7 @@
     </span>
   </div>
   <span v-else class="rv-stars" :class="{ 'rv-stars--full': full }" :aria-label="`${modelValue} out of 5 stars — ${ratingLabel(modelValue ?? 0)}`">
-    <span v-for="n in 5" :key="n" :class="fill(n, modelValue) || 'off'" aria-hidden="true">★</span>
+    <span v-for="n in 5" :key="n" :class="fill(n, modelValue) || 'off'" :style="part(n, modelValue)" aria-hidden="true">★</span>
   </span>
 </template>
 
@@ -28,19 +29,29 @@
 import { ref, computed } from "vue";
 import { ratingLabel, starsText } from "./api";
 
-// full: a full star purist's rating — whole stars only, in orange.
-const props = defineProps<{ modelValue: number | null; editable?: boolean; full?: boolean | number }>();
+// full: a full star purist's rating — whole stars only, in orange. quarter: the picker steps by
+// quarter stars (any rating shows its quarters regardless).
+const props = defineProps<{ modelValue: number | null; editable?: boolean; full?: boolean | number; quarter?: boolean }>();
 const emit = defineEmits<{ "update:modelValue": [value: number] }>();
 const hover = ref<number | null>(null);
-const step = computed(() => props.full ? 1 : 0.5);
+const step = computed(() => props.full ? 1 : props.quarter ? 0.25 : 0.5);
 
-// How full star n is for a rating: "on", "half" or "" (empty).
-const fill = (n: number, value: number | null) => (value ?? 0) >= n ? "on" : (value ?? 0) >= n - 0.5 ? "half" : "";
+// How full star n is for a rating: "on", "half" (partly filled: a quarter, half or three quarters)
+// or "" (empty). part() gives a partly filled star how much of it to fill.
+const fill = (n: number, value: number | null) => (value ?? 0) >= n ? "on" : (value ?? 0) > n - 1 ? "half" : "";
+const part = (n: number, value: number | null) => {
+  const f = (value ?? 0) - (n - 1);
+  return f > 0 && f < 1 ? { "--p": `${f * 100}%` } : undefined;
+};
 
+// Which step of star n the pointer is over: the left half gives n − 0.5 and the right half n, or
+// the same by quarters.
 function valueAt(e: MouseEvent, n: number): number {
-  if (props.full) return n;
+  const s = step.value;
+  if (s >= 1) return n;
   const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
-  return e.clientX - box.left < box.width / 2 ? n - 0.5 : n;
+  const slot = Math.min(1 / s - 1, Math.floor((e.clientX - box.left) / box.width / s));
+  return n - 1 + (slot + 1) * s;
 }
 
 function set(value: number) {
