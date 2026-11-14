@@ -109,7 +109,7 @@ export const PROGRESS_OPTIONS: { value: Progress; label: string }[] = [
 ];
 
 // A word for each star rating, 0–5 in half stars (indexed by twice the rating).
-const RATING_LABELS = ["Travesty", "Abysmal", "Awful", "Bad", "Poor", "Mediocre", "Decent", "Good", "Great", "Amazing", "Outstanding"];
+const RATING_LABELS = ["Travesty", "Awful", "Bad", "Poor", "Mediocre", "Average", "Decent", "Good", "Great", "Amazing", "Outstanding"];
 export const ratingLabel = (rating: number) => RATING_LABELS[Math.round(rating * 2)] ?? "";
 // "3.5 stars", "1 star"
 export const starsText = (rating: number) => `${rating} star${rating === 1 ? "" : "s"}`;
