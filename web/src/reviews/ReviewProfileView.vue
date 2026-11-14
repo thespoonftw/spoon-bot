@@ -41,7 +41,7 @@
               <td class="rv-table-title"><router-link :to="`/reviews/${r.id}`" @click.stop>{{ r.title }}</router-link><span v-if="r.season != null || r.platform || r.location" class="rv-table-extra">{{ r.season != null ? `Season ${r.season}` : r.platform ?? `at ${r.location}` }}</span></td>
               <td v-if="showsBy(g.typeName)" class="rv-muted">{{ r.creator ?? "" }}</td>
               <td v-if="hasYear(g.typeName)" class="rv-muted num">{{ r.year ?? "" }}</td>
-              <td><StarRating :model-value="r.rating" :full="r.fullStars" /></td>
+              <td><StarRating :model-value="r.rating" :full="r.fullStars" :quarter="r.quarterStars" /></td>
               <td class="rv-muted rv-nowrap">{{ formatReviewDate(r.createdAt) }}</td>
             </tr>
           </tbody>

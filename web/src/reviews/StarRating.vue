@@ -1,5 +1,5 @@
 <template>
-  <div v-if="editable" class="rv-stars rv-stars--input" :class="{ 'rv-stars--full': full }">
+  <div v-if="editable" class="rv-stars rv-stars--input" :class="{ 'rv-stars--full': full, 'rv-stars--quarter': quarter && !full }">
     <!-- Half-star steps: the left half of a star picks n − 0.5, the right half n (full star purists
          get whole stars only; quarter star connoisseurs pick by the quarter of the star). Clicking
          the rating already chosen, or the strip left of the first star, gives 0. Arrow keys step by
@@ -20,7 +20,7 @@
       {{ shownLabel ?? "Pick a rating" }}
     </span>
   </div>
-  <span v-else class="rv-stars" :class="{ 'rv-stars--full': full }" :aria-label="`${modelValue} out of 5 stars — ${ratingLabel(modelValue ?? 0)}`">
+  <span v-else class="rv-stars" :class="{ 'rv-stars--full': full, 'rv-stars--quarter': quarter && !full }" :aria-label="`${modelValue} out of 5 stars — ${ratingLabel(modelValue ?? 0)}`">
     <span v-for="n in 5" :key="n" :class="fill(n, modelValue) || 'off'" :style="part(n, modelValue)" aria-hidden="true">★</span>
   </span>
 </template>
@@ -29,9 +29,9 @@
 import { ref, computed } from "vue";
 import { ratingLabel, starsText } from "./api";
 
-// full: a full star purist's rating — whole stars only, in orange. quarter: the picker steps by
-// quarter stars (any rating shows its quarters regardless).
-const props = defineProps<{ modelValue: number | null; editable?: boolean; full?: boolean | number; quarter?: boolean }>();
+// full: a full star purist's rating — whole stars only, in orange. quarter: a quarter star
+// connoisseur's — pale pink, and the picker steps by quarter stars.
+const props = defineProps<{ modelValue: number | null; editable?: boolean; full?: boolean | number; quarter?: boolean | number }>();
 const emit = defineEmits<{ "update:modelValue": [value: number] }>();
 const hover = ref<number | null>(null);
 const step = computed(() => props.full ? 1 : props.quarter ? 0.25 : 0.5);

@@ -198,6 +198,7 @@ export function initDb() {
     "ALTER TABLE discord_members ADD COLUMN real_name TEXT",
     "ALTER TABLE users ADD COLUMN star_mode TEXT",
     "ALTER TABLE reviews ADD COLUMN full_stars INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE reviews ADD COLUMN quarter_stars INTEGER NOT NULL DEFAULT 0",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
@@ -967,6 +968,8 @@ export type ReviewInput = {
   season: number | null; platform: string | null; location: string | null; locationUrl: string | null;
   // Saved by a full star purist: whole stars only, shown in orange.
   fullStars: boolean;
+  // Saved by a quarter star connoisseur: quarter stars allowed, shown in pale pink.
+  quarterStars: boolean;
 };
 export type ReviewRow = ReviewInput & {
   id: number; userId: string; createdAt: string; updatedAt: string;
@@ -1009,7 +1012,7 @@ export function dbSetReviewTypeColor(id: number, color: string): boolean {
 
 const REVIEW_SELECT = `
   SELECT r.id, r.user_id AS userId, r.title, r.type_id AS typeId, r.rating, r.progress,
-         r.summary, r.body_html AS bodyHtml, r.image_url AS imageUrl, r.wiki_title AS wikiTitle, r.creator, r.year, r.source_url AS sourceUrl, r.season, r.platform, r.location, r.location_url AS locationUrl, r.full_stars = 1 AS fullStars,
+         r.summary, r.body_html AS bodyHtml, r.image_url AS imageUrl, r.wiki_title AS wikiTitle, r.creator, r.year, r.source_url AS sourceUrl, r.season, r.platform, r.location, r.location_url AS locationUrl, r.full_stars = 1 AS fullStars, r.quarter_stars = 1 AS quarterStars,
          r.created_at AS createdAt, r.updated_at AS updatedAt,
          t.name AS typeName, t.icon AS typeIcon, t.color AS typeColor,
          COALESCE(u.display_name, r.user_id) AS authorName, u.first_name AS authorFirstName, u.avatar_url AS authorAvatarUrl
@@ -1043,17 +1046,17 @@ export function dbGetReview(id: number): ReviewRow | undefined {
 export function dbCreateReview(userId: string, r: ReviewInput): ReviewRow {
   const now = new Date().toISOString();
   const info = db.prepare(`
-    INSERT INTO reviews (user_id, title, type_id, rating, progress, summary, body_html, image_url, wiki_title, creator, year, source_url, season, platform, location, location_url, full_stars, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(userId, r.title, r.typeId, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, r.creator, r.year, r.sourceUrl, r.season, r.platform, r.location, r.locationUrl, r.fullStars ? 1 : 0, now, now);
+    INSERT INTO reviews (user_id, title, type_id, rating, progress, summary, body_html, image_url, wiki_title, creator, year, source_url, season, platform, location, location_url, full_stars, quarter_stars, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(userId, r.title, r.typeId, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, r.creator, r.year, r.sourceUrl, r.season, r.platform, r.location, r.locationUrl, r.fullStars ? 1 : 0, r.quarterStars ? 1 : 0, now, now);
   return dbGetReview(Number(info.lastInsertRowid))!;
 }
 
 export function dbUpdateReview(id: number, r: ReviewInput): ReviewRow | undefined {
   db.prepare(`
-    UPDATE reviews SET title = ?, type_id = ?, rating = ?, progress = ?, summary = ?, body_html = ?, image_url = ?, wiki_title = ?, creator = ?, year = ?, source_url = ?, season = ?, platform = ?, location = ?, location_url = ?, full_stars = ?, updated_at = ?
+    UPDATE reviews SET title = ?, type_id = ?, rating = ?, progress = ?, summary = ?, body_html = ?, image_url = ?, wiki_title = ?, creator = ?, year = ?, source_url = ?, season = ?, platform = ?, location = ?, location_url = ?, full_stars = ?, quarter_stars = ?, updated_at = ?
     WHERE id = ?
-  `).run(r.title, r.typeId, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, r.creator, r.year, r.sourceUrl, r.season, r.platform, r.location, r.locationUrl, r.fullStars ? 1 : 0, new Date().toISOString(), id);
+  `).run(r.title, r.typeId, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, r.creator, r.year, r.sourceUrl, r.season, r.platform, r.location, r.locationUrl, r.fullStars ? 1 : 0, r.quarterStars ? 1 : 0, new Date().toISOString(), id);
   return dbGetReview(id);
 }
 

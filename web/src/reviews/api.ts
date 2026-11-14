@@ -29,6 +29,7 @@ export interface Review {
   locationUrl: string | null;
   // Saved by a full star purist: whole stars, shown in orange (1/0 from the server).
   fullStars: boolean | number;
+  quarterStars: boolean | number;
   createdAt: string;
   updatedAt: string;
   authorName: string;

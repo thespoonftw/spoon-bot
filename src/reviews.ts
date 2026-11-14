@@ -42,15 +42,16 @@ export function setReviewsDiscordClient(client: Client) {
 }
 
 // Embed text can't be coloured, so the stars are the bot's own (application) emoji: a gold filled
-// star, gold-from-the-left quarter, half and three-quarter stars, a grey empty one, and an orange
-// filled star for full star purists. They're created on first use and found by name after that; if
-// that fails the post falls back to plain ★/¼/½/¾/☆.
+// star and a gold half star, a grey empty one, an orange filled star for full star purists, and
+// pale pink filled, quarter, half and three-quarter stars for quarter star connoisseurs. They're
+// created on first use and found by name after that; if that fails the post falls back to plain
+// ★/¼/½/¾/☆.
 const STAR_PATH = "M12 1.5l3.1 6.9 7.4.7-5.6 5 1.7 7.4L12 17.6l-6.6 3.9 1.7-7.4-5.6-5 7.4-.7z";
-const GOLD = "#f5b301", GREY = "#80848e", ORANGE = "#f26b1d";
+const GOLD = "#f5b301", GREY = "#80848e", ORANGE = "#f26b1d", PINK = "#f7a8c8";
 const STAR_SVG = (fill: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 24 24"><path fill="${fill}" d="${STAR_PATH}"/></svg>`;
-// A star gold for the left `part` of it (0.25, 0.5 or 0.75), grey after.
-const PART_STAR_SVG = (part: number) => `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 24 24"><defs><clipPath id="l"><rect width="${24 * part}" height="24"/></clipPath></defs><path fill="${GREY}" d="${STAR_PATH}"/><path fill="${GOLD}" clip-path="url(#l)" d="${STAR_PATH}"/></svg>`;
-type StarEmojis = { full: string; quarter: string; half: string; threeQuarter: string; empty: string; orange: string };
+// A star filled with `fill` for the left `part` of it (0.25, 0.5 or 0.75), grey after.
+const PART_STAR_SVG = (fill: string, part: number) => `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 24 24"><defs><clipPath id="l"><rect width="${24 * part}" height="24"/></clipPath></defs><path fill="${GREY}" d="${STAR_PATH}"/><path fill="${fill}" clip-path="url(#l)" d="${STAR_PATH}"/></svg>`;
+type StarEmojis = { full: string; half: string; empty: string; orange: string; pink: string; pinkQuarter: string; pinkHalf: string; pinkThreeQuarter: string };
 let starEmojis: Promise<StarEmojis | null> | null = null;
 function getStarEmojis(client: Client): Promise<StarEmojis | null> {
   starEmojis ??= (async () => {
@@ -63,7 +64,12 @@ function getStarEmojis(client: Client): Promise<StarEmojis | null> {
       const png = await sharp(Buffer.from(svg)).png().toBuffer();
       return (await app.emojis.create({ attachment: png, name })).toString();
     };
-    return { full: await ensure("review_star", STAR_SVG(GOLD)), quarter: await ensure("review_star_quarter", PART_STAR_SVG(0.25)), half: await ensure("review_star_half", PART_STAR_SVG(0.5)), threeQuarter: await ensure("review_star_three_quarter", PART_STAR_SVG(0.75)), empty: await ensure("review_star_empty", STAR_SVG(GREY)), orange: await ensure("review_star_orange", STAR_SVG(ORANGE)) };
+    return {
+      full: await ensure("review_star", STAR_SVG(GOLD)), half: await ensure("review_star_half", PART_STAR_SVG(GOLD, 0.5)),
+      empty: await ensure("review_star_empty", STAR_SVG(GREY)), orange: await ensure("review_star_orange", STAR_SVG(ORANGE)),
+      pink: await ensure("review_star_pink", STAR_SVG(PINK)), pinkQuarter: await ensure("review_star_pink_quarter", PART_STAR_SVG(PINK, 0.25)),
+      pinkHalf: await ensure("review_star_pink_half", PART_STAR_SVG(PINK, 0.5)), pinkThreeQuarter: await ensure("review_star_pink_three_quarter", PART_STAR_SVG(PINK, 0.75)),
+    };
   })().catch(e => { console.error("Failed to set up review star emoji:", e); starEmojis = null; return null; });
   return starEmojis;
 }
@@ -87,10 +93,11 @@ async function reviewAuthor(client: Client, r: ReviewRow): Promise<{ name: strin
 // "See the full review" link follows when there's more to read than the summary.
 async function buildReviewEmbed(client: Client, r: ReviewRow): Promise<EmbedBuilder> {
   const [emoji, author] = await Promise.all([getStarEmojis(client), reviewAuthor(client, r)]);
-  const { full: gold, quarter, half, threeQuarter, empty, orange } = emoji ?? { full: "★", quarter: "¼", half: "½", threeQuarter: "¾", empty: "☆", orange: "★" };
-  const full = r.fullStars ? orange : gold;
+  const e = emoji ?? { full: "★", half: "½", empty: "☆", orange: "★", pink: "★", pinkQuarter: "¼", pinkHalf: "½", pinkThreeQuarter: "¾" };
+  const empty = e.empty;
+  const full = r.fullStars ? e.orange : r.quarterStars ? e.pink : e.full;
   const whole = Math.floor(r.rating), quarters = Math.round((r.rating - whole) * 4);
-  const part = [null, quarter, half, threeQuarter][quarters] ?? null;
+  const part = (r.quarterStars ? [null, e.pinkQuarter, e.pinkHalf, e.pinkThreeQuarter] : [null, e.pinkQuarter, e.half, e.pinkThreeQuarter])[quarters] ?? null;
   const stars = full.repeat(whole) + (part ?? "") + empty.repeat(5 - whole - (part ? 1 : 0));
   const article = /^[aeiou]/i.test(r.typeName) ? "an" : "a";
   // Only albums and books name who made it: an album in the title ("OK Computer (1997) by
@@ -529,7 +536,7 @@ function parseReviewInput(raw: unknown, mode: StarMode | null): ReviewInput | st
   const location = typeof b.location === "string" && b.location.trim() ? b.location.trim().slice(0, 100) : null;
   // A place picked from the location search links to its OpenStreetMap page.
   const locationUrl = location && typeof b.locationUrl === "string" && /^https:\/\/www\.openstreetmap\.org\/(node|way|relation)\/\d+$/.test(b.locationUrl) ? b.locationUrl : null;
-  return { title, typeId, rating, progress, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null, imageUrl, wikiTitle, creator, year: rawYear, sourceUrl, season, platform, location, locationUrl, fullStars };
+  return { title, typeId, rating, progress, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null, imageUrl, wikiTitle, creator, year: rawYear, sourceUrl, season, platform, location, locationUrl, fullStars, quarterStars: mode === "quarter" };
 }
 
 // Only the author can edit a review; admins can also delete one (to take something down).

@@ -173,9 +173,9 @@
           <span>Half stars allowed, shown in gold.</span>
         </button>
         <button type="button" class="rv-star-mode-choice" @click="chooseStarMode('quarter')">
-          <span class="rv-stars" aria-hidden="true"><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="half" style="--p: 75%">★</span><span class="off">★</span></span>
+          <span class="rv-stars rv-stars--quarter" aria-hidden="true"><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="half" style="--p: 75%">★</span><span class="off">★</span></span>
           <strong>Quarter star connoisseur</strong>
-          <span>Quarter stars allowed, shown in gold.</span>
+          <span>Quarter stars allowed, shown in pale pink.</span>
         </button>
       </div>
       <p class="rv-hint">You can change this later from the ⋮ menu in the top right. Edit an older review to bring it in line.</p>
