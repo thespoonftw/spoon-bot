@@ -3,7 +3,7 @@
     <button type="button" class="user-select-button" aria-haspopup="listbox" :aria-expanded="open" @click="toggle">
       <template v-if="selected">
         <MemberAvatar :avatar-url="selected.avatarUrl" :name="baseName(selected)" />
-        <span class="user-select-label">{{ dropdownName(selected, users) }}</span>
+        <span class="user-select-label">{{ baseName(selected) }}</span>
       </template>
       <span v-else class="user-select-label user-select-placeholder">Choose someone…</span>
       <span class="user-select-caret" aria-hidden="true">▾</span>
@@ -13,7 +13,7 @@
         class="user-select-option" :class="{ active: i === activeIndex, selected: u.userId === modelValue }"
         @mouseenter="activeIndex = i" @click="choose(u.userId)">
         <MemberAvatar :avatar-url="u.avatarUrl" :name="baseName(u)" />
-        <span class="user-select-label">{{ dropdownName(u, users) }}</span>
+        <span class="user-select-label">{{ baseName(u) }}</span>
       </li>
     </ul>
   </div>
@@ -22,7 +22,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onBeforeUnmount } from "vue";
 import MemberAvatar from "./MemberAvatar.vue";
-import { baseName, dropdownName, sortByName, type Nameable } from "../utils/names";
+import { baseName, sortByName, type Nameable } from "../utils/names";
 
 interface User extends Nameable { userId: string; avatarUrl?: string }
 

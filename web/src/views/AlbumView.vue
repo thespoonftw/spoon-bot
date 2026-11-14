@@ -46,7 +46,7 @@
               <option v-if="TAGGING_ENABLED" value="tagging">Tagging</option>
             </select>
             <select v-if="TAGGING_ENABLED && sortBy === 'tagging'" v-model="tagFilterUserId" class="sort-select">
-              <option v-for="m in sortedTagFilterMembers" :key="m.userId" :value="m.userId">{{ dropdownName(m, album.members) }}</option>
+              <option v-for="m in sortedTagFilterMembers" :key="m.userId" :value="m.userId">{{ baseName(m) }}</option>
               <option value="__nobody__">Nobody</option>
             </select>
           </template>
@@ -204,7 +204,7 @@ import MembersModal from "../components/MembersModal.vue";
 import PhotoGallery from "../components/PhotoGallery.vue";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 import { useDraggable } from "../utils/draggable";
-import { dropdownName, sortByName } from "../utils/names";
+import { baseName, sortByName } from "../utils/names";
 import PageHeader from "../components/PageHeader.vue";
 import LocationsModal from "../components/LocationsModal.vue";
 
