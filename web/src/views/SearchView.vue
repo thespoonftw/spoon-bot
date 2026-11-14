@@ -16,9 +16,7 @@
           <option value="uploadedBy">Uploaded By</option>
           <option v-if="TAGGING_ENABLED" value="taggedIn">Tagging</option>
         </select>
-        <select v-if="filterMode !== 'all'" v-model="filterUserId" @change="resetAndFetch">
-          <option v-for="u in sortedUsers" :key="u.userId" :value="u.userId">{{ dropdownName(u, users) }}</option>
-        </select>
+        <UserSelect v-if="filterMode !== 'all'" v-model="filterUserId" :users="users" @change="resetAndFetch" />
         <span class="search-count" v-if="total !== null">{{ total }} result{{ total === 1 ? '' : 's' }}</span>
         <div class="search-sort-group">
           <span class="search-filter-label">Sort By:</span>
@@ -52,9 +50,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { authHeaders } from "../utils/session";
-import { dropdownName, sortByName } from "../utils/names";
 import { TAGGING_ENABLED } from "../utils/features";
 import PhotoGallery from "../components/PhotoGallery.vue";
+import UserSelect from "../components/UserSelect.vue";
 import PageHeader from "../components/PageHeader.vue";
 
 interface User { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string }
@@ -68,7 +66,6 @@ const SEARCH_QUERY_KEY = "snek_search_query";
 const PAGE_SIZE = 40;
 
 const users = ref<User[]>([]);
-const sortedUsers = computed(() => sortByName(users.value));
 const photos = ref<Photo[]>([]);
 const total = ref<number | null>(null);
 const loading = ref(false);

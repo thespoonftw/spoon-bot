@@ -165,6 +165,16 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .smart-search-clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #a6adc8; font-size: 1.3rem; line-height: 1; padding: 4px 8px; cursor: pointer; }
 .smart-search-clear:hover { color: #cdd6f4; }
 .smart-search-note { color: #a6adc8; font-size: 0.8rem; }
+.user-select { position: relative; display: inline-block; }
+.user-select-button { display: flex; align-items: center; gap: 8px; background: #313244; border: 1px solid #45475a; border-radius: 8px; padding: 5px 10px 5px 6px; color: #cdd6f4; font-size: 0.9rem; cursor: pointer; min-height: 34px; box-sizing: border-box; max-width: 240px; }
+.user-select-button:hover, .user-select.open .user-select-button { border-color: #89b4fa; }
+.user-select-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-select-placeholder { color: #7f849c; }
+.user-select-caret { color: #a6adc8; font-size: 0.75em; margin-left: 2px; }
+.user-select-menu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 50; min-width: 100%; max-width: 280px; max-height: 320px; overflow-y: auto; margin: 0; padding: 4px; list-style: none; background: #313244; border: 1px solid #45475a; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); box-sizing: border-box; }
+.user-select-option { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; color: #cdd6f4; font-size: 0.9rem; cursor: pointer; white-space: nowrap; }
+.user-select-option.active { background: #45475a; }
+.user-select-option.selected { color: #89b4fa; font-weight: 600; }
 .search-filter-label { color: #a6adc8; font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
 .search-sort-group { display: flex; align-items: center; gap: 10px; margin-left: auto; }
 @media (max-width: 767px) { .search-sort-group { margin-left: 0; width: 100%; } }
