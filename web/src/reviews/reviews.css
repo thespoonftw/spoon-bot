@@ -13,6 +13,7 @@ body.rv-body {
   --rv-star: #d99a1e;
   --rv-star-empty: #d9cfbd;
   --rv-star-pale: #f1ebdf; /* empty stars on shown ratings, faint so half stars read clearly */
+  --rv-star-full: #e2601a; /* a full star purist's stars */
   --rv-serif: "Fraunces", Georgia, "Times New Roman", serif;
   --rv-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   background: var(--rv-paper);
@@ -35,6 +36,7 @@ body.rv-body.rv-dark {
   --rv-star: #e8ad37;
   --rv-star-empty: #4f463d;
   --rv-star-pale: #3a332c;
+  --rv-star-full: #f2793a;
   color-scheme: dark;
 }
 
@@ -126,6 +128,8 @@ body.rv-body.rv-dark {
 /* Stars */
 .rv-stars { display: inline-flex; align-items: center; gap: 2px; color: var(--rv-star); line-height: 1; }
 .rv-stars .off { color: var(--rv-star-pale); }
+/* Full star purists' ratings are orange. */
+.rv-stars--full { --rv-star: var(--rv-star-full); }
 /* A half star: gold left half, grey right half. */
 .rv-stars .half { background: linear-gradient(90deg, var(--rv-star) 50%, var(--rv-star-pale) 50%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 /* The picker keeps the darker empty colour so you can see what to tap; big for fingers. */
@@ -339,3 +343,16 @@ body.rv-body.rv-dark {
 .rv-admin-count { font-size: 0.85rem; color: var(--rv-muted); margin-left: auto; }
 .rv-admin-types input[type="color"] { width: 44px; height: 32px; padding: 0; border: 1px solid var(--rv-rule); border-radius: 6px; background: none; cursor: pointer; }
 .rv-admin-status { font-size: 0.8rem; color: var(--rv-muted); min-width: 6em; }
+
+/* Pop-ups (the editor's "How do you rate?" question). */
+.rv-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(20, 15, 10, 0.55); }
+.rv-modal { width: 100%; max-width: 460px; background: var(--rv-card); color: var(--rv-ink); border: 1px solid var(--rv-rule); border-radius: 16px; padding: 24px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3); }
+.rv-modal h2 { font-size: 1.5rem; margin-bottom: 16px; }
+.rv-modal .rv-hint { margin: 16px 0 0; }
+.rv-star-mode-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 420px) { .rv-star-mode-choices { grid-template-columns: 1fr; } }
+.rv-star-mode-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; background: var(--rv-paper); color: var(--rv-ink); border: 1.5px solid var(--rv-rule); border-radius: 12px; padding: 14px; font: 0.85rem var(--rv-sans); cursor: pointer; transition: border-color 0.15s; }
+.rv-star-mode-choice:hover, .rv-star-mode-choice:focus-visible { border-color: var(--rv-ink); }
+.rv-star-mode-choice strong { font: 600 1.05rem var(--rv-serif); }
+.rv-star-mode-choice > span:last-child { color: var(--rv-muted); }
+.rv-star-mode-choice .rv-stars { font-size: 1.3rem; }

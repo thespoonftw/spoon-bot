@@ -51,7 +51,7 @@
           <h3 class="rv-card-title">{{ r.title }}<span v-if="r.year" class="rv-card-year">{{ r.year }}</span></h3>
           <p v-if="cardCredit(r)" class="rv-credit">{{ cardCredit(r) }}</p>
           <div class="rv-card-rating">
-            <StarRating :model-value="r.rating" />
+            <StarRating :model-value="r.rating" :full="r.fullStars" />
             <span v-if="hasProgress(r.typeName)" class="rv-progress" :class="`rv-progress--${r.progress}`">{{ progressLabel(r.progress) }}</span>
           </div>
           <p v-if="r.summary" class="rv-card-summary">{{ r.summary }}</p>

@@ -21,6 +21,11 @@
               <span>Dark mode</span>
               <span class="rv-switch" :class="{ 'rv-switch--on': darkMode }" aria-hidden="true"></span>
             </button>
+            <!-- Full star purist (whole stars, in orange) or half star flexitarian. -->
+            <button type="button" role="menuitemcheckbox" :aria-checked="starMode === 'full'" @click="setStarMode(starMode === 'full' ? 'half' : 'full')">
+              <span>Full star purist</span>
+              <span class="rv-switch" :class="{ 'rv-switch--on': starMode === 'full' }" aria-hidden="true"></span>
+            </button>
             <button type="button" role="menuitem" @click="logout">Log out</button>
           </div>
         </div>
@@ -41,6 +46,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useCurrentUser } from "../composables/useCurrentUser";
 import { isStandalone, isIos, isAndroid } from "../utils/pwa";
 import { darkMode, applyReviewsTheme, removeReviewsTheme } from "../utils/reviewsTheme";
+import { starMode, loadStarMode, setStarMode } from "./starMode";
 import "./reviews.css";
 
 // "Get the app" is for phones (and tablets) that aren't already in the app.
@@ -65,7 +71,7 @@ const userName = computed(() => currentUser.value?.firstName || currentUser.valu
 // The layout stays mounted across the login pages, so pick the user up once they're signed in.
 watch(isPublic, (pub) => { if (!pub && !currentUser.value) reload(); });
 
-// The ⋮ options menu: Types (admins), Get the app (phones), dark mode and log out. Closes on a tap elsewhere, Escape, or moving page.
+// The ⋮ options menu: Types (admins), Get the app (phones), dark mode, star mode and log out. Closes on a tap elsewhere, Escape, or moving page.
 const menuOpen = ref(false);
 const menuRoot = ref<HTMLElement | null>(null);
 function onDocPointer(e: PointerEvent) {
@@ -73,6 +79,7 @@ function onDocPointer(e: PointerEvent) {
 }
 function onKey(e: KeyboardEvent) { if (e.key === "Escape") menuOpen.value = false; }
 watch(() => route.fullPath, () => { menuOpen.value = false; });
+watch(menuOpen, (open) => { if (open && !isPublic.value) loadStarMode(); });
 
 async function logout() {
   menuOpen.value = false;

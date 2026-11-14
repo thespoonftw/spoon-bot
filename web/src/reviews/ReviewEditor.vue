@@ -92,7 +92,7 @@
       <div class="rv-editor-row">
         <div class="rv-field">
           <span class="rv-label">Rating</span>
-          <StarRating v-model="draft.rating" editable />
+          <StarRating v-model="draft.rating" editable :full="starMode === 'full'" />
         </div>
         <div v-if="hasProgress(selectedType?.name ?? '')" class="rv-field rv-field--progress">
           <label class="rv-label" for="rv-progress">Progress</label>
@@ -156,6 +156,26 @@
       </div>
     </aside>
   </form>
+
+  <!-- Asked once, the first time someone starts a review after star modes arrived. -->
+  <div v-if="askStarMode" class="rv-modal-backdrop">
+    <div class="rv-modal" role="dialog" aria-modal="true" aria-labelledby="rv-star-mode-title">
+      <h2 id="rv-star-mode-title">How do you rate?</h2>
+      <div class="rv-star-mode-choices">
+        <button type="button" class="rv-star-mode-choice" @click="chooseStarMode('full')">
+          <span class="rv-stars rv-stars--full" aria-hidden="true"><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="off">★</span><span class="off">★</span></span>
+          <strong>Full star purist</strong>
+          <span>Whole stars only, shown in orange.</span>
+        </button>
+        <button type="button" class="rv-star-mode-choice" @click="chooseStarMode('half')">
+          <span class="rv-stars" aria-hidden="true"><span class="on">★</span><span class="on">★</span><span class="on">★</span><span class="half">★</span><span class="off">★</span></span>
+          <strong>Half star flexitarian</strong>
+          <span>Half stars allowed, shown in gold.</span>
+        </button>
+      </div>
+      <p class="rv-hint">You can change this later from the ⋮ menu in the top right. Edit an older review to bring it in line.</p>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -166,6 +186,7 @@ import StarRating from "./StarRating.vue";
 import RichTextEditor from "./RichTextEditor.vue";
 import ReviewCover from "./ReviewCover.vue";
 import PlaceSearch from "./PlaceSearch.vue";
+import { starMode, loadStarMode, setStarMode, type StarMode } from "./starMode";
 
 const route = useRoute();
 const router = useRouter();
@@ -464,6 +485,16 @@ watch(() => [draft.title, draft.typeId], ([title], [prevTitle]) => {
 });
 onUnmounted(() => { clearTimeout(debounce); bggInflight?.abort(); searchInflight?.abort(); detailsInflight?.abort(); seasonsInflight?.abort(); });
 
+// --- Star mode: someone who hasn't picked yet is asked when they start a new review.
+const askStarMode = ref(false);
+loadStarMode().then(() => { if (!isEdit.value && starMode.value === null) askStarMode.value = true; });
+function chooseStarMode(mode: StarMode) {
+  askStarMode.value = false;
+  // Switching to whole stars rounds a half rating already picked down.
+  if (mode === "full" && draft.rating !== null) draft.rating = Math.floor(draft.rating);
+  setStarMode(mode);
+}
+
 onMounted(async () => {
   types.value = await fetchReviewTypes();
   // "Write your own review for this" opens /reviews/new?from=<id>: same thing, blank review.
@@ -508,6 +539,7 @@ async function save() {
   if (!draft.title.trim()) { error.value = "Give it a title."; return; }
   if (draft.typeId === null) { error.value = "Pick a type."; return; }
   if (draft.rating === null) { error.value = "Pick a star rating."; return; }
+  if (starMode.value === "full" && !Number.isInteger(draft.rating)) { error.value = "You're a full star purist now, so pick a whole star rating."; return; }
   if (summaryLength.value > SUMMARY_MAX) { error.value = `Keep the summary to ${SUMMARY_MAX} characters.`; return; }
   if (uploading.value) { error.value = "Wait for the photo to finish uploading."; return; }
   if (customImage.value.trim() && !uploadedImage.value && !/^https:\/\/\S+$/.test(customImage.value.trim())) { error.value = "The image link needs to start with https://."; return; }

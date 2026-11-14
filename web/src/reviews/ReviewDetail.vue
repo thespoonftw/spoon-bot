@@ -22,7 +22,7 @@
       </p>
       <p v-else-if="credits" class="rv-credit rv-credit--large">{{ credits }}</p>
       <div class="rv-detail-meta">
-        <StarRating :model-value="review.rating" />
+        <StarRating :model-value="review.rating" :full="review.fullStars" />
         <span v-if="hasProgress(review.typeName)" class="rv-progress" :class="`rv-progress--${review.progress}`" style="font-size: 0.95rem">{{ progressLabel(review.progress) }}</span>
       </div>
       <div class="rv-byline">
@@ -52,7 +52,7 @@
       <router-link v-for="o in review.others" :key="o.id" :to="`/reviews/${o.id}`" class="rv-card">
         <div class="rv-card-body">
           <div class="rv-card-rating">
-            <StarRating :model-value="o.rating" />
+            <StarRating :model-value="o.rating" :full="o.fullStars" />
             <span v-if="hasProgress(o.typeName)" class="rv-progress" :class="`rv-progress--${o.progress}`">{{ progressLabel(o.progress) }}</span>
           </div>
           <p v-if="o.summary" class="rv-card-summary">{{ o.summary }}</p>

@@ -14,7 +14,7 @@ const sharp = require("sharp") as (input: Buffer) => {
   rotate(): { resize(w: number, h: number, opts: object): { jpeg(opts: object): { toFile(p: string): Promise<unknown> } } };
 };
 import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbListReviews, dbListMatchingReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetReviewPost, dbSetReviewPost, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, dbSetReviewTypeColor, type ReviewInput, type ReviewRow } from "./db";
+import { dbListReviews, dbListMatchingReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetReviewPost, dbSetReviewPost, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, dbSetReviewTypeColor, dbGetStarMode, dbSetStarMode, type ReviewInput, type ReviewRow } from "./db";
 
 const PROGRESS = new Set(["ongoing", "stopped", "finished"]);
 // Types done in one sitting (a meal, a wargame battle) (and the "other" catch-all), which don't ask for progress. Keep in sync with web/src/reviews/api.ts.
@@ -41,14 +41,15 @@ export function setReviewsDiscordClient(client: Client) {
   if (config.reviewsChannelId) getStarEmojis(client);
 }
 
-// Embed text can't be coloured, so the stars are three of the bot's own (application) emoji: a gold
-// filled star, a half-gold half star and a grey empty one. They're created on first use and found by
-// name after that; if that fails the post falls back to plain ★/½/☆.
+// Embed text can't be coloured, so the stars are the bot's own (application) emoji: a gold filled
+// star, a half-gold half star, a grey empty one, and an orange filled star for full star purists.
+// They're created on first use and found by name after that; if that fails the post falls back to
+// plain ★/½/☆.
 const STAR_PATH = "M12 1.5l3.1 6.9 7.4.7-5.6 5 1.7 7.4L12 17.6l-6.6 3.9 1.7-7.4-5.6-5 7.4-.7z";
-const GOLD = "#f5b301", GREY = "#80848e";
+const GOLD = "#f5b301", GREY = "#80848e", ORANGE = "#f26b1d";
 const STAR_SVG = (fill: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 24 24"><path fill="${fill}" d="${STAR_PATH}"/></svg>`;
 const HALF_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 24 24"><defs><clipPath id="l"><rect width="12" height="24"/></clipPath></defs><path fill="${GREY}" d="${STAR_PATH}"/><path fill="${GOLD}" clip-path="url(#l)" d="${STAR_PATH}"/></svg>`;
-type StarEmojis = { full: string; half: string; empty: string };
+type StarEmojis = { full: string; half: string; empty: string; orange: string };
 let starEmojis: Promise<StarEmojis | null> | null = null;
 function getStarEmojis(client: Client): Promise<StarEmojis | null> {
   starEmojis ??= (async () => {
@@ -61,7 +62,7 @@ function getStarEmojis(client: Client): Promise<StarEmojis | null> {
       const png = await sharp(Buffer.from(svg)).png().toBuffer();
       return (await app.emojis.create({ attachment: png, name })).toString();
     };
-    return { full: await ensure("review_star", STAR_SVG(GOLD)), half: await ensure("review_star_half", HALF_STAR_SVG), empty: await ensure("review_star_empty", STAR_SVG(GREY)) };
+    return { full: await ensure("review_star", STAR_SVG(GOLD)), half: await ensure("review_star_half", HALF_STAR_SVG), empty: await ensure("review_star_empty", STAR_SVG(GREY)), orange: await ensure("review_star_orange", STAR_SVG(ORANGE)) };
   })().catch(e => { console.error("Failed to set up review star emoji:", e); starEmojis = null; return null; });
   return starEmojis;
 }
@@ -85,7 +86,8 @@ async function reviewAuthor(client: Client, r: ReviewRow): Promise<{ name: strin
 // "See the full review" link follows when there's more to read than the summary.
 async function buildReviewEmbed(client: Client, r: ReviewRow): Promise<EmbedBuilder> {
   const [emoji, author] = await Promise.all([getStarEmojis(client), reviewAuthor(client, r)]);
-  const { full, half, empty } = emoji ?? { full: "★", half: "½", empty: "☆" };
+  const { full: gold, half, empty, orange } = emoji ?? { full: "★", half: "½", empty: "☆", orange: "★" };
+  const full = r.fullStars ? orange : gold;
   const whole = Math.floor(r.rating), hasHalf = r.rating > whole;
   const stars = full.repeat(whole) + (hasHalf ? half : "") + empty.repeat(5 - whole - (hasHalf ? 1 : 0));
   const article = /^[aeiou]/i.test(r.typeName) ? "an" : "a";
@@ -474,8 +476,9 @@ function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
   });
 }
 
-// Returns the cleaned review, or an error message describing the first invalid field.
-function parseReviewInput(raw: unknown): ReviewInput | string {
+// Returns the cleaned review, or an error message describing the first invalid field. fullStars is
+// the reviewer's current preference: a full star purist's reviews are whole stars, shown in orange.
+function parseReviewInput(raw: unknown, fullStars: boolean): ReviewInput | string {
   if (!raw || typeof raw !== "object") return "Invalid body";
   const b = raw as Record<string, unknown>;
   const title = typeof b.title === "string" ? b.title.trim() : "";
@@ -485,6 +488,7 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   if (!type) return "Pick a type";
   const rating = Number(b.rating);
   if (!Number.isInteger(rating * 2) || rating < 0 || rating > 5) return "Rating must be 0–5 stars, in half stars";
+  if (fullStars && !Number.isInteger(rating)) return "You're a full star purist, so pick a whole star rating";
   // Some types don't ask for progress, so they're always saved as finished.
   const progress = NO_PROGRESS_TYPES.has(type.name.toLowerCase()) ? "finished" : String(b.progress ?? "");
   if (!PROGRESS.has(progress)) return "Progress must be ongoing, stopped or finished";
@@ -520,7 +524,7 @@ function parseReviewInput(raw: unknown): ReviewInput | string {
   const location = typeof b.location === "string" && b.location.trim() ? b.location.trim().slice(0, 100) : null;
   // A place picked from the location search links to its OpenStreetMap page.
   const locationUrl = location && typeof b.locationUrl === "string" && /^https:\/\/www\.openstreetmap\.org\/(node|way|relation)\/\d+$/.test(b.locationUrl) ? b.locationUrl : null;
-  return { title, typeId, rating, progress, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null, imageUrl, wikiTitle, creator, year: rawYear, sourceUrl, season, platform, location, locationUrl };
+  return { title, typeId, rating, progress, summary: summary || null, bodyHtml: bodyHasText ? cleanedBody : null, imageUrl, wikiTitle, creator, year: rawYear, sourceUrl, season, platform, location, locationUrl, fullStars };
 }
 
 // Only the author can edit a review; admins can also delete one (to take something down).
@@ -611,7 +615,7 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
   // POST /api/reviews — create
   if (url === "/api/reviews" && method === "POST") {
     readJsonBody(req).then(raw => {
-      const input = parseReviewInput(raw);
+      const input = parseReviewInput(raw, dbGetStarMode(user.userId) === "full");
       if (typeof input === "string") { sendJson(res, 400, { error: input }); return; }
       dbUpsertUser(user.userId, user.displayName, user.avatarUrl || undefined);
       const review = dbCreateReview(user.userId, input);
@@ -643,6 +647,21 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
     findPageImage(pageUrl)
       .then(image => image ? sendJson(res, 200, { url: image }) : sendJson(res, 404, { error: "No image found on that page" }))
       .catch(() => { if (!res.headersSent) sendJson(res, 404, { error: "No image found on that page" }); });
+    return true;
+  }
+
+  // GET /api/reviews/star-mode — your star preference: { mode: "full" | "half" | null } (null = not picked yet)
+  // PUT /api/reviews/star-mode { mode } — change it. Existing reviews switch over when next edited.
+  if (url === "/api/reviews/star-mode") {
+    if (method === "GET") { sendJson(res, 200, { mode: dbGetStarMode(user.userId) }); return true; }
+    if (method !== "PUT") { sendJson(res, 405, { error: "Method not allowed" }); return true; }
+    readJsonBody(req).then(raw => {
+      const mode = raw && typeof raw === "object" ? (raw as Record<string, unknown>).mode : undefined;
+      if (mode !== "full" && mode !== "half") { sendJson(res, 400, { error: "Mode must be full or half" }); return; }
+      dbUpsertUser(user.userId, user.displayName, user.avatarUrl || undefined);
+      dbSetStarMode(user.userId, mode);
+      sendJson(res, 200, { mode });
+    }).catch(e => sendBodyOrSaveError(res, e));
     return true;
   }
 
@@ -698,8 +717,9 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
 
   if (method === "PUT") {
     if (user.userId !== existing.userId) { sendJson(res, 403, { error: "You can only edit your own reviews" }); return true; }
+    // Saving again brings the review into line with the reviewer's current star preference.
     readJsonBody(req).then(raw => {
-      const input = parseReviewInput(raw);
+      const input = parseReviewInput(raw, dbGetStarMode(user.userId) === "full");
       if (typeof input === "string") { sendJson(res, 400, { error: input }); return; }
       const review = dbUpdateReview(id, input);
       sendJson(res, 200, review);

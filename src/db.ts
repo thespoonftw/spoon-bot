@@ -196,6 +196,8 @@ export function initDb() {
     "ALTER TABLE discord_members ADD COLUMN removal_by TEXT",
     "ALTER TABLE discord_members ADD COLUMN removal_at TEXT",
     "ALTER TABLE discord_members ADD COLUMN real_name TEXT",
+    "ALTER TABLE users ADD COLUMN star_mode TEXT",
+    "ALTER TABLE reviews ADD COLUMN full_stars INTEGER NOT NULL DEFAULT 0",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
@@ -960,6 +962,8 @@ export type ReviewInput = {
   summary: string | null; bodyHtml: string | null; imageUrl: string | null; wikiTitle: string | null;
   creator: string | null; year: number | null; sourceUrl: string | null;
   season: number | null; platform: string | null; location: string | null; locationUrl: string | null;
+  // Saved by a full star purist: whole stars only, shown in orange.
+  fullStars: boolean;
 };
 export type ReviewRow = ReviewInput & {
   id: number; userId: string; createdAt: string; updatedAt: string;
@@ -1002,7 +1006,7 @@ export function dbSetReviewTypeColor(id: number, color: string): boolean {
 
 const REVIEW_SELECT = `
   SELECT r.id, r.user_id AS userId, r.title, r.type_id AS typeId, r.rating, r.progress,
-         r.summary, r.body_html AS bodyHtml, r.image_url AS imageUrl, r.wiki_title AS wikiTitle, r.creator, r.year, r.source_url AS sourceUrl, r.season, r.platform, r.location, r.location_url AS locationUrl,
+         r.summary, r.body_html AS bodyHtml, r.image_url AS imageUrl, r.wiki_title AS wikiTitle, r.creator, r.year, r.source_url AS sourceUrl, r.season, r.platform, r.location, r.location_url AS locationUrl, r.full_stars = 1 AS fullStars,
          r.created_at AS createdAt, r.updated_at AS updatedAt,
          t.name AS typeName, t.icon AS typeIcon, t.color AS typeColor,
          COALESCE(u.display_name, r.user_id) AS authorName, u.first_name AS authorFirstName, u.avatar_url AS authorAvatarUrl
@@ -1036,18 +1040,29 @@ export function dbGetReview(id: number): ReviewRow | undefined {
 export function dbCreateReview(userId: string, r: ReviewInput): ReviewRow {
   const now = new Date().toISOString();
   const info = db.prepare(`
-    INSERT INTO reviews (user_id, title, type_id, rating, progress, summary, body_html, image_url, wiki_title, creator, year, source_url, season, platform, location, location_url, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(userId, r.title, r.typeId, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, r.creator, r.year, r.sourceUrl, r.season, r.platform, r.location, r.locationUrl, now, now);
+    INSERT INTO reviews (user_id, title, type_id, rating, progress, summary, body_html, image_url, wiki_title, creator, year, source_url, season, platform, location, location_url, full_stars, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(userId, r.title, r.typeId, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, r.creator, r.year, r.sourceUrl, r.season, r.platform, r.location, r.locationUrl, r.fullStars ? 1 : 0, now, now);
   return dbGetReview(Number(info.lastInsertRowid))!;
 }
 
 export function dbUpdateReview(id: number, r: ReviewInput): ReviewRow | undefined {
   db.prepare(`
-    UPDATE reviews SET title = ?, type_id = ?, rating = ?, progress = ?, summary = ?, body_html = ?, image_url = ?, wiki_title = ?, creator = ?, year = ?, source_url = ?, season = ?, platform = ?, location = ?, location_url = ?, updated_at = ?
+    UPDATE reviews SET title = ?, type_id = ?, rating = ?, progress = ?, summary = ?, body_html = ?, image_url = ?, wiki_title = ?, creator = ?, year = ?, source_url = ?, season = ?, platform = ?, location = ?, location_url = ?, full_stars = ?, updated_at = ?
     WHERE id = ?
-  `).run(r.title, r.typeId, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, r.creator, r.year, r.sourceUrl, r.season, r.platform, r.location, r.locationUrl, new Date().toISOString(), id);
+  `).run(r.title, r.typeId, r.rating, r.progress, r.summary, r.bodyHtml, r.imageUrl, r.wikiTitle, r.creator, r.year, r.sourceUrl, r.season, r.platform, r.location, r.locationUrl, r.fullStars ? 1 : 0, new Date().toISOString(), id);
   return dbGetReview(id);
+}
+
+// How someone rates: "full" (a full star purist, whole stars only) or "half" (a half star
+// flexitarian). Null until they've picked, which the editor asks about.
+export type StarMode = "full" | "half";
+export function dbGetStarMode(userId: string): StarMode | null {
+  const v = (db.prepare("SELECT star_mode FROM users WHERE user_id = ?").get(userId) as { star_mode: string | null } | undefined)?.star_mode;
+  return v === "full" || v === "half" ? v : null;
+}
+export function dbSetStarMode(userId: string, mode: StarMode): void {
+  db.prepare("UPDATE users SET star_mode = ? WHERE user_id = ?").run(mode, userId);
 }
 
 // Where the review was announced on Discord, so edits can update that post.
