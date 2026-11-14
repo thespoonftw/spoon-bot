@@ -252,6 +252,7 @@ body.rv-body.rv-dark {
 .rv-editor-row { display: flex; gap: 24px; flex-wrap: wrap; }
 .rv-editor-row > .rv-field { flex: 1; min-width: 200px; }
 .rv-editor-foot { display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--rv-rule); padding-top: 20px; margin-top: 8px; }
+.rv-editor-error { text-align: right; margin: 8px 0 12px; }
 .rv-editor-discord { display: flex; align-items: center; gap: 6px; margin-right: auto; font-size: 0.9rem; color: var(--rv-muted); cursor: pointer; }
 
 .rv-picker-main { width: 100%; max-width: 280px; }

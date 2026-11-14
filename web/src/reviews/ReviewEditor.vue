@@ -4,8 +4,6 @@
     <!-- On mobile this wrapper dissolves (display: contents) so the cover can sit between the
          rv-editor-lead fields (type, title, match and its details) and the rating and write-up. -->
     <div class="rv-editor-main">
-      <p v-if="error" class="rv-error rv-editor-lead">{{ error }}</p>
-
       <!-- Type comes first: it decides which fields follow and where the details are looked up. -->
       <div class="rv-editor-row rv-editor-lead">
         <div class="rv-field">
@@ -114,6 +112,8 @@
         <RichTextEditor v-model="bodyHtml" placeholder="Go into as much detail as you like…" />
       </div>
 
+      <!-- Beside the button that caused it, so it's seen without scrolling back up. -->
+      <p v-if="error" class="rv-error rv-editor-error" role="alert">{{ error }}</p>
       <div class="rv-editor-foot">
         <label v-if="!isEdit" class="rv-editor-discord"><input v-model="postToDiscord" type="checkbox" /> Post to Discord</label>
         <router-link :to="isEdit ? `/reviews/${route.params.id}` : '/reviews'" class="rv-btn rv-btn--ghost">Cancel</router-link>
