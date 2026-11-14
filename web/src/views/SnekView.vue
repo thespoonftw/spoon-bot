@@ -31,7 +31,7 @@
                 <div class="snek-username">@{{ m.username }}</div>
               </td>
               <td class="snek-name-cell">
-                <input v-if="isEditing(m, 'realName')" v-model="draft" class="snek-edit-input" maxlength="60" placeholder="First Surname"
+                <input v-if="isEditing(m, 'realName')" v-model="draft" class="snek-edit-input" maxlength="60" placeholder="Name"
                   @keydown.enter.prevent="saveField(m, 'realName')" @keydown.esc="editing = null" @blur="saveField(m, 'realName')" v-focus />
                 <div v-else class="snek-editable" :class="{ empty: !m.realName }" @click="startEdit(m, 'realName')">
                   {{ m.realName || '+ name' }}

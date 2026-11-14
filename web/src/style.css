@@ -315,7 +315,6 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 .user-row-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .user-row-name-row { display: flex; align-items: center; gap: 6px; }
 .user-row-name { color: #cdd6f4; font-size: 1rem; font-weight: 600; }
-.user-row-surname { color: #a6adc8; font-size: 0.9rem; font-weight: 400; }
 .user-link-icons { display: flex; align-items: center; gap: 4px; }
 .user-link-icons .link-icon { font-size: 0.78rem; opacity: 0.65; line-height: 1; }
 .discord-icon { width: 0.85em; height: 0.85em; color: #a6adc8; opacity: 0.75; }

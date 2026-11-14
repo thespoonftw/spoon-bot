@@ -55,7 +55,7 @@ import PhotoGallery from "../components/PhotoGallery.vue";
 import UserSelect from "../components/UserSelect.vue";
 import PageHeader from "../components/PageHeader.vue";
 
-interface User { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string }
+interface User { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface Photo { id: number; channelId: string; url: string; score?: number; userVote?: string | null }
 interface AlbumInfo { groupName?: string; locations?: { id: number; name: string }[]; startDate?: string; endDate?: string }
 

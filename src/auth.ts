@@ -4,7 +4,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "./state";
-import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbGetAssociatedUsers, dbUpdateUserFirstName, dbUpdateUserSurname, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetGroupsWithCounts, dbGroupNameTaken, dbCreateGroup, dbUpdateGroup, dbDeleteGroup, dbReorderGroups,dbGetUserGroups, dbAddDiscordUser, dbSearchLoginUsers, dbUpdateUserDiscordId, dbUpdateUserEmail, dbCreateGuestUser, dbFindUserByDiscordId, dbUnhideUser, dbFindUserByEmail } from "./db";
+import { dbUpsertUser, dbUpdateUserLastSeen, dbGetAllUsers, dbGetAssociatedUsers, dbUpdateUserFirstName, dbGetUserById, dbSetUserGroups, dbGetAllGroups, dbGetGroupsWithCounts, dbGroupNameTaken, dbCreateGroup, dbUpdateGroup, dbDeleteGroup, dbReorderGroups,dbGetUserGroups, dbAddDiscordUser, dbSearchLoginUsers, dbUpdateUserDiscordId, dbUpdateUserEmail, dbCreateGuestUser, dbFindUserByDiscordId, dbUnhideUser, dbFindUserByEmail } from "./db";
 import { sendMagicLinkEmail, maskEmail } from "./email";
 
 export function sendJson(res: ServerResponse, status: number, data: unknown, extraHeaders: Record<string, string> = {}): void {
@@ -320,7 +320,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     req.on("data", chunk => body += chunk);
     req.on("end", async () => {
       try {
-        const { discordId, email, firstName, surname, groups } = JSON.parse(body);
+        const { discordId, email, firstName, groups } = JSON.parse(body);
         const trimmedDiscordId = typeof discordId === "string" ? discordId.trim() : "";
         const trimmedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
         // An invisible (level 0) user isn't on the list, so adding them again makes them visible
@@ -339,12 +339,11 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
           dbAddDiscordUser(trimmedDiscordId, discordUser.displayName ?? discordUser.username, discordUser.displayAvatarURL({ extension: "png", size: 128 }));
           userId = trimmedDiscordId;
         } else {
-          const name = (typeof firstName === "string" ? firstName.trim() : "") || (typeof surname === "string" ? surname.trim() : "");
+          const name = typeof firstName === "string" ? firstName.trim() : "";
           if (!name) { sendJson(res, 400, { error: "A Discord ID or a name is required" }); return; }
           userId = dbCreateGuestUser(name).userId;
         }
         if (firstName) dbUpdateUserFirstName(userId, firstName.trim() || null);
-        if (surname) dbUpdateUserSurname(userId, surname.trim() || null);
         if (trimmedEmail) dbUpdateUserEmail(userId, trimmedEmail.toLowerCase());
         if (Array.isArray(groups)) dbSetUserGroups(userId, groups);
         sendJson(res, 200, dbGetAllUsers().find(u => u.userId === userId));
@@ -364,9 +363,8 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
     req.on("data", chunk => body += chunk);
     req.on("end", async () => {
       try {
-        const { firstName, surname, groups, discordId, email } = JSON.parse(body);
+        const { firstName, groups, discordId, email } = JSON.parse(body);
         dbUpdateUserFirstName(userId, firstName ?? null);
-        dbUpdateUserSurname(userId, surname ?? null);
         if (Array.isArray(groups)) dbSetUserGroups(userId, groups);
         if (discordId !== undefined) {
           const trimmed = typeof discordId === "string" ? discordId.trim() : "";

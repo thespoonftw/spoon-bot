@@ -65,11 +65,8 @@ function editorName(token: string): string {
   return dbGetUserById(user.userId)?.firstName || user.displayName;
 }
 
-const joinName = (n: { firstName: string | null; surname: string | null } | undefined) =>
-  n ? [n.firstName, n.surname].filter(Boolean).join(" ") || null : null;
-
 // The real name the photo site has for them, if they're one of its users.
-const siteName = (discordId: string) => joinName(dbGetRealNamesByDiscordId().get(discordId));
+const siteName = (discordId: string) => dbGetRealNamesByDiscordId().get(discordId) ?? null;
 
 function listMembers() {
   const guild = client?.guilds.cache.get(config.guildId);
@@ -90,7 +87,7 @@ function listMembers() {
       isSnek: !!role && m.roles.cache.has(role.id),
       joinedAt: m.joinedAt?.toISOString() ?? null,
       // A name typed in on this page wins over the site's.
-      realName: s?.realName ?? joinName(realNames.get(m.id)),
+      realName: s?.realName ?? realNames.get(m.id) ?? null,
       status: presenceTracking ? (m.presence?.status ?? "offline") : null,
       note: s?.note ?? null,
       noteBy: s?.noteBy ?? null,

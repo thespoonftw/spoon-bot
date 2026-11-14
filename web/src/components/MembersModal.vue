@@ -38,7 +38,7 @@
         <div class="members-modal-list">
           <div v-for="u in filteredAddableUsers" :key="u.userId" class="members-modal-row tagging-row" @click="pickAndAddMember(u.userId)">
             <MemberAvatar :avatar-url="u.avatarUrl" :name="u.firstName || u.displayName" />
-            <span class="members-modal-name"><strong>{{ u.firstName || u.displayName }}</strong><template v-if="u.firstName && u.surname">{{ ' ' + u.surname }}</template></span>
+            <span class="members-modal-name"><strong>{{ u.firstName || u.displayName }}</strong></span>
           </div>
           <p v-if="filteredAddableUsers.length === 0" class="empty" style="font-size:0.85em;padding:6px 0">No more users to add.</p>
         </div>
@@ -53,7 +53,7 @@ import MemberAvatar from "./MemberAvatar.vue";
 import { authHeaders, authJsonHeaders } from "../utils/session";
 import { useDraggable, useEscKey } from "../utils/draggable";
 
-interface Member { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string }
+interface Member { userId: string; displayName: string; firstName?: string; avatarUrl?: string }
 interface AllMember extends Member { hidden: number; rsvpStatus?: string }
 
 const props = defineProps<{ modelValue: boolean; channelId: string }>();
@@ -99,7 +99,6 @@ const filteredAddableUsers = computed(() => {
   if (!q) return addableUsers.value;
   return addableUsers.value.filter(u =>
     (u.firstName ?? "").toLowerCase().includes(q) ||
-    (u.surname ?? "").toLowerCase().includes(q) ||
     u.displayName.toLowerCase().includes(q)
   );
 });

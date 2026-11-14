@@ -31,7 +31,6 @@
         <div class="user-row-info">
           <div class="user-row-name-row">
             <span class="user-row-name">{{ user.firstName || user.displayName }}</span>
-            <span class="user-row-surname" v-if="user.surname">{{ user.surname }}</span>
             <span class="user-link-icons">
               <span v-if="user.email" class="link-icon" title="Has email on file">✉️</span>
             </span>
@@ -65,12 +64,8 @@
       <button class="modal-close" @click="closeAddModal">✕</button>
       <h2>Add User</h2>
       <div class="form-group">
-        <label>First Name</label>
+        <label>Name</label>
         <input v-model="addFirstName" type="text" placeholder="Leave blank to use Discord name" />
-      </div>
-      <div class="form-group">
-        <label>Surname <span style="color:#6c7086;font-weight:400">(optional)</span></label>
-        <input v-model="addSurname" type="text" />
       </div>
       <div class="form-group">
         <label>Discord User ID <span style="color:#6c7086;font-weight:400">(optional)</span></label>
@@ -104,12 +99,8 @@
       <h2>Edit User</h2>
       <p style="color:#a6adc8;font-size:0.85em;margin-bottom:20px">{{ editingUser.displayName }}</p>
       <div class="form-group">
-        <label>First Name</label>
+        <label>Name</label>
         <input v-model="editFirstName" type="text" :placeholder="editingUser.displayName" />
-      </div>
-      <div class="form-group">
-        <label>Surname</label>
-        <input v-model="editSurname" type="text" />
       </div>
       <div class="form-group">
         <label>Discord User ID <span style="color:#6c7086;font-weight:400">(leave blank to unlink)</span></label>
@@ -145,7 +136,7 @@ import { authHeaders, authJsonHeaders } from "../utils/session";
 import PageHeader from "../components/PageHeader.vue";
 
 interface SiteGroup { id: number; name: string; color: string }
-interface SiteUser { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string; lastSeenAt?: string; uploadCount?: number; albumCount?: number; reviewCount?: number; groups?: SiteGroup[]; level: number; discordId?: string | null; email?: string | null }
+interface SiteUser { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastSeenAt?: string; uploadCount?: number; albumCount?: number; reviewCount?: number; groups?: SiteGroup[]; level: number; discordId?: string | null; email?: string | null }
 
 // The stats line under each user, leaving out any that are zero.
 function userStats(u: SiteUser): string[] {
@@ -185,16 +176,14 @@ const addingUser = ref(false);
 const addDiscordId = ref('');
 const addEmail = ref('');
 const addFirstName = ref('');
-const addSurname = ref('');
 const addGroups = ref<number[]>([]);
 const addUserError = ref('');
 const addUserLoading = ref(false);
-const canAddUser = computed(() => !!(addDiscordId.value.trim() || addFirstName.value.trim() || addSurname.value.trim()));
+const canAddUser = computed(() => !!(addDiscordId.value.trim() || addFirstName.value.trim()));
 const { currentUser } = useCurrentUser();
 const canEditGroups = computed(() => (users.value.find(u => u.userId === currentUser.value?.userId)?.level ?? 0) >= 2);
 const editingUser = ref<SiteUser | null>(null);
 const editFirstName = ref("");
-const editSurname = ref("");
 const editDiscordId = ref("");
 const editEmail = ref("");
 const editGroups = ref<number[]>([]);
@@ -214,7 +203,6 @@ function closeAddModal() {
   addDiscordId.value = '';
   addEmail.value = '';
   addFirstName.value = '';
-  addSurname.value = '';
   addGroups.value = [];
   addUserError.value = '';
 }
@@ -230,7 +218,6 @@ async function addUser() {
       discordId: addDiscordId.value.trim() || null,
       email: addEmail.value.trim() || null,
       firstName: addFirstName.value.trim() || null,
-      surname: addSurname.value.trim() || null,
       groups: addGroups.value,
     }),
   });
@@ -248,7 +235,6 @@ async function addUser() {
 function openEdit(user: SiteUser) {
   editingUser.value = user;
   editFirstName.value = user.firstName ?? "";
-  editSurname.value = user.surname ?? "";
   editDiscordId.value = user.discordId ?? "";
   editEmail.value = user.email ?? "";
   editGroups.value = (user.groups ?? []).map(g => g.id);
@@ -259,7 +245,6 @@ async function saveEdit() {
   if (!editingUser.value) return;
   saveError.value = "";
   const trimmed = editFirstName.value.trim();
-  const trimmedSurname = editSurname.value.trim();
   const trimmedDiscordId = editDiscordId.value.trim();
   const trimmedEmail = editEmail.value.trim();
   saving.value = true;
@@ -267,13 +252,12 @@ async function saveEdit() {
   const res = await fetch(`/api/site-users/${editingUser.value.userId}`, {
     method: "PUT",
     headers: authJsonHeaders(),
-    body: JSON.stringify({ firstName: trimmed || null, surname: trimmedSurname || null, groups: groupIds, discordId: trimmedDiscordId, email: trimmedEmail }),
+    body: JSON.stringify({ firstName: trimmed || null, groups: groupIds, discordId: trimmedDiscordId, email: trimmedEmail }),
   });
   saving.value = false;
   if (res.ok) {
     const updated = await res.json().catch(() => null);
     editingUser.value.firstName = trimmed || undefined;
-    editingUser.value.surname = trimmedSurname || undefined;
     editingUser.value.groups = allGroups.value.filter(g => groupIds.includes(g.id));
     if (updated?.userId) {
       editingUser.value.discordId = updated.discordId ?? null;

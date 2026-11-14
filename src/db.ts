@@ -520,7 +520,7 @@ export function dbAddPhoto(channelId: string, url: string) {
 }
 
 export type SiteGroup = { id: number; name: string; color: string };
-export type UserRow = { userId: string; displayName: string; firstName?: string; surname?: string; avatarUrl?: string; lastSeenAt?: string; level: number; uploadCount?: number; albumCount?: number; reviewCount?: number; groups?: SiteGroup[]; discordId?: string | null; email?: string | null };
+export type UserRow = { userId: string; displayName: string; firstName?: string; avatarUrl?: string; lastSeenAt?: string; level: number; uploadCount?: number; albumCount?: number; reviewCount?: number; groups?: SiteGroup[]; discordId?: string | null; email?: string | null };
 
 export function dbUpsertUser(userId: string, displayName: string, avatarUrl?: string) {
   db.prepare(`
@@ -609,7 +609,7 @@ export function dbDeleteGroup(id: number): boolean {
 
 export function dbGetAllUsers(): UserRow[] {
   const rows = db.prepare(`
-    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.surname AS surname,
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName,
       u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level, u.discord_id AS discordId, u.email AS email,
       (SELECT COUNT(*) FROM photos p WHERE p.uploaded_by_id = u.user_id) AS uploadCount,
       (SELECT COUNT(*) FROM album_members am JOIN albums a ON a.channel_id = am.channel_id WHERE am.user_id = u.user_id) AS albumCount,
@@ -630,7 +630,7 @@ export function dbGetAllUsers(): UserRow[] {
 
 export function dbGetAssociatedUsers(userId: string): UserRow[] {
   const rows = db.prepare(`
-    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.surname AS surname,
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName,
       u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level, u.discord_id AS discordId, u.email AS email,
       (SELECT COUNT(*) FROM photos p WHERE p.uploaded_by_id = u.user_id) AS uploadCount,
       (SELECT COUNT(*) FROM album_members am JOIN albums a ON a.channel_id = am.channel_id WHERE am.user_id = u.user_id) AS albumCount,
@@ -673,7 +673,7 @@ export function dbUnhideAlbumMember(channelId: string, userId: string) {
 
 export function dbGetAlbumMembers(channelId: string): UserRow[] {
   return db.prepare(`
-    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.surname AS surname, u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level
     FROM album_members am JOIN users u ON u.user_id = am.user_id
     WHERE am.channel_id = ? AND am.hidden = 0 AND u.level > 0 ORDER BY u.display_name ASC
   `).all(channelId) as UserRow[];
@@ -685,10 +685,6 @@ export function dbUpdateUserFirstName(userId: string, firstName: string | null) 
   db.prepare("UPDATE users SET first_name=? WHERE user_id=?").run(firstName || null, userId);
 }
 
-export function dbUpdateUserSurname(userId: string, surname: string | null) {
-  db.prepare("UPDATE users SET surname=? WHERE user_id=?").run(surname || null, userId);
-}
-
 export function dbSetUserGroups(userId: string, groupIds: number[]) {
   const validIds = new Set((db.prepare("SELECT id FROM site_groups").all() as { id: number }[]).map(r => r.id));
   db.prepare("DELETE FROM user_groups WHERE user_id=?").run(userId);
@@ -698,7 +694,7 @@ export function dbSetUserGroups(userId: string, groupIds: number[]) {
 }
 
 export function dbGetUserById(userId: string): UserRow | undefined {
-  return db.prepare("SELECT user_id AS userId, display_name AS displayName, first_name AS firstName, surname AS surname, avatar_url AS avatarUrl, last_seen_at AS lastSeenAt, level, discord_id AS discordId, email AS email FROM users WHERE user_id = ?").get(userId) as UserRow | undefined;
+  return db.prepare("SELECT user_id AS userId, display_name AS displayName, first_name AS firstName, avatar_url AS avatarUrl, last_seen_at AS lastSeenAt, level, discord_id AS discordId, email AS email FROM users WHERE user_id = ?").get(userId) as UserRow | undefined;
 }
 
 export function dbGetUserGroups(userId: string): SiteGroup[] {
@@ -746,7 +742,7 @@ export function dbDeleteUser(userId: string) {
 
 export function dbGetAllAlbumMembers(channelId: string): AlbumMemberRow[] {
   return db.prepare(`
-    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.surname AS surname, u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level, am.hidden
+    SELECT u.user_id AS userId, u.display_name AS displayName, u.first_name AS firstName, u.avatar_url AS avatarUrl, u.last_seen_at AS lastSeenAt, u.level, am.hidden
     FROM album_members am JOIN users u ON u.user_id = am.user_id
     WHERE am.channel_id = ? AND u.level > 0 ORDER BY am.hidden ASC, u.display_name ASC
   `).all(channelId) as AlbumMemberRow[];
@@ -1164,9 +1160,9 @@ export function dbSetDiscordMemberNote(discordId: string, note: string | null, b
 }
 
 // Real names the site knows, keyed by Discord ID.
-export function dbGetRealNamesByDiscordId(): Map<string, { firstName: string | null; surname: string | null }> {
-  const rows = db.prepare("SELECT discord_id AS discordId, first_name AS firstName, surname FROM users WHERE discord_id IS NOT NULL AND (first_name IS NOT NULL OR surname IS NOT NULL)").all() as { discordId: string; firstName: string | null; surname: string | null }[];
-  return new Map(rows.map(r => [r.discordId, { firstName: r.firstName, surname: r.surname }]));
+export function dbGetRealNamesByDiscordId(): Map<string, string> {
+  const rows = db.prepare("SELECT discord_id AS discordId, first_name AS firstName FROM users WHERE discord_id IS NOT NULL AND first_name IS NOT NULL").all() as { discordId: string; firstName: string }[];
+  return new Map(rows.map(r => [r.discordId, r.firstName]));
 }
 
 // Icon roles /customise created, which it deletes again once nobody has them.
