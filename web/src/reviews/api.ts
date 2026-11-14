@@ -276,7 +276,7 @@ const BUILT_IN_PROFILES: Record<string, WikiProfile> = {
   film: { hint: "film", suffixes: ["", " (film)"], match: /\b(film|movie)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P577"] },
   series: { hint: "TV series", suffixes: ["", " (TV series)", " (miniseries)"], match: /\b(tv|television|series|miniseries|sitcom|anime|drama)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P580", "P577"] },
   // Board games are matched on BoardGameGeek, which gives the designers and year itself; P178 = developer, P50 = author.
-  "board game": { hint: "board game", suffixes: ["", " (board game)", " (game)"], match: /\b(board game|card game|tabletop)\b/i, creatorLabel: "Designer(s)", creatorProps: ["P178", "P50"], yearProps: ["P577", "P571"] },
+  "board game": { hint: "board game", suffixes: ["", " (board game)", " (game)"], match: /\b(board game|card game|tabletop)\b/i, creatorLabel: null, creatorProps: [], yearProps: ["P577", "P571"] },
   // P178 = developer
   "video game": { hint: "video game", suffixes: ["", " (video game)"], match: /\bvideo game\b/i, creatorLabel: "Developer(s)", creatorProps: ["P178"], yearProps: ["P577"] },
   // Podcasts are matched on Apple Podcasts, not Wikipedia; this just says they have no creator field.
