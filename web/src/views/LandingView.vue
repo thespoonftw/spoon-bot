@@ -6,9 +6,9 @@
     </div>
 
     <div class="landing-grid">
-      <router-link to="/photos" class="feature-card">
+      <router-link to="/archives" class="feature-card">
         <span class="feature-icon">📷</span>
-        <h2>Photos</h2>
+        <h2>Archives</h2>
       </router-link>
       <router-link to="/reviews" class="feature-card">
         <span class="feature-icon">⭐</span>

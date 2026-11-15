@@ -22,8 +22,8 @@ import { takeReturnPath } from "../utils/afterLogin";
 const route = useRoute();
 const router = useRouter();
 const status = ref<"loading" | "ok" | "error">("loading");
-// Links from the Albums login land at /photos/auth/verify and go on to the photos page.
-const base = route.path.startsWith("/photos/") ? "/photos" : "";
+// Links from the Photo Archives login land at /archives/auth/verify and go on to the photos page.
+const base = route.path.startsWith("/archives/") ? "/archives" : "";
 
 onMounted(async () => {
   if (await verifyLoginToken(route.params.token as string)) {

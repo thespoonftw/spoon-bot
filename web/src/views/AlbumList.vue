@@ -1,8 +1,6 @@
 <template>
   <div class="page">
-    <PageHeader back-to="/photos" title="Albums">
-      <button class="btn-primary btn-small" @click="showModal = true">Create Album</button>
-    </PageHeader>
+    <PageHeader back-to="/archives" title="Timeline" />
 
     <div class="search-filters-row" style="margin-bottom:16px; justify-content:flex-end" v-if="!loading">
       <label class="search-filter-label">Filter:</label>
@@ -23,7 +21,7 @@
         <span class="section-collapse-spacer"></span>
         <span class="section-photo-count">{{ group.items.length }}</span>
       </div>
-      <router-link v-if="!collapsedYears.has(group.year)" v-for="album in group.items" :key="album.channelId" :to="`/photos/albums/${album.channelId}`" :class="['card', { 'card-multi-location': (album.locations?.length ?? 0) > 1 }]">
+      <router-link v-if="!collapsedYears.has(group.year)" v-for="album in group.items" :key="album.channelId" :to="`/archives/albums/${album.channelId}`" :class="['card', { 'card-multi-location': (album.locations?.length ?? 0) > 1 }]">
         <div class="card-left">
           <div class="card-left-title">
             <h2>{{ album.groupName }}</h2>
@@ -60,42 +58,16 @@
       </router-link>
     </template>
   </div>
-
-  <!-- Create Album Modal -->
-  <div class="modal-overlay" v-if="showModal">
-    <div class="modal">
-      <button class="modal-close" @click="closeModal">✕</button>
-      <h2>Create Album</h2>
-      <div class="form-group">
-        <label>Name</label>
-        <input v-model="form.name" type="text" placeholder="e.g. Summer Trip" />
-      </div>
-      <DateRangePicker v-model:start-date="form.startDate" v-model:end-date="form.endDate" />
-      <div class="form-group" v-if="siteGroups.length">
-        <label>Group</label>
-        <div class="album-group-picker">
-          <button class="album-group-btn" :class="{ active: form.groupId === null }" @click="form.groupId = null">None</button>
-          <button v-for="g in siteGroups" :key="g.id" class="album-group-btn" :class="{ active: form.groupId === g.id }" :style="{ background: form.groupId === g.id ? g.color : '' }" @click="form.groupId = g.id">{{ g.name }}</button>
-        </div>
-      </div>
-      <div v-if="formError" class="error">{{ formError }}</div>
-      <div class="modal-actions">
-        <button class="btn-primary" @click="createAlbum" :disabled="creating">{{ creating ? "Creating…" : "Create" }}</button>
-      </div>
-    </div>
-  </div>
-
 </template>
 
 <script setup lang="ts">
 import { byPopularity } from "../utils/popularity";
 import { ref, computed, onMounted, onUnmounted, onActivated, defineOptions, nextTick } from "vue";
-import { onBeforeRouteLeave, useRouter } from "vue-router";
+import { onBeforeRouteLeave } from "vue-router";
 import { useAlbumsCache } from "../composables/useAlbumsCache";
 defineOptions({ name: 'AlbumList' });
 import { useCurrentUser } from "../composables/useCurrentUser";
 import { authJsonHeaders } from "../utils/session";
-import DateRangePicker from "../components/DateRangePicker.vue";
 import PageHeader from "../components/PageHeader.vue";
 import { formatAlbumDate } from "../utils/formatDate";
 
@@ -105,14 +77,13 @@ interface AlbumLocation { id: number; name: string }
 interface SiteGroup { id: number; name: string; color: string }
 interface Album { channelId: string; groupName: string; locations?: AlbumLocation[]; startDate?: string; endDate?: string; createdAt: string; photos: Photo[]; members: Member[]; groupId?: number | null }
 
-const router = useRouter();
 const collapsedYears = ref(new Set<string>());
 function toggleYear(year: string) {
   const s = new Set(collapsedYears.value);
   s.has(year) ? s.delete(year) : s.add(year);
   collapsedYears.value = s;
 }
-const { albumsDirty, markAlbumsDirty, clearDirty } = useAlbumsCache();
+const { albumsDirty, clearDirty } = useAlbumsCache();
 const albums = ref<Album[]>([]);
 const siteGroups = ref<SiteGroup[]>([]);
 const loading = ref(true);
@@ -127,11 +98,6 @@ const filteredAlbums = computed(() => {
   if (!uid) return albums.value;
   return albums.value.filter(a => a.members.some(m => m.userId === uid));
 });
-
-const showModal = ref(false);
-const creating = ref(false);
-const formError = ref("");
-const form = ref({ name: "", startDate: "", endDate: "", groupId: null as number | null });
 
 const albumsByYear = computed(() => {
   const groups = new Map<string, Album[]>();
@@ -271,37 +237,5 @@ onActivated(async () => {
     albums.value = data.map(a => ({ ...a, members: a.members.slice().sort(byName) }));
   }
 });
-
-function closeModal() {
-  showModal.value = false;
-  formError.value = "";
-  form.value = { name: "", startDate: "", endDate: "", groupId: null };
-}
-
-async function createAlbum() {
-  formError.value = "";
-  if (!form.value.name.trim()) { formError.value = "Name is required."; return; }
-  if (!form.value.startDate) { formError.value = "Start date is required."; return; }
-  creating.value = true;
-  const res = await fetch("/api/albums", {
-    method: "POST",
-    headers: authJsonHeaders(),
-    body: JSON.stringify({
-      name: form.value.name.trim(),
-      startDate: form.value.startDate,
-      endDate: form.value.endDate || undefined,
-      groupId: form.value.groupId,
-    }),
-  });
-  creating.value = false;
-  if (res.ok) {
-    const album = await res.json();
-    markAlbumsDirty();
-    closeModal();
-    router.push(`/photos/albums/${album.channelId}`);
-  } else {
-    formError.value = "Failed to create album. Try again.";
-  }
-}
 
 </script>

@@ -1,24 +1,24 @@
 <template>
   <div class="page photos-app-page">
-    <PageHeader back-to="/photos" title="Get the app" />
+    <PageHeader back-to="/archives" title="Get the app" />
 
     <div class="photos-app">
       <img src="/photos-app/icon-192.png" class="photos-app-icon" alt="" />
-      <h2>Albums</h2>
+      <h2>Photo Archives</h2>
 
       <template v-if="standalone">
-        <p class="photos-app-sub">You have the Albums app. It updates itself, so there's nothing else to do.</p>
-        <router-link to="/photos" class="btn-primary">Go to the photos</router-link>
+        <p class="photos-app-sub">You have the Photo Archives app. It updates itself, so there's nothing else to do.</p>
+        <router-link to="/archives" class="btn-primary">Go to the photos</router-link>
       </template>
 
       <template v-else-if="installed && !installPrompt">
-        <p class="photos-app-sub">You have the app. Open <strong>Albums</strong> from your home screen. It updates itself, so there's nothing else to do.</p>
+        <p class="photos-app-sub">You have the app. Open <strong>Archives</strong> from your home screen. It updates itself, so there's nothing else to do.</p>
       </template>
 
       <template v-else>
         <p class="photos-app-sub">Put the albums, search and map on your home screen. It opens full screen like any other app and always has the latest version.</p>
 
-        <button v-if="installPrompt" type="button" class="btn-primary photos-app-install" @click="promptInstall">Install Albums</button>
+        <button v-if="installPrompt" type="button" class="btn-primary photos-app-install" @click="promptInstall">Install Photo Archives</button>
 
         <ol v-else-if="ios" class="photos-app-steps">
           <li>Open this page in <strong>Safari</strong>.</li>
@@ -28,7 +28,7 @@
             at the bottom of the screen.
           </li>
           <li>Scroll down and tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
-          <li>Open <strong>Albums</strong> from your home screen and log in. The app sends you a 6-digit code to type in.</li>
+          <li>Open <strong>Archives</strong> from your home screen and log in. The app sends you a 6-digit code to type in.</li>
         </ol>
 
         <ol v-else-if="android" class="photos-app-steps">

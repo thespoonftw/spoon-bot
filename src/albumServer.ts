@@ -48,7 +48,7 @@ function queueUploadAnnouncement(channelId: string, userId: string, name: string
       const channel = await albumDiscordClient?.channels.fetch(channelId);
       if (!channel?.isSendable()) return;
       const photos = count === 1 ? "1 photo" : `${count} photos`;
-      await channel.send(`**${name}** uploaded **${photos}** to the album. ${getBaseUrl()}/photos/albums/${channelId}?sort=newest`);
+      await channel.send(`**${name}** uploaded **${photos}** to the album. ${getBaseUrl()}/archives/albums/${channelId}?sort=newest`);
     } catch (e) { console.error("Failed to announce site upload to Discord:", e); }
   }, UPLOAD_ANNOUNCE_DELAY_MS);
   pendingUploadAnnouncements.set(key, { count, timer });
@@ -65,7 +65,7 @@ const MIME: Record<string, string> = {
 // make them installable.
 const INSTALLABLE_APPS = [
   { scope: "/reviews", title: "Brunch Reviews", homeScreenName: "Reviews", assets: "/reviews-app", serviceWorker: "/reviews-sw.js", themeColor: "#f5f0e6" },
-  { scope: "/photos", title: "Albums", homeScreenName: "Albums", assets: "/photos-app", serviceWorker: "/photos-sw.js", themeColor: "#1e1e2e" },
+  { scope: "/archives", title: "Photo Archives", homeScreenName: "Archives", assets: "/photos-app", serviceWorker: "/photos-sw.js", themeColor: "#1e1e2e" },
 ].map(app => ({
   ...app,
   head: [

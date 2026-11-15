@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <PageHeader back-to="/photos" title="Search Photos" />
+    <PageHeader back-to="/archives" title="Search Photos" />
 
     <div class="search-filters">
       <form class="smart-search" @submit.prevent="submitQuery">

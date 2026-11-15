@@ -1,6 +1,6 @@
 <template>
   <div class="page center">
-    <h1>{{ inPhotos ? "Albums" : "Spoon Bot Photos" }}</h1>
+    <h1>{{ inPhotos ? "Photo Archives" : "Spoon Bot Photos" }}</h1>
     <p class="subtitle">Search your name to log in</p>
     <div v-if="error" class="error">{{ error }}</div>
 
@@ -58,9 +58,9 @@ const loading = ref(false);
 const error = ref("");
 const confirming = ref<LoginUser | null>(null);
 
-// Served at /login for the site and /photos/login for the Albums app, whose links land back in /photos.
-const inPhotos = route.path.startsWith("/photos/");
-const base = inPhotos ? "/photos" : "";
+// Served at /login for the site and /archives/login for the Photo Archives app, whose links land back in /archives.
+const inPhotos = route.path.startsWith("/archives/");
+const base = inPhotos ? "/archives" : "";
 // The installed iPhone app gets a code to type in: a link would open Safari, which keeps its own
 // cookies, and sign that in instead of the app. Everyone else gets the usual link.
 const useCode = inPhotos && isIos() && isStandalone();

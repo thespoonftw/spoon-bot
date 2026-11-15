@@ -37,7 +37,7 @@ const router = useRouter();
 const method = route.query.method as string | undefined;
 const maskedEmail = route.query.maskedEmail as string | undefined;
 const requestId = route.query.r as string | undefined;
-const base = route.path.startsWith("/photos/") ? "/photos" : "";
+const base = route.path.startsWith("/archives/") ? "/archives" : "";
 
 const code = ref("");
 const digits = computed(() => code.value.replace(/\D/g, ""));

@@ -6,7 +6,7 @@ export function rememberReturnPath(path: string): void {
   try { localStorage.setItem(KEY, path); } catch { /* storage blocked: they land on the home page */ }
 }
 
-// The remembered page if it belongs to the section being signed into (base "" or "/photos"), else the home page.
+// The remembered page if it belongs to the section being signed into (base "" or "/archives"), else the home page.
 export function takeReturnPath(base: string): string {
   let saved: string | null = null;
   try { saved = localStorage.getItem(KEY); localStorage.removeItem(KEY); } catch { /* ignore */ }
@@ -16,6 +16,6 @@ export function takeReturnPath(base: string): string {
 }
 
 function sectionOf(path: string): string {
-  for (const s of ["/photos", "/reviews"]) if (path === s || /^[/?#]/.test(path.slice(s.length)) && path.startsWith(s)) return s;
+  for (const s of ["/archives", "/reviews"]) if (path === s || /^[/?#]/.test(path.slice(s.length)) && path.startsWith(s)) return s;
   return "";
 }

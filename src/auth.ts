@@ -20,7 +20,7 @@ const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const ALLOWED_USER_IDS = (process.env.AUTH_USER_IDS ?? "148516020007600128").split(",");
 
 type UserInfo = { userId: string; displayName: string; avatarUrl: string };
-// The installed iPhone apps (Brunch Reviews, Albums) ask for a 6-digit code instead of a link: it keeps its
+// The installed iPhone apps (Brunch Reviews, Photo Archives) ask for a 6-digit code instead of a link: it keeps its
 // own cookies apart from Safari, so a tapped link would sign people into Safari, not the app.
 // requestId is a secret only that device holds, so a code is useless to anyone else; a few wrong
 // guesses cancel the login.
@@ -160,7 +160,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
         // The reviews and photos apps have their own login pages, so their links land there.
         const isReviews = site === "reviews";
         const isPhotos = site === "photos";
-        const siteName = isReviews ? "Spoon Reviews" : isPhotos ? "Albums" : "Spoon Photos";
+        const siteName = isReviews ? "Spoon Reviews" : isPhotos ? "Photo Archives" : "Spoon Photos";
         const targetUser = dbGetAllUsers().find(u => u.userId === userId);
         if (!targetUser) { sendJson(res, 403, { error: "Not allowed" }); return; }
         const chosenMethod = deliveryMethod === "email" ? "email" : "discord";
@@ -171,7 +171,7 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
         const code = useCode ? String(crypto.randomInt(0, 1_000_000)).padStart(6, "0") : undefined;
         const requestId = useCode ? crypto.randomBytes(16).toString("hex") : undefined;
         magicTokens.set(token, { userId, expires: Date.now() + 15 * 60 * 1000, code, requestId, attempts: 0 });
-        const link = `${getBaseUrl()}${isReviews ? "/reviews" : isPhotos ? "/photos" : ""}/auth/verify/${token}`;
+        const link = `${getBaseUrl()}${isReviews ? "/reviews" : isPhotos ? "/archives" : ""}/auth/verify/${token}`;
         if (chosenMethod === "email") {
           await sendMagicLinkEmail(targetUser.email!, link, siteName, code);
         } else {

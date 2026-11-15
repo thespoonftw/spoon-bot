@@ -47,7 +47,7 @@ const router = createRouter({
   history: createWebHistory(),
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) return savedPosition;
-    if (to.path === '/photos/albums') return false;
+    if (to.path === '/archives/timeline') return false;
     // Only the query changed (e.g. an album's sort) — stay put.
     if (to.path === from.path) return false;
     return { top: 0 };
@@ -60,23 +60,27 @@ const router = createRouter({
     { path: "/location/:token", component: LocationShareView, meta: { public: true } },
     { path: "/", component: LandingView },
     { path: "/admin", component: AdminView },
-    // The photos section is also the installable Albums app (scope /photos), so everything it
-    // needs, its own login pages included, lives under /photos.
-    { path: "/photos", component: PhotosView },
-    { path: "/photos/login", component: LoginView, meta: { public: true } },
-    { path: "/photos/login/sent", component: MagicLinkSent, meta: { public: true } },
-    { path: "/photos/auth/verify/:token", component: AuthVerify, meta: { public: true } },
+    // The photos section is also the installable Photo Archives app (scope /archives), so everything it
+    // needs, its own login pages included, lives under /archives.
+    { path: "/archives", component: PhotosView },
+    { path: "/archives/login", component: LoginView, meta: { public: true } },
+    { path: "/archives/login/sent", component: MagicLinkSent, meta: { public: true } },
+    { path: "/archives/auth/verify/:token", component: AuthVerify, meta: { public: true } },
     // How to install the app: open to anyone, so the link can be passed around before signing in.
-    { path: "/photos/app", component: PhotosAppView, meta: { public: true } },
-    { path: "/photos/albums", component: AlbumList },
-    { path: "/photos/albums/:channelId", component: AlbumView },
-    { path: "/photos/search", component: SearchView },
-    { path: "/photos/map", component: MapView },
+    { path: "/archives/app", component: PhotosAppView, meta: { public: true } },
+    { path: "/archives/timeline", component: AlbumList },
+    { path: "/archives/albums/:channelId", component: AlbumView },
+    { path: "/archives/search", component: SearchView },
+    { path: "/archives/map", component: MapView },
     // Old addresses, still linked from earlier Discord posts and bookmarks.
-    { path: "/albums", redirect: "/photos/albums" },
-    { path: "/album/:channelId", redirect: (to) => ({ path: `/photos/albums/${to.params.channelId}`, query: to.query }) },
-    { path: "/search", redirect: (to) => ({ path: "/photos/search", query: to.query }) },
-    { path: "/map", redirect: "/photos/map" },
+    { path: "/albums", redirect: "/archives/timeline" },
+    { path: "/album/:channelId", redirect: (to) => ({ path: `/archives/albums/${to.params.channelId}`, query: to.query }) },
+    { path: "/search", redirect: (to) => ({ path: "/archives/search", query: to.query }) },
+    { path: "/map", redirect: "/archives/map" },
+    // The section was /photos until it became the Photo Archives (Discord posts, emails and installed apps still use those).
+    { path: "/photos", redirect: "/archives" },
+    { path: "/photos/albums", redirect: "/archives/timeline" },
+    { path: "/photos/:rest(.*)", redirect: (to) => ({ path: `/archives/${to.params.rest}`, query: to.query }) },
     { path: "/users", component: UsersView },
     { path: "/groups", component: GroupsView },
     { path: "/status", component: StatusView },
@@ -140,7 +144,7 @@ window.fetch = async (input, init) => {
   return res;
 };
 
-// The browser tab names the section you're in: "Brunch Reviews", "Albums", or "Brunch Projects"
+// The browser tab names the section you're in: "Brunch Reviews", "Photo Archives", or "Brunch Projects"
 // for the rest. Those two sections are installable apps, so their pages carry that app's manifest.
 router.afterEach((to) => {
   const app = appForPath(to.path);
