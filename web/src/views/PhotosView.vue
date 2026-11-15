@@ -41,6 +41,8 @@ import CreateAlbumModal from "../components/CreateAlbumModal.vue";
 import { isStandalone, isIos, isAndroid } from "../utils/pwa";
 
 const inApp = isStandalone();
-const onPhone = isIos() || isAndroid();
+// A phone or tablet by its browser, or any phone-sized screen (the site's own mobile breakpoint), so a
+// browser that hides what it is (e.g. "Request desktop site") still gets the card.
+const onPhone = isIos() || isAndroid() || window.matchMedia("(max-width: 767px)").matches;
 const creating = ref(false);
 </script>
