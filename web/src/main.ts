@@ -60,7 +60,7 @@ const router = createRouter({
     { path: "/location/:token", component: LocationShareView, meta: { public: true } },
     { path: "/", component: LandingView },
     { path: "/admin", component: AdminView },
-    // The photos section is also the installable brunchPhotos app (scope /photos), so everything it
+    // The photos section is also the installable Albums app (scope /photos), so everything it
     // needs, its own login pages included, lives under /photos.
     { path: "/photos", component: PhotosView },
     { path: "/photos/login", component: LoginView, meta: { public: true } },
@@ -140,7 +140,7 @@ window.fetch = async (input, init) => {
   return res;
 };
 
-// The browser tab names the section you're in: "Brunch Reviews", "brunchPhotos", or "Brunch Projects"
+// The browser tab names the section you're in: "Brunch Reviews", "Albums", or "Brunch Projects"
 // for the rest. Those two sections are installable apps, so their pages carry that app's manifest.
 router.afterEach((to) => {
   const app = appForPath(to.path);

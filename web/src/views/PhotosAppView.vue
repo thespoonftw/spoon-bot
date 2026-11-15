@@ -4,21 +4,21 @@
 
     <div class="photos-app">
       <img src="/photos-app/icon-192.png" class="photos-app-icon" alt="" />
-      <h2>brunchPhotos</h2>
+      <h2>Albums</h2>
 
       <template v-if="standalone">
-        <p class="photos-app-sub">You have the brunchPhotos app. It updates itself, so there's nothing else to do.</p>
+        <p class="photos-app-sub">You have the Albums app. It updates itself, so there's nothing else to do.</p>
         <router-link to="/photos" class="btn-primary">Go to the photos</router-link>
       </template>
 
       <template v-else-if="installed && !installPrompt">
-        <p class="photos-app-sub">You have the app. Open <strong>brunchPhotos</strong> from your home screen. It updates itself, so there's nothing else to do.</p>
+        <p class="photos-app-sub">You have the app. Open <strong>Albums</strong> from your home screen. It updates itself, so there's nothing else to do.</p>
       </template>
 
       <template v-else>
         <p class="photos-app-sub">Put the albums, search and map on your home screen. It opens full screen like any other app and always has the latest version.</p>
 
-        <button v-if="installPrompt" type="button" class="btn-primary photos-app-install" @click="promptInstall">Install brunchPhotos</button>
+        <button v-if="installPrompt" type="button" class="btn-primary photos-app-install" @click="promptInstall">Install Albums</button>
 
         <ol v-else-if="ios" class="photos-app-steps">
           <li>Open this page in <strong>Safari</strong>.</li>
@@ -28,7 +28,7 @@
             at the bottom of the screen.
           </li>
           <li>Scroll down and tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
-          <li>Open <strong>brunchPhotos</strong> from your home screen and log in. The app sends you a 6-digit code to type in.</li>
+          <li>Open <strong>Albums</strong> from your home screen and log in. The app sends you a 6-digit code to type in.</li>
         </ol>
 
         <ol v-else-if="android" class="photos-app-steps">

@@ -2,7 +2,7 @@ import { ref, computed } from "vue";
 import { themeColor as reviewsThemeColor } from "./reviewsTheme";
 
 // The installable apps (PWAs). Each is a section of the site — Brunch Reviews is /reviews,
-// brunchPhotos is /photos — with its own manifest, icons and service worker in web/public. The
+// Albums is /photos — with its own manifest, icons and service worker in web/public. The
 // server adds the head tags to the pages it serves in each section, and syncAppHead keeps them right
 // as the single-page app moves between sections.
 
@@ -19,7 +19,7 @@ interface AppConfig {
 
 export const APPS: Record<AppId, AppConfig> = {
   reviews: { scope: "/reviews", title: "Brunch Reviews", homeScreenName: "Reviews", assets: "/reviews-app", serviceWorker: "/reviews-sw.js", themeColor: reviewsThemeColor },
-  photos: { scope: "/photos", title: "brunchPhotos", homeScreenName: "brunchPhotos", assets: "/photos-app", serviceWorker: "/photos-sw.js", themeColor: () => "#1e1e2e" },
+  photos: { scope: "/photos", title: "Albums", homeScreenName: "Albums", assets: "/photos-app", serviceWorker: "/photos-sw.js", themeColor: () => "#1e1e2e" },
 };
 
 /** Which app's section a path is in, if any. */

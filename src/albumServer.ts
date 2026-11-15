@@ -65,7 +65,7 @@ const MIME: Record<string, string> = {
 // make them installable.
 const INSTALLABLE_APPS = [
   { scope: "/reviews", title: "Brunch Reviews", homeScreenName: "Reviews", assets: "/reviews-app", serviceWorker: "/reviews-sw.js", themeColor: "#f5f0e6" },
-  { scope: "/photos", title: "brunchPhotos", homeScreenName: "brunchPhotos", assets: "/photos-app", serviceWorker: "/photos-sw.js", themeColor: "#1e1e2e" },
+  { scope: "/photos", title: "Albums", homeScreenName: "Albums", assets: "/photos-app", serviceWorker: "/photos-sw.js", themeColor: "#1e1e2e" },
 ].map(app => ({
   ...app,
   head: [

@@ -22,7 +22,7 @@ import { takeReturnPath } from "../utils/afterLogin";
 const route = useRoute();
 const router = useRouter();
 const status = ref<"loading" | "ok" | "error">("loading");
-// Links from the brunchPhotos login land at /photos/auth/verify and go on to the photos page.
+// Links from the Albums login land at /photos/auth/verify and go on to the photos page.
 const base = route.path.startsWith("/photos/") ? "/photos" : "";
 
 onMounted(async () => {

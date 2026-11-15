@@ -1,7 +1,7 @@
 {
   "id": "/photos",
-  "name": "brunchPhotos",
-  "short_name": "brunchPhotos",
+  "name": "Albums",
+  "short_name": "Albums",
   "description": "The group's photo albums: browse, search, see them on a map and upload your own.",
   "start_url": "/photos",
   "scope": "/photos",

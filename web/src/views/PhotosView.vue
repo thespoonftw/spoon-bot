@@ -1,8 +1,8 @@
 <template>
   <div class="page landing-page">
     <div class="landing-header">
-      <!-- The installed brunchPhotos app starts here, with no way back to the rest of Brunch Projects. -->
-      <h1 v-if="inApp">brunchPhotos</h1>
+      <!-- The installed Albums app starts here, with no way back to the rest of Brunch Projects. -->
+      <h1 v-if="inApp">Albums</h1>
       <PageHeader v-else back-to="/" title="Photos" />
       <UserBadge class="landing-user-info" />
     </div>
