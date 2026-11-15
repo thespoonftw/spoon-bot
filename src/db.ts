@@ -980,15 +980,17 @@ export type ReviewRow = ReviewInput & {
 // Colours handed out to user-added review types, in order (the built-ins have their own).
 const REVIEW_TYPE_COLORS = ["#8a5a2b", "#5b4b8a", "#2f7a78", "#a33b5e", "#6b7a2f", "#b0632a", "#4a5d6b", "#7a4a3a"];
 
-export function dbListReviewTypes(): ReviewType[] {
+// reviewCount only counts reviews viewerId can see, if given.
+export function dbListReviewTypes(viewerId?: string): ReviewType[] {
+  const visible = viewerId !== undefined ? ` AND ${VISIBLE_REVIEW_SQL}` : "";
   return db.prepare(`
     SELECT t.id, t.name, t.icon, t.color, COUNT(r.id) AS reviewCount,
            COALESCE(u.first_name, u.display_name) AS createdByName
     FROM review_types t
-    LEFT JOIN reviews r ON r.type_id = t.id
+    LEFT JOIN reviews r ON r.type_id = t.id${visible}
     LEFT JOIN users u ON u.user_id = t.created_by
     GROUP BY t.id ORDER BY t.name = 'Other' COLLATE NOCASE, t.id -- the catch-all goes last
-  `).all() as ReviewType[];
+  `).all(...(viewerId !== undefined ? [viewerId, viewerId] : [])) as ReviewType[];
 }
 
 export function dbGetReviewType(id: number): ReviewType | undefined {
@@ -1020,19 +1022,37 @@ const REVIEW_SELECT = `
   JOIN review_types t ON t.id = r.type_id
   LEFT JOIN users u ON u.user_id = r.user_id`;
 
-// Other people's reviews of the same thing: same type, title (ignoring case and surrounding spaces)
-// and year (both missing counts as a match). Newest first.
-export function dbListMatchingReviews(r: { id: number; typeId: number; title: string; year: number | null }): ReviewRow[] {
-  return db.prepare(`${REVIEW_SELECT}
-    WHERE r.id != ? AND r.type_id = ? AND LOWER(TRIM(r.title)) = LOWER(TRIM(?)) AND r.year IS ?
-    ORDER BY r.created_at DESC, r.id DESC`).all(r.id, r.typeId, r.title, r.year) as ReviewRow[];
+// Who can see a review: its author, and anyone who shares a group with them. viewerId undefined
+// means no restriction (admins, and the bot's own jobs). The SQL takes the viewer's id twice.
+const VISIBLE_REVIEW_SQL = `(r.user_id = ? OR EXISTS (
+  SELECT 1 FROM user_groups mine JOIN user_groups theirs ON theirs.group_id = mine.group_id
+  WHERE mine.user_id = ? AND theirs.user_id = r.user_id))`;
+
+/** Whether viewerId shares a group with userId (or is them), so can see their reviews. */
+export function dbCanSeeReviewsBy(viewerId: string, userId: string): boolean {
+  if (viewerId === userId) return true;
+  return !!db.prepare(`SELECT 1 FROM user_groups mine JOIN user_groups theirs ON theirs.group_id = mine.group_id
+    WHERE mine.user_id = ? AND theirs.user_id = ?`).get(viewerId, userId);
 }
 
-export function dbListReviews(opts: { typeId?: number; userId?: string; limit: number; offset: number }): { reviews: ReviewRow[]; total: number } {
+// Other people's reviews of the same thing: same type, title (ignoring case and surrounding spaces)
+// and year (both missing counts as a match). Newest first. Only those viewerId can see, if given.
+export function dbListMatchingReviews(r: { id: number; typeId: number; title: string; year: number | null }, viewerId?: string): ReviewRow[] {
+  const visible = viewerId !== undefined ? ` AND ${VISIBLE_REVIEW_SQL}` : "";
+  const args: unknown[] = [r.id, r.typeId, r.title, r.year];
+  if (viewerId !== undefined) args.push(viewerId, viewerId);
+  return db.prepare(`${REVIEW_SELECT}
+    WHERE r.id != ? AND r.type_id = ? AND LOWER(TRIM(r.title)) = LOWER(TRIM(?)) AND r.year IS ?${visible}
+    ORDER BY r.created_at DESC, r.id DESC`).all(...args) as ReviewRow[];
+}
+
+// viewerId: only reviews that person can see (see VISIBLE_REVIEW_SQL); undefined lists them all.
+export function dbListReviews(opts: { typeId?: number; userId?: string; viewerId?: string; limit: number; offset: number }): { reviews: ReviewRow[]; total: number } {
   const where: string[] = [];
   const args: unknown[] = [];
   if (opts.typeId) { where.push("r.type_id = ?"); args.push(opts.typeId); }
   if (opts.userId) { where.push("r.user_id = ?"); args.push(opts.userId); }
+  if (opts.viewerId !== undefined) { where.push(VISIBLE_REVIEW_SQL); args.push(opts.viewerId, opts.viewerId); }
   const whereSql = where.length ? ` WHERE ${where.join(" AND ")}` : "";
   const total = (db.prepare(`SELECT COUNT(*) AS n FROM reviews r${whereSql}`).get(...args) as { n: number }).n;
   const reviews = db.prepare(`${REVIEW_SELECT}${whereSql} ORDER BY r.created_at DESC, r.id DESC LIMIT ? OFFSET ?`).all(...args, opts.limit, opts.offset) as ReviewRow[];

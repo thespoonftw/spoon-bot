@@ -14,7 +14,7 @@ const sharp = require("sharp") as (input: Buffer) => {
   rotate(): { resize(w: number, h: number, opts: object): { jpeg(opts: object): { toFile(p: string): Promise<unknown> } } };
 };
 import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbListReviews, dbListMatchingReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetReviewPost, dbSetReviewPost, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, dbSetReviewTypeColor, dbGetStarMode, dbSetStarMode, isStarMode, type StarMode, type ReviewInput, type ReviewRow } from "./db";
+import { dbListReviews, dbListMatchingReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetReviewPost, dbSetReviewPost, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, dbSetReviewTypeColor, dbGetStarMode, dbSetStarMode, isStarMode, dbCanSeeReviewsBy, type StarMode, type ReviewInput, type ReviewRow } from "./db";
 
 const PROGRESS = new Set(["ongoing", "stopped", "finished"]);
 // Types done in one sitting (a meal, a wargame battle) (and the "other" catch-all), which don't ask for progress. Keep in sync with web/src/reviews/api.ts.
@@ -575,10 +575,13 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
   if (!url.startsWith("/api/reviews") && !url.startsWith("/api/review-types")) return false;
   const user = getSessionUser(getTokenFromRequest(req));
   if (!user) { send401(res); return true; }
+  // You see your own reviews and those of anyone you share a group with; admins see them all.
+  const viewerId = (dbGetUserById(user.userId)?.level ?? 0) >= 2 ? undefined : user.userId;
+  const canSee = (authorId: string) => viewerId === undefined || dbCanSeeReviewsBy(viewerId, authorId);
 
-  // GET /api/review-types — all types with how many reviews use each
+  // GET /api/review-types — all types with how many reviews (that you can see) use each
   if (url === "/api/review-types" && method === "GET") {
-    sendJson(res, 200, dbListReviewTypes());
+    sendJson(res, 200, dbListReviewTypes(viewerId));
     return true;
   }
 
@@ -611,7 +614,7 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
   }
   if (url.startsWith("/api/review-types/")) { sendJson(res, typeMatch ? 405 : 404, { error: typeMatch ? "Method not allowed" : "Not found" }); return true; }
 
-  // GET /api/reviews?typeId=&userId=&limit=&offset= — newest first, across all users
+  // GET /api/reviews?typeId=&userId=&limit=&offset= — newest first, across everyone you can see
   if (url === "/api/reviews" && method === "GET") {
     const params = new URL(req.url ?? "", "http://localhost").searchParams;
     const limit = Math.min(100, Math.max(1, parseInt(params.get("limit") ?? "30") || 30));
@@ -619,7 +622,7 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
     sendJson(res, 200, dbListReviews({
       typeId: parseInt(params.get("typeId") ?? "") || undefined,
       userId: params.get("userId") || undefined,
-      limit, offset,
+      viewerId, limit, offset,
     }));
     return true;
   }
@@ -681,7 +684,7 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
   const userMatch = url.match(/^\/api\/reviews\/user\/([^/]+)$/);
   if (userMatch && method === "GET") {
     const profileUser = dbGetUserById(decodeURIComponent(userMatch[1]));
-    if (!profileUser) { sendJson(res, 404, { error: "Not found" }); return true; }
+    if (!profileUser || !canSee(profileUser.userId)) { sendJson(res, 404, { error: "Not found" }); return true; }
     const { reviews } = dbListReviews({ userId: profileUser.userId, limit: -1, offset: 0 });
     sendJson(res, 200, {
       user: { userId: profileUser.userId, displayName: profileUser.displayName, firstName: profileUser.firstName ?? null, avatarUrl: profileUser.avatarUrl ?? null },
@@ -716,11 +719,12 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
   if (!idMatch) { sendJson(res, 404, { error: "Not found" }); return true; }
   const id = parseInt(idMatch[1]);
   const existing = dbGetReview(id);
-  if (!existing) { sendJson(res, 404, { error: "Not found" }); return true; }
+  // A review you can't see is treated as missing, rather than revealing it exists.
+  if (!existing || !canSee(existing.userId)) { sendJson(res, 404, { error: "Not found" }); return true; }
 
   if (method === "GET") {
-    // Other reviews of the same thing, for the bottom of the page (headline fields only).
-    const others = dbListMatchingReviews(existing).map(({ bodyHtml, ...r }) => ({ ...r, hasBody: !!bodyHtml }));
+    // Other reviews of the same thing (that you can see), for the bottom of the page (headline fields only).
+    const others = dbListMatchingReviews(existing, viewerId).map(({ bodyHtml, ...r }) => ({ ...r, hasBody: !!bodyHtml }));
     // The viewer's own review of it, if they have one (so the page links to it instead of offering a new one).
     const myReviewId = existing.userId === user.userId ? existing.id : others.find(o => o.userId === user.userId)?.id ?? null;
     sendJson(res, 200, { ...existing, canEdit: user.userId === existing.userId, canDelete: canDelete(user.userId, existing.userId), others, myReviewId });
