@@ -20,6 +20,7 @@ import { handleReviewRoutes } from "./reviews";
 import { handleLocationRoutes } from "./location";
 import { handleSnekRoutes } from "./snekMembers";
 import { smartSearchPhotoIds, smartSearchStatus } from "./smartSearch";
+import { handleFaceRoutes, photosOfUser } from "./faces";
 import { dbHasAlbum, dbUpdateAlbum, dbDeleteAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbGetUserById, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbGetAlbumVotes, dbSetPhotoCaption, dbListTables, dbTablePage, dbSearchPhotos, dbGetAlbumLocations, dbAddAlbumLocation, dbDeleteAlbumLocation, dbReorderAlbumLocations, dbSetLocationCoords, dbRenameAlbumLocation, dbSetPhotoLocation, dbSetPhotoTakenAt } from "./db";
 
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
@@ -151,6 +152,7 @@ export function startWebServer(): void {
     if (handleReviewRoutes(req, res)) return;
     if (handleLocationRoutes(req, res)) return;
     if (handleSnekRoutes(req, res)) return;
+    if (handleFaceRoutes(req, res)) return;
 
     if (url === "/api/status" && method === "GET") {
       const token = getTokenFromRequest(req);
@@ -203,8 +205,15 @@ export function startWebServer(): void {
       const pageSize = Math.min(200, Math.max(1, parseInt(params.get("pageSize") ?? "40") || 40));
       const isAdmin = sessionUser ? (dbGetUserById(sessionUser.userId)?.level ?? 0) >= 2 : false;
       const accessCheckUserId = isAdmin ? undefined : sessionUser?.userId;
+      // Photos of me: only ever your own face, and only once you've opted in.
+      const ofMe = params.get("me") === "1" && sessionUser ? photosOfUser(sessionUser.userId) : undefined;
+      if (ofMe === null) { sendJson(res, 409, { error: "Add a selfie to turn on Photos of Me" }); return; }
       (query ? smartSearchPhotoIds(query) : Promise.resolve(undefined))
-        .then(photoIds => sendJson(res, 200, dbSearchPhotos({ uploadedById, taggedUserId, sort, page, pageSize, userId: sessionUser?.userId, accessCheckUserId, photoIds })))
+        .then(smartIds => {
+          // Both: the photos you're in that match the query, in the order the query ranks them.
+          const photoIds = smartIds && ofMe ? (s => smartIds.filter(id => s.has(id)))(new Set(ofMe)) : smartIds ?? ofMe;
+          sendJson(res, 200, dbSearchPhotos({ uploadedById, taggedUserId, sort, page, pageSize, userId: sessionUser?.userId, accessCheckUserId, photoIds }));
+        })
         .catch(e => { console.error("[smart-search] query failed:", e); if (!res.headersSent) sendJson(res, 503, { error: "Smart search isn't available right now" }); });
       return;
     }

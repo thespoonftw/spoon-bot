@@ -27,6 +27,7 @@ import { setReviewsDiscordClient } from "./reviews";
 import { startLocationShares, handleLocationInteractions } from "./location";
 import { hasPresenceIntent, startSnekTracking, countSnekMessage } from "./snekMembers";
 import { startSmartSearch } from "./smartSearch";
+import { startFaceScan } from "./faces";
 import { handleCustomiseInteractions, sweepIconRoles } from "./customise";
 
 dotenv.config();
@@ -57,6 +58,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   if (config.albumsEnabled) startLocationShares(readyClient);
   if (config.albumsEnabled) startSnekTracking(readyClient, presenceIntent);
   if (config.albumsEnabled) startSmartSearch();
+  if (config.albumsEnabled) startFaceScan();
   setUpdateEventMessages(updateEventMessages);
   await initAuth(readyClient);
   startArchipelagoRelay(readyClient);

@@ -70,6 +70,33 @@ export function initDb() {
       embedding  BLOB,
       created_at TEXT NOT NULL
     );
+    -- Photos of me (src/faces.ts). Every photo is scanned once per face model; face_count is NULL when
+    -- the photo couldn't be read. Each face found gets a position (fractions of the photo) and a
+    -- fingerprint. A face only becomes findable once its owner opts in by adding selfies, whose
+    -- fingerprints (never the images) are kept in face_refs; opting out deletes those.
+    CREATE TABLE IF NOT EXISTS photo_face_scans (
+      photo_id   INTEGER PRIMARY KEY,
+      model      TEXT NOT NULL,
+      face_count INTEGER,
+      scanned_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS photo_faces (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      photo_id   INTEGER NOT NULL,
+      model      TEXT NOT NULL,
+      x REAL NOT NULL, y REAL NOT NULL, w REAL NOT NULL, h REAL NOT NULL,
+      score      REAL NOT NULL,
+      embedding  BLOB NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS photo_faces_photo ON photo_faces(photo_id);
+    CREATE TABLE IF NOT EXISTS face_refs (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    TEXT NOT NULL,
+      model      TEXT NOT NULL,
+      embedding  BLOB NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS face_refs_user ON face_refs(user_id);
     CREATE TABLE IF NOT EXISTS album_locations (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       channel_id TEXT NOT NULL,
@@ -506,6 +533,8 @@ export function dbDeleteAlbum(channelId: string) {
       db.prepare("DELETE FROM photo_votes WHERE photo_id = ?").run(id);
       db.prepare("DELETE FROM photo_tagged WHERE photo_id = ?").run(id);
       db.prepare("DELETE FROM photo_embeddings WHERE photo_id = ?").run(id);
+      db.prepare("DELETE FROM photo_faces WHERE photo_id = ?").run(id);
+      db.prepare("DELETE FROM photo_face_scans WHERE photo_id = ?").run(id);
     }
     db.prepare("DELETE FROM photos WHERE channel_id = ?").run(channelId);
     db.prepare("DELETE FROM album_members WHERE channel_id = ?").run(channelId);
@@ -792,6 +821,8 @@ export function dbDeletePhoto(photoId: number): string | null {
     db.prepare("DELETE FROM photo_votes WHERE photo_id = ?").run(photoId);
     db.prepare("DELETE FROM photo_tagged WHERE photo_id = ?").run(photoId);
     db.prepare("DELETE FROM photo_embeddings WHERE photo_id = ?").run(photoId);
+    db.prepare("DELETE FROM photo_faces WHERE photo_id = ?").run(photoId);
+    db.prepare("DELETE FROM photo_face_scans WHERE photo_id = ?").run(photoId);
     db.prepare("DELETE FROM photos WHERE id = ?").run(photoId);
   })();
   return row.filename;
@@ -801,6 +832,8 @@ export function dbCleanOrphanedPhotoData(): { votes: number; tags: number } {
   const votes = db.prepare("DELETE FROM photo_votes WHERE photo_id NOT IN (SELECT id FROM photos)").run().changes;
   const tags = db.prepare("DELETE FROM photo_tagged WHERE photo_id NOT IN (SELECT id FROM photos)").run().changes;
   db.prepare("DELETE FROM photo_embeddings WHERE photo_id NOT IN (SELECT id FROM photos)").run();
+  db.prepare("DELETE FROM photo_faces WHERE photo_id NOT IN (SELECT id FROM photos)").run();
+  db.prepare("DELETE FROM photo_face_scans WHERE photo_id NOT IN (SELECT id FROM photos)").run();
   return { votes, tags };
 }
 
@@ -837,6 +870,62 @@ export function dbEmbeddingStatus(model: string): { total: number; indexed: numb
     FROM photos p LEFT JOIN photo_embeddings e ON e.photo_id = p.id AND e.model = ?
   `).get(model) as { total: number; indexed: number; failed: number };
   return { ...r, pending: r.total - r.indexed - r.failed };
+}
+
+// ── Photos of me (src/faces.ts) ──
+
+/** Photos not yet scanned for faces by `model`, newest first so fresh uploads are findable soonest. */
+export function dbGetPhotosNeedingFaceScan(model: string, limit: number): { id: number; channelId: string; filename: string | null }[] {
+  return db.prepare(`
+    SELECT p.id, p.channel_id AS channelId, p.filename FROM photos p
+    LEFT JOIN photo_face_scans s ON s.photo_id = p.id AND s.model = ?
+    WHERE s.photo_id IS NULL ORDER BY p.id DESC LIMIT ?
+  `).all(model, limit) as { id: number; channelId: string; filename: string | null }[];
+}
+
+export type FaceBox = { x: number; y: number; w: number; h: number; score: number; embedding: Buffer };
+
+/** Records a photo's scan, replacing any faces an earlier scan found. `faces` null means it couldn't be read. Returns the new face ids. */
+export function dbSaveFaceScan(photoId: number, model: string, faces: FaceBox[] | null): number[] {
+  const ins = db.prepare("INSERT INTO photo_faces (photo_id, model, x, y, w, h, score, embedding) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+  return db.transaction(() => {
+    db.prepare("DELETE FROM photo_faces WHERE photo_id = ?").run(photoId);
+    db.prepare("INSERT OR REPLACE INTO photo_face_scans (photo_id, model, face_count, scanned_at) VALUES (?, ?, ?, ?)")
+      .run(photoId, model, faces ? faces.length : null, new Date().toISOString());
+    return (faces ?? []).map(f => Number(ins.run(photoId, model, f.x, f.y, f.w, f.h, f.score, f.embedding).lastInsertRowid));
+  })();
+}
+
+export function dbClearFailedFaceScans(model: string): void {
+  db.prepare("DELETE FROM photo_face_scans WHERE model = ? AND face_count IS NULL").run(model);
+}
+
+export function dbLoadFaces(model: string): { id: number; photoId: number; embedding: Buffer }[] {
+  return db.prepare(`
+    SELECT f.id, f.photo_id AS photoId, f.embedding FROM photo_faces f JOIN photos p ON p.id = f.photo_id WHERE f.model = ?
+  `).all(model) as { id: number; photoId: number; embedding: Buffer }[];
+}
+
+export function dbFaceScanStatus(model: string): { total: number; scanned: number } {
+  return db.prepare(`
+    SELECT COUNT(*) AS total, COALESCE(SUM(s.photo_id IS NOT NULL), 0) AS scanned
+    FROM photos p LEFT JOIN photo_face_scans s ON s.photo_id = p.id AND s.model = ?
+  `).get(model) as { total: number; scanned: number };
+}
+
+export function dbAddFaceRef(userId: string, model: string, embedding: Buffer): void {
+  db.prepare("INSERT INTO face_refs (user_id, model, embedding, created_at) VALUES (?, ?, ?, ?)")
+    .run(userId, model, embedding, new Date().toISOString());
+}
+
+export function dbGetFaceRefs(userId: string, model: string): Buffer[] {
+  return (db.prepare("SELECT embedding FROM face_refs WHERE user_id = ? AND model = ? ORDER BY id").all(userId, model) as { embedding: Buffer }[])
+    .map(r => r.embedding);
+}
+
+/** Opting out: forgets every selfie fingerprint the person added. */
+export function dbDeleteFaceRefs(userId: string): number {
+  return db.prepare("DELETE FROM face_refs WHERE user_id = ?").run(userId).changes;
 }
 
 export function dbSetPhotoTagged(photoId: number, userIds: string[]): void {
