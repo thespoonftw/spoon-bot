@@ -36,6 +36,14 @@
       <blockquote v-if="review.summary" class="rv-pullquote">{{ review.summary }}</blockquote>
       <!-- bodyHtml is sanitised server-side on save (src/reviews.ts) -->
       <div v-if="review.bodyHtml" class="rv-prose" v-html="review.bodyHtml"></div>
+      <div v-if="review.visitors?.length" class="rv-visitors">
+        <span class="rv-visitors-label">Visited by</span>
+        <router-link v-for="v in review.visitors" :key="v.userId" :to="`/reviews/people/${v.userId}`" class="rv-visitor" :title="`Visited ${formatReviewDate(v.visitedAt).toLowerCase()}`">
+          <img v-if="v.avatarUrl" :src="v.avatarUrl" class="rv-avatar" alt="" />
+          <span v-else class="rv-avatar">{{ (v.firstName || v.displayName)[0] }}</span>
+          <span>{{ v.firstName || v.displayName }}</span>
+        </router-link>
+      </div>
       <div class="rv-actions">
         <router-link v-if="review.canEdit" :to="`/reviews/${review.id}/edit`" class="rv-btn rv-btn--ghost rv-btn--small">Edit</router-link>
         <!-- Someone else's review: offer theirs, or a new one pre-filled with the same thing. -->
@@ -88,13 +96,19 @@ const source = computed(() => review.value ? matchSource(review.value) : null);
 const credits = computed(() => review.value ? cardCredit(review.value) : null);
 
 onMounted(async () => {
-  if (review.value) return;
-  const res = await fetch(`/api/reviews/${route.params.id}`);
-  if (res.ok) {
-    review.value = await res.json();
-    setCached(`review:${route.params.id}`, review.value);
+  // Every opening counts as a visit (only someone else's first one is kept), and brings back the
+  // current list of visitors, so it's fresh even when the review came from the cache.
+  const id = route.params.id;
+  const visit = fetch(`/api/reviews/${id}/visit`, { method: "POST" })
+    .then(res => res.ok ? res.json() as Promise<{ visitors: Review["visitors"] }> : null).catch(() => null);
+  if (!review.value) {
+    const res = await fetch(`/api/reviews/${id}`);
+    if (res.ok) review.value = await res.json();
+    loading.value = false;
   }
-  loading.value = false;
+  const visited = await visit;
+  if (review.value && visited) review.value = { ...review.value, visitors: visited.visitors };
+  if (review.value) setCached(`review:${id}`, review.value);
 });
 
 async function remove() {

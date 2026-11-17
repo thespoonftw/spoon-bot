@@ -224,6 +224,10 @@ body.rv-body.rv-dark {
 .rv-byline strong { color: var(--rv-ink); }
 .rv-pullquote { font: italic 500 1.35rem/1.45 var(--rv-serif); border-left: 4px solid var(--rv-accent); padding: 2px 0 2px 20px; margin-bottom: 28px; color: var(--rv-ink-soft); white-space: pre-line; }
 .rv-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+.rv-visitors { display: flex; align-items: center; gap: 6px 14px; flex-wrap: wrap; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--rv-rule); font-size: 0.85rem; color: var(--rv-muted); }
+.rv-visitors-label { font: 600 0.75rem var(--rv-sans); text-transform: uppercase; letter-spacing: 0.1em; }
+.rv-visitor { display: inline-flex; align-items: center; gap: 6px; color: var(--rv-ink-soft); text-decoration: none; }
+.rv-visitor:hover span:last-child { text-decoration: underline; }
 .rv-others { margin-top: 48px; padding-top: 28px; border-top: 1px solid var(--rv-rule); }
 .rv-others-title { font-size: 1.5rem; margin-bottom: 16px !important; }
 .rv-wikilink { font-size: 0.8rem; color: var(--rv-muted); margin-top: 10px; display: inline-block; }

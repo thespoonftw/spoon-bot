@@ -146,6 +146,13 @@ export function initDb() {
       updated_at  TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS reviews_created_at ON reviews(created_at);
+    -- Who has opened someone else's review on the site (the author's own visits aren't kept).
+    CREATE TABLE IF NOT EXISTS review_visits (
+      review_id   INTEGER NOT NULL,
+      user_id     TEXT NOT NULL,
+      visited_at  TEXT NOT NULL,
+      PRIMARY KEY (review_id, user_id)
+    );
     CREATE TABLE IF NOT EXISTS discord_members (
       discord_id        TEXT PRIMARY KEY,
       note              TEXT,
@@ -1193,7 +1200,23 @@ export function dbSetReviewPost(id: number, channelId: string, messageId: string
 }
 
 export function dbDeleteReview(id: number): void {
+  db.prepare("DELETE FROM review_visits WHERE review_id = ?").run(id);
   db.prepare("DELETE FROM reviews WHERE id = ?").run(id);
+}
+
+export type ReviewVisitor = { userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; discordId: string | null; visitedAt: string };
+
+/** Records userId opening review id. Returns true the first time they do. */
+export function dbRecordReviewVisit(id: number, userId: string): boolean {
+  return db.prepare("INSERT OR IGNORE INTO review_visits (review_id, user_id, visited_at) VALUES (?, ?, ?)").run(id, userId, new Date().toISOString()).changes > 0;
+}
+
+/** Everyone who has opened a review, first visitor first. */
+export function dbListReviewVisitors(id: number): ReviewVisitor[] {
+  return db.prepare(`SELECT v.user_id AS userId, COALESCE(u.display_name, v.user_id) AS displayName, u.first_name AS firstName,
+      u.avatar_url AS avatarUrl, u.discord_id AS discordId, v.visited_at AS visitedAt
+    FROM review_visits v LEFT JOIN users u ON u.user_id = v.user_id
+    WHERE v.review_id = ? ORDER BY v.visited_at, v.user_id`).all(id) as ReviewVisitor[];
 }
 
 // ── Discord member stats (the /snek page) ────────────────────────────────────

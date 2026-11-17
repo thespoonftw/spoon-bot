@@ -6,6 +6,8 @@ export interface ReviewProfile {
   reviews: Review[];
 }
 
+export interface ReviewVisitor { userId: string; displayName: string; firstName: string | null; avatarUrl: string | null; visitedAt: string }
+
 export interface Review {
   id: number;
   userId: string;
@@ -41,6 +43,8 @@ export interface Review {
   // Without their full text; hasBody says whether there is one.
   others?: (Review & { hasBody?: boolean })[];
   myReviewId?: number | null;
+  // Only on a single review: everyone but the author who has opened it, first visitor first.
+  visitors?: ReviewVisitor[];
 }
 
 export type ReviewDraft = Pick<Review, "title" | "progress" | "summary" | "bodyHtml" | "imageUrl" | "wikiTitle" | "creator" | "sourceUrl" | "platform" | "location" | "locationUrl"> & { typeId: number | null; rating: number | null; year: number | string | null; season: number | null };
