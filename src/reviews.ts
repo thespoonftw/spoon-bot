@@ -123,7 +123,7 @@ async function buildReviewEmbed(client: Client, r: ReviewRow): Promise<EmbedBuil
     .setAuthor({
       name: reviewHeader(author.name, r).slice(0, 256),
       iconURL: author.iconURL,
-      url: `${getBaseUrl()}/reviews/people/${encodeURIComponent(r.userId)}`,
+      url: reviewUrl,
     })
     .setTitle(heading)
     .setURL(sourceUrl ?? reviewUrl)
