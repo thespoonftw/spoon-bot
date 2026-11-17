@@ -5,7 +5,7 @@ import crypto from "crypto";
 import net from "net";
 import dns from "dns/promises";
 import sanitizeHtml from "sanitize-html";
-import { AttachmentBuilder, EmbedBuilder, type Client, type Message } from "discord.js";
+import { EmbedBuilder, type Client, type Message } from "discord.js";
 import { config } from "./config";
 import { PHOTO_STORAGE_PATH } from "./photoStorage";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -13,12 +13,8 @@ const sharp = require("sharp") as (input: Buffer) => {
   png(): { toBuffer(): Promise<Buffer> };
   rotate(): { resize(w: number, h: number, opts: object): { jpeg(opts: object): { toFile(p: string): Promise<unknown> } } };
 };
-// The same library, for building the strip of visitors' avatars on a review's post.
-type SharpImage = { resize(w: number, h: number, opts?: object): SharpImage; composite(layers: { input: Buffer; left?: number; top?: number; blend?: string }[]): SharpImage; png(): SharpImage; toBuffer(): Promise<Buffer> };
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const sharpImage = require("sharp") as (input: Buffer | { create: { width: number; height: number; channels: 4; background: { r: number; g: number; b: number; alpha: number } } }) => SharpImage;
 import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbRecordReviewVisit, dbListReviewVisitors, type ReviewVisitor, dbListReviews, dbListMatchingReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetReviewPost, dbSetReviewPost, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, dbSetReviewTypeColor, dbGetStarMode, dbSetStarMode, isStarMode, dbCanSeeReviewsBy, type StarMode, type ReviewInput, type ReviewRow } from "./db";
+import { dbRecordReviewVisit, dbListReviewVisitors, dbListReviews, dbListMatchingReviews, dbGetReview, dbCreateReview, dbUpdateReview, dbDeleteReview, dbGetReviewPost, dbSetReviewPost, dbGetUserById, dbUpsertUser, dbListReviewTypes, dbGetReviewType, dbCreateReviewType, dbSetReviewTypeColor, dbGetStarMode, dbSetStarMode, isStarMode, dbCanSeeReviewsBy, type StarMode, type ReviewInput, type ReviewRow } from "./db";
 
 const PROGRESS = new Set(["ongoing", "stopped", "finished"]);
 // Types done in one sitting (a meal, a wargame battle) (and the "other" catch-all), which don't ask for progress. Keep in sync with web/src/reviews/api.ts.
@@ -90,64 +86,16 @@ async function reviewAuthor(client: Client, r: ReviewRow): Promise<{ name: strin
   } catch { return fallback; }
 }
 
-// The header says how much was written: "Name rated a 🎬 Film on Brunch Reviews" for stars only,
-// "wrote a short review for…" with a summary, "wrote a full review for…" with the full text. The
-// header is plain text (no markdown), so "full review" is underlined with combining underline marks.
+// The header says how much was written: "Name rated a 🎬 Film" for stars only, "short reviewed"
+// with a summary, "full reviewed" with the full text.
 function reviewHeader(name: string, r: ReviewRow): string {
   const article = /^[aeiou]/i.test(r.typeName) ? "an" : "a";
-  const topic = `${article} ${r.typeIcon} ${r.typeName} on Brunch Reviews`;
-  if (r.bodyHtml) return `${name} wrote a ${[..."full review"].map(c => c + "̲").join("")} for ${topic}`;
-  if (r.summary) return `${name} wrote a short review for ${topic}`;
-  return `${name} rated ${topic}`;
-}
-
-// The strip of avatars under "See the full review": everyone who's opened it on the site, as they
-// appear on the Discord server where possible. Shows up to VISITOR_STRIP_MAX, then a "+N" circle.
-const VISITOR_SIZE = 40, VISITOR_GAP = 6, VISITOR_STRIP_MAX = 12;
-const circleMask = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${VISITOR_SIZE}" height="${VISITOR_SIZE}"><circle cx="${VISITOR_SIZE / 2}" cy="${VISITOR_SIZE / 2}" r="${VISITOR_SIZE / 2}"/></svg>`);
-const escapeXml = (s: string) => s.replace(/[<>&"']/g, c => `&#${c.charCodeAt(0)};`);
-const textCircle = (text: string) => Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${VISITOR_SIZE}" height="${VISITOR_SIZE}"><circle cx="${VISITOR_SIZE / 2}" cy="${VISITOR_SIZE / 2}" r="${VISITOR_SIZE / 2}" fill="#4e5058"/><text x="50%" y="50%" dy="0.35em" text-anchor="middle" font-family="sans-serif" font-size="${text.length > 2 ? 13 : 17}" font-weight="700" fill="#ffffff">${escapeXml(text)}</text></svg>`);
-
-async function visitorAvatar(client: Client, v: ReviewVisitor): Promise<Buffer> {
-  let url = v.avatarUrl && /^https:\/\//.test(v.avatarUrl) ? v.avatarUrl : null;
-  if (v.discordId) {
-    const member = await client.guilds.cache.get(config.guildId)?.members.fetch(v.discordId).catch(() => null);
-    if (member) url = member.displayAvatarURL({ extension: "png", size: 64 });
-  }
-  try {
-    if (!url) throw new Error("no avatar");
-    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-    if (!res.ok) throw new Error(`avatar responded ${res.status}`);
-    return await sharpImage(Buffer.from(await res.arrayBuffer())).resize(VISITOR_SIZE, VISITOR_SIZE, { fit: "cover" }).composite([{ input: circleMask, blend: "dest-in" }]).png().toBuffer();
-  } catch {
-    return sharpImage(textCircle((v.firstName || v.displayName || "?")[0].toUpperCase())).png().toBuffer();
-  }
-}
-
-async function visitorStrip(client: Client, visitors: ReviewVisitor[]): Promise<Buffer | null> {
-  if (!visitors.length) return null;
-  const overflow = visitors.length > VISITOR_STRIP_MAX ? visitors.length - (VISITOR_STRIP_MAX - 1) : 0;
-  const shown = overflow ? visitors.slice(0, VISITOR_STRIP_MAX - 1) : visitors;
-  const circles = await Promise.all(shown.map(v => visitorAvatar(client, v)));
-  if (overflow) circles.push(await sharpImage(textCircle(`+${overflow}`)).png().toBuffer());
-  const width = circles.length * VISITOR_SIZE + (circles.length - 1) * VISITOR_GAP;
-  return sharpImage({ create: { width, height: VISITOR_SIZE, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
-    .composite(circles.map((input, i) => ({ input, left: i * (VISITOR_SIZE + VISITOR_GAP), top: 0 })))
-    .png().toBuffer();
-}
-
-// A review's Discord post: its card, plus the visitors' avatar strip (shown under the card's text)
-// when it has a full review that someone has opened.
-async function buildReviewMessage(client: Client, r: ReviewRow): Promise<{ embeds: EmbedBuilder[]; files: AttachmentBuilder[] }> {
-  const embed = await buildReviewEmbed(client, r);
-  const strip = r.bodyHtml ? await visitorStrip(client, dbListReviewVisitors(r.id)).catch(e => { console.error("Failed to draw review visitors:", e); return null; }) : null;
-  if (!strip) return { embeds: [embed], files: [] };
-  embed.setImage("attachment://visitors.png");
-  return { embeds: [embed], files: [new AttachmentBuilder(strip, { name: "visitors.png" })] };
+  const verb = r.bodyHtml ? "full reviewed" : r.summary ? "short reviewed" : "rated";
+  return `${name} ${verb} ${article} ${r.typeIcon} ${r.typeName}`;
 }
 
 // A review's Discord card, mirroring the feed card: a header of the reviewer's avatar and
-// "Name rated a 🎬 Film on Brunch Reviews" (see reviewHeader), then the linked
+// "Name rated a 🎬 Film" (see reviewHeader), then the linked
 // title, credit line, stars and summary, with the cover beside. The title links to the page the
 // review was matched to (BoardGameGeek, Wikipedia…), or the review itself if it wasn't matched, and a
 // "See the full review" link follows when there's more to read than the summary.
@@ -193,7 +141,7 @@ async function announceReview(r: ReviewRow): Promise<void> {
   if (!client || !channelId) return;
   const channel = await client.channels.fetch(channelId);
   if (!channel?.isSendable()) return;
-  const message = await channel.send(await buildReviewMessage(client, r));
+  const message = await channel.send({ embeds: [await buildReviewEmbed(client, r)] });
   dbSetReviewPost(r.id, channelId, message.id);
 }
 
@@ -221,8 +169,8 @@ export async function updateReviewPost(r: ReviewRow): Promise<boolean> {
   if (message && !saved) dbSetReviewPost(r.id, message.channelId, message.id);
   if (!message?.editable) return false;
   // Clearing the text too tidies up posts from when the "@User reviewed…" line sat above the card.
-  // attachments: [] drops the old visitors strip; the new one (if any) comes in files.
-  await message.edit({ content: "", ...(await buildReviewMessage(client, r)), attachments: [] });
+  // attachments: [] also clears the visitor pictures some posts briefly had.
+  await message.edit({ content: "", embeds: [await buildReviewEmbed(client, r)], attachments: [] });
   return true;
 }
 
@@ -786,12 +734,12 @@ export function handleReviewRoutes(req: http.IncomingMessage, res: http.ServerRe
   if (!existing || !canSee(existing.userId)) { sendJson(res, 404, { error: "Not found" }); return true; }
 
   // POST /api/reviews/:id/visit — the review page was opened. Someone else's first visit is
-  // remembered and, for a full review, adds their avatar to its Discord post. Returns { visitors }.
+  // remembered, for the page's "Visited by" list. Returns { visitors }.
   if (idMatch[2]) {
     if (method !== "POST") { sendJson(res, 405, { error: "Method not allowed" }); return true; }
     if (user.userId !== existing.userId) {
       dbUpsertUser(user.userId, user.displayName, user.avatarUrl || undefined);
-      if (dbRecordReviewVisit(id, user.userId) && existing.bodyHtml) updateReviewPost(existing).catch(e => console.error("Failed to add visitor to review post:", e));
+      dbRecordReviewVisit(id, user.userId);
     }
     sendJson(res, 200, { visitors: publicVisitors(id) });
     return true;
