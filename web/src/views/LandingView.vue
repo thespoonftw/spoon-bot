@@ -18,11 +18,10 @@
         <span class="feature-icon">💬</span>
         <h2>Discord</h2>
       </router-link>
-      <div class="feature-card feature-card--disabled" aria-disabled="true">
+      <a href="/snexercise/" class="feature-card">
         <span class="feature-icon">🏋️</span>
         <h2>Snexercise</h2>
-        <p>Under construction</p>
-      </div>
+      </a>
       <a v-if="canChewsday" href="/chewsday" class="feature-card">
         <span class="feature-icon">🍽️</span>
         <h2>Chewsday</h2>
