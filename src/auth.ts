@@ -158,16 +158,18 @@ export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boo
       try {
         const { userId, method: deliveryMethod, site, withCode } = JSON.parse(body);
         // The reviews and photos apps have their own login pages, so their links land there.
+        // Snexercise (/snexercise/, its own server) has its own login page too, which always asks for a code.
         const isReviews = site === "reviews";
         const isPhotos = site === "photos";
-        const siteName = isReviews ? "Spoon Reviews" : isPhotos ? "Photo Archives" : "Spoon Photos";
+        const isSnexercise = site === "snexercise";
+        const siteName = isReviews ? "Spoon Reviews" : isPhotos ? "Photo Archives" : isSnexercise ? "Snexercise" : "Spoon Photos";
         const targetUser = dbGetAllUsers().find(u => u.userId === userId);
         if (!targetUser) { sendJson(res, 403, { error: "Not allowed" }); return; }
         const chosenMethod = deliveryMethod === "email" ? "email" : "discord";
         if (chosenMethod === "email" && !targetUser.email) { sendJson(res, 400, { error: "No email address on file" }); return; }
         if (chosenMethod === "discord" && !targetUser.discordId) { sendJson(res, 400, { error: "No Discord account on file" }); return; }
         const token = crypto.randomBytes(32).toString("hex");
-        const useCode = (isReviews || isPhotos) && withCode === true;
+        const useCode = (isReviews || isPhotos || isSnexercise) && withCode === true;
         const code = useCode ? String(crypto.randomInt(0, 1_000_000)).padStart(6, "0") : undefined;
         const requestId = useCode ? crypto.randomBytes(16).toString("hex") : undefined;
         magicTokens.set(token, { userId, expires: Date.now() + 15 * 60 * 1000, code, requestId, attempts: 0 });
