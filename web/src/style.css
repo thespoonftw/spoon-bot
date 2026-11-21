@@ -295,6 +295,26 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 /* The sections with their own installable app show its icon, the same size as the emoji. */
 .feature-icon--app { width: 3rem; height: 3rem; border-radius: 22%; object-fit: cover; }
 .feature-card h2 { color: #cba6f7; font-size: 1.5rem; margin-bottom: 0; }
+.feature-icon--discord { width: 3rem; height: 3rem; color: #5865f2; }
+/* Brunch Reviews: its cream paper and italic Fraunces masthead (web/src/reviews/reviews.css). */
+.feature-card--reviews { background: #f5f0e6; }
+.feature-card--reviews:hover { background: #e9e1d0; }
+.feature-card--reviews h2 { color: #1f1a17; font-family: "Fraunces", Georgia, "Times New Roman", serif; font-style: italic; font-weight: 700; font-size: 1.75rem; letter-spacing: -0.01em; }
+/* Snexercise: its always-dark top bar, with "exercise" in its green (Snexercise/public/styles.css). */
+.feature-card--snexercise { background: #18201b; }
+.feature-card--snexercise:hover { background: #222b25; }
+.feature-card--snexercise h2 { color: #e6ece7; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 800; letter-spacing: -0.01em; }
+.feature-card--snexercise h2 span { color: #4cc17a; }
+/* Chewsday: its warm off-white page and green heading (Chewsday/public/styles.css). */
+.feature-card--chewsday { background: #f7f5f0; }
+.feature-card--chewsday:hover { background: #ebe7dd; }
+.feature-card--chewsday.feature-card--disabled:hover { background: #f7f5f0; }
+@media (max-width: 767px) {
+  .feature-card--reviews h2 { font-size: 1.45rem; }
+  .feature-card h2 { text-align: center; }
+}
+.feature-card--chewsday h2 { color: #2f7d4f; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-weight: 700; }
+.feature-card--chewsday p { color: #69716b; }
 .feature-card p { color: #a6adc8; text-align: center; margin: 0; }
 .landing-admin-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
 .feature-card--small { flex: 0 1 auto; flex-direction: row; padding: 14px 24px; gap: 12px; border-radius: 12px; }
