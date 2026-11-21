@@ -292,6 +292,8 @@ h2 { color: #89b4fa; margin-bottom: 4px; }
 /* A card that opens something on the page (e.g. Create Album) rather than linking elsewhere. */
 .feature-card--button { border: none; font: inherit; cursor: pointer; }
 .feature-icon { font-size: 3rem; line-height: 1; }
+/* The sections with their own installable app show its icon, the same size as the emoji. */
+.feature-icon--app { width: 3rem; height: 3rem; border-radius: 22%; object-fit: cover; }
 .feature-card h2 { color: #cba6f7; font-size: 1.5rem; margin-bottom: 0; }
 .feature-card p { color: #a6adc8; text-align: center; margin: 0; }
 .landing-admin-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }

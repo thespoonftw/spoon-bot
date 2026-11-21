@@ -5,13 +5,14 @@
       <UserBadge class="landing-user-info" />
     </div>
 
+    <!-- Snexercise and Chewsday are separate apps on the same site, so their icons are bound (:src) to keep Vite from looking for them in this build. -->
     <div class="landing-grid">
       <router-link to="/archives" class="feature-card">
-        <span class="feature-icon">📷</span>
+        <img class="feature-icon feature-icon--app" src="/photos-app/icon-192.png" alt="" />
         <h2>Archives</h2>
       </router-link>
       <router-link to="/reviews" class="feature-card">
-        <span class="feature-icon">⭐</span>
+        <img class="feature-icon feature-icon--app" src="/reviews-app/icon-192.png" alt="" />
         <h2>Reviews</h2>
       </router-link>
       <router-link to="/snek" class="feature-card">
@@ -19,15 +20,15 @@
         <h2>Discord</h2>
       </router-link>
       <a href="/snexercise/" class="feature-card">
-        <span class="feature-icon">🏋️</span>
+        <img class="feature-icon feature-icon--app" :src="'/snexercise/icons/icon-192.png'" alt="" />
         <h2>Snexercise</h2>
       </a>
       <a v-if="canChewsday" href="/chewsday" class="feature-card">
-        <span class="feature-icon">🍽️</span>
+        <img class="feature-icon feature-icon--app" :src="'/chewsday/app/icon-192.png'" alt="" />
         <h2>Chewsday</h2>
       </a>
       <div v-else class="feature-card feature-card--disabled" aria-disabled="true">
-        <span class="feature-icon">🍽️</span>
+        <img class="feature-icon feature-icon--app" :src="'/chewsday/app/icon-192.png'" alt="" />
         <h2>Chewsday</h2>
         <p>Gumsbolt &amp; Spoon only</p>
       </div>
