@@ -30,9 +30,17 @@ function parseLocal(dateText: string | undefined): LocalTime | null {
   if (!dateText || dateText === "TBC") return null;
   const s = sessionFromDateText(dateText);
   if (!s?.day || !s.month || !s.year) return null;
-  if (!s.time || s.time === "All Day") return { y: s.year, m: s.month, d: s.day, hh: 0, mm: 0, allDay: true };
-  const [hh, mm] = s.time.split(":").map(Number);
-  if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+  const allDay = { y: s.year, m: s.month, d: s.day, hh: 0, mm: 0, allDay: true };
+  if (!s.time || s.time === "All Day") return allDay;
+  // Times typed in /event are free text ("19:00", "7pm", "7.30 pm", "10am"); anything else shows as all day.
+  const t = s.time.trim().match(/^(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?$/i);
+  if (!t) return allDay;
+  let hh = parseInt(t[1]);
+  const mm = t[2] ? parseInt(t[2]) : 0;
+  const ampm = t[3]?.toLowerCase();
+  if (ampm === "pm" && hh < 12) hh += 12;
+  if (ampm === "am" && hh === 12) hh = 0;
+  if (hh > 23 || mm > 59 || (!ampm && !t[2])) return allDay; // a bare "7" is too ambiguous
   return { y: s.year, m: s.month, d: s.day, hh, mm, allDay: false };
 }
 
