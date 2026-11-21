@@ -85,15 +85,20 @@ export function buildInnerEmbed(state: EventState, albumUrl?: string) {
   return embed;
 }
 
-export function joinMessageComponents(channelId: string, joiningEnabled: boolean) {
-  if (!joiningEnabled) return [];
-  return [new ActionRowBuilder<ButtonBuilder>().addComponents(
+// Events with a date get a button for subscribing to the brunch events in your own calendar (calendarFeed.ts).
+export const SUBSCRIBE_ID = "cal_subscribe";
+const subscribeButton = () => new ButtonBuilder().setCustomId(SUBSCRIBE_ID).setLabel("📅 Subscribe").setStyle(ButtonStyle.Secondary);
+
+export function joinMessageComponents(channelId: string, joiningEnabled: boolean, hasDate = false) {
+  const buttons = joiningEnabled ? [
     new ButtonBuilder().setCustomId(`join_event_${channelId}`).setLabel(HALF_JOIN_LABEL).setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`leave_event_${channelId}`).setLabel(HALF_LEAVE_LABEL).setStyle(ButtonStyle.Secondary),
-  )];
+  ] : [];
+  if (hasDate) buttons.push(subscribeButton());
+  return buttons.length ? [new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons)] : [];
 }
 
-export function pinMessageComponents(channelId: string) {
+export function pinMessageComponents(channelId: string, hasDate = false) {
   return [
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`rsvp_coming_${channelId}`).setLabel("✅ Coming").setStyle(ButtonStyle.Primary),
@@ -105,6 +110,7 @@ export function pinMessageComponents(channelId: string) {
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`leave_event_${channelId}`).setLabel(LEAVE_LABEL).setStyle(ButtonStyle.Danger),
       new ButtonBuilder().setCustomId(`edit_menu_${channelId}`).setLabel("⚙").setStyle(ButtonStyle.Secondary),
+      ...(hasDate ? [subscribeButton()] : []),
     ),
   ];
 }

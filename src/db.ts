@@ -171,6 +171,10 @@ export function initDb() {
       removal_at        TEXT,
       real_name         TEXT
     );
+    CREATE TABLE IF NOT EXISTS calendar_tokens (
+      discord_id  TEXT PRIMARY KEY,
+      token       TEXT NOT NULL UNIQUE
+    );
     CREATE TABLE IF NOT EXISTS icon_roles (
       role_id  TEXT PRIMARY KEY
     );
@@ -233,7 +237,7 @@ export function initDb() {
     "ALTER TABLE users ADD COLUMN star_mode TEXT",
     "ALTER TABLE reviews ADD COLUMN full_stars INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE reviews ADD COLUMN quarter_stars INTEGER NOT NULL DEFAULT 0",
-    "ALTER TABLE users ADD COLUMN calendar_token TEXT",
+    "ALTER TABLE users DROP COLUMN calendar_token",
   ]) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
@@ -598,19 +602,20 @@ export function dbUnhideUser(userId: string) {
   db.prepare("UPDATE users SET level = 1 WHERE user_id = ? AND level = 0").run(userId);
 }
 
-// The secret in a person's calendar feed links (/calendar/<token>/...). Calendar apps fetch the feeds
-// without logging in, so the token is all that guards them; resetting it breaks the old links.
-export function dbGetCalendarToken(userId: string): string | null {
-  const row = db.prepare("SELECT calendar_token AS token FROM users WHERE user_id = ?").get(userId) as { token: string | null } | undefined;
+// The secret in a person's calendar feed links (/calendar/<token>/...), one per Discord account.
+// Calendar apps fetch the feeds without logging in, so the token is all that guards them.
+export function dbGetCalendarToken(discordId: string): string | null {
+  const row = db.prepare("SELECT token FROM calendar_tokens WHERE discord_id = ?").get(discordId) as { token: string } | undefined;
   return row?.token ?? null;
 }
 
-export function dbSetCalendarToken(userId: string, token: string) {
-  db.prepare("UPDATE users SET calendar_token = ? WHERE user_id = ?").run(token, userId);
+export function dbSetCalendarToken(discordId: string, token: string) {
+  db.prepare("INSERT INTO calendar_tokens (discord_id, token) VALUES (?, ?) ON CONFLICT(discord_id) DO UPDATE SET token = excluded.token").run(discordId, token);
 }
 
-export function dbFindUserByCalendarToken(token: string): UserRow | undefined {
-  return db.prepare("SELECT user_id AS userId, display_name AS displayName, discord_id AS discordId, level FROM users WHERE calendar_token = ?").get(token) as UserRow | undefined;
+export function dbFindDiscordIdByCalendarToken(token: string): string | null {
+  const row = db.prepare("SELECT discord_id AS discordId FROM calendar_tokens WHERE token = ?").get(token) as { discordId: string } | undefined;
+  return row?.discordId ?? null;
 }
 
 export function dbFindUserByEmail(email: string): UserRow | undefined {

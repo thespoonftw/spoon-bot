@@ -127,7 +127,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     const pinMsg = await eventChannel.send({
       content: "Click here to RSVP!",
       embeds: [buildInnerEmbed(state)],
-      components: pinMessageComponents(eventChannel.id),
+      components: pinMessageComponents(eventChannel.id, dateText !== "TBC"),
     });
     await pinMsg.pin();
 
@@ -137,7 +137,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       const joinMsg = await announcementChannel.send({
         content: buildJoinContent(state),
         embeds: [buildJoinEmbed(state)],
-        components: joinMessageComponents(eventChannel.id, true),
+        components: joinMessageComponents(eventChannel.id, true, dateText !== "TBC"),
       });
       joinMsgId = joinMsg.id;
     }
@@ -199,7 +199,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     const pinMsg = await channel.send({
       content: "Click here to RSVP!",
       embeds: [buildInnerEmbed(state)],
-      components: pinMessageComponents(channel.id),
+      components: pinMessageComponents(channel.id, dateText !== "TBC"),
     });
     await pinMsg.pin();
 
@@ -209,7 +209,7 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       const joinMsg = await announcementChannel.send({
         content: buildJoinContent(state),
         embeds: [buildJoinEmbed(state)],
-        components: joinMessageComponents(channel.id, true),
+        components: joinMessageComponents(channel.id, true, dateText !== "TBC"),
       });
       joinMsgId = joinMsg.id;
     }

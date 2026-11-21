@@ -125,7 +125,7 @@ if (eventStates.size > 0) {
       "- Click the buttons to join the events.",
       "- Use the command `/event` to create your own events.",
       "- Use the command `/addevent` in an existing channel to list it here.",
-      "- Use the command `/calendar` to add the events to your own calendar.",
+      "- Click 📅 Subscribe on an event to add the brunch events to your own calendar.",
       "- Messages in this channel will be automatically deleted.",
     ].join("\n");
     try {

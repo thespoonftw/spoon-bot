@@ -1,26 +1,29 @@
 import http from "http";
 import crypto from "crypto";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
+import type { Interaction } from "discord.js";
 import { eventStates } from "./state";
 import { config } from "./config";
 import { sessionFromDateText } from "./dateUtils";
-import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbGetUserById, dbFindUserByDiscordId, dbGetCalendarToken, dbSetCalendarToken, dbFindUserByCalendarToken } from "./db";
-import type { Interaction } from "discord.js";
+import { SUBSCRIBE_ID } from "./eventBuilders";
+import { dbGetCalendarToken, dbSetCalendarToken, dbFindDiscordIdByCalendarToken } from "./db";
 import type { EventState, RSVPStatus } from "./types";
 
 // Calendar feeds of the brunch events, for subscribing to in Google, Apple or Outlook calendars.
-// Each person has two, behind a secret token in the URL (calendar apps fetch feeds without logging in):
-//   /calendar/<token>/all.ics   every event with a date
-//   /calendar/<token>/mine.ics  just the ones they've said they're coming to (or maybe)
+// Each Discord member has two, behind a secret token in the URL (calendar apps fetch feeds without logging in):
+//   /calendar/<token>/all.ics     every event with a date
+//   /calendar/<token>/joined.ics  just the events whose channels they've joined
 // The feeds are built from the live event list on each fetch, so date changes, RSVPs and deleted
-// events reach people's calendars the next time their app checks the feed.
+// events reach people's calendars the next time their app checks the feed. People get their links
+// from the 📅 Subscribe button on an event, or /calendar.
 
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 const TZID = "Europe/London";
 // How long an event without an end time is shown as lasting (matches the Discord scheduled events).
 const DEFAULT_DURATION_MIN = 120;
 
-type Feed = "all" | "mine";
+type Feed = "all" | "joined";
+const FEED_NAMES: Record<Feed, string> = { all: "All brunch events", joined: "Events I've joined" };
 type LocalTime = { y: number; m: number; d: number; hh: number; mm: number; allDay: boolean };
 
 function parseLocal(dateText: string | undefined): LocalTime | null {
@@ -107,26 +110,28 @@ function eventLines(channelId: string, state: EventState, myStatus: RSVPStatus |
   lines.push(`SUMMARY:${escapeText(state.eventName)}`);
   if (state.location) lines.push(`LOCATION:${escapeText(state.location)}`);
   lines.push(`DESCRIPTION:${escapeText(description)}`, `URL:${discordUrl}`);
-  lines.push(`STATUS:${myStatus === "maybe" ? "TENTATIVE" : "CONFIRMED"}`);
-  // Only events they're going to make them look busy (the "all" feed has the rest too).
-  lines.push(`TRANSP:${myStatus === "coming" || myStatus === "maybe" ? "OPAQUE" : "TRANSPARENT"}`, "END:VEVENT");
+  lines.push(`STATUS:${myStatus === "maybe" || myStatus === "lurking" ? "TENTATIVE" : "CONFIRMED"}`);
+  // Only events they've joined make them look busy (the "all" feed has the rest too).
+  lines.push(`TRANSP:${isJoined(myStatus) ? "OPAQUE" : "TRANSPARENT"}`, "END:VEVENT");
   return lines;
 }
+
+// A joined event is one whose channel they're in, unless they've declined it.
+const isJoined = (status: RSVPStatus | undefined) => !!status && status !== "decline";
 
 function buildFeed(feed: Feed, discordId: string): string {
   const now = new Date();
   const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
-  const name = feed === "all" ? "Brunch events" : "My brunch events";
   const lines = [
     "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Brunch Projects//Brunch events//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
-    `X-WR-CALNAME:${name}`, `X-WR-TIMEZONE:${TZID}`,
+    `X-WR-CALNAME:${FEED_NAMES[feed]}`, `X-WR-TIMEZONE:${TZID}`,
     // Hints for how often to re-check (Apple and Outlook take some notice; Google ignores them).
     "REFRESH-INTERVAL;VALUE=DURATION:PT1H", "X-PUBLISHED-TTL:PT1H",
     ...VTIMEZONE,
   ];
   for (const [channelId, state] of eventStates) {
     const myStatus = state.members.get(discordId)?.status;
-    if (feed === "mine" && myStatus !== "coming" && myStatus !== "maybe") continue;
+    if (feed === "joined" && !isJoined(myStatus)) continue;
     const ev = eventLines(channelId, state, myStatus, stamp);
     if (ev) lines.push(...ev);
   }
@@ -134,99 +139,85 @@ function buildFeed(feed: Feed, discordId: string): string {
   return lines.map(fold).join("\r\n") + "\r\n";
 }
 
-function feedUrls(token: string) {
-  const base = getBaseUrl().replace(/\/$/, "");
-  return { all: `${base}/calendar/${token}/all.ics`, mine: `${base}/calendar/${token}/mine.ics` };
-}
-
 const newToken = () => crypto.randomBytes(24).toString("base64url");
 
-// The upcoming events, for the calendar page to list (with the viewer's own RSVP).
-function upcomingEvents(discordId: string) {
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: TZID }).replace(/-/g, "");
-  return [...eventStates.entries()]
-    .map(([channelId, s]) => ({ channelId, s, start: parseLocal(s.dateText), end: parseLocal(s.endDateText) }))
-    .filter(e => e.start && icsDate(e.end ?? e.start!) >= today)
-    .sort((a, b) => icsDateTime(a.start!).localeCompare(icsDateTime(b.start!)))
-    .map(({ channelId, s }) => {
-      const status = s.members.get(discordId)?.status;
-      return {
-        channelId, name: s.eventName, dateText: s.dateText, endDateText: s.endDateText ?? null, location: s.location || null,
-        myStatus: status === "coming" || status === "maybe" ? status : null,
-      };
-    });
+function tokenFor(discordId: string): string {
+  let token = dbGetCalendarToken(discordId);
+  if (!token) { token = newToken(); dbSetCalendarToken(discordId, token); }
+  return token;
 }
 
 export function handleCalendarRoutes(req: http.IncomingMessage, res: http.ServerResponse): boolean {
   const url = (req.url ?? "/").split("?")[0];
   const method = req.method ?? "GET";
+  if (method !== "GET" && method !== "HEAD") return false;
 
-  const feedMatch = url.match(/^\/calendar\/([A-Za-z0-9_-]{16,64})\/(all|mine)\.ics$/);
-  if (feedMatch && (method === "GET" || method === "HEAD")) {
-    const user = dbFindUserByCalendarToken(feedMatch[1]);
-    // Hidden (level 0) users and anyone no longer linked to Discord lose their feeds.
-    if (!user || (user.level ?? 0) < 1 || !user.discordId) { res.writeHead(404, { "Content-Type": "text/plain" }); res.end("Not found"); return true; }
-    const body = buildFeed(feedMatch[2] as Feed, user.discordId);
-    res.writeHead(200, {
-      "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": `inline; filename="brunch-${feedMatch[2]}.ics"`,
-      "Cache-Control": "no-cache",
-    });
-    res.end(method === "HEAD" ? undefined : body);
+  // /calendar/<token>/<feed>.ics is the feed; /calendar/<token>/<feed>/apple sends Apple devices on to
+  // its webcal:// address (Discord buttons can only link to http(s), and webcal is what opens Apple Calendar).
+  const m = url.match(/^\/calendar\/([A-Za-z0-9_-]{16,64})\/(all|joined)(\.ics|\/apple)$/);
+  if (!m) return false;
+  const discordId = dbFindDiscordIdByCalendarToken(m[1]);
+  if (!discordId) { res.writeHead(404, { "Content-Type": "text/plain" }); res.end("Not found"); return true; }
+  const feed = m[2] as Feed;
+
+  if (m[3] === "/apple") {
+    res.writeHead(302, { Location: webcalUrl(feedUrl(m[1], feed)), "Cache-Control": "no-store" });
+    res.end();
     return true;
   }
-
-  if (url === "/api/calendar" && method === "GET") {
-    const session = getSessionUser(getTokenFromRequest(req));
-    if (!session) { send401(res); return true; }
-    const user = dbGetUserById(session.userId);
-    if (!user?.discordId) { sendJson(res, 200, { linked: false, events: [] }); return true; }
-    let token = dbGetCalendarToken(user.userId);
-    if (!token) { token = newToken(); dbSetCalendarToken(user.userId, token); }
-    sendJson(res, 200, { linked: true, feeds: feedUrls(token), events: upcomingEvents(user.discordId) }, { "Cache-Control": "no-store" });
-    return true;
-  }
-
-  // A new token, for if the links were shared by mistake. Calendars subscribed with the old ones stop updating.
-  if (url === "/api/calendar/reset" && method === "POST") {
-    const session = getSessionUser(getTokenFromRequest(req));
-    if (!session) { send401(res); return true; }
-    const user = dbGetUserById(session.userId);
-    if (!user?.discordId) { sendJson(res, 400, { error: "Your account isn't linked to Discord." }); return true; }
-    const token = newToken();
-    dbSetCalendarToken(user.userId, token);
-    sendJson(res, 200, { feeds: feedUrls(token) });
-    return true;
-  }
-
-  return false;
+  res.writeHead(200, {
+    "Content-Type": "text/calendar; charset=utf-8",
+    "Content-Disposition": `inline; filename="brunch-${feed}.ics"`,
+    "Cache-Control": "no-cache",
+  });
+  res.end(method === "HEAD" ? undefined : buildFeed(feed, discordId));
+  return true;
 }
 
-// /calendar in Discord: the person's own subscribe links, visible only to them. Discord only makes
-// http(s) links clickable, so Apple's webcal:// subscribe is left to the calendar page.
+// ── Discord: the 📅 Subscribe button on events (and /calendar) ──────────────────────────────────────
+
+const feedUrl = (token: string, feed: Feed) => `${getBaseUrl().replace(/\/$/, "")}/calendar/${token}/${feed}.ics`;
+const webcalUrl = (url: string) => url.replace(/^https?:\/\//, "webcal://");
+
+function subscribeMessage(discordId: string) {
+  const token = tokenFor(discordId);
+  const row = (feed: Feed) => {
+    const url = feedUrl(token, feed);
+    return new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId(`cal_label_${feed}`).setLabel(FEED_NAMES[feed]).setStyle(ButtonStyle.Secondary).setDisabled(true),
+      new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Google").setURL(`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl(url))}`),
+      new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Apple").setURL(url.replace(/\.ics$/, "/apple")),
+      new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Outlook").setURL(`https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(url)}&name=${encodeURIComponent(FEED_NAMES[feed])}`),
+    );
+  };
+  return {
+    content: [
+      "**📅 Add the brunch events to your calendar**",
+      "Subscribe once and they stay up to date as events change (Google can take up to a day to catch up).",
+      `- **${FEED_NAMES.all}:** every event with a date.`,
+      `- **${FEED_NAMES.joined}:** just the events whose channels you've joined (leaving out any you've declined).`,
+      "",
+      "-# These links are just for you. If you've shared one by mistake, reset them; calendars using the old ones stop updating.",
+    ].join("\n"),
+    components: [
+      row("all"),
+      row("joined"),
+      new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId("cal_reset").setLabel("Reset my links").setStyle(ButtonStyle.Danger),
+      ),
+    ],
+  };
+}
+
 export async function handleCalendarInteraction(interaction: Interaction): Promise<boolean> {
-  if (!interaction.isChatInputCommand() || interaction.commandName !== "calendar") return false;
-  const page = `${getBaseUrl().replace(/\/$/, "")}/calendar`;
-  const user = dbFindUserByDiscordId(interaction.user.id);
-  if (!user || (user.level ?? 0) < 1) {
-    await interaction.reply({ content: `You need a Brunch Projects account to subscribe to the brunch calendar. Ask an admin to add you, then see ${page}`, ephemeral: true });
+  if ((interaction.isButton() && interaction.customId === SUBSCRIBE_ID) || (interaction.isChatInputCommand() && interaction.commandName === "calendar")) {
+    await interaction.reply({ ...subscribeMessage(interaction.user.id), ephemeral: true });
     return true;
   }
-  let token = dbGetCalendarToken(user.userId);
-  if (!token) { token = newToken(); dbSetCalendarToken(user.userId, token); }
-  const feeds = feedUrls(token);
-  const webcal = (u: string) => u.replace(/^https?:\/\//, "webcal://");
-  const google = (u: string) => `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcal(u))}`;
-  const outlook = (u: string, name: string) => `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(u)}&name=${encodeURIComponent(name)}`;
-  const content = [
-    "**📅 Brunch Calendar**: subscribe once and the events appear in your own calendar, keeping up with changes.",
-    "",
-    `**My brunch events** (ones you're coming to or maybe): [Google](<${google(feeds.mine)}>) · [Outlook](<${outlook(feeds.mine, "My brunch events")}>)`,
-    `**All brunch events**: [Google](<${google(feeds.all)}>) · [Outlook](<${outlook(feeds.all, "All brunch events")}>)`,
-    "",
-    `iPhone / Apple Calendar, and the links to copy: <${page}>`,
-    "These links are private to you, so don't share them.",
-  ].join("\n");
-  await interaction.reply({ content, ephemeral: true });
-  return true;
+  if (interaction.isButton() && interaction.customId === "cal_reset") {
+    dbSetCalendarToken(interaction.user.id, newToken());
+    await interaction.update(subscribeMessage(interaction.user.id));
+    return true;
+  }
+  return false;
 }
