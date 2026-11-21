@@ -124,6 +124,7 @@ if (eventStates.size > 0) {
       "- Click the buttons to join the events.",
       "- Use the command `/event` to create your own events.",
       "- Use the command `/addevent` in an existing channel to list it here.",
+      `- Add the events to your own calendar: <${(process.env.ALBUM_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "")}/calendar>`,
       "- Messages in this channel will be automatically deleted.",
     ].join("\n");
     try {
