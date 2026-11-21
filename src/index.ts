@@ -20,6 +20,7 @@ import { handleGroupInteractions } from "./interactions/groupInteractions";
 import { handleLeaveInteractions } from "./interactions/leaveInteractions";
 import { loadBirthdays, handleBirthdayInteractions, scheduleBirthdayAnnouncements } from "./birthdays";
 import { loadAlbums, handleAlbumReaction, handleAlbumMessageCreate, handleAlbumUploadInteraction } from "./albums";
+import { handleCalendarInteraction } from "./calendarFeed";
 import { startWebServer, setAlbumDiscordClient, setUpdateEventMessages } from "./albumServer";
 import { initAuth } from "./auth";
 import { startArchipelagoRelay } from "./archipelago";
@@ -124,7 +125,7 @@ if (eventStates.size > 0) {
       "- Click the buttons to join the events.",
       "- Use the command `/event` to create your own events.",
       "- Use the command `/addevent` in an existing channel to list it here.",
-      `- Add the events to your own calendar: <${(process.env.ALBUM_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "")}/calendar>`,
+      "- Use the command `/calendar` to add the events to your own calendar.",
       "- Messages in this channel will be automatically deleted.",
     ].join("\n");
     try {
@@ -213,6 +214,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await handleBirthdayInteractions(interaction);
     await handleLocationInteractions(interaction);
     await handleCustomiseInteractions(interaction);
+    await handleCalendarInteraction(interaction);
   } catch (error) {
     console.error("Unhandled interaction error:", error);
     try {

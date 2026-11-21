@@ -4,7 +4,8 @@ import { eventStates } from "./state";
 import { config } from "./config";
 import { sessionFromDateText } from "./dateUtils";
 import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbGetUserById, dbGetCalendarToken, dbSetCalendarToken, dbFindUserByCalendarToken } from "./db";
+import { dbGetUserById, dbFindUserByDiscordId, dbGetCalendarToken, dbSetCalendarToken, dbFindUserByCalendarToken } from "./db";
+import type { Interaction } from "discord.js";
 import type { EventState, RSVPStatus } from "./types";
 
 // Calendar feeds of the brunch events, for subscribing to in Google, Apple or Outlook calendars.
@@ -199,4 +200,33 @@ export function handleCalendarRoutes(req: http.IncomingMessage, res: http.Server
   }
 
   return false;
+}
+
+// /calendar in Discord: the person's own subscribe links, visible only to them. Discord only makes
+// http(s) links clickable, so Apple's webcal:// subscribe is left to the calendar page.
+export async function handleCalendarInteraction(interaction: Interaction): Promise<boolean> {
+  if (!interaction.isChatInputCommand() || interaction.commandName !== "calendar") return false;
+  const page = `${getBaseUrl().replace(/\/$/, "")}/calendar`;
+  const user = dbFindUserByDiscordId(interaction.user.id);
+  if (!user || (user.level ?? 0) < 1) {
+    await interaction.reply({ content: `You need a Brunch Projects account to subscribe to the brunch calendar. Ask an admin to add you, then see ${page}`, ephemeral: true });
+    return true;
+  }
+  let token = dbGetCalendarToken(user.userId);
+  if (!token) { token = newToken(); dbSetCalendarToken(user.userId, token); }
+  const feeds = feedUrls(token);
+  const webcal = (u: string) => u.replace(/^https?:\/\//, "webcal://");
+  const google = (u: string) => `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcal(u))}`;
+  const outlook = (u: string, name: string) => `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(u)}&name=${encodeURIComponent(name)}`;
+  const content = [
+    "**📅 Brunch Calendar**: subscribe once and the events appear in your own calendar, keeping up with changes.",
+    "",
+    `**My brunch events** (ones you're coming to or maybe): [Google](<${google(feeds.mine)}>) · [Outlook](<${outlook(feeds.mine, "My brunch events")}>)`,
+    `**All brunch events**: [Google](<${google(feeds.all)}>) · [Outlook](<${outlook(feeds.all, "All brunch events")}>)`,
+    "",
+    `iPhone / Apple Calendar, and the links to copy: <${page}>`,
+    "These links are private to you, so don't share them.",
+  ].join("\n");
+  await interaction.reply({ content, ephemeral: true });
+  return true;
 }

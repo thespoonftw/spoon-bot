@@ -43,6 +43,10 @@ const commands = [
     .setName("customise")
     .setDescription("Choose your name colour and icon")
     .toJSON(),
+  new SlashCommandBuilder()
+    .setName("calendar")
+    .setDescription("Get links to add the brunch events to your own calendar")
+    .toJSON(),
   ...(config.albumsEnabled ? [
     new SlashCommandBuilder()
       .setName("album")
