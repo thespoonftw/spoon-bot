@@ -157,6 +157,28 @@ if (eventStates.size > 0) {
   }
 });
 
+// Discord only allows ephemeral messages in reply to interactions, so a typed message gets a DM instead
+// (falling back to a self-deleting reply if their DMs are closed). One notice per person per 10 minutes.
+const deletionNoticeAt = new Map<string, number>();
+async function explainDeletion(message: Message, kind: string, createCmd: string, addCmd: string): Promise<void> {
+  const now = Date.now();
+  const last = deletionNoticeAt.get(message.author.id);
+  if (last && now - last < 10 * 60_000) return;
+  deletionNoticeAt.set(message.author.id, now);
+
+  const explanation = `Messages in <#${message.channelId}> are deleted automatically so it stays a tidy list of ${kind}. ` +
+    `Use \`${createCmd}\` to make a new one, or \`${addCmd}\` in an existing channel to list it there.`;
+  const text = message.content.trim();
+  const quoted = text ? `\n\nHere's what you wrote, in case you want it:\n${text.slice(0, 1500).split("\n").map(l => `> ${l}`).join("\n")}` : "";
+  try {
+    await message.author.send(explanation + quoted);
+  } catch {
+    if (!message.channel.isSendable()) return;
+    const reply = await message.channel.send({ content: `<@${message.author.id}> ${explanation}`, allowedMentions: { users: [message.author.id] } });
+    setTimeout(() => reply.delete().catch(() => {}), 15_000);
+  }
+}
+
 client.on(Events.MessageCreate, async (message: Message) => {
   if (message.author.bot) return;
   if (config.albumsEnabled) countSnekMessage(message);
@@ -164,11 +186,13 @@ client.on(Events.MessageCreate, async (message: Message) => {
 
   if (process.env.HEADER_MESSAGE_ID && message.channelId === config.eventChannelId) {
     message.delete().catch(() => {});
+    explainDeletion(message, "events", "/event", "/addevent").catch(e => console.error("Deletion notice failed:", e));
     return;
   }
 
   if (config.groupsChannelId && message.channelId === config.groupsChannelId) {
     message.delete().catch(() => {});
+    explainDeletion(message, "groups", "/group", "/addgroup").catch(e => console.error("Deletion notice failed:", e));
     return;
   }
 
