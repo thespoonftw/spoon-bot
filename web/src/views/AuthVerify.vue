@@ -25,12 +25,22 @@ const status = ref<"loading" | "ok" | "error">("loading");
 // Links from the Photo Archives login land at /archives/auth/verify and go on to the photos page.
 const base = route.path.startsWith("/archives/") ? "/archives" : "";
 
+// Links from Discord commands (e.g. /event) say which page to open next.
+const nextParam = typeof route.query.next === "string" ? route.query.next : "";
+const next = nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "";
+
 onMounted(async () => {
   if (await verifyLoginToken(route.params.token as string)) {
     status.value = "ok";
+    if (next) { router.replace(next); return; }
     setTimeout(() => router.push(takeReturnPath(base)), 1000);
-  } else {
-    status.value = "error";
+    return;
   }
+  // A command link opened a second time: already signed in from the first, so just carry on.
+  if (next) {
+    const signedIn = await fetch("/api/auth/check").then(r => r.ok).catch(() => false);
+    if (signedIn) { router.replace(next); return; }
+  }
+  status.value = "error";
 });
 </script>

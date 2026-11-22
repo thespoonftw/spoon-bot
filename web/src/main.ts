@@ -29,6 +29,7 @@ import ReviewsAppView from "./reviews/ReviewsAppView.vue";
 import PhotosView from "./views/PhotosView.vue";
 import PhotosAppView from "./views/PhotosAppView.vue";
 import AdminView from "./views/AdminView.vue";
+import NewEventView from "./views/NewEventView.vue";
 import { appForPath, syncAppHead, registerServiceWorker, listenForInstallPrompt, APPS } from "./utils/pwa";
 import { rememberReturnPath } from "./utils/afterLogin";
 import "./style.css";
@@ -60,6 +61,7 @@ const router = createRouter({
     { path: "/location/:token", component: LocationShareView, meta: { public: true } },
     { path: "/", component: LandingView },
     { path: "/admin", component: AdminView },
+    { path: "/events/new", component: NewEventView },
     // The photos section is also the installable Photo Archives app (scope /archives), so everything it
     // needs, its own login pages included, lives under /archives.
     { path: "/archives", component: PhotosView },

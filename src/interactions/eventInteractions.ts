@@ -1,28 +1,24 @@
 import {
   ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   ChannelType,
   ModalBuilder,
-  PermissionFlagsBits,
   TextInputBuilder,
   TextInputStyle,
 } from "discord.js";
 import type { Guild, Interaction } from "discord.js";
 import { config } from "../config";
 import { eventStates, persistState } from "../state";
-import type { EventState, RSVPStatus } from "../types";
+import type { RSVPStatus } from "../types";
 import { makeMemberEntry } from "../types";
-import {
-  buildJoinContent,
-  buildJoinEmbed,
-  buildInnerEmbed,
-  joinMessageComponents,
-  pinMessageComponents,
-} from "../eventBuilders";
 import { updateJoinMessage, updateInnerMessage, updateEventMessages } from "../messageSync";
 import { hasAlbum, getAlbumUrl, handleAlbumInteractions, startAlbumForChannel } from "../albums";
 import { dbAddAlbumMember, dbUpsertUser } from "../db";
 import { handleGearMenuInteractions, buildEventModalComponents } from "./gearMenuInteractions";
 import { parseCreateDateText } from "../dateUtils";
+import { createDiscordLoginLink } from "../auth";
+import { setUpEvent } from "../eventCreation";
 
 function getDisplayName(interaction: Interaction): string {
   const member = interaction.member;
@@ -46,15 +42,25 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
 
   if (await handleGearMenuInteractions(interaction)) return;
 
-  // /event — open modal (only in the event announcement channel)
+  // /event — a private link to the website's Create Event form, signed in as them
   if (interaction.isChatInputCommand() && interaction.commandName === "event") {
     if (interaction.channelId !== config.eventChannelId) {
       await interaction.reply({ content: `This command can only be used in <#${config.eventChannelId}>.`, ephemeral: true });
       return;
     }
-    const modal = new ModalBuilder().setCustomId("event_modal").setTitle("Create Event");
-    modal.addComponents(...buildEventModalComponents());
-    await interaction.showModal(modal);
+    const link = createDiscordLoginLink(
+      interaction.user.id, getDisplayName(interaction),
+      interaction.user.displayAvatarURL({ extension: "png", size: 128 }), "/events/new");
+    if (!link) {
+      await interaction.reply({ content: "Your account can't sign in to the website — ask an admin.", ephemeral: true });
+      return;
+    }
+    await interaction.reply({
+      content: "Fill in your event on the website. The link signs you in and works once, for 15 minutes.",
+      components: [new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Create event").setEmoji("📅").setURL(link))],
+      ephemeral: true,
+    });
     return;
   }
 
@@ -84,70 +90,6 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       if (channel.isSendable()) await channel.send(content);
     }
     await interaction.deleteReply();
-    return;
-  }
-
-  // event_modal submit
-  if (interaction.isModalSubmit() && interaction.customId === "event_modal") {
-    const eventName = interaction.fields.getTextInputValue("event_name").trim();
-    const description = interaction.fields.getTextInputValue("event_desc").trim();
-    const location = interaction.fields.getTextInputValue("event_location").trim() || "TBC";
-    const dateText = parseCreateDateText(
-      interaction.fields.getTextInputValue("event_date").trim(),
-      interaction.fields.getTextInputValue("event_time").trim()
-    );
-    const g = interaction.guild;
-    if (!g) return;
-
-    await interaction.deferReply({ ephemeral: true });
-
-    const eventChannel = await g.channels.create({
-      name: eventName.toLowerCase().replace(/\s+/g, "-"),
-      type: ChannelType.GuildText,
-      parent: config.eventCategoryId,
-      topic: description || undefined,
-    });
-
-    await eventChannel.permissionOverwrites.set([
-      { id: g.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
-      { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-    ]);
-
-    const creator = g.members.cache.get(interaction.user.id);
-    const creatorName = creator?.displayName ?? interaction.user.displayName;
-
-    const state: EventState = {
-      eventName, description, location, dateText,
-      joinMessageId: "", pinMessageId: "",
-      joiningEnabled: true, members: new Map(),
-    };
-    state.creatorId = interaction.user.id;
-    state.members.set(interaction.user.id, makeMemberEntry(interaction.user.id, creatorName));
-
-    const pinMsg = await eventChannel.send({
-      content: "Click here to RSVP!",
-      embeds: [buildInnerEmbed(state)],
-      components: pinMessageComponents(eventChannel.id, dateText !== "TBC"),
-    });
-    await pinMsg.pin();
-
-    const announcementChannel = g.channels.cache.get(config.eventChannelId);
-    let joinMsgId = "";
-    if (announcementChannel && announcementChannel.isSendable()) {
-      const joinMsg = await announcementChannel.send({
-        content: buildJoinContent(state),
-        embeds: [buildJoinEmbed(state)],
-        components: joinMessageComponents(eventChannel.id, true, dateText !== "TBC"),
-      });
-      joinMsgId = joinMsg.id;
-    }
-
-    state.joinMessageId = joinMsgId;
-    state.pinMessageId = pinMsg.id;
-    eventStates.set(eventChannel.id, state);
-    persistState();
-    await interaction.editReply({ content: "Done!" });
-    if (dateText === "TBC") await eventChannel.send("Use the ⚙ button to set the event date when you're ready.");
     return;
   }
 
@@ -183,43 +125,10 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
 
     await interaction.deferReply({ ephemeral: true });
 
-    if (description) await channel.setTopic(description);
-
-    const creator = g.members.cache.get(interaction.user.id);
-    const creatorName = creator?.displayName ?? interaction.user.displayName;
-
-    const state: EventState = {
-      eventName, description, location, dateText,
-      joinMessageId: "", pinMessageId: "",
-      joiningEnabled: true, members: new Map(),
-    };
-    state.creatorId = interaction.user.id;
-    state.members.set(interaction.user.id, makeMemberEntry(interaction.user.id, creatorName));
-
-    const pinMsg = await channel.send({
-      content: "Click here to RSVP!",
-      embeds: [buildInnerEmbed(state)],
-      components: pinMessageComponents(channel.id, dateText !== "TBC"),
-    });
-    await pinMsg.pin();
-
-    const announcementChannel = g.channels.cache.get(config.eventChannelId);
-    let joinMsgId = "";
-    if (announcementChannel && announcementChannel.isSendable()) {
-      const joinMsg = await announcementChannel.send({
-        content: buildJoinContent(state),
-        embeds: [buildJoinEmbed(state)],
-        components: joinMessageComponents(channel.id, true, dateText !== "TBC"),
-      });
-      joinMsgId = joinMsg.id;
-    }
-
-    state.joinMessageId = joinMsgId;
-    state.pinMessageId = pinMsg.id;
-    eventStates.set(channel.id, state);
-    persistState();
+    if (description) await channel.setTopic(description.slice(0, 1024));
+    const creatorName = g.members.cache.get(interaction.user.id)?.displayName ?? interaction.user.displayName;
+    await setUpEvent(g, channel, interaction.user.id, creatorName, { eventName, description, location, dateText });
     await interaction.editReply({ content: "Done!" });
-    if (dateText === "TBC") await channel.send("Use the ⚙ button to set the event date when you're ready.");
     return;
   }
 

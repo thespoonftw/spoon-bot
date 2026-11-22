@@ -21,6 +21,7 @@ import { handleLeaveInteractions } from "./interactions/leaveInteractions";
 import { loadBirthdays, handleBirthdayInteractions, scheduleBirthdayAnnouncements } from "./birthdays";
 import { loadAlbums, handleAlbumReaction, handleAlbumMessageCreate, handleAlbumUploadInteraction } from "./albums";
 import { handleCalendarInteraction } from "./calendarFeed";
+import { setEventDiscordClient } from "./eventCreation";
 import { startWebServer, setAlbumDiscordClient, setUpdateEventMessages } from "./albumServer";
 import { initAuth } from "./auth";
 import { startArchipelagoRelay } from "./archipelago";
@@ -56,6 +57,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   startWebServer();
   setAlbumDiscordClient(readyClient);
   setReviewsDiscordClient(readyClient);
+  setEventDiscordClient(readyClient);
   if (config.albumsEnabled) startLocationShares(readyClient);
   if (config.albumsEnabled) startSnekTracking(readyClient, presenceIntent);
   if (config.albumsEnabled) startSmartSearch();

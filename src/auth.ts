@@ -135,6 +135,20 @@ function isAdminRequest(req: IncomingMessage): boolean {
 
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
 
+// A link that signs a Discord member into the site and takes them to `next` — for slash commands
+// that hand off to a web page. Adds them as a site user if they're new; null if they've been hidden.
+export function createDiscordLoginLink(discordId: string, displayName: string, avatarUrl: string, next: string): string | null {
+  let user = dbFindUserByDiscordId(discordId);
+  if (!user) {
+    dbAddDiscordUser(discordId, displayName, avatarUrl);
+    user = dbFindUserByDiscordId(discordId);
+  }
+  if (!user || user.level < 1) return null;
+  const token = crypto.randomBytes(32).toString("hex");
+  magicTokens.set(token, { userId: user.userId, expires: Date.now() + 15 * 60 * 1000 });
+  return `${getBaseUrl()}/auth/verify/${token}?next=${encodeURIComponent(next)}`;
+}
+
 // Returns true if the request was handled
 export function handleAuthRoutes(req: IncomingMessage, res: ServerResponse): boolean {
   const url = (req.url ?? "/").split("?")[0];
