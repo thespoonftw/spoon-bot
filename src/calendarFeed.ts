@@ -140,6 +140,7 @@ function buildFeed(feed: Feed, discordId: string): string {
   for (const [channelId, state] of eventStates) {
     const myStatus = state.members.get(discordId)?.status;
     if (feed === "joined" && !isJoined(myStatus)) continue;
+    if (state.private && !state.members.has(discordId) && !state.invitedIds?.includes(discordId)) continue;
     const ev = eventLines(channelId, state, myStatus, stamp);
     if (ev) lines.push(...ev);
   }

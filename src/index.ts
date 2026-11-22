@@ -21,7 +21,7 @@ import { handleLeaveInteractions } from "./interactions/leaveInteractions";
 import { loadBirthdays, handleBirthdayInteractions, scheduleBirthdayAnnouncements } from "./birthdays";
 import { loadAlbums, handleAlbumReaction, handleAlbumMessageCreate, handleAlbumUploadInteraction } from "./albums";
 import { handleCalendarInteraction } from "./calendarFeed";
-import { setEventDiscordClient } from "./eventCreation";
+import { setEventDiscordClient, handleInviteInteraction } from "./eventCreation";
 import { startWebServer, setAlbumDiscordClient, setUpdateEventMessages } from "./albumServer";
 import { initAuth } from "./auth";
 import { startArchipelagoRelay } from "./archipelago";
@@ -233,6 +233,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     if (await handleAlbumUploadInteraction(interaction)) return;
+    if (await handleInviteInteraction(interaction)) return;
     await handleEventInteractions(interaction, interaction.guild);
     await handleDatePickerInteractions(interaction);
     await handleGroupInteractions(interaction, interaction.guild);

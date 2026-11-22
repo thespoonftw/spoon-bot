@@ -1,9 +1,15 @@
 <template>
-  <!-- Create Event: opened from /event in Discord. Makes the private event channel and posts its join card. -->
+  <!-- Create Event: opened from /event in Discord. Makes the event channel, posts its join card (public events) and DMs invites. -->
   <div class="page new-event">
     <template v-if="created">
       <h1>Event created 🎉</h1>
-      <p class="subtitle">Your channel <strong>#{{ created.channelName }}</strong> is ready, and the join card is up in brunch-events.</p>
+      <p class="subtitle">
+        Your channel <strong>#{{ created.channelName }}</strong> is ready{{ created.private ? "" : ", and the join card is up in brunch-events" }}.
+        <template v-if="created.invited"> Invites went out to {{ created.invited }} {{ created.invited === 1 ? "person" : "people" }}.</template>
+      </p>
+      <div v-if="created.failedInvites.length" class="error">
+        Couldn't DM {{ created.failedInvites.join(", ") }} — they have DMs from server members turned off. Send them the channel link yourself.
+      </div>
       <a class="btn-primary new-event-open" :href="created.discordUrl">Open in Discord</a>
       <router-link v-if="created.albumUrl" class="new-event-another" :to="created.albumUrl">View album</router-link>
       <button class="new-event-another" @click="reset">Create another</button>
@@ -72,6 +78,40 @@
         </template>
       </div>
 
+      <div class="form-group">
+        <label>Who can join</label>
+        <div class="new-event-tabs">
+          <button :class="{ active: !isPrivate }" @click="isPrivate = false">🌍 Public brunch event</button>
+          <button :class="{ active: isPrivate }" @click="isPrivate = true">🔒 Private</button>
+        </div>
+        <div class="new-event-hint">{{ isPrivate
+          ? "No join card in brunch-events. Only the people you invite can join."
+          : "A join card goes up in brunch-events for anyone to join." }}</div>
+      </div>
+
+      <div class="form-group">
+        <label for="ev-invite">Invite people <span class="new-event-optional">{{ isPrivate ? "they get a DM with a Join button" : "optional · they get a DM with a Join button" }}</span></label>
+        <div v-if="invited.length" class="new-event-chips">
+          <span v-for="p in invited" :key="p.id" class="member-chip">
+            <img v-if="p.avatarUrl" :src="p.avatarUrl" class="member-avatar" alt="" />
+            <span class="member-name">{{ p.name }}</span>
+            <button class="new-event-chip-x" :aria-label="`Remove ${p.name}`" @click="uninvite(p.id)">✕</button>
+          </span>
+        </div>
+        <div class="new-event-search">
+          <input id="ev-invite" v-model="inviteQuery" type="text" autocomplete="off"
+            :placeholder="peopleError || 'Search the server by name…'" :disabled="!!peopleError"
+            @focus="loadPeople" @keydown.enter.prevent="matches[0] && invite(matches[0])" />
+          <div v-if="inviteQuery.trim() && matches.length" class="new-event-results">
+            <button v-for="p in matches" :key="p.id" @click="invite(p)">
+              <img v-if="p.avatarUrl" :src="p.avatarUrl" class="member-avatar" alt="" />
+              <span>{{ p.name }}</span><span class="new-event-optional">@{{ p.username }}</span>
+            </button>
+          </div>
+          <div v-else-if="inviteQuery.trim() && people.length" class="new-event-noresults">No one matches.</div>
+        </div>
+      </div>
+
       <label class="new-event-check">
         <input v-model="rsvp" type="checkbox" />
         <span>RSVP buttons <span class="new-event-optional">Coming / Maybe / Decline / Lurking and +1. Off: joining the channel is enough.</span></span>
@@ -88,15 +128,46 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import { authJsonHeaders } from "../utils/session";
+
+interface Person { id: string; name: string; username: string; avatarUrl: string }
 
 const blank = () => ({ name: "", description: "", location: "", date: "", time: "", endDate: "", endTime: "" });
 const form = ref(blank());
 const hasEnd = ref(false);
 const creating = ref(false);
 const error = ref("");
-const created = ref<{ channelName: string; discordUrl: string; albumUrl?: string } | null>(null);
+const created = ref<{ channelName: string; discordUrl: string; albumUrl?: string; private: boolean; invited: number; failedInvites: string[] } | null>(null);
+const isPrivate = ref(false);
+
+// Invitees, picked from the Discord server's members (loaded the first time the search box is used).
+const people = ref<Person[]>([]);
+const peopleError = ref("");
+let peopleLoading: Promise<void> | null = null;
+const invited = ref<Person[]>([]);
+const inviteQuery = ref("");
+function loadPeople() {
+  peopleLoading ??= fetch("/api/events/people").then(async r => {
+    if (!r.ok) throw new Error();
+    people.value = await r.json();
+  }).catch(() => { peopleError.value = "Couldn't load the server members"; peopleLoading = null; });
+}
+const matches = computed(() => {
+  const q = inviteQuery.value.trim().toLowerCase();
+  if (!q) return [];
+  const chosen = new Set(invited.value.map(p => p.id));
+  return people.value
+    .filter(p => !chosen.has(p.id) && (p.name.toLowerCase().includes(q) || p.username.toLowerCase().includes(q)))
+    .slice(0, 8);
+});
+function invite(p: Person) {
+  invited.value.push(p);
+  inviteQuery.value = "";
+}
+function uninvite(id: string) {
+  invited.value = invited.value.filter(p => p.id !== id);
+}
 const imageMode = ref<"upload" | "link">("upload");
 const imageUrl = ref("");
 const imageBroken = ref(false);
@@ -152,6 +223,8 @@ async function submit() {
   if (hasEnd.value && !form.value.endDate) { error.value = "Pick an end date, or untick the end option."; return; }
   if (uploading.value) { error.value = "Wait for the image to finish uploading."; return; }
   if (imageUrl.value && imageBroken.value) { error.value = "That image link doesn't load. Fix it or remove it."; return; }
+  if (isPrivate.value && !invited.value.length
+      && !confirm("This private event has no invites yet, so only you will be in it. Create it anyway?")) return;
   creating.value = true;
   try {
     const f = form.value;
@@ -162,11 +235,16 @@ async function submit() {
         name: f.name, description: f.description, location: f.location, date: f.date, time: f.time,
         endDate: hasEnd.value ? f.endDate : "", endTime: hasEnd.value ? f.endTime : "",
         imageUrl: imageUrl.value, rsvp: rsvp.value, album: album.value,
+        private: isPrivate.value, invites: invited.value.map(p => p.id),
       }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { error.value = data.error ?? "Something went wrong. Try again."; return; }
-    created.value = { channelName: data.channelName, discordUrl: data.discordUrl, albumUrl: data.albumUrl ? new URL(data.albumUrl).pathname : undefined };
+    created.value = {
+      channelName: data.channelName, discordUrl: data.discordUrl,
+      albumUrl: data.albumUrl ? new URL(data.albumUrl).pathname : undefined,
+      private: isPrivate.value, invited: data.invited ?? 0, failedInvites: data.failedInvites ?? [],
+    };
   } catch {
     error.value = "Couldn't reach the server. Try again.";
   } finally {
@@ -181,6 +259,9 @@ function reset() {
   clearImage();
   rsvp.value = true;
   album.value = false;
+  isPrivate.value = false;
+  invited.value = [];
+  inviteQuery.value = "";
 }
 </script>
 
@@ -212,5 +293,14 @@ function reset() {
 .new-event-image img { display: block; width: 100%; max-height: 320px; object-fit: contain; }
 .new-event-image-broken { padding: 20px; color: #f38ba8; text-align: center; }
 .new-event-image-remove { position: absolute; top: 8px; right: 8px; background: rgba(17,17,27,0.8); color: #cdd6f4; border: none; border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 0.85rem; }
+.new-event-hint { color: #7f849c; font-size: 0.85em; }
+.new-event-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.new-event-chip-x { background: none; border: none; color: #6c7086; cursor: pointer; padding: 0 0 0 4px; font-size: 0.85em; }
+.new-event-chip-x:hover { color: #f38ba8; }
+.new-event-search { position: relative; }
+.new-event-results { position: absolute; z-index: 10; left: 0; right: 0; top: calc(100% + 4px); background: #313244; border: 1px solid #45475a; border-radius: 8px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+.new-event-results button { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: none; color: #cdd6f4; padding: 8px 12px; cursor: pointer; font-size: 0.95rem; text-align: left; }
+.new-event-results button:hover, .new-event-results button:first-child { background: #45475a; }
+.new-event-noresults { color: #6c7086; font-size: 0.85em; margin-top: 6px; }
 @media (max-width: 480px) { .new-event-row { grid-template-columns: 1fr; gap: 0; } }
 </style>

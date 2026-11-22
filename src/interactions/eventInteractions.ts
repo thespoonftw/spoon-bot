@@ -14,11 +14,10 @@ import type { RSVPStatus } from "../types";
 import { makeMemberEntry } from "../types";
 import { updateJoinMessage, updateInnerMessage, updateEventMessages } from "../messageSync";
 import { hasAlbum, getAlbumUrl, handleAlbumInteractions, startAlbumForChannel } from "../albums";
-import { dbAddAlbumMember, dbUpsertUser } from "../db";
 import { handleGearMenuInteractions, buildEventModalComponents } from "./gearMenuInteractions";
 import { parseCreateDateText } from "../dateUtils";
 import { createDiscordLoginLink } from "../auth";
-import { setUpEvent } from "../eventCreation";
+import { setUpEvent, joinEvent } from "../eventCreation";
 
 function getDisplayName(interaction: Interaction): string {
   const member = interaction.member;
@@ -144,33 +143,14 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
       return;
     }
 
-    const channel = g.channels.cache.get(channelId);
-    if (!channel || channel.type !== ChannelType.GuildText) {
-      await interaction.reply({ content: "Event channel not found.", ephemeral: true });
-      return;
-    }
-
     if (state?.members.has(interaction.user.id)) {
       await interaction.reply({ content: "You've already joined this event.", ephemeral: true });
       return;
     }
 
     await interaction.deferUpdate();
-    await channel.permissionOverwrites.edit(interaction.user.id, { ViewChannel: true, SendMessages: true });
-
-    if (state) {
-      const displayName = getDisplayName(interaction);
-      state.members.set(interaction.user.id, makeMemberEntry(interaction.user.id, displayName));
-      persistState();
-      if (hasAlbum(channelId)) {
-        dbUpsertUser(interaction.user.id, displayName, interaction.user.displayAvatarURL({ extension: "png", size: 128 }));
-        dbAddAlbumMember(channelId, interaction.user.id);
-      }
-      await updateJoinMessage(g, channelId);
-      await updateInnerMessage(g, channelId);
-    }
-
-    await channel.send(`**${interaction.user.displayName}** joined.`);
+    const result = await joinEvent(g, channelId, interaction.user, getDisplayName(interaction));
+    if (result === "missing") await interaction.followUp({ content: "Event channel not found.", ephemeral: true });
     return;
   }
 

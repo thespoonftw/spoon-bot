@@ -10,6 +10,7 @@ import { buildGroupJoinEmbed, buildGroupPinEmbed, groupJoinComponents, groupLeav
 export async function updateJoinMessage(guild: Guild, channelId: string) {
   const state = eventStates.get(channelId);
   if (!state) return;
+  if (!state.joinMessageId) return; // private events have no join card
   const announcementChannel = guild.channels.cache.get(config.eventChannelId);
   if (announcementChannel && announcementChannel.type === ChannelType.GuildText) {
     try {
@@ -37,8 +38,9 @@ export async function updateEventMessages(guild: Guild, channelId: string) {
   if (!state) { console.error(`updateEventMessages: no state for ${channelId}`); return; }
   if (dbHasAlbum(channelId)) dbSyncAlbumFromEvent(channelId, state.eventName);
 
-  const announcementChannel = guild.channels.cache.get(config.eventChannelId);
-  if (!announcementChannel) { console.error(`updateEventMessages: announcement channel ${config.eventChannelId} not in cache`); }
+  const announcementChannel = state.joinMessageId ? guild.channels.cache.get(config.eventChannelId) : undefined;
+  if (!state.joinMessageId) { /* private event: no join card */ }
+  else if (!announcementChannel) { console.error(`updateEventMessages: announcement channel ${config.eventChannelId} not in cache`); }
   else if (announcementChannel.type !== ChannelType.GuildText) { console.error(`updateEventMessages: announcement channel wrong type ${announcementChannel.type}`); }
   else {
     try {

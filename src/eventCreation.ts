@@ -1,5 +1,5 @@
-import { ChannelType, PermissionFlagsBits } from "discord.js";
-import type { Client, Guild, TextChannel } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } from "discord.js";
+import type { Client, Guild, Interaction, TextChannel, User } from "discord.js";
 import type { IncomingMessage, ServerResponse } from "http";
 import crypto from "crypto";
 import fs from "fs";
@@ -9,10 +9,11 @@ import { eventStates, persistState, DATA_DIR } from "./state";
 import type { EventState } from "./types";
 import { makeMemberEntry } from "./types";
 import { buildJoinContent, buildJoinEmbed, buildInnerEmbed, joinMessageComponents, pinMessageComponents, pinMessageContent } from "./eventBuilders";
-import { startAlbumForChannel } from "./albums";
+import { startAlbumForChannel, hasAlbum } from "./albums";
+import { updateJoinMessage, updateInnerMessage } from "./messageSync";
 import { DAYS, MONTHS } from "./dateUtils";
 import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
-import { dbGetUserById } from "./db";
+import { dbGetUserById, dbUpsertUser, dbAddAlbumMember } from "./db";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const sharp = require("sharp") as (input: Buffer) => { rotate(): { resize(w: number, h: number, o: object): { jpeg(o: object): { toFile(p: string): Promise<unknown> } } } };
 
@@ -23,8 +24,78 @@ const MAX_UPLOAD = 15 * 1024 * 1024;
 
 export type NewEvent = {
   eventName: string; description: string; location: string; dateText: string; endDateText?: string;
-  imageUrl?: string; rsvpEnabled?: boolean; album?: boolean;
+  imageUrl?: string; rsvpEnabled?: boolean; album?: boolean; private?: boolean;
 };
+
+// Lets someone into an event channel and adds them to its cards and album.
+export async function joinEvent(guild: Guild, channelId: string, user: User, displayName: string): Promise<"joined" | "already" | "missing"> {
+  const state = eventStates.get(channelId);
+  const channel = guild.channels.cache.get(channelId);
+  if (!channel || channel.type !== ChannelType.GuildText) return "missing";
+  if (state?.members.has(user.id)) return "already";
+  await channel.permissionOverwrites.edit(user.id, { ViewChannel: true, SendMessages: true });
+  if (state) {
+    state.members.set(user.id, makeMemberEntry(user.id, displayName));
+    persistState();
+    if (hasAlbum(channelId)) {
+      dbUpsertUser(user.id, displayName, user.displayAvatarURL({ extension: "png", size: 128 }));
+      dbAddAlbumMember(channelId, user.id);
+    }
+    await updateJoinMessage(guild, channelId);
+    await updateInnerMessage(guild, channelId);
+  }
+  await channel.send(`**${displayName}** joined.`);
+  return "joined";
+}
+
+export const INVITE_JOIN_PREFIX = "invite_join_";
+
+// DMs each person the event card with a Join button. Returns the IDs whose DMs are closed.
+export async function sendInvites(guild: Guild, channelId: string, inviterName: string, ids: string[]): Promise<string[]> {
+  const state = eventStates.get(channelId);
+  if (!state) return ids;
+  const failed: string[] = [];
+  for (const id of ids) {
+    if (state.members.has(id)) continue;
+    try {
+      const member = await guild.members.fetch(id);
+      if (member.user.bot) continue;
+      await member.send({
+        content: `💌 **${inviterName}** invited you to **${state.eventName}**${state.private ? " (a private event)" : ""}.`,
+        embeds: [buildJoinEmbed(state)],
+        components: [new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder().setCustomId(`${INVITE_JOIN_PREFIX}${channelId}`).setLabel("Join").setEmoji("✅").setStyle(ButtonStyle.Success))],
+      });
+      if (!state.invitedIds?.includes(id)) (state.invitedIds ??= []).push(id);
+    } catch {
+      failed.push(id);
+    }
+  }
+  persistState();
+  return failed;
+}
+
+// The Join button on an invite DM. An invite gets you in even when the event is private or joining is closed.
+export async function handleInviteInteraction(interaction: Interaction): Promise<boolean> {
+  if (!interaction.isButton() || !interaction.customId.startsWith(INVITE_JOIN_PREFIX)) return false;
+  const channelId = interaction.customId.slice(INVITE_JOIN_PREFIX.length);
+  const guild = interaction.client.guilds.cache.get(config.guildId);
+  const member = guild ? await guild.members.fetch(interaction.user.id).catch(() => null) : null;
+  if (!guild || !member || !eventStates.has(channelId)) {
+    await interaction.update({ content: "This event no longer exists.", components: [] });
+    return true;
+  }
+  await interaction.deferUpdate();
+  const result = await joinEvent(guild, channelId, interaction.user, member.displayName);
+  const link = `https://discord.com/channels/${guild.id}/${channelId}`;
+  const done = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Open the event").setURL(link));
+  await interaction.editReply({
+    content: result === "missing" ? "This event no longer exists." : `✅ You've joined **${eventStates.get(channelId)?.eventName}**.`,
+    components: result === "missing" ? [] : [done],
+  });
+  return true;
+}
 
 // Sets up an event in `channel`: the pinned RSVP card inside it and the join card in the events channel.
 export async function setUpEvent(guild: Guild, channel: TextChannel, creatorId: string, creatorName: string, ev: NewEvent): Promise<void> {
@@ -36,6 +107,7 @@ export async function setUpEvent(guild: Guild, channel: TextChannel, creatorId: 
     creatorId,
     ...(ev.rsvpEnabled === false ? { rsvpEnabled: false } : {}),
     ...(ev.imageUrl ? { imageUrl: ev.imageUrl } : {}),
+    ...(ev.private ? { private: true } : {}),
   };
   state.members.set(creatorId, makeMemberEntry(creatorId, creatorName));
   const dated = ev.dateText !== "TBC";
@@ -49,7 +121,7 @@ export async function setUpEvent(guild: Guild, channel: TextChannel, creatorId: 
   await pinMsg.pin();
 
   const announcementChannel = guild.channels.cache.get(config.eventChannelId);
-  if (announcementChannel?.isSendable()) {
+  if (!ev.private && announcementChannel?.isSendable()) {
     const joinMsg = await announcementChannel.send({
       content: buildJoinContent(state),
       embeds: [buildJoinEmbed(state)],
@@ -130,6 +202,26 @@ export function handleEventRoutes(req: IncomingMessage, res: ServerResponse): bo
     return true;
   }
 
+  // GET /api/events/people — server members to pick invitees from.
+  if (url === "/api/events/people" && req.method === "GET") {
+    const user = getSessionUser(getTokenFromRequest(req));
+    if (!user) { send401(res); return true; }
+    const me = dbGetUserById(user.userId)?.discordId;
+    const guild = discordClient?.guilds.cache.get(config.guildId);
+    if (!guild) { sendJson(res, 503, { error: "The bot isn't connected to Discord right now." }); return true; }
+    guild.members.fetch().then(members => {
+      const people = [...members.values()]
+        .filter(m => !m.user.bot && m.id !== me)
+        .map(m => ({ id: m.id, name: m.displayName, username: m.user.username, avatarUrl: m.displayAvatarURL({ extension: "png", size: 64 }) }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      sendJson(res, 200, people);
+    }).catch(e => {
+      console.error("Listing server members failed:", e);
+      sendJson(res, 500, { error: "Couldn't load the server members." });
+    });
+    return true;
+  }
+
   if (url !== "/api/events" || req.method !== "POST") return false;
 
   const user = getSessionUser(getTokenFromRequest(req));
@@ -172,9 +264,12 @@ export function handleEventRoutes(req: IncomingMessage, res: ServerResponse): bo
 
       const channel = await createEvent(guild, member.id, member.displayName, {
         eventName, description, location, dateText, endDateText,
-        imageUrl: imageUrl || undefined, rsvpEnabled: b.rsvp !== false, album: b.album === true,
+        imageUrl: imageUrl || undefined, rsvpEnabled: b.rsvp !== false, album: b.album === true, private: b.private === true,
       });
-      sendJson(res, 201, { channelId: channel.id, channelName: channel.name, albumUrl: b.album === true ? `${getBaseUrl()}/archives/albums/${channel.id}` : undefined, discordUrl: `https://discord.com/channels/${guild.id}/${channel.id}` });
+      const invites = Array.isArray(b.invites) ? [...new Set(b.invites.filter((i): i is string => typeof i === "string" && /^\d{5,25}$/.test(i)))].slice(0, 100) : [];
+      const failed = await sendInvites(guild, channel.id, member.displayName, invites.filter(id => id !== member.id));
+      const failedNames = failed.map(id => guild.members.cache.get(id)?.displayName ?? id);
+      sendJson(res, 201, { channelId: channel.id, channelName: channel.name, invited: invites.length - failed.length, failedInvites: failedNames, albumUrl: b.album === true ? `${getBaseUrl()}/archives/albums/${channel.id}` : undefined, discordUrl: `https://discord.com/channels/${guild.id}/${channel.id}` });
     } catch (e) {
       console.error("Create event from website failed:", e);
       sendJson(res, 500, { error: "Something went wrong creating the event. Try again." });

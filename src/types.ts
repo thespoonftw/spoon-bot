@@ -26,6 +26,10 @@ export type EventState = {
   rsvpEnabled?: boolean;
   // Shown large on both event cards: an uploaded image (/event-images/…) or a link someone gave.
   imageUrl?: string;
+  // Private events have no join card in the events channel: only people invited can join.
+  private?: boolean;
+  // Discord IDs of everyone sent an invite DM (they can join a private event, and see it in their calendar feed).
+  invitedIds?: string[];
   members: Map<string, MemberEntry>;
 };
 
