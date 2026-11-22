@@ -22,6 +22,10 @@ export type EventState = {
   scheduledEventId?: string;
   endDateText?: string;
   creatorId?: string;
+  // Off means no RSVP buttons: joining the channel is all there is. Missing (older events) means on.
+  rsvpEnabled?: boolean;
+  // Shown large on both event cards: an uploaded image (/event-images/…) or a link someone gave.
+  imageUrl?: string;
   members: Map<string, MemberEntry>;
 };
 

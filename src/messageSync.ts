@@ -2,7 +2,7 @@ import { ChannelType } from "discord.js";
 import type { Guild } from "discord.js";
 import { config } from "./config";
 import { eventStates, groupStates, persistState, persistGroupState } from "./state";
-import { buildJoinContent, buildJoinEmbed, buildInnerEmbed, joinMessageComponents, pinMessageComponents } from "./eventBuilders";
+import { buildJoinContent, buildJoinEmbed, buildInnerEmbed, joinMessageComponents, pinMessageComponents, pinMessageContent, rsvpOn } from "./eventBuilders";
 import { getAlbumUrl } from "./albums";
 import { dbSyncAlbumFromEvent, dbHasAlbum } from "./db";
 import { buildGroupJoinEmbed, buildGroupPinEmbed, groupJoinComponents, groupLeaveComponents } from "./groupBuilders";
@@ -27,7 +27,7 @@ export async function updateInnerMessage(guild: Guild, channelId: string) {
     try {
       const pinMsg = await eventChannel.messages.fetch(state.pinMessageId);
       const albumUrl = getAlbumUrl(channelId) ?? undefined;
-      await pinMsg.edit({ content: 'Click here to RSVP!', embeds: [buildInnerEmbed(state, albumUrl)], components: pinMessageComponents(channelId, state.dateText !== "TBC") });
+      await pinMsg.edit({ content: pinMessageContent(state), embeds: [buildInnerEmbed(state, albumUrl)], components: pinMessageComponents(channelId, state.dateText !== "TBC", rsvpOn(state)) });
     } catch (e) { console.error("Failed to update inner message:", e); }
   }
 }
@@ -58,7 +58,7 @@ export async function updateEventMessages(guild: Guild, channelId: string) {
       await eventChannel.setTopic(state.description || null);
       const pinMsg = await eventChannel.messages.fetch(state.pinMessageId);
       const albumUrl = getAlbumUrl(channelId) ?? undefined;
-      await pinMsg.edit({ content: 'Click here to RSVP!', embeds: [buildInnerEmbed(state, albumUrl)], components: pinMessageComponents(channelId, state.dateText !== "TBC") });
+      await pinMsg.edit({ content: pinMessageContent(state), embeds: [buildInnerEmbed(state, albumUrl)], components: pinMessageComponents(channelId, state.dateText !== "TBC", rsvpOn(state)) });
     } catch (e) { console.error("Failed to update inner message:", e); }
   }
 }

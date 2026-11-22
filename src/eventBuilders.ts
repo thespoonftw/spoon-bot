@@ -40,11 +40,18 @@ export function buildJoinContent(state: EventState): string {
 }
 
 function buildEventEmbedBase(state: EventState): EmbedBuilder {
-  return new EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setTitle(state.eventName)
     .setDescription(buildDescText(state.description, state.location, state.dateText, state.endDateText))
     .setColor(0x5865F2);
+  if (state.imageUrl) embed.setImage(state.imageUrl);
+  return embed;
 }
+
+export const rsvpOn = (state: EventState) => state.rsvpEnabled !== false;
+
+// The text above the pinned card inside the event channel.
+export const pinMessageContent = (state: EventState) => rsvpOn(state) ? "Click here to RSVP!" : "";
 
 export function buildJoinEmbed(state: EventState) {
   const embed = buildEventEmbedBase(state);
@@ -58,7 +65,10 @@ export function buildJoinEmbed(state: EventState) {
 export function buildInnerEmbed(state: EventState, albumUrl?: string) {
   const embed = buildEventEmbedBase(state);
 
-  if (state.members.size > 0) {
+  if (state.members.size > 0 && !rsvpOn(state)) {
+    const ids = [...state.members.keys()];
+    embed.addFields({ name: "​", value: `**👥 Joined (${ids.length})**\n${ids.map(id => `- <@${id}>`).join("\n")}` });
+  } else if (state.members.size > 0) {
     const groups: Record<RSVPStatus, string[]> = { coming: [], maybe: [], decline: [], lurking: [] };
     for (const m of state.members.values()) groups[m.status]?.push(m.userId);
 
@@ -98,15 +108,15 @@ export function joinMessageComponents(channelId: string, joiningEnabled: boolean
   return buttons.length ? [new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons)] : [];
 }
 
-export function pinMessageComponents(channelId: string, hasDate = false) {
+export function pinMessageComponents(channelId: string, hasDate = false, rsvp = true) {
   return [
-    new ActionRowBuilder<ButtonBuilder>().addComponents(
+    ...(rsvp ? [new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`rsvp_coming_${channelId}`).setLabel("✅ Coming").setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId(`rsvp_maybe_${channelId}`).setLabel("❔ Maybe").setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId(`rsvp_decline_${channelId}`).setLabel("❌ Decline").setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId(`rsvp_lurking_${channelId}`).setLabel("👀 Lurking").setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId(`plusone_${channelId}`).setLabel("👥 +1").setStyle(ButtonStyle.Secondary),
-    ),
+    )] : []),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`leave_event_${channelId}`).setLabel(LEAVE_LABEL).setStyle(ButtonStyle.Danger),
       new ButtonBuilder().setCustomId(`edit_menu_${channelId}`).setLabel("⚙").setStyle(ButtonStyle.Secondary),
@@ -115,7 +125,7 @@ export function pinMessageComponents(channelId: string, hasDate = false) {
   ];
 }
 
-export function buildGearMenuComponents(channelId: string, joiningEnabled: boolean, dateText: string, albumActive = false) {
+export function buildGearMenuComponents(channelId: string, joiningEnabled: boolean, dateText: string, albumActive = false, rsvpEnabled = true) {
   const row1: ButtonBuilder[] = [
     new ButtonBuilder().setCustomId(`edit_open_desc_${channelId}`).setLabel("Edit Event").setStyle(ButtonStyle.Primary),
   ];
@@ -128,6 +138,7 @@ export function buildGearMenuComponents(channelId: string, joiningEnabled: boole
     new ActionRowBuilder<ButtonBuilder>().addComponents(...row1),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`gear_toggle_join_${channelId}`).setLabel(joiningEnabled ? "Disable Joining" : "Enable Joining").setStyle(joiningEnabled ? ButtonStyle.Danger : ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`gear_toggle_rsvp_${channelId}`).setLabel(rsvpEnabled ? "Turn Off RSVP" : "Turn On RSVP").setStyle(rsvpEnabled ? ButtonStyle.Danger : ButtonStyle.Primary),
       new ButtonBuilder().setCustomId(`gear_delete_ask_${channelId}`).setLabel("Delete Event").setStyle(ButtonStyle.Danger),
       new ButtonBuilder().setCustomId(`close_edit_${channelId}`).setLabel("Cancel").setStyle(ButtonStyle.Secondary),
     ),

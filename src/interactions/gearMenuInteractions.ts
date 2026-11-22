@@ -14,7 +14,7 @@ import { config } from "../config";
 import { eventStates, pendingGearMenus, persistState } from "../state";
 import { buildGearMenuComponents, backRow } from "../eventBuilders";
 import { parseDateText, parseCreateDateText, dateTextToCreateFields } from "../dateUtils";
-import { updateJoinMessage, updateEventMessages } from "../messageSync";
+import { updateJoinMessage, updateInnerMessage, updateEventMessages } from "../messageSync";
 import { hasAlbum } from "../albums";
 
 type EventModalPrefill = { eventName?: string; description?: string; location?: string; dateStr?: string; timeStr?: string };
@@ -62,7 +62,7 @@ export async function handleGearMenuInteractions(interaction: Interaction): Prom
     await interaction.reply({
       ephemeral: true,
       content: "What would you like to do?",
-      components: buildGearMenuComponents(channelId, state.joiningEnabled, state.dateText, hasAlbum(channelId)),
+      components: buildGearMenuComponents(channelId, state.joiningEnabled, state.dateText, hasAlbum(channelId), state?.rsvpEnabled !== false),
     });
     pendingGearMenus.set(channelId, interaction);
     return true;
@@ -79,7 +79,7 @@ export async function handleGearMenuInteractions(interaction: Interaction): Prom
     await interaction.reply({
       ephemeral: true,
       content: "What would you like to do?",
-      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true, state?.dateText ?? "TBC", hasAlbum(channelId)),
+      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true, state?.dateText ?? "TBC", hasAlbum(channelId), state?.rsvpEnabled !== false),
     });
     pendingGearMenus.set(channelId, interaction);
     return true;
@@ -98,7 +98,7 @@ export async function handleGearMenuInteractions(interaction: Interaction): Prom
     const state = eventStates.get(channelId);
     await interaction.update({
       content: "What would you like to do?",
-      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true, state?.dateText ?? "TBC", hasAlbum(channelId)),
+      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true, state?.dateText ?? "TBC", hasAlbum(channelId), state?.rsvpEnabled !== false),
     });
     return true;
   }
@@ -154,6 +154,19 @@ export async function handleGearMenuInteractions(interaction: Interaction): Prom
     return true;
   }
 
+  // Turn RSVP on/off
+  if (interaction.isButton() && interaction.customId.startsWith("gear_toggle_rsvp_")) {
+    const channelId = interaction.customId.slice("gear_toggle_rsvp_".length);
+    const state = eventStates.get(channelId);
+    if (!state || !interaction.guild) return true;
+    state.rsvpEnabled = state.rsvpEnabled === false;
+    persistState();
+    await interaction.deferUpdate();
+    await updateInnerMessage(interaction.guild, channelId);
+    await interaction.deleteReply();
+    return true;
+  }
+
   // Delete Event — show confirmation
   if (interaction.isButton() && interaction.customId.startsWith("gear_delete_ask_")) {
     const channelId = interaction.customId.slice("gear_delete_ask_".length);
@@ -201,7 +214,7 @@ export async function handleGearMenuInteractions(interaction: Interaction): Prom
     const state = eventStates.get(channelId);
     await interaction.update({
       content: "What would you like to do?",
-      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true, state?.dateText ?? "TBC", hasAlbum(channelId)),
+      components: buildGearMenuComponents(channelId, state?.joiningEnabled ?? true, state?.dateText ?? "TBC", hasAlbum(channelId), state?.rsvpEnabled !== false),
     });
     return true;
   }
