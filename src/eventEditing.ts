@@ -84,9 +84,11 @@ function snapshot(channelId: string, state: EventState): Snapshot {
 const STATUS_LABELS: Record<RSVPStatus, string> = { coming: "✅ Coming", maybe: "❔ Maybe", decline: "❌ Declined", lurking: "👀 Lurking" };
 const shortWhen = (t: string | undefined) => !t ? "none" : t.endsWith(", All Day") ? t.slice(0, -", All Day".length) + " (all day)" : t;
 
-// One line per change. Names are written out rather than @mentioned so an edit doesn't ping anyone.
-function describeChanges(guild: Guild, a: Snapshot, b: Snapshot, invitedIds: string[]): string[] {
+// One line per change, plus who to ping: people whose RSVP or guests were changed are @mentioned;
+// everyone else is just named, so the rest of an edit doesn't ping anyone.
+function describeChanges(guild: Guild, a: Snapshot, b: Snapshot, invitedIds: string[]): { lines: string[]; ping: string[] } {
   const out: string[] = [];
+  const ping: string[] = [];
   if (a.name !== b.name) out.push(`📝 Name: ${a.name} → **${b.name}**`);
   if (a.dateText !== b.dateText) out.push(`📅 When: ${shortWhen(a.dateText)} → **${shortWhen(b.dateText)}**`);
   if (a.endDateText !== b.endDateText) {
@@ -103,19 +105,20 @@ function describeChanges(guild: Guild, a: Snapshot, b: Snapshot, invitedIds: str
   for (const [id, after] of b.rsvps) {
     const prev = a.rsvps.get(id);
     if (!prev) continue;
-    const name = guild.members.cache.get(id)?.displayName ?? after.name;
+    const name = `<@${id}>`;
+    if (prev.status !== after.status || prev.plusOne !== after.plusOne) ping.push(id);
     if (prev.status !== after.status) out.push(`🙋 ${name}: ${STATUS_LABELS[prev.status]} → **${STATUS_LABELS[after.status]}**`);
     if (prev.plusOne !== after.plusOne) out.push(`👥 ${name}: ${after.plusOne ? `bringing **${after.plusOne}** guest${after.plusOne > 1 ? "s" : ""}` : "**no guests**"}`);
   }
   if (invitedIds.length) out.push(`💌 Invited ${invitedIds.map(id => guild.members.cache.get(id)?.displayName ?? id).join(", ")}`);
-  return out;
+  return { lines: out, ping };
 }
 
-async function postToEvent(guild: Guild, channelId: string, text: string): Promise<void> {
+async function postToEvent(guild: Guild, channelId: string, text: string, ping: string[] = []): Promise<void> {
   const channel = guild.channels.cache.get(channelId);
   if (!channel?.isSendable()) return;
   // Discord's 2000-character limit; a huge batch of RSVP edits gets cut short rather than failing.
-  await channel.send({ content: text.length > 1990 ? text.slice(0, 1980) + "\n…" : text, allowedMentions: { parse: [] } })
+  await channel.send({ content: text.length > 1990 ? text.slice(0, 1980) + "\n…" : text, allowedMentions: { parse: [], users: ping } })
     .catch(e => console.error("Posting event change summary failed:", e));
 }
 
@@ -231,7 +234,9 @@ export function handleEventEditRoutes(req: IncomingMessage, res: ServerResponse)
 
       const sentTo = invites.filter(id => id !== member.id && !failed.includes(id));
       const changes = describeChanges(guild, before, snapshot(channelId, state), sentTo);
-      if (changes.length) await postToEvent(guild, channelId, `✏️ **${member.displayName}** updated the event:\n${changes.map(c => `- ${c}`).join("\n")}`);
+      if (changes.lines.length) {
+        await postToEvent(guild, channelId, `✏️ **${member.displayName}** updated the event:\n${changes.lines.map(c => `- ${c}`).join("\n")}`, changes.ping);
+      }
 
       sendJson(res, 200, {
         ...eventForForm(guild, channelId, state),
