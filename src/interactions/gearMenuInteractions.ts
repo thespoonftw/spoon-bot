@@ -32,7 +32,7 @@ function hasRole(interaction: Interaction): boolean {
   return roles.cache.has(config.requiredRoleId);
 }
 
-// The ⚙ button on an event and /edit: a private link to the website's Edit Event page, signed in as them.
+// /edit (and the old ⚙ button, on any card not yet refreshed): a private link to the Edit Event page, signed in as them.
 export async function handleGearMenuInteractions(interaction: Interaction): Promise<boolean> {
   let channelId: string;
   if (interaction.isChatInputCommand() && interaction.commandName === "edit") channelId = interaction.channelId;

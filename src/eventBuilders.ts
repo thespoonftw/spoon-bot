@@ -118,7 +118,8 @@ export function pinMessageComponents(channelId: string, hasDate = false, rsvp = 
     )] : []),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`leave_event_${channelId}`).setLabel(LEAVE_LABEL).setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId(`edit_menu_${channelId}`).setLabel("⚙").setStyle(ButtonStyle.Secondary),
+      // A plain link: the edit page asks people to log in to the website if they aren't already.
+      new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("⚙").setURL(`${process.env.ALBUM_BASE_URL ?? "http://localhost:3000"}/events/${channelId}/edit`),
       ...(hasDate ? [subscribeButton()] : []),
     ),
   ];
