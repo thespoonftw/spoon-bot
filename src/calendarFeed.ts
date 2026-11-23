@@ -168,8 +168,8 @@ function linksFor(token: string, feedName: string, name: string) {
   const url = feedUrl(token, feedName);
   return {
     name, url,
-    // The https address itself: webcal:// makes Google fetch over http and hit our https redirect.
-    google: `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(url)}`,
+    // Google needs the feed as webcal:// here: an https:// address in cid gets "Unable to add calendar. Check the URL".
+    google: `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl(url))}`,
     apple: url.replace(/\.ics$/, "/apple"),
     outlook: `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(url)}&name=${encodeURIComponent(name)}`,
   };
@@ -239,7 +239,7 @@ function subscribeMessage(discordId: string) {
     const url = feedUrl(token, feed);
     return new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`cal_label_${feed}`).setLabel(FEED_NAMES[feed]).setStyle(ButtonStyle.Secondary).setDisabled(true),
-      new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Google").setURL(`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(url)}`),
+      new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Google").setURL(`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl(url))}`),
       new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Apple").setURL(url.replace(/\.ics$/, "/apple")),
       new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Outlook").setURL(`https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(url)}&name=${encodeURIComponent(FEED_NAMES[feed])}`),
     );
