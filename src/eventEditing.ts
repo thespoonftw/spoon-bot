@@ -65,6 +65,60 @@ function deleteAlbum(channelId: string): void {
   try { fs.rmSync(path.join(PHOTO_STORAGE_PATH, channelId), { recursive: true, force: true }); } catch (e) { console.error("Failed to remove album photo directory:", e); }
 }
 
+// What an edit can change, captured before and after a save so the channel can be told what changed.
+type Snapshot = {
+  name: string; description: string; location: string; dateText: string; endDateText?: string; imageUrl?: string;
+  rsvp: boolean; private: boolean; joiningEnabled: boolean; album: boolean;
+  rsvps: Map<string, { status: RSVPStatus; plusOne: number; name: string }>;
+};
+
+function snapshot(channelId: string, state: EventState): Snapshot {
+  return {
+    name: state.eventName, description: state.description, location: state.location,
+    dateText: state.dateText, endDateText: state.endDateText, imageUrl: state.imageUrl,
+    rsvp: state.rsvpEnabled !== false, private: !!state.private, joiningEnabled: state.joiningEnabled, album: hasAlbum(channelId),
+    rsvps: new Map([...state.members.values()].map(m => [m.userId, { status: m.status, plusOne: m.plusOne, name: m.displayName }])),
+  };
+}
+
+const STATUS_LABELS: Record<RSVPStatus, string> = { coming: "✅ Coming", maybe: "❔ Maybe", decline: "❌ Declined", lurking: "👀 Lurking" };
+const shortWhen = (t: string | undefined) => !t ? "none" : t.endsWith(", All Day") ? t.slice(0, -", All Day".length) + " (all day)" : t;
+
+// One line per change. Names are written out rather than @mentioned so an edit doesn't ping anyone.
+function describeChanges(guild: Guild, a: Snapshot, b: Snapshot, invitedIds: string[]): string[] {
+  const out: string[] = [];
+  if (a.name !== b.name) out.push(`📝 Name: ${a.name} → **${b.name}**`);
+  if (a.dateText !== b.dateText) out.push(`📅 When: ${shortWhen(a.dateText)} → **${shortWhen(b.dateText)}**`);
+  if (a.endDateText !== b.endDateText) {
+    out.push(!b.endDateText ? "🏁 Removed the end time" : !a.endDateText
+      ? `🏁 Ends: **${shortWhen(b.endDateText)}**` : `🏁 Ends: ${shortWhen(a.endDateText)} → **${shortWhen(b.endDateText)}**`);
+  }
+  if (a.location !== b.location) out.push(`📍 Where: ${a.location} → **${b.location}**`);
+  if (a.description !== b.description) out.push("📄 Changed the description");
+  if (a.imageUrl !== b.imageUrl) out.push(!b.imageUrl ? "🖼️ Removed the image" : a.imageUrl ? "🖼️ Changed the image" : "🖼️ Added an image");
+  if (a.private !== b.private) out.push(b.private ? "🔒 Made the event private" : "🌍 Made the event public");
+  if (a.joiningEnabled !== b.joiningEnabled) out.push(b.joiningEnabled ? "✅ Re-opened joining" : "🚫 Closed joining");
+  if (a.rsvp !== b.rsvp) out.push(b.rsvp ? "🙋 Turned RSVPs on" : "🙋 Turned RSVPs off");
+  if (!a.album && b.album) out.push("📸 Started a photo album");
+  for (const [id, after] of b.rsvps) {
+    const prev = a.rsvps.get(id);
+    if (!prev) continue;
+    const name = guild.members.cache.get(id)?.displayName ?? after.name;
+    if (prev.status !== after.status) out.push(`🙋 ${name}: ${STATUS_LABELS[prev.status]} → **${STATUS_LABELS[after.status]}**`);
+    if (prev.plusOne !== after.plusOne) out.push(`👥 ${name}: ${after.plusOne ? `bringing **${after.plusOne}** guest${after.plusOne > 1 ? "s" : ""}` : "**no guests**"}`);
+  }
+  if (invitedIds.length) out.push(`💌 Invited ${invitedIds.map(id => guild.members.cache.get(id)?.displayName ?? id).join(", ")}`);
+  return out;
+}
+
+async function postToEvent(guild: Guild, channelId: string, text: string): Promise<void> {
+  const channel = guild.channels.cache.get(channelId);
+  if (!channel?.isSendable()) return;
+  // Discord's 2000-character limit; a huge batch of RSVP edits gets cut short rather than failing.
+  await channel.send({ content: text.length > 1990 ? text.slice(0, 1980) + "\n…" : text, allowedMentions: { parse: [] } })
+    .catch(e => console.error("Posting event change summary failed:", e));
+}
+
 function eventForForm(guild: Guild, channelId: string, state: EventState) {
   const start = dateTextToFields(state.dateText);
   const end = dateTextToFields(state.endDateText);
@@ -116,7 +170,9 @@ export function handleEventEditRoutes(req: IncomingMessage, res: ServerResponse)
       if (method === "GET") { sendJson(res, 200, eventForForm(guild, channelId, state)); return; }
 
       if (isAlbum) {
+        const had = hasAlbum(channelId);
         deleteAlbum(channelId);
+        if (had) await postToEvent(guild, channelId, `🗑️ **${member.displayName}** deleted the event's photo album.`);
         await updateEventMessages(guild, channelId);
         sendJson(res, 200, eventForForm(guild, channelId, state));
         return;
@@ -133,6 +189,7 @@ export function handleEventEditRoutes(req: IncomingMessage, res: ServerResponse)
       const parsed = parseEventFields(b);
       if ("error" in parsed) { sendJson(res, 400, { error: parsed.error }); return; }
       const renamed = parsed.eventName !== state.eventName;
+      const before = snapshot(channelId, state);
       state.eventName = parsed.eventName;
       state.description = parsed.description;
       state.location = parsed.location || "TBC";
@@ -171,6 +228,11 @@ export function handleEventEditRoutes(req: IncomingMessage, res: ServerResponse)
       const invites = state.private && Array.isArray(b.invites)
         ? [...new Set(b.invites.filter((i): i is string => typeof i === "string" && /^\d{5,25}$/.test(i)))].slice(0, 100) : [];
       const failed = await sendInvites(guild, channelId, member.displayName, invites.filter(id => id !== member.id));
+
+      const sentTo = invites.filter(id => id !== member.id && !failed.includes(id));
+      const changes = describeChanges(guild, before, snapshot(channelId, state), sentTo);
+      if (changes.length) await postToEvent(guild, channelId, `✏️ **${member.displayName}** updated the event:\n${changes.map(c => `- ${c}`).join("\n")}`);
+
       sendJson(res, 200, {
         ...eventForForm(guild, channelId, state),
         invited: invites.length - failed.length,
