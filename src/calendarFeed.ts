@@ -26,7 +26,7 @@ type Feed = "all" | "joined";
 const FEED_NAMES: Record<Feed, string> = { all: "All brunch events", joined: "Events I've joined" };
 type LocalTime = { y: number; m: number; d: number; hh: number; mm: number; allDay: boolean };
 
-function parseLocal(dateText: string | undefined): LocalTime | null {
+export function parseLocal(dateText: string | undefined): LocalTime | null {
   if (!dateText || dateText === "TBC") return null;
   const s = sessionFromDateText(dateText);
   if (!s?.day || !s.month || !s.year) return null;

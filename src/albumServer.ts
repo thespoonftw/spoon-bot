@@ -24,6 +24,7 @@ import { handleFaceRoutes, photosOfUser } from "./faces";
 import { handleCountersRoutes } from "./countersApp";
 import { handleCalendarRoutes } from "./calendarFeed";
 import { handleEventRoutes } from "./eventCreation";
+import { handleEventEditRoutes } from "./eventEditing";
 import { dbHasAlbum, dbUpdateAlbum, dbDeleteAlbum, dbAddUploadedPhoto, dbGetAlbumWithPhotos, dbGetAllAlbumsWithPhotos, dbCreateAlbum, dbUpsertUser, dbAddAlbumMember, dbRemoveAlbumMember, dbHideAlbumMember, dbUnhideAlbumMember, dbGetAllAlbumMembers, dbGetAllUsers, dbGetUserById, dbCreateGuestUser, dbDeleteUser, dbDeletePhoto, dbCreateAlbumShare, dbGetAlbumShare, dbGetPhotoCount, dbGetAlbumCount, dbVotePhoto, dbSetPhotoTagged, dbGetPhotoVotes, dbGetAlbumVotes, dbSetPhotoCaption, dbListTables, dbTablePage, dbSearchPhotos, dbGetAlbumLocations, dbAddAlbumLocation, dbDeleteAlbumLocation, dbReorderAlbumLocations, dbSetLocationCoords, dbRenameAlbumLocation, dbSetPhotoLocation, dbSetPhotoTakenAt } from "./db";
 
 const getBaseUrl = () => process.env.ALBUM_BASE_URL ?? "http://localhost:3000";
@@ -154,6 +155,7 @@ export function startWebServer(): void {
     if (handleCountersRoutes(req, res)) return;
     if (handleCalendarRoutes(req, res)) return;
     if (handleEventRoutes(req, res)) return;
+    if (handleEventEditRoutes(req, res)) return;
     if (handleAuthRoutes(req, res)) return;
     if (handleReviewRoutes(req, res)) return;
     if (handleLocationRoutes(req, res)) return;

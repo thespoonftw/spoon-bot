@@ -1,7 +1,17 @@
 <template>
-  <!-- Create Event: opened from /event in Discord. Makes the event channel, posts its join card (public events) and DMs invites. -->
+  <!-- Create Event (/events/new, from /event in Discord) and Edit Event (/events/:channelId/edit, from an event's ⚙ button).
+       Creating makes the event channel, posts its join card (public events) and DMs invites. -->
   <div class="page new-event">
-    <template v-if="created">
+    <p v-if="loading" class="subtitle">Loading the event…</p>
+    <template v-else-if="loadError">
+      <h1>Can't edit this event</h1>
+      <div class="error">{{ loadError }}</div>
+    </template>
+    <template v-else-if="deleted">
+      <h1>Event deleted</h1>
+      <p class="subtitle">The channel{{ isPrivate ? " is" : " and its join card are" }} gone.</p>
+    </template>
+    <template v-else-if="created">
       <h1>Event created 🎉</h1>
       <p class="subtitle">
         Your channel <strong>#{{ created.channelName }}</strong> is ready{{ created.private ? "" : ", and the join card is up in brunch-events" }}.
@@ -15,7 +25,11 @@
       <button class="new-event-another" @click="reset">Create another</button>
     </template>
     <template v-else>
-      <h1>Create Event</h1>
+      <div v-if="editing" class="new-event-head">
+        <h1>Edit Event</h1>
+        <a v-if="ev" :href="ev.discordUrl" class="new-event-another">Open in Discord ↗</a>
+      </div>
+      <h1 v-else>Create Event</h1>
       <div class="form-group">
         <label for="ev-name">Event name</label>
         <input id="ev-name" v-model="form.name" type="text" maxlength="100" placeholder="e.g. Sunday brunch" autofocus />
@@ -33,7 +47,7 @@
       <div class="new-event-row">
         <div class="form-group">
           <label for="ev-date">Date <span class="new-event-optional">leave empty for TBC</span></label>
-          <input id="ev-date" v-model="form.date" type="date" :min="today" />
+          <input id="ev-date" v-model="form.date" type="date" :min="editing ? undefined : today" />
         </div>
         <div class="form-group">
           <label for="ev-time">Start time <span class="new-event-optional">empty = all day</span></label>
@@ -88,9 +102,16 @@
           ? "No join card in brunch-events. Only the people you invite can join."
           : "A join card goes up in brunch-events for anyone to join." }}</div>
       </div>
+      <label v-if="editing && !isPrivate" class="new-event-check">
+        <input v-model="joiningEnabled" type="checkbox" />
+        <span>Joining open <span class="new-event-optional">Off: the join card stops taking new people (invites still work).</span></span>
+      </label>
 
       <div class="form-group">
-        <label for="ev-invite">Invite people <span class="new-event-optional">{{ isPrivate ? "they get a DM with a Join button" : "optional · they get a DM with a Join button" }}</span></label>
+        <label for="ev-invite">{{ editing ? "Invite more people" : "Invite people" }} <span class="new-event-optional">{{ isPrivate ? "they get a DM with a Join button" : "optional · they get a DM with a Join button" }}</span></label>
+        <div v-if="ev && ev.members.length" class="new-event-hint new-event-already">
+          In the event: {{ ev.members.map(m => m.name).join(", ") }}
+        </div>
         <div v-if="invited.length" class="new-event-chips">
           <span v-for="p in invited" :key="p.id" class="member-chip">
             <img v-if="p.avatarUrl" :src="p.avatarUrl" class="member-avatar" alt="" />
@@ -116,22 +137,56 @@
         <input v-model="rsvp" type="checkbox" />
         <span>RSVP buttons <span class="new-event-optional">Coming / Maybe / Decline / Lurking and +1. Off: joining the channel is enough.</span></span>
       </label>
-      <label class="new-event-check">
+      <div v-if="ev?.albumUrl" class="new-event-check new-event-album">
+        <span>📸 Photo album <span class="new-event-optional">
+          <router-link :to="ev.albumUrl" class="new-event-inline">View album</router-link> ·
+          <button class="new-event-inline danger" :disabled="busy" @click="deleteAlbum">Delete album and its photos</button>
+        </span></span>
+      </div>
+      <label v-else class="new-event-check">
         <input v-model="album" type="checkbox" />
         <span>Photo album <span class="new-event-optional">a shared album on the site for everyone in the event</span></span>
       </label>
 
       <div v-if="error" class="error">{{ error }}</div>
-      <button class="btn-primary new-event-submit" :disabled="creating" @click="submit">{{ creating ? "Creating…" : "Create event" }}</button>
+      <div v-if="saved" class="new-event-saved">
+        ✓ Saved.<template v-if="saved.invited"> Invites went out to {{ saved.invited }} {{ saved.invited === 1 ? "person" : "people" }}.</template>
+        <template v-if="saved.failedInvites.length"> Couldn't DM {{ saved.failedInvites.join(", ") }} — they have DMs turned off.</template>
+      </div>
+      <button class="btn-primary new-event-submit" :disabled="creating" @click="submit">
+        {{ editing ? (creating ? "Saving…" : "Save changes") : (creating ? "Creating…" : "Create event") }}
+      </button>
+      <div v-if="editing" class="new-event-danger">
+        <button class="new-event-inline danger" :disabled="busy" @click="deleteEvent">Delete this event</button>
+        <span class="new-event-optional">removes the channel, its messages and the join card</span>
+      </div>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, onMounted } from "vue";
+import { useRoute } from "vue-router";
 import { authJsonHeaders } from "../utils/session";
 
 interface Person { id: string; name: string; username: string; avatarUrl: string }
+interface EventData {
+  channelId: string; name: string; description: string; location: string;
+  date: string; time: string; endDate: string; endTime: string; imageUrl: string;
+  rsvp: boolean; private: boolean; joiningEnabled: boolean; albumUrl: string | null;
+  members: { id: string; name: string }[]; invitedIds: string[]; discordUrl: string;
+}
+
+const route = useRoute();
+const channelId = typeof route.params.channelId === "string" ? route.params.channelId : "";
+const editing = !!channelId;
+const loading = ref(editing);
+const loadError = ref("");
+const ev = ref<EventData | null>(null);
+const joiningEnabled = ref(true);
+const saved = ref<{ invited: number; failedInvites: string[] } | null>(null);
+const deleted = ref(false);
+const busy = ref(false);
 
 const blank = () => ({ name: "", description: "", location: "", date: "", time: "", endDate: "", endTime: "" });
 const form = ref(blank());
@@ -156,7 +211,7 @@ function loadPeople() {
 const matches = computed(() => {
   const q = inviteQuery.value.trim().toLowerCase();
   if (!q) return [];
-  const chosen = new Set(invited.value.map(p => p.id));
+  const chosen = new Set([...invited.value.map(p => p.id), ...(ev.value?.members.map(m => m.id) ?? [])]);
   return people.value
     .filter(p => !chosen.has(p.id) && (p.name.toLowerCase().includes(q) || p.username.toLowerCase().includes(q)))
     .slice(0, 8);
@@ -217,29 +272,95 @@ const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-$
 watch(hasEnd, on => { if (on && !form.value.endDate) form.value.endDate = form.value.date; });
 watch(() => form.value.date, date => { if (!date) { form.value.time = ""; hasEnd.value = false; } });
 
+// Fills the form from the server's copy of the event (on load, and after each save).
+function fill(data: EventData) {
+  ev.value = data;
+  form.value = { name: data.name, description: data.description, location: data.location, date: data.date, time: data.time, endDate: data.endDate, endTime: data.endTime };
+  hasEnd.value = !!data.endDate;
+  imageUrl.value = data.imageUrl;
+  imageBroken.value = false;
+  rsvp.value = data.rsvp;
+  isPrivate.value = data.private;
+  joiningEnabled.value = data.joiningEnabled;
+  album.value = false;
+  invited.value = [];
+}
+
+onMounted(async () => {
+  if (!editing) return;
+  try {
+    const res = await fetch(`/api/events/${channelId}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { loadError.value = data.error ?? "Couldn't load the event."; return; }
+    fill(data);
+  } catch {
+    loadError.value = "Couldn't reach the server.";
+  } finally {
+    loading.value = false;
+  }
+});
+
+async function deleteAlbum() {
+  if (!confirm("Delete this event's photo album and every photo in it? This can't be undone.")) return;
+  busy.value = true;
+  error.value = "";
+  try {
+    const res = await fetch(`/api/events/${channelId}/album`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { error.value = data.error ?? "Couldn't delete the album."; return; }
+    if (ev.value) ev.value.albumUrl = null;
+  } catch {
+    error.value = "Couldn't reach the server.";
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function deleteEvent() {
+  if (!confirm(`Delete "${ev.value?.name ?? "this event"}"? The channel and everything in it will be gone. This can't be undone.`)) return;
+  busy.value = true;
+  error.value = "";
+  try {
+    const res = await fetch(`/api/events/${channelId}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { error.value = data.error ?? "Couldn't delete the event."; return; }
+    deleted.value = true;
+  } catch {
+    error.value = "Couldn't reach the server.";
+  } finally {
+    busy.value = false;
+  }
+}
+
 async function submit() {
   error.value = "";
+  saved.value = null;
   if (!form.value.name.trim()) { error.value = "Give the event a name."; return; }
   if (hasEnd.value && !form.value.endDate) { error.value = "Pick an end date, or untick the end option."; return; }
   if (uploading.value) { error.value = "Wait for the image to finish uploading."; return; }
   if (imageUrl.value && imageBroken.value) { error.value = "That image link doesn't load. Fix it or remove it."; return; }
-  if (isPrivate.value && !invited.value.length
+  if (isPrivate.value && !invited.value.length && !editing
       && !confirm("This private event has no invites yet, so only you will be in it. Create it anyway?")) return;
   creating.value = true;
   try {
     const f = form.value;
-    const res = await fetch("/api/events", {
-      method: "POST",
+    const res = await fetch(editing ? `/api/events/${channelId}` : "/api/events", {
+      method: editing ? "PUT" : "POST",
       headers: authJsonHeaders(),
       body: JSON.stringify({
         name: f.name, description: f.description, location: f.location, date: f.date, time: f.time,
         endDate: hasEnd.value ? f.endDate : "", endTime: hasEnd.value ? f.endTime : "",
         imageUrl: imageUrl.value, rsvp: rsvp.value, album: album.value,
-        private: isPrivate.value, invites: invited.value.map(p => p.id),
+        private: isPrivate.value, invites: invited.value.map(p => p.id), joiningEnabled: joiningEnabled.value,
       }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { error.value = data.error ?? "Something went wrong. Try again."; return; }
+    if (editing) {
+      fill(data);
+      saved.value = { invited: data.invited ?? 0, failedInvites: data.failedInvites ?? [] };
+      return;
+    }
     created.value = {
       channelName: data.channelName, discordUrl: data.discordUrl,
       albumUrl: data.albumUrl ? new URL(data.albumUrl).pathname : undefined,
@@ -294,6 +415,15 @@ function reset() {
 .new-event-image-broken { padding: 20px; color: #f38ba8; text-align: center; }
 .new-event-image-remove { position: absolute; top: 8px; right: 8px; background: rgba(17,17,27,0.8); color: #cdd6f4; border: none; border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 0.85rem; }
 .new-event-hint { color: #7f849c; font-size: 0.85em; }
+.new-event-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.new-event-head .new-event-another { text-decoration: none; }
+.new-event-already { margin-bottom: 8px; }
+.new-event-album { cursor: default; }
+.new-event-inline { background: none; border: none; padding: 0; color: #89b4fa; cursor: pointer; font: inherit; text-decoration: none; }
+.new-event-inline.danger { color: #f38ba8; }
+.new-event-inline:disabled { opacity: 0.5; cursor: default; }
+.new-event-saved { color: #a6e3a1; background: #313244; border-radius: 8px; padding: 10px 16px; margin-bottom: 16px; }
+.new-event-danger { margin-top: 28px; padding-top: 16px; border-top: 1px solid #313244; font-size: 0.9em; }
 .new-event-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .new-event-chip-x { background: none; border: none; color: #6c7086; cursor: pointer; padding: 0 0 0 4px; font-size: 0.85em; }
 .new-event-chip-x:hover { color: #f38ba8; }

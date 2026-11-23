@@ -12,6 +12,7 @@ import { buildJoinContent, buildJoinEmbed, buildInnerEmbed, joinMessageComponent
 import { startAlbumForChannel, hasAlbum } from "./albums";
 import { updateJoinMessage, updateInnerMessage } from "./messageSync";
 import { DAYS, MONTHS } from "./dateUtils";
+import { parseLocal } from "./calendarFeed";
 import { getSessionUser, getTokenFromRequest, sendJson, send401 } from "./auth";
 import { dbGetUserById, dbUpsertUser, dbAddAlbumMember } from "./db";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -163,8 +164,47 @@ function toDateText(date: string, time: string): string | null {
   return `${DAYS[d.getDay()]} ${day} ${MONTHS[month - 1]} ${year}, ${time || "All Day"}`;
 }
 
+export type EventFields = { eventName: string; description: string; location: string; dateText: string; endDateText?: string; imageUrl: string };
+
+// Checks the fields the Create/Edit Event form sends (name, description, location, date/time, end, image link).
+export function parseEventFields(b: Record<string, unknown>): EventFields | { error: string } {
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const eventName = str(b.name), description = str(b.description), location = str(b.location);
+  const date = str(b.date), time = str(b.time), endDate = str(b.endDate), endTime = str(b.endTime);
+  const imageUrl = str(b.imageUrl);
+  if (imageUrl && (imageUrl.length > 1000 || !/^https?:\/\/\S+$/i.test(imageUrl))) return { error: "The image link should start with https://" };
+  if (!eventName) return { error: "Give the event a name." };
+  if (eventName.length > 100) return { error: "The name can be at most 100 characters." };
+  if (description.length > 3500) return { error: "The description can be at most 3500 characters." };
+  if (location.length > 200) return { error: "The location can be at most 200 characters." };
+
+  let dateText = "TBC";
+  let endDateText: string | undefined;
+  if (date) {
+    const t = toDateText(date, time);
+    if (!t) return { error: "That start date or time isn't valid." };
+    dateText = t;
+    if (endDate) {
+      const e = toDateText(endDate, endTime);
+      if (!e) return { error: "That end date or time isn't valid." };
+      if (`${endDate}T${endTime || "23:59"}` < `${date}T${time || "00:00"}`) return { error: "The event can't end before it starts." };
+      endDateText = e;
+    }
+  }
+  return { eventName, description, location, dateText, endDateText, imageUrl };
+}
+
+// The other way: a stored date text as the form's "2026-12-05" and "19:30" (or "" for all day / TBC).
+export function dateTextToFields(dateText: string | undefined): { date: string; time: string } {
+  const t = parseLocal(dateText);
+  if (!t) return { date: "", time: "" };
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return { date: `${t.y}-${pad(t.m)}-${pad(t.d)}`, time: t.allDay ? "" : `${pad(t.hh)}:${pad(t.mm)}` };
+}
+
 let discordClient: Client | null = null;
 export function setEventDiscordClient(client: Client) { discordClient = client; }
+export const getEventGuild = () => discordClient?.guilds.cache.get(config.guildId);
 
 // POST /api/events — the website's Create Event form (opened from /event in Discord).
 export function handleEventRoutes(req: IncomingMessage, res: ServerResponse): boolean {
@@ -231,30 +271,9 @@ export function handleEventRoutes(req: IncomingMessage, res: ServerResponse): bo
   req.on("end", async () => {
     try {
       const b = JSON.parse(body) as Record<string, unknown>;
-      const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
-      const eventName = str(b.name), description = str(b.description), location = str(b.location);
-      const date = str(b.date), time = str(b.time), endDate = str(b.endDate), endTime = str(b.endTime);
-      const imageUrl = str(b.imageUrl);
-      if (imageUrl && (imageUrl.length > 1000 || !/^https?:\/\/\S+$/i.test(imageUrl))) { sendJson(res, 400, { error: "The image link should start with https://" }); return; }
-
-      if (!eventName) { sendJson(res, 400, { error: "Give the event a name." }); return; }
-      if (eventName.length > 100) { sendJson(res, 400, { error: "The name can be at most 100 characters." }); return; }
-      if (description.length > 3500) { sendJson(res, 400, { error: "The description can be at most 3500 characters." }); return; }
-      if (location.length > 200) { sendJson(res, 400, { error: "The location can be at most 200 characters." }); return; }
-
-      let dateText = "TBC";
-      let endDateText: string | undefined;
-      if (date) {
-        const t = toDateText(date, time);
-        if (!t) { sendJson(res, 400, { error: "That start date or time isn't valid." }); return; }
-        dateText = t;
-        if (endDate) {
-          const e = toDateText(endDate, endTime);
-          if (!e) { sendJson(res, 400, { error: "That end date or time isn't valid." }); return; }
-          if (`${endDate}T${endTime || "23:59"}` < `${date}T${time || "00:00"}`) { sendJson(res, 400, { error: "The event can't end before it starts." }); return; }
-          endDateText = e;
-        }
-      }
+      const parsed = parseEventFields(b);
+      if ("error" in parsed) { sendJson(res, 400, { error: parsed.error }); return; }
+      const { eventName, description, location, dateText, endDateText, imageUrl } = parsed;
 
       const discordId = dbGetUserById(user.userId)?.discordId;
       const guild = discordClient?.guilds.cache.get(config.guildId);

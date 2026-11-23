@@ -5,7 +5,6 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import type { EventState, RSVPStatus } from "./types";
-import { config } from "./config";
 
 export const SPACER = "⠀".repeat(40);
 export const JOIN_LABEL = "⠀".repeat(12) + "Join" + "⠀".repeat(12);
@@ -123,30 +122,4 @@ export function pinMessageComponents(channelId: string, hasDate = false, rsvp = 
       ...(hasDate ? [subscribeButton()] : []),
     ),
   ];
-}
-
-export function buildGearMenuComponents(channelId: string, joiningEnabled: boolean, dateText: string, albumActive = false, rsvpEnabled = true) {
-  const row1: ButtonBuilder[] = [
-    new ButtonBuilder().setCustomId(`edit_open_desc_${channelId}`).setLabel("Edit Event").setStyle(ButtonStyle.Primary),
-  ];
-  if (config.albumsEnabled) {
-    row1.push(albumActive
-      ? new ButtonBuilder().setCustomId(`album_delete_${channelId}`).setLabel("Delete Photo Album").setStyle(ButtonStyle.Danger)
-      : new ButtonBuilder().setCustomId(`album_start_${channelId}`).setLabel("Start Photo Album").setStyle(ButtonStyle.Primary));
-  }
-  return [
-    new ActionRowBuilder<ButtonBuilder>().addComponents(...row1),
-    new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId(`gear_toggle_join_${channelId}`).setLabel(joiningEnabled ? "Disable Joining" : "Enable Joining").setStyle(joiningEnabled ? ButtonStyle.Danger : ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`gear_toggle_rsvp_${channelId}`).setLabel(rsvpEnabled ? "Turn Off RSVP" : "Turn On RSVP").setStyle(rsvpEnabled ? ButtonStyle.Danger : ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`gear_delete_ask_${channelId}`).setLabel("Delete Event").setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId(`close_edit_${channelId}`).setLabel("Cancel").setStyle(ButtonStyle.Secondary),
-    ),
-  ];
-}
-
-export function backRow(channelId: string) {
-  return new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`gear_back_${channelId}`).setLabel("← Back").setStyle(ButtonStyle.Secondary),
-  );
 }
