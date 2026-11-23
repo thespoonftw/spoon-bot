@@ -20,16 +20,11 @@
       <div v-if="created.failedInvites.length" class="error">
         Couldn't DM {{ created.failedInvites.join(", ") }} — they have DMs from server members turned off. Send them the channel link yourself.
       </div>
-      <a class="btn-primary new-event-open" :href="created.discordUrl">Open in Discord</a>
       <router-link v-if="created.albumUrl" class="new-event-another" :to="created.albumUrl">View album</router-link>
       <button class="new-event-another" @click="reset">Create another</button>
     </template>
     <template v-else>
-      <div v-if="editing" class="new-event-head">
-        <h1>Edit Event</h1>
-        <a v-if="ev" :href="ev.discordUrl" class="new-event-another">Open in Discord ↗</a>
-      </div>
-      <h1 v-else>Create Event</h1>
+      <h1>{{ editing ? "Edit Event" : "Create Event" }}</h1>
       <div class="form-group">
         <label for="ev-name">Event name</label>
         <input id="ev-name" v-model="form.name" type="text" maxlength="100" placeholder="e.g. Sunday brunch" autofocus />
@@ -104,14 +99,11 @@
       </div>
       <label v-if="editing && !isPrivate" class="new-event-check">
         <input v-model="joiningEnabled" type="checkbox" />
-        <span>Joining open <span class="new-event-optional">Off: the join card stops taking new people (invites still work).</span></span>
+        <span>Joining open <span class="new-event-optional">Off: the join card stops taking new people.</span></span>
       </label>
 
-      <div class="form-group">
-        <label for="ev-invite">{{ editing ? "Invite more people" : "Invite people" }} <span class="new-event-optional">{{ isPrivate ? "they get a DM with a Join button" : "optional · they get a DM with a Join button" }}</span></label>
-        <div v-if="ev && ev.members.length" class="new-event-hint new-event-already">
-          In the event: {{ ev.members.map(m => m.name).join(", ") }}
-        </div>
+      <div v-if="isPrivate" class="form-group">
+        <label for="ev-invite">{{ editing ? "Invite more people" : "Invite people" }} <span class="new-event-optional">they get a DM with a Join button</span></label>
         <div v-if="invited.length" class="new-event-chips">
           <span v-for="p in invited" :key="p.id" class="member-chip">
             <img v-if="p.avatarUrl" :src="p.avatarUrl" class="member-avatar" alt="" />
@@ -137,6 +129,28 @@
         <input v-model="rsvp" type="checkbox" />
         <span>RSVP buttons <span class="new-event-optional">Coming / Maybe / Decline / Lurking and +1. Off: joining the channel is enough.</span></span>
       </label>
+
+      <div v-if="ev && ev.members.length" class="form-group">
+        <label>People in the event <span class="new-event-optional">{{ rsvp ? "set anyone's RSVP and guests" : `${ev.members.length}` }}</span></label>
+        <div class="new-event-people">
+          <div v-for="m in ev.members" :key="m.id" class="new-event-person">
+            <img v-if="m.avatarUrl" :src="m.avatarUrl" class="member-avatar" alt="" />
+            <span v-else class="member-avatar member-avatar-placeholder">{{ m.name.charAt(0) }}</span>
+            <span class="new-event-person-name">{{ m.name }}</span>
+            <template v-if="rsvp && rsvpEdits[m.id]">
+              <select v-model="rsvpEdits[m.id].status" :aria-label="`${m.name}'s RSVP`">
+                <option value="coming">✅ Coming</option>
+                <option value="maybe">❔ Maybe</option>
+                <option value="decline">❌ Declined</option>
+                <option value="lurking">👀 Lurking</option>
+              </select>
+              <select v-model.number="rsvpEdits[m.id].plusOne" :aria-label="`${m.name}'s guests`" class="new-event-plus">
+                <option v-for="n in 6" :key="n" :value="n - 1">{{ n === 1 ? "No +1" : `+${n - 1}` }}</option>
+              </select>
+            </template>
+          </div>
+        </div>
+      </div>
       <div v-if="ev?.albumUrl" class="new-event-check new-event-album">
         <span>📸 Photo album <span class="new-event-optional">
           <router-link :to="ev.albumUrl" class="new-event-inline">View album</router-link> ·
@@ -174,8 +188,12 @@ interface EventData {
   channelId: string; name: string; description: string; location: string;
   date: string; time: string; endDate: string; endTime: string; imageUrl: string;
   rsvp: boolean; private: boolean; joiningEnabled: boolean; albumUrl: string | null;
-  members: { id: string; name: string }[]; invitedIds: string[]; discordUrl: string;
+  members: Member[]; invitedIds: string[]; discordUrl: string;
 }
+type RsvpStatus = "coming" | "maybe" | "decline" | "lurking";
+interface Member { id: string; name: string; avatarUrl: string; status: RsvpStatus; plusOne: number }
+// The People list's RSVP and +1 pickers, by member ID; sent with Save.
+const rsvpEdits = ref<Record<string, { status: RsvpStatus; plusOne: number }>>({});
 
 const route = useRoute();
 const channelId = typeof route.params.channelId === "string" ? route.params.channelId : "";
@@ -284,6 +302,7 @@ function fill(data: EventData) {
   joiningEnabled.value = data.joiningEnabled;
   album.value = false;
   invited.value = [];
+  rsvpEdits.value = Object.fromEntries(data.members.map(m => [m.id, { status: m.status, plusOne: m.plusOne }]));
 }
 
 onMounted(async () => {
@@ -351,7 +370,8 @@ async function submit() {
         name: f.name, description: f.description, location: f.location, date: f.date, time: f.time,
         endDate: hasEnd.value ? f.endDate : "", endTime: hasEnd.value ? f.endTime : "",
         imageUrl: imageUrl.value, rsvp: rsvp.value, album: album.value,
-        private: isPrivate.value, invites: invited.value.map(p => p.id), joiningEnabled: joiningEnabled.value,
+        private: isPrivate.value, invites: isPrivate.value ? invited.value.map(p => p.id) : [], joiningEnabled: joiningEnabled.value,
+        rsvps: Object.entries(rsvpEdits.value).map(([id, r]) => ({ id, ...r })),
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -397,7 +417,6 @@ function reset() {
 .new-event-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .new-event-check { display: flex; align-items: flex-start; gap: 8px; line-height: 1.4; color: #a6adc8; font-size: 0.9em; margin-bottom: 16px; cursor: pointer; }
 .new-event-submit { width: 100%; padding: 13px; font-size: 1rem; }
-.new-event-open { display: inline-block; text-decoration: none; margin-right: 12px; }
 .new-event-another { background: none; border: none; color: #89b4fa; cursor: pointer; font-size: 0.95rem; }
 .new-event-check input { margin-top: 3px; }
 .new-event-check .new-event-optional { display: block; margin-left: 0; font-size: 0.9em; }
@@ -415,9 +434,12 @@ function reset() {
 .new-event-image-broken { padding: 20px; color: #f38ba8; text-align: center; }
 .new-event-image-remove { position: absolute; top: 8px; right: 8px; background: rgba(17,17,27,0.8); color: #cdd6f4; border: none; border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 0.85rem; }
 .new-event-hint { color: #7f849c; font-size: 0.85em; }
-.new-event-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.new-event-head .new-event-another { text-decoration: none; }
-.new-event-already { margin-bottom: 8px; }
+.new-event-people { display: flex; flex-direction: column; gap: 6px; background: #313244; border-radius: 8px; padding: 8px 10px; }
+.new-event-person { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+.new-event-person-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.new-event-person select { background: #1e1e2e; color: #cdd6f4; border: 1px solid #45475a; border-radius: 6px; padding: 4px 6px; font-size: 0.85rem; }
+.new-event-person select:focus { outline: none; border-color: #cba6f7; }
+.new-event-plus { width: 76px; }
 .new-event-album { cursor: default; }
 .new-event-inline { background: none; border: none; padding: 0; color: #89b4fa; cursor: pointer; font: inherit; text-decoration: none; }
 .new-event-inline.danger { color: #f38ba8; }

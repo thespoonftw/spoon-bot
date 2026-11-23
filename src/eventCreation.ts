@@ -285,7 +285,8 @@ export function handleEventRoutes(req: IncomingMessage, res: ServerResponse): bo
         eventName, description, location, dateText, endDateText,
         imageUrl: imageUrl || undefined, rsvpEnabled: b.rsvp !== false, album: b.album === true, private: b.private === true,
       });
-      const invites = Array.isArray(b.invites) ? [...new Set(b.invites.filter((i): i is string => typeof i === "string" && /^\d{5,25}$/.test(i)))].slice(0, 100) : [];
+      // Invites are for private events; public ones have the join card.
+      const invites = b.private === true && Array.isArray(b.invites) ? [...new Set(b.invites.filter((i): i is string => typeof i === "string" && /^\d{5,25}$/.test(i)))].slice(0, 100) : [];
       const failed = await sendInvites(guild, channel.id, member.displayName, invites.filter(id => id !== member.id));
       const failedNames = failed.map(id => guild.members.cache.get(id)?.displayName ?? id);
       sendJson(res, 201, { channelId: channel.id, channelName: channel.name, invited: invites.length - failed.length, failedInvites: failedNames, albumUrl: b.album === true ? `${getBaseUrl()}/archives/albums/${channel.id}` : undefined, discordUrl: `https://discord.com/channels/${guild.id}/${channel.id}` });

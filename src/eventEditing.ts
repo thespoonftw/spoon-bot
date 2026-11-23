@@ -5,7 +5,9 @@ import fs from "fs";
 import path from "path";
 import { config } from "./config";
 import { eventStates, persistState } from "./state";
-import type { EventState } from "./types";
+import type { EventState, RSVPStatus } from "./types";
+
+const RSVP_STATUSES: RSVPStatus[] = ["coming", "maybe", "decline", "lurking"];
 import { buildJoinContent, buildJoinEmbed, joinMessageComponents } from "./eventBuilders";
 import { updateEventMessages } from "./messageSync";
 import { hasAlbum, getAlbumUrl, startAlbumForChannel } from "./albums";
@@ -77,7 +79,11 @@ function eventForForm(guild: Guild, channelId: string, state: EventState) {
     private: !!state.private,
     joiningEnabled: state.joiningEnabled,
     albumUrl: albumUrl ? new URL(albumUrl).pathname : null,
-    members: [...state.members.values()].map(m => ({ id: m.userId, name: guild.members.cache.get(m.userId)?.displayName ?? m.displayName })),
+    members: [...state.members.values()].map(m => ({
+      id: m.userId, name: guild.members.cache.get(m.userId)?.displayName ?? m.displayName,
+      avatarUrl: guild.members.cache.get(m.userId)?.displayAvatarURL({ extension: "png", size: 64 }) ?? "",
+      status: m.status, plusOne: m.plusOne,
+    })),
     invitedIds: state.invitedIds ?? [],
     discordUrl: `https://discord.com/channels/${guild.id}/${channelId}`,
   };
@@ -136,6 +142,16 @@ export function handleEventEditRoutes(req: IncomingMessage, res: ServerResponse)
       state.rsvpEnabled = b.rsvp === false ? false : undefined;
       state.joiningEnabled = b.joiningEnabled !== false;
 
+      // RSVPs set by the organiser: [{ id, status, plusOne }] for people already in the event.
+      if (state.rsvpEnabled !== false && Array.isArray(b.rsvps)) {
+        for (const r of b.rsvps as { id?: unknown; status?: unknown; plusOne?: unknown }[]) {
+          const entry = typeof r?.id === "string" ? state.members.get(r.id) : undefined;
+          if (!entry) continue;
+          if (typeof r.status === "string" && RSVP_STATUSES.includes(r.status as RSVPStatus)) entry.status = r.status as RSVPStatus;
+          if (Number.isInteger(r.plusOne) && (r.plusOne as number) >= 0 && (r.plusOne as number) <= 5) entry.plusOne = r.plusOne as number;
+        }
+      }
+
       const makePrivate = b.private === true;
       if (makePrivate && !state.private) await removeJoinCard(guild, state);
       if (!makePrivate && state.private) { state.private = undefined; await postJoinCard(guild, channelId, state); }
@@ -152,7 +168,7 @@ export function handleEventEditRoutes(req: IncomingMessage, res: ServerResponse)
         if (channel?.type === ChannelType.GuildText) channel.setName(newName).catch(e => console.error("Rename event channel failed:", e));
       }
 
-      const invites = Array.isArray(b.invites)
+      const invites = state.private && Array.isArray(b.invites)
         ? [...new Set(b.invites.filter((i): i is string => typeof i === "string" && /^\d{5,25}$/.test(i)))].slice(0, 100) : [];
       const failed = await sendInvites(guild, channelId, member.displayName, invites.filter(id => id !== member.id));
       sendJson(res, 200, {
