@@ -8,10 +8,12 @@
     <template v-else-if="links">
       <p class="subtitle">These are subscriptions, so if an event's date or details change, your calendar updates too.</p>
       <div v-if="onPhone" class="cal-phone">
-        📱 <strong>Using Google Calendar?</strong> The Google Calendar app can't add subscriptions, only Google Calendar's website can.
-        On your phone, turn on <strong>Desktop site</strong> in your browser's menu (⋮ in Chrome) and then tap Google, or open this page on a computer
-        (<button class="cal-reset cal-inline" @click="copy('page', pageUrl)">{{ copied === "page" ? "copied ✓" : "copy its link" }}</button>).
-        Once added, it shows in the app too. Apple and Outlook work fine from here.
+        <p class="cal-phone-head">💻 <strong>Using Google Calendar? Do this bit on a computer.</strong></p>
+        <p>The Google Calendar phone app can't add subscriptions, so the Google button won't work from your phone.
+          Open this page on a computer and click Google there. It'll then show up in the app on your phone too.</p>
+        <button class="cal-btn cal-phone-copy" @click="copy('page', pageUrl)">{{ copied === "page" ? "Link copied ✓" : "Copy this page's link" }}</button>
+        <p class="cal-phone-alt">No computer handy? Turn on <strong>Desktop site</strong> in your browser's menu (⋮ in Chrome), then tap Google.
+          Apple and Outlook work fine from your phone.</p>
       </div>
 
       <section v-for="opt in options" :key="opt.key" class="cal-option">
@@ -115,4 +117,8 @@ async function reset() {
 .cal-reset:disabled { opacity: 0.5; cursor: default; }
 .cal-inline { color: #89b4fa; }
 .cal-phone { background: #313244; border-left: 3px solid #f9e2af; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; color: #cdd6f4; font-size: 0.9em; line-height: 1.5; }
+.cal-phone p { margin: 0 0 8px; }
+.cal-phone-head { font-size: 1.05em; }
+.cal-phone-copy { margin-bottom: 10px; }
+.cal-phone-alt { color: #a6adc8; font-size: 0.95em; margin-bottom: 0 !important; }
 </style>
