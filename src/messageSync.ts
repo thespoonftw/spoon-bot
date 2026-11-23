@@ -15,7 +15,7 @@ export async function updateJoinMessage(guild: Guild, channelId: string) {
   if (announcementChannel && announcementChannel.type === ChannelType.GuildText) {
     try {
       const joinMsg = await announcementChannel.messages.fetch(state.joinMessageId);
-      await joinMsg.edit({ content: buildJoinContent(state), embeds: [buildJoinEmbed(state)], components: joinMessageComponents(channelId, state.joiningEnabled, state.dateText !== "TBC") });
+      await joinMsg.edit({ content: buildJoinContent(state), embeds: [buildJoinEmbed(state, channelId)], components: joinMessageComponents(channelId, state.joiningEnabled) });
     } catch (e) { console.error("Failed to update join message:", e); }
   }
 }
@@ -28,7 +28,7 @@ export async function updateInnerMessage(guild: Guild, channelId: string) {
     try {
       const pinMsg = await eventChannel.messages.fetch(state.pinMessageId);
       const albumUrl = getAlbumUrl(channelId) ?? undefined;
-      await pinMsg.edit({ content: pinMessageContent(state), embeds: [buildInnerEmbed(state, albumUrl)], components: pinMessageComponents(channelId, state.dateText !== "TBC", rsvpOn(state)) });
+      await pinMsg.edit({ content: pinMessageContent(state), embeds: [buildInnerEmbed(state, channelId, albumUrl)], components: pinMessageComponents(channelId, rsvpOn(state)) });
     } catch (e) { console.error("Failed to update inner message:", e); }
   }
 }
@@ -45,7 +45,7 @@ export async function updateEventMessages(guild: Guild, channelId: string) {
   else {
     try {
       const joinMsg = await announcementChannel.messages.fetch(state.joinMessageId);
-      await joinMsg.edit({ content: buildJoinContent(state), embeds: [buildJoinEmbed(state)], components: joinMessageComponents(channelId, state.joiningEnabled, state.dateText !== "TBC") });
+      await joinMsg.edit({ content: buildJoinContent(state), embeds: [buildJoinEmbed(state, channelId)], components: joinMessageComponents(channelId, state.joiningEnabled) });
     } catch (e: any) {
       if (e.code === 10008) { eventStates.delete(channelId); persistState(); return; }
       console.error("Failed to update join message:", e);
@@ -60,7 +60,7 @@ export async function updateEventMessages(guild: Guild, channelId: string) {
       await eventChannel.setTopic(state.description || null);
       const pinMsg = await eventChannel.messages.fetch(state.pinMessageId);
       const albumUrl = getAlbumUrl(channelId) ?? undefined;
-      await pinMsg.edit({ content: pinMessageContent(state), embeds: [buildInnerEmbed(state, albumUrl)], components: pinMessageComponents(channelId, state.dateText !== "TBC", rsvpOn(state)) });
+      await pinMsg.edit({ content: pinMessageContent(state), embeds: [buildInnerEmbed(state, channelId, albumUrl)], components: pinMessageComponents(channelId, rsvpOn(state)) });
     } catch (e) { console.error("Failed to update inner message:", e); }
   }
 }

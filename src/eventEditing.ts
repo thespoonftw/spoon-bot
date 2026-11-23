@@ -34,8 +34,8 @@ async function postJoinCard(guild: Guild, channelId: string, state: EventState):
   if (!announcementChannel?.isSendable()) return;
   const joinMsg = await announcementChannel.send({
     content: buildJoinContent(state),
-    embeds: [buildJoinEmbed(state)],
-    components: joinMessageComponents(channelId, state.joiningEnabled, state.dateText !== "TBC"),
+    embeds: [buildJoinEmbed(state, channelId)],
+    components: joinMessageComponents(channelId, state.joiningEnabled),
   });
   state.joinMessageId = joinMsg.id;
 }

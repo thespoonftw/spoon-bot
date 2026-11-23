@@ -63,7 +63,7 @@ export async function sendInvites(guild: Guild, channelId: string, inviterName: 
       if (member.user.bot) continue;
       await member.send({
         content: `💌 **${inviterName}** invited you to **${state.eventName}**${state.private ? " (a private event)" : ""}.`,
-        embeds: [buildJoinEmbed(state)],
+        embeds: [buildJoinEmbed(state, channelId)],
         components: [new ActionRowBuilder<ButtonBuilder>().addComponents(
           new ButtonBuilder().setCustomId(`${INVITE_JOIN_PREFIX}${channelId}`).setLabel("Join").setEmoji("✅").setStyle(ButtonStyle.Success))],
       });
@@ -121,8 +121,8 @@ export async function setUpEvent(guild: Guild, channel: TextChannel, creatorId: 
   const albumUrl = ev.album ? await startAlbumForChannel(channel.id, guild, ev.eventName) : undefined;
   const pinMsg = await channel.send({
     content: pinMessageContent(state) || undefined,
-    embeds: [buildInnerEmbed(state, albumUrl)],
-    components: pinMessageComponents(channel.id, dated, ev.rsvpEnabled !== false),
+    embeds: [buildInnerEmbed(state, channel.id, albumUrl)],
+    components: pinMessageComponents(channel.id, ev.rsvpEnabled !== false),
   });
   await pinMsg.pin();
 
@@ -130,8 +130,8 @@ export async function setUpEvent(guild: Guild, channel: TextChannel, creatorId: 
   if (!ev.private && announcementChannel?.isSendable()) {
     const joinMsg = await announcementChannel.send({
       content: buildJoinContent(state),
-      embeds: [buildJoinEmbed(state)],
-      components: joinMessageComponents(channel.id, true, dated),
+      embeds: [buildJoinEmbed(state, channel.id)],
+      components: joinMessageComponents(channel.id, true),
     });
     state.joinMessageId = joinMsg.id;
   }
