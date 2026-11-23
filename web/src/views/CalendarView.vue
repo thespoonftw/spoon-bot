@@ -10,7 +10,7 @@
       <div v-if="onPhone" class="cal-phone">
         <p class="cal-phone-head">💻 <strong>Using Google Calendar? Do this bit on a computer.</strong></p>
         <p>The Google Calendar phone app can't add subscriptions, so the Google button won't work from your phone.
-          Open this page on a computer and click Google there. It'll then show up in the app on your phone too.</p>
+          Open this page on a computer and click Google there. It'll then show on your phone too (see the note at the bottom).</p>
         <button class="cal-btn cal-phone-copy" @click="copy('page', pageUrl)">{{ copied === "page" ? "Link copied ✓" : "Copy this page's link" }}</button>
         <p class="cal-phone-alt">No computer handy? Turn on <strong>Desktop site</strong> in your browser's menu (⋮ in Chrome), then tap Google.
           Apple and Outlook work fine from your phone.</p>
@@ -27,6 +27,10 @@
         </div>
       </section>
 
+      <p class="cal-note">
+        <strong>Added it with Google but it's not on your phone?</strong> In the Google Calendar app go to ☰ → Settings,
+        tap the new calendar under your account (tap Show more if it's not listed) and turn on Sync.
+      </p>
       <p class="cal-note">
         Google Calendar only re-checks subscriptions every few hours (sometimes up to a day), so changes can take a while to show there.
         Apple and Outlook usually catch up within the hour.
