@@ -2,10 +2,11 @@ import { ChannelType } from "discord.js";
 import type { Guild, GuildMember } from "discord.js";
 import type { IncomingMessage, ServerResponse } from "http";
 import fs from "fs";
+import crypto from "crypto";
 import path from "path";
 import { config } from "./config";
 import { eventStates, persistState } from "./state";
-import type { EventState, RSVPStatus } from "./types";
+import type { EventState, PlaceholderPerson, RSVPStatus } from "./types";
 
 const RSVP_STATUSES: RSVPStatus[] = ["coming", "maybe", "decline", "lurking"];
 import { buildJoinContent, buildJoinEmbed, joinMessageComponents, displayWhen } from "./eventBuilders";
@@ -70,7 +71,8 @@ function deleteAlbum(channelId: string): void {
 type Snapshot = {
   name: string; description: string; location: string; dateText: string; endDateText?: string; imageUrl?: string;
   rsvp: boolean; private: boolean; joiningEnabled: boolean; album: boolean;
-  rsvps: Map<string, { status: RSVPStatus; plusOne: number; name: string }>;
+  rsvps: Map<string, { status: RSVPStatus; name: string }>;
+  placeholders: Map<string, { status: RSVPStatus; name: string }>;
 };
 
 function snapshot(channelId: string, state: EventState): Snapshot {
@@ -78,14 +80,15 @@ function snapshot(channelId: string, state: EventState): Snapshot {
     name: state.eventName, description: state.description, location: state.location,
     dateText: state.dateText, endDateText: state.endDateText, imageUrl: state.imageUrl,
     rsvp: state.rsvpEnabled !== false, private: !!state.private, joiningEnabled: state.joiningEnabled, album: hasAlbum(channelId),
-    rsvps: new Map([...state.members.values()].map(m => [m.userId, { status: m.status, plusOne: m.plusOne, name: m.displayName }])),
+    rsvps: new Map([...state.members.values()].map(m => [m.userId, { status: m.status, name: m.displayName }])),
+    placeholders: new Map((state.placeholders ?? []).map(p => [p.id, { status: p.status, name: p.name }])),
   };
 }
 
 const STATUS_LABELS: Record<RSVPStatus, string> = { coming: "✅ Coming", maybe: "❔ Maybe", decline: "❌ Declined", lurking: "👀 Lurking" };
 const shortWhen = (t: string | undefined) => !t ? "none" : displayWhen(t);
 
-// One line per change, plus who to ping: people whose RSVP or guests were changed are @mentioned;
+// One line per change, plus who to ping: people whose RSVP was changed are @mentioned;
 // everyone else is just named, so the rest of an edit doesn't ping anyone.
 function describeChanges(guild: Guild, a: Snapshot, b: Snapshot, invitedIds: string[]): { lines: string[]; ping: string[] } {
   const out: string[] = [];
@@ -107,10 +110,19 @@ function describeChanges(guild: Guild, a: Snapshot, b: Snapshot, invitedIds: str
     const prev = a.rsvps.get(id);
     if (!prev) continue;
     const name = `<@${id}>`;
-    if (prev.status !== after.status || prev.plusOne !== after.plusOne) ping.push(id);
-    if (prev.status !== after.status) out.push(`🙋 ${name}: ${STATUS_LABELS[prev.status]} → **${STATUS_LABELS[after.status]}**`);
-    if (prev.plusOne !== after.plusOne) out.push(`👥 ${name}: ${after.plusOne ? `bringing **${after.plusOne}** guest${after.plusOne > 1 ? "s" : ""}` : "**no guests**"}`);
+    if (prev.status === after.status) continue;
+    ping.push(id);
+    out.push(`🙋 ${name}: ${STATUS_LABELS[prev.status]} → **${STATUS_LABELS[after.status]}**`);
   }
+  for (const [id, after] of b.placeholders) {
+    const prev = a.placeholders.get(id);
+    if (!prev) out.push(`➕ Added ${after.name} (${STATUS_LABELS[after.status]})`);
+    else {
+      if (prev.name !== after.name) out.push(`✏️ Renamed ${prev.name} → **${after.name}**`);
+      if (prev.status !== after.status) out.push(`🙋 ${after.name}: ${STATUS_LABELS[prev.status]} → **${STATUS_LABELS[after.status]}**`);
+    }
+  }
+  for (const [id, prev] of a.placeholders) if (!b.placeholders.has(id)) out.push(`➖ Removed ${prev.name}`);
   if (invitedIds.length) out.push(`💌 Invited ${invitedIds.map(id => guild.members.cache.get(id)?.displayName ?? id).join(", ")}`);
   return { lines: out, ping };
 }
@@ -140,8 +152,9 @@ function eventForForm(guild: Guild, channelId: string, state: EventState) {
     members: [...state.members.values()].map(m => ({
       id: m.userId, name: guild.members.cache.get(m.userId)?.displayName ?? m.displayName,
       avatarUrl: guild.members.cache.get(m.userId)?.displayAvatarURL({ extension: "png", size: 64 }) ?? "",
-      status: m.status, plusOne: m.plusOne,
+      status: m.status,
     })),
+    placeholders: state.placeholders ?? [],
     invitedIds: state.invitedIds ?? [],
     discordUrl: `https://discord.com/channels/${guild.id}/${channelId}`,
   };
@@ -203,14 +216,28 @@ export function handleEventEditRoutes(req: IncomingMessage, res: ServerResponse)
       state.rsvpEnabled = b.rsvp === false ? false : undefined;
       state.joiningEnabled = b.joiningEnabled !== false;
 
-      // RSVPs set by the organiser: [{ id, status, plusOne }] for people already in the event.
+      // RSVPs set by the organiser: [{ id, status }] for people already in the event.
       if (state.rsvpEnabled !== false && Array.isArray(b.rsvps)) {
-        for (const r of b.rsvps as { id?: unknown; status?: unknown; plusOne?: unknown }[]) {
+        for (const r of b.rsvps as { id?: unknown; status?: unknown }[]) {
           const entry = typeof r?.id === "string" ? state.members.get(r.id) : undefined;
           if (!entry) continue;
           if (typeof r.status === "string" && RSVP_STATUSES.includes(r.status as RSVPStatus)) entry.status = r.status as RSVPStatus;
-          if (Number.isInteger(r.plusOne) && (r.plusOne as number) >= 0 && (r.plusOne as number) <= 5) entry.plusOne = r.plusOne as number;
         }
+      }
+
+      // Placeholder people (no Discord): the form sends the whole list, [{ id?, name, status }]; new ones get an ID here.
+      // Only while RSVPs are on, so turning RSVPs off and on again keeps them.
+      if (state.rsvpEnabled !== false && Array.isArray(b.placeholders)) {
+        const known = new Set((state.placeholders ?? []).map(p => p.id));
+        const list: PlaceholderPerson[] = [];
+        for (const p of (b.placeholders as { id?: unknown; name?: unknown; status?: unknown }[]).slice(0, 50)) {
+          const name = typeof p?.name === "string" ? p.name.trim().slice(0, 60) : "";
+          if (!name) continue;
+          const status = typeof p.status === "string" && RSVP_STATUSES.includes(p.status as RSVPStatus) ? p.status as RSVPStatus : "coming";
+          const id = typeof p.id === "string" && known.has(p.id) ? p.id : crypto.randomBytes(6).toString("hex");
+          list.push({ id, name, status });
+        }
+        state.placeholders = list.length ? list : undefined;
       }
 
       // People the organiser removed: out of the channel (quietly, the summary below says so) and its album.

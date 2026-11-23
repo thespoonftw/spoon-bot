@@ -4,12 +4,14 @@ export type MemberEntry = {
   userId: string;
   displayName: string;
   status: RSVPStatus;
-  plusOne: number;
 };
 
-export function makeMemberEntry(userId: string, displayName: string, status: RSVPStatus = "lurking", plusOne = 0): MemberEntry {
-  return { userId, displayName, status, plusOne };
+export function makeMemberEntry(userId: string, displayName: string, status: RSVPStatus = "lurking"): MemberEntry {
+  return { userId, displayName, status };
 }
+
+// Someone without a Discord account, added on the Edit Event page so the RSVP numbers add up.
+export type PlaceholderPerson = { id: string; name: string; status: RSVPStatus };
 
 export type EventState = {
   eventName: string;
@@ -30,6 +32,8 @@ export type EventState = {
   private?: boolean;
   // Discord IDs of everyone sent an invite DM (they can join a private event, and see it in their calendar feed).
   invitedIds?: string[];
+  // People without Discord, shown in the RSVP lists (only while RSVPs are on).
+  placeholders?: PlaceholderPerson[];
   members: Map<string, MemberEntry>;
 };
 

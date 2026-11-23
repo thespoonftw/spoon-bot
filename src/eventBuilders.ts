@@ -67,19 +67,14 @@ export function buildInnerEmbed(state: EventState, albumUrl?: string) {
   if (state.members.size > 0 && !rsvpOn(state)) {
     const ids = [...state.members.keys()];
     embed.addFields({ name: "​", value: `**👥 Joined (${ids.length})**\n${ids.map(id => `- <@${id}>`).join("\n")}` });
-  } else if (state.members.size > 0) {
+  } else if (rsvpOn(state) && (state.members.size > 0 || state.placeholders?.length)) {
+    // Each RSVP group lists Discord members (mentions) then placeholder people (plain names).
     const groups: Record<RSVPStatus, string[]> = { coming: [], maybe: [], decline: [], lurking: [] };
-    for (const m of state.members.values()) groups[m.status]?.push(m.userId);
+    for (const m of state.members.values()) groups[m.status]?.push(`- <@${m.userId}>`);
+    for (const p of state.placeholders ?? []) groups[p.status]?.push(`- ${p.name}`);
 
-    const formatGroup = (label: string, ids: string[]) => {
-      if (!ids.length) return null;
-      const total = ids.reduce((sum, id) => sum + 1 + (state.members.get(id)?.plusOne ?? 0), 0);
-      const lines = ids.map(id => {
-        const m = state.members.get(id);
-        return m?.plusOne ? `- <@${id}> +${m.plusOne}` : `- <@${id}>`;
-      });
-      return `**${label} (${total})**\n${lines.join("\n")}`;
-    };
+    const formatGroup = (label: string, lines: string[]) =>
+      lines.length ? `**${label} (${lines.length})**\n${lines.join("\n")}` : null;
 
     const sections = [
       formatGroup("✅ Coming", groups.coming),
@@ -114,7 +109,6 @@ export function pinMessageComponents(channelId: string, hasDate = false, rsvp = 
       new ButtonBuilder().setCustomId(`rsvp_maybe_${channelId}`).setLabel("❔ Maybe").setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId(`rsvp_decline_${channelId}`).setLabel("❌ Decline").setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId(`rsvp_lurking_${channelId}`).setLabel("👀 Lurking").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`plusone_${channelId}`).setLabel("👥 +1").setStyle(ButtonStyle.Secondary),
     )] : []),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`leave_event_${channelId}`).setLabel(LEAVE_LABEL).setStyle(ButtonStyle.Danger),

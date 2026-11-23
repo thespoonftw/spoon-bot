@@ -127,11 +127,11 @@
 
       <label class="new-event-check">
         <input v-model="rsvp" type="checkbox" />
-        <span>RSVP buttons <span class="new-event-optional">Coming / Maybe / Decline / Lurking and +1. Off: joining the channel is enough.</span></span>
+        <span>RSVP buttons <span class="new-event-optional">Coming / Maybe / Decline / Lurking. Off: joining the channel is enough.</span></span>
       </label>
 
-      <div v-if="ev && ev.members.length" class="form-group">
-        <label>People in the event <span class="new-event-optional">{{ rsvp ? "set anyone's RSVP and guests" : `${ev.members.length}` }}</span></label>
+      <div v-if="ev && (ev.members.length || rsvp)" class="form-group">
+        <label>People in the event <span class="new-event-optional">{{ rsvp ? "set anyone's RSVP, or add people who aren't on Discord" : `${ev.members.length}` }}</span></label>
         <div class="new-event-people">
           <div v-for="m in ev.members" :key="m.id" class="new-event-person" :class="{ removing: removing.has(m.id) }">
             <img v-if="m.avatarUrl" :src="m.avatarUrl" class="member-avatar" alt="" />
@@ -148,13 +148,28 @@
                 <option value="decline">❌ Declined</option>
                 <option value="lurking">👀 Lurking</option>
               </select>
-              <select v-model.number="rsvpEdits[m.id].plusOne" :aria-label="`${m.name}'s guests`" class="new-event-plus">
-                <option v-for="n in 6" :key="n" :value="n - 1">{{ n === 1 ? "No +1" : `+${n - 1}` }}</option>
-              </select>
             </template>
             <button v-if="!removing.has(m.id)" class="new-event-remove" :aria-label="`Remove ${m.name} from the event`"
               :title="`Remove ${m.name} from the event`" @click="toggleRemove(m.id)">✕</button>
           </div>
+          <template v-if="rsvp">
+            <div v-for="(p, i) in placeholders" :key="p.key" class="new-event-person">
+              <span class="member-avatar member-avatar-placeholder" title="Not on Discord">👤</span>
+              <input v-model="p.name" class="new-event-person-input" maxlength="60" :aria-label="`Name of person ${i + 1} not on Discord`" />
+              <select v-model="p.status" :aria-label="`${p.name}'s RSVP`">
+                <option value="coming">✅ Coming</option>
+                <option value="maybe">❔ Maybe</option>
+                <option value="decline">❌ Declined</option>
+                <option value="lurking">👀 Lurking</option>
+              </select>
+              <button class="new-event-remove" :aria-label="`Remove ${p.name}`" :title="`Remove ${p.name}`" @click="placeholders.splice(i, 1)">✕</button>
+            </div>
+            <div class="new-event-person new-event-add">
+              <input v-model="newPlaceholder" class="new-event-person-input" maxlength="60" placeholder="Add someone who isn't on Discord…"
+                @keydown.enter.prevent="addPlaceholder" />
+              <button class="new-event-inline" :disabled="!newPlaceholder.trim()" @click="addPlaceholder">+ Add</button>
+            </div>
+          </template>
         </div>
       </div>
       <div v-if="ev?.albumUrl" class="new-event-check new-event-album">
@@ -194,12 +209,23 @@ interface EventData {
   channelId: string; name: string; description: string; location: string;
   date: string; time: string; endDate: string; endTime: string; imageUrl: string;
   rsvp: boolean; private: boolean; joiningEnabled: boolean; albumUrl: string | null;
-  members: Member[]; invitedIds: string[]; discordUrl: string;
+  members: Member[]; placeholders: Placeholder[]; invitedIds: string[]; discordUrl: string;
 }
 type RsvpStatus = "coming" | "maybe" | "decline" | "lurking";
-interface Member { id: string; name: string; avatarUrl: string; status: RsvpStatus; plusOne: number }
-// The People list's RSVP and +1 pickers, by member ID; sent with Save.
-const rsvpEdits = ref<Record<string, { status: RsvpStatus; plusOne: number }>>({});
+interface Member { id: string; name: string; avatarUrl: string; status: RsvpStatus }
+interface Placeholder { id: string; name: string; status: RsvpStatus }
+// The People list's RSVP pickers, by member ID; sent with Save.
+const rsvpEdits = ref<Record<string, { status: RsvpStatus }>>({});
+// People without Discord, edited in place and sent as a whole list with Save (new ones have no id yet).
+const placeholders = ref<{ key: number; id?: string; name: string; status: RsvpStatus }[]>([]);
+const newPlaceholder = ref("");
+let placeholderKey = 0;
+function addPlaceholder() {
+  const name = newPlaceholder.value.trim();
+  if (!name) return;
+  placeholders.value.push({ key: ++placeholderKey, name, status: "coming" });
+  newPlaceholder.value = "";
+}
 // People marked with ✕ in the People list; they're taken out of the channel when the form is saved.
 const removing = ref(new Set<string>());
 function toggleRemove(id: string) {
@@ -316,7 +342,9 @@ function fill(data: EventData) {
   album.value = false;
   invited.value = [];
   removing.value = new Set();
-  rsvpEdits.value = Object.fromEntries(data.members.map(m => [m.id, { status: m.status, plusOne: m.plusOne }]));
+  rsvpEdits.value = Object.fromEntries(data.members.map(m => [m.id, { status: m.status }]));
+  placeholders.value = data.placeholders.map(p => ({ key: ++placeholderKey, ...p }));
+  newPlaceholder.value = "";
 }
 
 onMounted(async () => {
@@ -387,6 +415,7 @@ async function submit() {
         private: isPrivate.value, invites: isPrivate.value ? invited.value.map(p => p.id) : [], joiningEnabled: joiningEnabled.value,
         rsvps: Object.entries(rsvpEdits.value).filter(([id]) => !removing.value.has(id)).map(([id, r]) => ({ id, ...r })),
         remove: [...removing.value],
+        placeholders: placeholders.value.map(({ id, name, status }) => ({ id, name, status })),
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -454,7 +483,11 @@ function reset() {
 .new-event-person-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .new-event-person select { background: #1e1e2e; color: #cdd6f4; border: 1px solid #45475a; border-radius: 6px; padding: 4px 6px; font-size: 0.85rem; }
 .new-event-person select:focus { outline: none; border-color: #cba6f7; }
-.new-event-plus { width: 76px; }
+.new-event-person-input { flex: 1; min-width: 0; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 4px 6px; color: #cdd6f4; font: inherit; font-size: 0.95rem; }
+.new-event-person-input:hover { border-color: #45475a; }
+.new-event-person-input:focus { outline: none; border-color: #cba6f7; background: #1e1e2e; }
+.new-event-add { border-top: 1px solid #45475a; padding-top: 6px; margin-top: 2px; }
+.new-event-add .new-event-person-input { border-color: #45475a; background: #1e1e2e; }
 .new-event-person.removing .new-event-person-name { text-decoration: line-through; color: #6c7086; }
 .new-event-person.removing .member-avatar { opacity: 0.4; }
 .new-event-remove { background: none; border: none; color: #6c7086; cursor: pointer; padding: 4px 6px; border-radius: 6px; font-size: 0.9rem; }

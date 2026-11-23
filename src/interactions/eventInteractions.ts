@@ -4,15 +4,13 @@ import {
   ButtonStyle,
   ChannelType,
   ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
 } from "discord.js";
 import type { Guild, Interaction } from "discord.js";
 import { config } from "../config";
 import { eventStates, persistState } from "../state";
 import type { RSVPStatus } from "../types";
 import { makeMemberEntry } from "../types";
-import { updateJoinMessage, updateInnerMessage, updateEventMessages } from "../messageSync";
+import { updateInnerMessage, updateEventMessages } from "../messageSync";
 import { hasAlbum, getAlbumUrl, handleAlbumInteractions, startAlbumForChannel } from "../albums";
 import { handleGearMenuInteractions, buildEventModalComponents } from "./gearMenuInteractions";
 import { parseCreateDateText } from "../dateUtils";
@@ -151,54 +149,6 @@ export async function handleEventInteractions(interaction: Interaction, guild: G
     await interaction.deferUpdate();
     const result = await joinEvent(g, channelId, interaction.user, getDisplayName(interaction));
     if (result === "missing") await interaction.followUp({ content: "Event channel not found.", ephemeral: true });
-    return;
-  }
-
-  // +1 button — open modal
-  if (interaction.isButton() && interaction.customId.startsWith("plusone_")) {
-    const channelId = interaction.customId.slice("plusone_".length);
-    const state = eventStates.get(channelId);
-    const existing = state?.members.get(interaction.user.id);
-    const modal = new ModalBuilder().setCustomId(`plusone_modal_${channelId}`).setTitle("Bring guests?");
-    modal.addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder()
-          .setCustomId("plusone_count")
-          .setLabel("How many guests are you bringing? (0–5)")
-          .setStyle(TextInputStyle.Short)
-          .setRequired(true)
-          .setValue(existing?.plusOne ? `${existing.plusOne}` : "0")
-      )
-    );
-    await interaction.showModal(modal);
-    return;
-  }
-
-  // +1 modal submit
-  if (interaction.isModalSubmit() && interaction.customId.startsWith("plusone_modal_")) {
-    const channelId = interaction.customId.slice("plusone_modal_".length);
-    const raw = interaction.fields.getTextInputValue("plusone_count").trim();
-    const count = parseInt(raw);
-    if (isNaN(count) || count < 0 || count > 5) {
-      await interaction.reply({ ephemeral: true, content: "Please enter a number between 0 and 5." });
-      return;
-    }
-    const state = eventStates.get(channelId);
-    const g = interaction.guild;
-    if (!state || !g) return;
-
-    const existing = state.members.get(interaction.user.id);
-    if (existing) {
-      existing.plusOne = count;
-    } else {
-      const displayName = getDisplayName(interaction);
-      state.members.set(interaction.user.id, makeMemberEntry(interaction.user.id, displayName, "lurking", count));
-    }
-    persistState();
-    await interaction.deferReply({ ephemeral: true });
-    await updateInnerMessage(g, channelId);
-    await updateJoinMessage(g, channelId);
-    await interaction.editReply({ content: count === 0 ? "Your +1 has been removed." : `You're bringing ${count} guest${count > 1 ? "s" : ""}.` });
     return;
   }
 

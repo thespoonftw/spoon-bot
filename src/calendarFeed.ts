@@ -83,9 +83,9 @@ const VTIMEZONE = [
 ];
 
 function attendeeList(state: EventState, status: RSVPStatus): string {
-  return [...state.members.values()]
+  return [...state.members.values(), ...(state.rsvpEnabled !== false ? state.placeholders ?? [] : [])]
     .filter(m => m.status === status)
-    .map(m => m.plusOne > 0 ? `${m.displayName} (+${m.plusOne})` : m.displayName)
+    .map(m => "displayName" in m ? m.displayName : m.name)
     .join(", ");
 }
 
