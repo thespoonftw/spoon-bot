@@ -49,8 +49,8 @@ function buildEventEmbedBase(state: EventState): EmbedBuilder {
 
 export const rsvpOn = (state: EventState) => state.rsvpEnabled !== false;
 
-// The text above the pinned card inside the event channel.
-export const pinMessageContent = (state: EventState) => rsvpOn(state) ? "Click here to RSVP!" : "";
+// The text above the pinned card inside the event channel: none, just the card. Edits send "" so older cards lose their old "Click here to RSVP!" line.
+export const pinMessageContent = (_state: EventState) => "";
 
 export function buildJoinEmbed(state: EventState) {
   const embed = buildEventEmbedBase(state);
