@@ -36,7 +36,7 @@ function leaverName(interaction: Interaction): string {
   return (member && "displayName" in member ? member.displayName : null) ?? interaction.user.displayName;
 }
 
-async function leaveEvent(g: Guild, channelId: string, userId: string, displayName: string, silent: boolean) {
+export async function leaveEvent(g: Guild, channelId: string, userId: string, displayName: string, silent: boolean) {
   const channel = g.channels.cache.get(channelId);
   if (!channel || channel.type !== ChannelType.GuildText) return;
   await channel.permissionOverwrites.delete(userId);

@@ -133,11 +133,15 @@
       <div v-if="ev && ev.members.length" class="form-group">
         <label>People in the event <span class="new-event-optional">{{ rsvp ? "set anyone's RSVP and guests" : `${ev.members.length}` }}</span></label>
         <div class="new-event-people">
-          <div v-for="m in ev.members" :key="m.id" class="new-event-person">
+          <div v-for="m in ev.members" :key="m.id" class="new-event-person" :class="{ removing: removing.has(m.id) }">
             <img v-if="m.avatarUrl" :src="m.avatarUrl" class="member-avatar" alt="" />
             <span v-else class="member-avatar member-avatar-placeholder">{{ m.name.charAt(0) }}</span>
             <span class="new-event-person-name">{{ m.name }}</span>
-            <template v-if="rsvp && rsvpEdits[m.id]">
+            <template v-if="removing.has(m.id)">
+              <span class="new-event-optional">removed when you save</span>
+              <button class="new-event-inline" @click="toggleRemove(m.id)">Undo</button>
+            </template>
+            <template v-else-if="rsvp && rsvpEdits[m.id]">
               <select v-model="rsvpEdits[m.id].status" :aria-label="`${m.name}'s RSVP`">
                 <option value="coming">✅ Coming</option>
                 <option value="maybe">❔ Maybe</option>
@@ -148,6 +152,8 @@
                 <option v-for="n in 6" :key="n" :value="n - 1">{{ n === 1 ? "No +1" : `+${n - 1}` }}</option>
               </select>
             </template>
+            <button v-if="!removing.has(m.id)" class="new-event-remove" :aria-label="`Remove ${m.name} from the event`"
+              :title="`Remove ${m.name} from the event`" @click="toggleRemove(m.id)">✕</button>
           </div>
         </div>
       </div>
@@ -194,6 +200,13 @@ type RsvpStatus = "coming" | "maybe" | "decline" | "lurking";
 interface Member { id: string; name: string; avatarUrl: string; status: RsvpStatus; plusOne: number }
 // The People list's RSVP and +1 pickers, by member ID; sent with Save.
 const rsvpEdits = ref<Record<string, { status: RsvpStatus; plusOne: number }>>({});
+// People marked with ✕ in the People list; they're taken out of the channel when the form is saved.
+const removing = ref(new Set<string>());
+function toggleRemove(id: string) {
+  const next = new Set(removing.value);
+  if (next.has(id)) next.delete(id); else next.add(id);
+  removing.value = next;
+}
 
 const route = useRoute();
 const channelId = typeof route.params.channelId === "string" ? route.params.channelId : "";
@@ -302,6 +315,7 @@ function fill(data: EventData) {
   joiningEnabled.value = data.joiningEnabled;
   album.value = false;
   invited.value = [];
+  removing.value = new Set();
   rsvpEdits.value = Object.fromEntries(data.members.map(m => [m.id, { status: m.status, plusOne: m.plusOne }]));
 }
 
@@ -371,7 +385,8 @@ async function submit() {
         endDate: hasEnd.value ? f.endDate : "", endTime: hasEnd.value ? f.endTime : "",
         imageUrl: imageUrl.value, rsvp: rsvp.value, album: album.value,
         private: isPrivate.value, invites: isPrivate.value ? invited.value.map(p => p.id) : [], joiningEnabled: joiningEnabled.value,
-        rsvps: Object.entries(rsvpEdits.value).map(([id, r]) => ({ id, ...r })),
+        rsvps: Object.entries(rsvpEdits.value).filter(([id]) => !removing.value.has(id)).map(([id, r]) => ({ id, ...r })),
+        remove: [...removing.value],
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -440,6 +455,10 @@ function reset() {
 .new-event-person select { background: #1e1e2e; color: #cdd6f4; border: 1px solid #45475a; border-radius: 6px; padding: 4px 6px; font-size: 0.85rem; }
 .new-event-person select:focus { outline: none; border-color: #cba6f7; }
 .new-event-plus { width: 76px; }
+.new-event-person.removing .new-event-person-name { text-decoration: line-through; color: #6c7086; }
+.new-event-person.removing .member-avatar { opacity: 0.4; }
+.new-event-remove { background: none; border: none; color: #6c7086; cursor: pointer; padding: 4px 6px; border-radius: 6px; font-size: 0.9rem; }
+.new-event-remove:hover { color: #f38ba8; background: #45475a; }
 .new-event-album { cursor: default; }
 .new-event-inline { background: none; border: none; padding: 0; color: #89b4fa; cursor: pointer; font: inherit; text-decoration: none; }
 .new-event-inline.danger { color: #f38ba8; }

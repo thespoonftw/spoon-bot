@@ -86,6 +86,11 @@ export async function handleInviteInteraction(interaction: Interaction): Promise
     await interaction.update({ content: "This event no longer exists.", components: [] });
     return true;
   }
+  const state = eventStates.get(channelId)!;
+  if (state.private && !state.invitedIds?.includes(interaction.user.id) && !state.members.has(interaction.user.id)) {
+    await interaction.update({ content: "This invite has been withdrawn.", components: [] });
+    return true;
+  }
   await interaction.deferUpdate();
   const result = await joinEvent(guild, channelId, interaction.user, member.displayName);
   const link = `https://discord.com/channels/${guild.id}/${channelId}`;

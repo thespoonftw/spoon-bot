@@ -12,12 +12,12 @@ export const LEAVE_LABEL = "⠀".repeat(11) + "Leave" + "⠀".repeat(12);
 export const HALF_JOIN_LABEL = "⠀".repeat(4) + "Join" + "⠀".repeat(4);
 export const HALF_LEAVE_LABEL = "⠀".repeat(3) + "Leave" + "⠀".repeat(3);
 
+// Dates are stored as "Sat 5 December 2026, All Day" when there's no time; shown as just the date.
+export const displayWhen = (dateText: string) => dateText.endsWith(", All Day") ? dateText.slice(0, -", All Day".length) : dateText;
+
 export function buildDescText(description: string, location: string, dateText: string, endDateText?: string): string {
   const parts: string[] = [];
-  let startDisplay = dateText;
-  if (endDateText && dateText.endsWith(", All Day")) {
-    startDisplay = dateText.slice(0, dateText.lastIndexOf(", All Day"));
-  }
+  const startDisplay = displayWhen(dateText);
   if (description) {
     parts.push(description);
     parts.push(`\n📅 **${endDateText ? "From" : "When"}:** ${startDisplay}`);
@@ -25,7 +25,7 @@ export function buildDescText(description: string, location: string, dateText: s
     parts.push(`📅 **${endDateText ? "From" : "When"}:** ${startDisplay}`);
   }
   if (endDateText) {
-    parts.push(`\n🏁 **To:** ${endDateText}`);
+    parts.push(`\n🏁 **To:** ${displayWhen(endDateText)}`);
   }
   parts.push(`\n📍 **Where:** ${location}`);
   parts.push(`\n${SPACER}`);

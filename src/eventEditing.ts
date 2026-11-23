@@ -8,7 +8,8 @@ import { eventStates, persistState } from "./state";
 import type { EventState, RSVPStatus } from "./types";
 
 const RSVP_STATUSES: RSVPStatus[] = ["coming", "maybe", "decline", "lurking"];
-import { buildJoinContent, buildJoinEmbed, joinMessageComponents } from "./eventBuilders";
+import { buildJoinContent, buildJoinEmbed, joinMessageComponents, displayWhen } from "./eventBuilders";
+import { leaveEvent } from "./interactions/leaveInteractions";
 import { updateEventMessages } from "./messageSync";
 import { hasAlbum, getAlbumUrl, startAlbumForChannel } from "./albums";
 import { dbDeleteAlbum, dbGetUserById } from "./db";
@@ -82,7 +83,7 @@ function snapshot(channelId: string, state: EventState): Snapshot {
 }
 
 const STATUS_LABELS: Record<RSVPStatus, string> = { coming: "✅ Coming", maybe: "❔ Maybe", decline: "❌ Declined", lurking: "👀 Lurking" };
-const shortWhen = (t: string | undefined) => !t ? "none" : t.endsWith(", All Day") ? t.slice(0, -", All Day".length) + " (all day)" : t;
+const shortWhen = (t: string | undefined) => !t ? "none" : displayWhen(t);
 
 // One line per change, plus who to ping: people whose RSVP or guests were changed are @mentioned;
 // everyone else is just named, so the rest of an edit doesn't ping anyone.
@@ -212,6 +213,19 @@ export function handleEventEditRoutes(req: IncomingMessage, res: ServerResponse)
         }
       }
 
+      // People the organiser removed: out of the channel (quietly, the summary below says so) and its album.
+      // Dropping them from the invite list also stops an old invite DM letting them back into a private event.
+      const removedNames: string[] = [];
+      if (Array.isArray(b.remove)) {
+        for (const id of new Set(b.remove as unknown[])) {
+          const entry = typeof id === "string" ? state.members.get(id) : undefined;
+          if (!entry) continue;
+          removedNames.push(guild.members.cache.get(entry.userId)?.displayName ?? entry.displayName);
+          await leaveEvent(guild, channelId, entry.userId, entry.displayName, true);
+          state.invitedIds = state.invitedIds?.filter(i => i !== entry.userId);
+        }
+      }
+
       const makePrivate = b.private === true;
       if (makePrivate && !state.private) await removeJoinCard(guild, state);
       if (!makePrivate && state.private) { state.private = undefined; await postJoinCard(guild, channelId, state); }
@@ -234,6 +248,7 @@ export function handleEventEditRoutes(req: IncomingMessage, res: ServerResponse)
 
       const sentTo = invites.filter(id => id !== member.id && !failed.includes(id));
       const changes = describeChanges(guild, before, snapshot(channelId, state), sentTo);
+      if (removedNames.length) changes.lines.push(`🚪 Removed ${removedNames.join(", ")}`);
       if (changes.lines.length) {
         await postToEvent(guild, channelId, `✏️ **${member.displayName}** updated the event:\n${changes.lines.map(c => `- ${c}`).join("\n")}`, changes.ping);
       }
