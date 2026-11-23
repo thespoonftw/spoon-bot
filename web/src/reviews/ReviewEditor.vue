@@ -101,9 +101,9 @@
       </div>
 
       <div class="rv-field">
-        <label class="rv-label" for="rv-summary">Summary</label>
+        <label class="rv-label" for="rv-summary">Summary <span class="rv-label-note">Optional</span></label>
         <!-- No maxlength: an older summary may already be longer, and needs to show so it can be trimmed. -->
-        <textarea id="rv-summary" v-model="draft.summary" class="rv-textarea" rows="3" placeholder="The short version — a line or two."></textarea>
+        <textarea id="rv-summary" v-model="draft.summary" class="rv-textarea" rows="3" :placeholder="hasSpoilers(selectedType?.name ?? '') ? 'The short version — a line or two. Save spoilers for the full review.' : 'The short version — a line or two.'"></textarea>
         <span class="rv-hint" :class="{ 'rv-hint--over': summaryLength > SUMMARY_MAX }">{{ summaryLength }}/{{ SUMMARY_MAX }}</span>
       </div>
 
@@ -186,7 +186,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { clearReviewCache, PROGRESS_OPTIONS, hasProgress, hasYear, usesBgg, findBggGameByLink, SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, findAlbumByLink, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
+import { clearReviewCache, PROGRESS_OPTIONS, hasProgress, hasSpoilers, hasYear, usesBgg, findBggGameByLink, SOURCE_NAMES, COMMON_PLATFORMS, searchMatches, findAlbumByLink, fetchTvmazeSeasons, typeExtra, fetchMatchDetails, matchSource, creatorLabel, fetchReviewTypes, type ReviewDraft, type ReviewType, type MatchCandidate, type MatchSource, type SeasonOption } from "./api";
 import StarRating from "./StarRating.vue";
 import RichTextEditor from "./RichTextEditor.vue";
 import ReviewCover from "./ReviewCover.vue";

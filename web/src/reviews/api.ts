@@ -211,6 +211,10 @@ export interface MatchDetails { creator: string | null; year: number | null; pla
 // The optional extra detail some types have: which season of a series, which platform a game was
 // played on, or where a drink or meal was had.
 export type TypeExtra = "season" | "platform" | "location";
+// Story-driven types, where the summary (shown on cards and in Discord) should stay spoiler-free.
+const SPOILER_TYPES = new Set(["film", "book", "series", "video game"]);
+export const hasSpoilers = (typeName: string) => SPOILER_TYPES.has(typeName.trim().toLowerCase());
+
 export function typeExtra(typeName: string): TypeExtra | null {
   const key = typeName.trim().toLowerCase();
   return key === "series" ? "season" : key === "video game" ? "platform" : key === "drink" || key === "food" ? "location" : null;
