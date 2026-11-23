@@ -8,9 +8,10 @@
     <template v-else-if="links">
       <p class="subtitle">These are subscriptions, so if an event's date or details change, your calendar updates too.</p>
       <div v-if="onPhone" class="cal-phone">
-        📱 <strong>Using Google Calendar?</strong> Google only lets you add subscriptions on a computer. Open this page at
-        calendar.google.com on a computer (or <button class="cal-reset cal-inline" @click="copy('page', pageUrl)">{{ copied === "page" ? "copied ✓" : "copy this page's link" }}</button>
-        to send to yourself) and click Google there; it'll then show on your phone too. Apple and Outlook work fine from here.
+        📱 <strong>Using Google Calendar?</strong> The Google Calendar app can't add subscriptions, only Google Calendar's website can.
+        On your phone, turn on <strong>Desktop site</strong> in your browser's menu (⋮ in Chrome) and then tap Google, or open this page on a computer
+        (<button class="cal-reset cal-inline" @click="copy('page', pageUrl)">{{ copied === "page" ? "copied ✓" : "copy its link" }}</button>).
+        Once added, it shows in the app too. Apple and Outlook work fine from here.
       </div>
 
       <section v-for="opt in options" :key="opt.key" class="cal-option">
