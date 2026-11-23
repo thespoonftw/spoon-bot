@@ -25,12 +25,12 @@ export function buildDescText(description: string, location: string, dateText: s
   const calLink = calendarUrl && dateText !== "TBC" ? ` · [Add to calendar](${calendarUrl})` : "";
   if (description) {
     parts.push(description);
-    parts.push(`\n📅 **${endDateText ? "From" : "When"}:** ${startDisplay}${endDateText ? "" : calLink}`);
+    parts.push(`\n📅 **${endDateText ? "From" : "When"}:** ${startDisplay}${calLink}`);
   } else {
-    parts.push(`📅 **${endDateText ? "From" : "When"}:** ${startDisplay}${endDateText ? "" : calLink}`);
+    parts.push(`📅 **${endDateText ? "From" : "When"}:** ${startDisplay}${calLink}`);
   }
   if (endDateText) {
-    parts.push(`\n🏁 **To:** ${displayWhen(endDateText)}${calLink}`);
+    parts.push(`\n🏁 **To:** ${displayWhen(endDateText)}`);
   }
   parts.push(`\n📍 **Where:** ${location}`);
   parts.push(`\n${SPACER}`);
