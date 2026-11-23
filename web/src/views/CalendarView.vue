@@ -7,6 +7,11 @@
     <div v-else-if="error" class="error">{{ error }}</div>
     <template v-else-if="links">
       <p class="subtitle">These are subscriptions, so if an event's date or details change, your calendar updates too.</p>
+      <div v-if="onPhone" class="cal-phone">
+        📱 <strong>Using Google Calendar?</strong> Google only lets you add subscriptions on a computer. Open this page at
+        calendar.google.com on a computer (or <button class="cal-reset cal-inline" @click="copy('page', pageUrl)">{{ copied === "page" ? "copied ✓" : "copy this page's link" }}</button>
+        to send to yourself) and click Google there; it'll then show on your phone too. Apple and Outlook work fine from here.
+      </div>
 
       <section v-for="opt in options" :key="opt.key" class="cal-option">
         <h2>{{ opt.title }}</h2>
@@ -46,6 +51,9 @@ const loading = ref(true);
 const error = ref("");
 const copied = ref("");
 const resetting = ref(false);
+// Google Calendar can't subscribe to a URL from its phone app or mobile site, so phones get told to use a computer.
+const onPhone = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+const pageUrl = location.href;
 
 const options = computed(() => {
   const l = links.value;
@@ -104,4 +112,6 @@ async function reset() {
 .cal-note { color: #7f849c; font-size: 0.85em; line-height: 1.5; margin-top: 12px; }
 .cal-reset { background: none; border: none; padding: 0; color: #f38ba8; font: inherit; cursor: pointer; text-decoration: underline; }
 .cal-reset:disabled { opacity: 0.5; cursor: default; }
+.cal-inline { color: #89b4fa; }
+.cal-phone { background: #313244; border-left: 3px solid #f9e2af; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; color: #cdd6f4; font-size: 0.9em; line-height: 1.5; }
 </style>
