@@ -31,6 +31,7 @@ import { hasPresenceIntent, startSnekTracking, countSnekMessage } from "./snekMe
 import { startSmartSearch } from "./smartSearch";
 import { startFaceScan } from "./faces";
 import { handleCustomiseInteractions, sweepIconRoles } from "./customise";
+import { handleManualChannelAdds } from "./manualAdds";
 
 dotenv.config();
 
@@ -211,6 +212,10 @@ client.on(Events.MessageCreate, async (message: Message) => {
       message.channel.send(woof + punct);
     }
   }
+});
+
+client.on(Events.ChannelUpdate, (oldChannel, newChannel) => {
+  handleManualChannelAdds(oldChannel, newChannel).catch(e => console.error("Manual channel add failed:", e));
 });
 
 client.on(Events.GuildMemberRemove, (member) => {
